@@ -13,15 +13,18 @@ ACTIVITY := $(PKG)/com.her.MainActivity
 
 help:
 	@echo "make emulate  - boot the her AVD, install the debug APK, launch the app"
-	@echo "make apk      - assemble the debug APK"
+	@echo "make apk      - assemble the debug APK (always rebuilds)"
 	@echo "make stop     - stop the running emulator"
 
 apk:
 	source "$(ROOT)/scripts/env.sh"
 	"$(ROOT)/gradlew" assembleDebug
 
-emulate: apk
+emulate:
 	source "$(ROOT)/scripts/env.sh"
+	if [[ ! -f "$(APK)" ]]; then
+		"$(ROOT)/gradlew" assembleDebug
+	fi
 	if ! adb devices | grep -qE 'emulator-[0-9]+[[:space:]]+device'; then
 		emulator -avd "$(AVD)" -gpu swiftshader_indirect -accel on -no-audio &
 		adb wait-for-device
