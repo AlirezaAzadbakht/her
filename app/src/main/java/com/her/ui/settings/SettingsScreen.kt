@@ -59,8 +59,7 @@ fun SettingsScreen(vm: HerViewModel) {
             QuietField("Model", model) { model = it }
             Row {
                 TextButton(onClick = {
-                    vm.saveLlm(LlmSettings(base, key, model))
-                    vm.testConnection()
+                    vm.saveAndTest(LlmSettings(base, key, model))
                 }) { Text("Save & test") }
             }
             connection?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }

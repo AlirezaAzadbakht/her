@@ -45,7 +45,9 @@ enum class Dest { Her, Memory, Settings }
 @Composable
 fun HerApp(vm: HerViewModel) {
     val settings by vm.settings.collectAsState()
-    val configured = vm.llmSettings().isConfigured || settings.apiConfiguredOnce
+    val connectionMessage by vm.connectionMessage.collectAsState()
+    val checkingConnection by vm.checkingConnection.collectAsState()
+    val configured = settings.apiConfiguredOnce
     var dest by rememberSaveable { mutableStateOf(Dest.Her) }
 
     LaunchedEffect(settings.memoryTabEnabled) {
@@ -61,42 +63,39 @@ fun HerApp(vm: HerViewModel) {
         if (!configured) {
             SetupScreen(
                 initial = vm.llmSettings(),
-                message = vm.connectionMessage.value,
-                onSave = { next: LlmSettings ->
-                    vm.saveLlm(next)
-                    vm.testConnection()
-                },
+                message = connectionMessage,
+                checking = checkingConnection,
+                onSave = { next: LlmSettings -> vm.saveAndTest(next) },
             )
-            return
-        }
+        } else {
+            val tabs = buildList {
+                add(Dest.Her)
+                if (settings.memoryTabEnabled) add(Dest.Memory)
+                add(Dest.Settings)
+            }
 
-        val tabs = buildList {
-            add(Dest.Her)
-            if (settings.memoryTabEnabled) add(Dest.Memory)
-            add(Dest.Settings)
-        }
-
-        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-        Column(Modifier.fillMaxSize().imePadding()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            ) {
-                AnimatedContent(
-                    targetState = dest,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "dest",
-                ) { current ->
-                    when (current) {
-                        Dest.Her -> HerScreen(vm)
-                        Dest.Memory -> SqlNavigatorScreen(vm)
-                        Dest.Settings -> SettingsScreen(vm)
+            val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            Column(Modifier.fillMaxSize().imePadding()) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                ) {
+                    AnimatedContent(
+                        targetState = dest,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "dest",
+                    ) { current ->
+                        when (current) {
+                            Dest.Her -> HerScreen(vm)
+                            Dest.Memory -> SqlNavigatorScreen(vm)
+                            Dest.Settings -> SettingsScreen(vm)
+                        }
                     }
                 }
-            }
-            if (!imeVisible) {
-                BottomNav(dest, tabs) { dest = it }
+                if (!imeVisible) {
+                    BottomNav(dest, tabs) { dest = it }
+                }
             }
         }
     }

@@ -31,6 +31,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     val sendError = MutableStateFlow<String?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
+    val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
 
@@ -53,6 +54,33 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveLlm(settings: LlmSettings) {
         graph.secure.write(settings)
+    }
+
+    fun saveAndTest(settings: LlmSettings) {
+        if (checkingConnection.value) return
+        checkingConnection.value = true
+        connectionMessage.value = "Checking…"
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    graph.secure.write(settings)
+                    graph.llm.ping(graph.secure.read())
+                }
+            }
+            result.fold(
+                onSuccess = {
+                    graph.settings.update { s -> s.copy(apiConfiguredOnce = true) }
+                    runCatching {
+                        withContext(Dispatchers.IO) { graph.orchestrator.seedOnboardingIfNeeded() }
+                    }
+                    connectionMessage.value = "Connected."
+                },
+                onFailure = {
+                    connectionMessage.value = redactSecrets(it.message ?: "Could not connect")
+                },
+            )
+            checkingConnection.value = false
+        }
     }
 
     fun send(text: String) {
@@ -81,20 +109,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun testConnection() {
-        connectionMessage.value = "Checking…"
-        viewModelScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) { graph.llm.ping(graph.secure.read()) }
-            }
-            connectionMessage.value = result.fold(
-                onSuccess = {
-                    graph.settings.update { s -> s.copy(apiConfiguredOnce = true) }
-                    graph.orchestrator.seedOnboardingIfNeeded()
-                    "Connected."
-                },
-                onFailure = { redactSecrets(it.message ?: "Could not connect") },
-            )
-        }
+        saveAndTest(graph.secure.read())
     }
 
     fun updateSettings(transform: (com.her.data.secure.AppSettings) -> com.her.data.secure.AppSettings) {

@@ -6,9 +6,9 @@ The Memory tab is an experimental read-only SQL navigator. It defaults on (`memo
 
 ## First run
 
-1. `HerApp` shows `SetupScreen` until LLM settings are configured **or** `apiConfiguredOnce` is true.
+1. `HerApp` shows `SetupScreen` until `apiConfiguredOnce` is true.
 2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
-3. `testConnection()` calls `LlmClient.ping()` (a tiny chat request that should return `ok`).
+3. `saveAndTest()` writes the credentials, then `LlmClient.ping()` (a short chat request, ~35s timeout) on a background thread. The button shows **Checking…**.
 4. On success: `apiConfiguredOnce = true` and `seedOnboardingIfNeeded()`:
    - Assistant: *“Hi. Before we really start, what should I call you?”*
    - Agent queue item: learn the name, then timezone and what matters — slowly, not as an interview.

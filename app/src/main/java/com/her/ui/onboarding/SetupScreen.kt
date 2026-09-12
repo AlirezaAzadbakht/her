@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,6 +31,7 @@ import com.her.ui.theme.ConversationStyle
 fun SetupScreen(
     initial: LlmSettings,
     message: String?,
+    checking: Boolean = false,
     onSave: (LlmSettings) -> Unit,
 ) {
     var base by remember { mutableStateOf(initial.baseUrl) }
@@ -39,6 +41,7 @@ fun SetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding()
             .padding(horizontal = 28.dp, vertical = 48.dp),
     ) {
         Text("Hi.", style = ConversationStyle, color = MaterialTheme.colorScheme.onBackground)
@@ -53,8 +56,11 @@ fun SetupScreen(
         QuietField("API key", key, secret = true) { key = it }
         QuietField("Model", model) { model = it }
         Spacer(Modifier.height(20.dp))
-        TextButton(onClick = { onSave(LlmSettings(base, key, model)) }) {
-            Text("Continue", color = MaterialTheme.colorScheme.primary)
+        TextButton(
+            onClick = { onSave(LlmSettings(base, key, model)) },
+            enabled = !checking && base.isNotBlank() && key.isNotBlank() && model.isNotBlank(),
+        ) {
+            Text(if (checking) "Checking…" else "Continue", color = MaterialTheme.colorScheme.primary)
         }
         message?.let {
             Spacer(Modifier.height(12.dp))

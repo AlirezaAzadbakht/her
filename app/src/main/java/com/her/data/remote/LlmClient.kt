@@ -25,13 +25,14 @@ open class LlmClient(
         settings: LlmSettings,
         messages: List<LlmMessage>,
         tools: List<ToolSpec> = emptyList(),
+        client: OkHttpClient = http,
     ): LlmResponse {
         if (!settings.isConfigured) {
             throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
         }
         val request = request(settings, messages, tools, stream = false)
         val started = System.currentTimeMillis()
-        http.newCall(request).execute().use { response ->
+        client.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()
             val latency = System.currentTimeMillis() - started
             if (!response.isSuccessful) {
@@ -92,9 +93,16 @@ open class LlmClient(
     }
 
     suspend fun ping(settings: LlmSettings): String {
+        val pingClient = http.newBuilder()
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(35, TimeUnit.SECONDS)
+            .build()
         val result = complete(
             settings = settings,
             messages = listOf(LlmMessage(role = "user", content = "Reply with the single word ok.")),
+            client = pingClient,
         )
         return result.message.content?.trim().orEmpty().ifBlank { "ok" }
     }
