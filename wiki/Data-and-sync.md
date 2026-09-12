@@ -49,7 +49,7 @@ Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
 
 ## Calendar
 
-`CalendarDataSource` reads/writes the Android system calendar when permissions are granted. Tools also keep Room rows (`INTERNAL` or `SYSTEM`). Google Calendar scope on the OAuth client is **readonly**.
+`CalendarDataSource` reads/writes the Android system calendar when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable ids. Google Calendar scope on the OAuth client is still **readonly** — a Google-synced device calendar is how events can appear in Google Calendar.
 
 ## Web search
 

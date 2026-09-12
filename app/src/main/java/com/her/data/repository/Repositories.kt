@@ -256,6 +256,7 @@ class HerRepository(
 
     suspend fun calendarInRange(from: Long, to: Long) = db.calendarDao().inRange(from, to).map { it.toDomain() }
     suspend fun getCalendarEvent(id: String) = db.calendarDao().get(id)?.toDomain()
+    suspend fun getCalendarByExternalId(externalId: String) = db.calendarDao().getByExternalId(externalId)?.toDomain()
     suspend fun saveCalendarEvent(item: CalendarEvent) {
         db.calendarDao().upsert(item.toEntity())
         enqueue("calendar_events", item.id, SyncOpType.UPSERT, item.toJson())

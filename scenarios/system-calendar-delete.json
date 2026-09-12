@@ -3,7 +3,6 @@
   "title": "Deleting a device-calendar event removes it after confirmation",
   "tags": ["calendar", "system-calendar"],
   "attempts": 2,
-  "pending": true,
   "settings": { "calendarEnabled": true, "chatToolCallLimit": 12 },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },

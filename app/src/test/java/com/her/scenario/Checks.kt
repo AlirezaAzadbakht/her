@@ -12,6 +12,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import org.json.JSONObject
 
 data class CheckResult(
     val name: String,
@@ -54,7 +55,9 @@ object Checks {
             )
         }
         if (expect.noToolErrors) {
-            val failed = toolCalls.filter { !it.ok }
+            val failed = toolCalls.filter { call ->
+                !call.ok && !JSONObject(call.payloadJson).optBoolean("needsConfirmation", false)
+            }
             results += CheckResult(
                 name = "no_tool_errors",
                 passed = failed.isEmpty(),

@@ -705,6 +705,9 @@ interface CalendarDao {
     @Query("SELECT * FROM calendar_events WHERE id = :id LIMIT 1")
     suspend fun get(id: String): CalendarEventEntity?
 
+    @Query("SELECT * FROM calendar_events WHERE externalId = :externalId ORDER BY CASE WHEN deletedAt IS NULL THEN 0 ELSE 1 END ASC LIMIT 1")
+    suspend fun getByExternalId(externalId: String): CalendarEventEntity?
+
     @Query("SELECT * FROM calendar_events WHERE deletedAt IS NULL AND startAt >= :from AND startAt <= :to ORDER BY startAt ASC")
     suspend fun inRange(from: Long, to: Long): List<CalendarEventEntity>
 

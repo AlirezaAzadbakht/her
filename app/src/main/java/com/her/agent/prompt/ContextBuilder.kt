@@ -2,6 +2,8 @@ package com.her.agent.prompt
 
 import com.her.core.formatNaturalDate
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.SystemCalendar
+import com.her.domain.CalendarSource
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.MemoryRanker
 import com.her.data.secure.AppSettingsStore
@@ -28,6 +30,7 @@ class ContextBuilder(
     private val settings: AppSettingsStore,
     private val calendar: CalendarDataSource,
     private val extraSystem: String? = null,
+    private val systemCalendar: SystemCalendar = SystemCalendar(repo, calendar, settings),
 ) {
     suspend fun build(latestUserText: String? = null, recentLimit: Int = 24): BuiltContext {
         val profile = repo.getProfile()
@@ -51,12 +54,8 @@ class ContextBuilder(
         val state = repo.agentState().take(12)
         val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
         val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
-        val internalCal = repo.calendarInRange(from, to)
-        val systemCal = if (settings.read().calendarEnabled && calendar.hasPermission()) {
-            calendar.eventsBetween(from, to).getOrDefault(emptyList())
-        } else {
-            emptyList()
-        }
+        val systemCal = systemCalendar.mirror(from, to)
+        val internalCal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
 
         val bundle = buildString {
             appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")

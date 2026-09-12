@@ -16,6 +16,7 @@ import com.her.core.optStringOrNull
 import com.her.core.parseEnum
 import com.her.core.requiredString
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.SystemCalendar
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.repository.toJson
@@ -70,6 +71,7 @@ open class ToolRegistry(
     private val onUserMessage: suspend (String) -> Unit = {},
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
+    private val systemCalendar = SystemCalendar(repo, calendar, settings)
 
     init {
         registerAll()
@@ -648,26 +650,26 @@ open class ToolRegistry(
     }
 
     private fun calendarTools() {
-        register("get_calendar_events", "Read upcoming internal and, if permitted, system calendar events.", objSchema("days" to num())) { args ->
+        register(
+            "get_calendar_events",
+            "Read upcoming internal and device calendar events. Device events are mirrored with stable ids.",
+            objSchema("days" to num()),
+        ) { args ->
             val days = args.optInt("days", 7).toLong()
-            val from = nowMillis()
-            val to = from + days * 24 * 60 * 60 * 1000
-            val internal = repo.calendarInRange(from, to)
-            val system = if (settings.read().calendarEnabled && calendar.hasPermission()) {
-                calendar.eventsBetween(from, to).getOrDefault(emptyList())
-            } else {
-                emptyList()
-            }
+            val (from, to) = calendarWindow(days)
+            val system = systemCalendar.mirror(from, to)
+            val internal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
             jsonObjectOf(
                 "ok" to true,
                 "calendarPermission" to calendar.hasPermission(),
+                "calendarEnabled" to settings.read().calendarEnabled,
                 "internal" to JSONArray(internal.map { JSONObject(it.toJson()) }),
                 "system" to JSONArray(system.map { JSONObject(it.toJson()) }),
             )
         }
         register(
             "create_calendar_event",
-            "Create an internal reminder/event. Also writes to the system calendar when permission exists.",
+            "Create an event. Writes the device calendar when calendar access is on, and always keeps an internal copy.",
             objSchema(
                 "title" to str(),
                 "when" to str("ISO-8601, epoch millis, Jalali, or a natural phrase such as 'next Tuesday at 10am'"),
@@ -676,20 +678,24 @@ open class ToolRegistry(
             ),
         ) { args ->
             val start = parseWhen(args.requiredString("when")) ?: throw ToolValidationException("Could not understand the time")
+            val end = start + HOUR_MS
             val now = nowMillis()
             val id = newId()
-            var externalId: String? = null
-            if (calendar.hasPermission()) {
-                externalId = calendar.createEvent(args.requiredString("title"), start, start + 60 * 60 * 1000, args.optStringOrNull("notes")).getOrNull()
-            }
+            val title = args.requiredString("title")
+            val notes = args.optStringOrNull("notes")
+            val externalId = systemCalendar.create(title, start, end, notes)
             repo.saveCalendarEvent(
-                CalendarEvent(id, args.requiredString("title"), start, start + 60 * 60 * 1000, null, args.optStringOrNull("notes"), externalId, if (externalId != null) CalendarSource.SYSTEM else CalendarSource.INTERNAL, null, now, now, repo.deviceId, 1, null),
+                CalendarEvent(
+                    id, title, start, end, null, notes, externalId,
+                    if (externalId != null) CalendarSource.SYSTEM else CalendarSource.INTERNAL,
+                    null, now, now, repo.deviceId, 1, null,
+                ),
             )
             jsonObjectOf("ok" to true, "id" to id, "externalId" to externalId, "systemWrite" to (externalId != null))
         }
         register(
             "update_calendar_event",
-            "Update an internal calendar event. Pass when to move it; do not delete and recreate.",
+            "Move or rename a calendar event. Writes through to the device calendar when access is on. Pass the id from context; do not delete and recreate.",
             objSchema(
                 "id" to str(),
                 "title" to str(),
@@ -698,35 +704,54 @@ open class ToolRegistry(
                 required = listOf("id"),
             ),
         ) { args ->
-            val existing = repo.getCalendarEvent(args.requiredString("id")) ?: throw ToolValidationException("Event not found")
+            val existing = requireCalendarEvent(args.requiredString("id"))
+            val title = args.optStringOrNull("title") ?: existing.title
             val start = args.optStringOrNull("when")?.let {
                 parseWhen(it) ?: throw ToolValidationException("Could not understand the time")
-            }
-            val duration = (existing.endAt ?: (existing.startAt + 60 * 60 * 1000)) - existing.startAt
-            repo.saveCalendarEvent(
-                existing.copy(
-                    title = args.optStringOrNull("title") ?: existing.title,
-                    startAt = start ?: existing.startAt,
-                    endAt = start?.plus(duration) ?: existing.endAt,
-                    notes = args.optStringOrNull("notes") ?: existing.notes,
-                    updatedAt = nowMillis(),
-                    version = existing.version + 1,
-                ),
-            )
-            jsonObjectOf("ok" to true)
+            } ?: existing.startAt
+            val duration = (existing.endAt ?: (existing.startAt + HOUR_MS)) - existing.startAt
+            val end = if (args.optStringOrNull("when") != null) start + duration else existing.endAt
+            val notes = args.optStringOrNull("notes") ?: existing.notes
+            val pushed = systemCalendar.push(existing, title, start, end, notes)
+            repo.saveCalendarEvent(pushed.copy(updatedAt = nowMillis(), version = existing.version + 1))
+            jsonObjectOf("ok" to true, "id" to existing.id, "systemWrite" to (pushed.externalId != null && systemCalendar.live()))
         }
-        register("delete_calendar_event", "Delete a calendar event. External deletes require confirmation.", objSchema("id" to str(), "confirmId" to str(), required = listOf("id"))) { args ->
-            val existing = repo.getCalendarEvent(args.requiredString("id")) ?: throw ToolValidationException("Event not found")
+        register(
+            "delete_calendar_event",
+            "Delete a calendar event. Device-calendar deletes need confirmation unless they already said to delete it.",
+            objSchema(
+                "id" to str(),
+                "confirmId" to str("From a previous needsConfirmation result. Do not reuse the event id."),
+                "confirmed" to bool("True when they already said to delete it in this message"),
+                required = listOf("id"),
+            ),
+        ) { args ->
+            val existing = requireCalendarEvent(args.requiredString("id"))
             if (existing.source != CalendarSource.INTERNAL && existing.externalId != null) {
+                val already = args.optBoolean("confirmed", false)
                 val confirmId = args.optStringOrNull("confirmId")
-                if (confirmId == null) {
-                    val pending = PendingConfirmation(newId(), ConfirmationKind.CALENDAR_DELETE, "Delete external event: ${existing.title}", JSONObject().put("id", existing.id).toString(), nowMillis())
+                if (!already && confirmId == null) {
+                    val pending = PendingConfirmation(
+                        newId(),
+                        ConfirmationKind.CALENDAR_DELETE,
+                        "Delete external event: ${existing.title}",
+                        JSONObject().put("id", existing.id).toString(),
+                        nowMillis(),
+                    )
                     repo.saveConfirmation(pending)
-                    return@register jsonObjectOf("ok" to false, "needsConfirmation" to true, "confirmId" to pending.id, "summary" to pending.summary)
+                    return@register jsonObjectOf(
+                        "ok" to false,
+                        "needsConfirmation" to true,
+                        "confirmId" to pending.id,
+                        "summary" to pending.summary,
+                    )
                 }
-                repo.getConfirmation(confirmId) ?: throw ToolValidationException("Confirmation not found")
-                repo.deleteConfirmation(confirmId)
-                if (calendar.hasPermission()) calendar.deleteEvent(existing.externalId)
+                if (!already) {
+                    val token = confirmId ?: throw ToolValidationException("Confirmation not found")
+                    repo.getConfirmation(token) ?: throw ToolValidationException("Confirmation not found")
+                    repo.deleteConfirmation(token)
+                }
+                systemCalendar.delete(existing)
             }
             repo.deleteCalendarEvent(existing.id)
             jsonObjectOf("ok" to true)
@@ -737,6 +762,32 @@ open class ToolRegistry(
         val profile = repo.getProfile()
         val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
         return Instant.ofEpochMilli(nowMillis()).atZone(zone)
+    }
+
+    private suspend fun calendarWindow(days: Long): Pair<Long, Long> {
+        val now = nowZoned()
+        val from = now.toLocalDate().atStartOfDay(now.zone).toInstant().toEpochMilli()
+        val to = now.toLocalDate().plusDays(days).atStartOfDay(now.zone).toInstant().toEpochMilli()
+        return from to to
+    }
+
+    private suspend fun requireCalendarEvent(idOrTitle: String): CalendarEvent {
+        repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
+        repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
+        val (from, to) = calendarWindow(400)
+        systemCalendar.mirror(from, to)
+        repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
+        repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
+        val all = repo.calendarInRange(from, to)
+        all.firstOrNull { it.id.equals(idOrTitle, ignoreCase = true) }?.let { return it }
+        val exact = all.filter { it.title.equals(idOrTitle, ignoreCase = true) }
+        if (exact.size == 1) return exact.first()
+        val loose = all.filter { it.title.contains(idOrTitle, ignoreCase = true) }
+        return loose.singleOrNull()
+            ?: throw ToolValidationException(
+                if (exact.isEmpty() && loose.isEmpty()) "Event not found: $idOrTitle"
+                else "Multiple events match '$idOrTitle'; pass the id from context",
+            )
     }
 
     private suspend fun parseWhen(raw: String?): Long? {
@@ -759,6 +810,8 @@ open class ToolRegistry(
             )
     }
 }
+
+private const val HOUR_MS = 60 * 60 * 1000L
 
 private fun str(desc: String = "") = "string" to desc
 private fun num(desc: String = "") = "number" to desc

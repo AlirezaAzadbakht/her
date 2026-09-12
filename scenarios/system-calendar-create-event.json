@@ -3,7 +3,6 @@
   "title": "A new meeting is written to the device calendar, not only the internal list",
   "tags": ["calendar", "system-calendar"],
   "attempts": 2,
-  "pending": true,
   "settings": { "calendarEnabled": true },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },

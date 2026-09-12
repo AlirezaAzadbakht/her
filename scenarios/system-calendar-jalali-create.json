@@ -3,7 +3,6 @@
   "title": "A Jalali date lands on the device calendar as the right Gregorian slot",
   "tags": ["calendar", "system-calendar", "jalali"],
   "attempts": 2,
-  "pending": true,
   "settings": { "calendarEnabled": true },
   "seed": {
     "profile": {
