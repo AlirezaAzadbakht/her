@@ -23,7 +23,7 @@ Optional later, in Settings: calendar permission, Google OAuth client ID (Drive 
 `HerScreen` is not a chat thread. The user never sees history and cannot scroll through past turns.
 
 - The stage shows **only her latest message**, or the text currently streaming in.
-- While she thinks, a soft bloom animation occupies the stage; the first content delta fades it out.
+- While she thinks, three quiet dots breathe in the middle of the stage; the first content delta fades them out.
 - The composer always enqueues. Send is never blocked by an in-flight turn.
 - Offline: messages are stored as `PENDING`. A status line reads `offline · N waiting`. When the network returns, `processOutbox()` sends the whole batch as **one** turn.
 - History still lives in Room and still feeds `ContextBuilder`. It is simply not displayed.
