@@ -2,6 +2,8 @@
 
 A text-only, persistent personal AI assistant for Android. There is one conversation for the life of the app. You talk naturally. Her decides what becomes a memory, a goal, a grocery item, a date, or something she should follow up on later.
 
+Working notes for architecture and workflows: [wiki/Home.md](wiki/Home.md).
+
 ## Requirements
 
 - Android Studio (or this repo's workspace toolchain)
