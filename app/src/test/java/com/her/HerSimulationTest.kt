@@ -122,9 +122,10 @@ class HerSimulationTest {
         assertTrue(messages.count { it.role == MessageRole.ASSISTANT } >= 4)
 
         val html = renderPhone(messages, groceries, people, goals, commitments, profile.userName)
-        val out = File("/home/alireza/git-projects/her/app/build/reports/her-simulation.html").apply { parentFile.mkdirs() }
+        val reportsDir = File(System.getProperty("user.dir"), "build/reports").apply { mkdirs() }
+        val out = File(reportsDir, "her-simulation.html")
         out.writeText(html)
-        File("/home/alireza/git-projects/her/app/build/reports/her-simulation.txt").writeText(transcript(messages))
+        File(reportsDir, "her-simulation.txt").writeText(transcript(messages))
         println(transcript(messages))
         println("Simulation written to ${out.absolutePath}")
         println("TOOLS:\n${toolLog.joinToString("\n")}")
