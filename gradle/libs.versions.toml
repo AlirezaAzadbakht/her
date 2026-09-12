@@ -15,6 +15,7 @@ serialization = "1.9.0"
 coroutines = "1.10.2"
 junit = "4.13.2"
 robolectric = "4.16.1"
+robolectricAndroidAll = "10-robolectric-5803371-i7"
 mockwebserver = "4.12.0"
 playServicesAuth = "21.4.0"
 credentials = "1.5.0"
@@ -49,6 +50,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+robolectric-android-all-instrumented = { group = "org.robolectric", name = "android-all-instrumented", version.ref = "robolectricAndroidAll" }
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.7.0" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }

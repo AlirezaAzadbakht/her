@@ -66,6 +66,14 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.isReturnDefaultValues = true
+        unitTests.all {
+            it.systemProperty("java.net.preferIPv4Stack", "true")
+            it.systemProperty("robolectric.offline", "true")
+            it.systemProperty(
+                "robolectric.dependency.dir",
+                layout.buildDirectory.dir("robolectric-jars").get().asFile.absolutePath,
+            )
+        }
     }
 
     packaging {
@@ -125,4 +133,18 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.androidx.room.testing)
+}
+
+val robolectricRuntime = configurations.create("robolectricRuntime")
+dependencies {
+    add(robolectricRuntime.name, libs.robolectric.android.all.instrumented)
+}
+
+val prefetchRobolectricJars = tasks.register<Copy>("prefetchRobolectricJars") {
+    from(robolectricRuntime)
+    into(layout.buildDirectory.dir("robolectric-jars"))
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(prefetchRobolectricJars)
 }
