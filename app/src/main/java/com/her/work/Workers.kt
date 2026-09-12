@@ -55,6 +55,18 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 }
 
+class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
+    override suspend fun doWork(): Result {
+        val graph = graph() ?: return Result.retry()
+        return try {
+            val result = graph.orchestrator.processOutbox()
+            if (result?.failed == true) Result.retry() else Result.success()
+        } catch (_: Exception) {
+            Result.retry()
+        }
+    }
+}
+
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val graph = graph() ?: return Result.retry()
@@ -108,6 +120,17 @@ class Scheduler(private val context: Context, private val settings: com.her.data
                 .setConstraints(network)
                 .build(),
         )
+        enqueueOutbox()
+    }
+
+    fun enqueueOutbox() {
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            OUTBOX,
+            ExistingWorkPolicy.KEEP,
+            OneTimeWorkRequestBuilder<OutboxWorker>()
+                .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                .build(),
+        )
     }
 
     fun runHourlyNow() {
@@ -150,6 +173,7 @@ class Scheduler(private val context: Context, private val settings: com.her.data
         const val NIGHTLY = "her-nightly"
         const val BRIEFING = "her-briefing"
         const val SYNC = "her-sync"
+        const val OUTBOX = "her-outbox"
     }
 }
 
@@ -172,6 +196,7 @@ class HerWorkerFactory(private val graphProvider: () -> AppGraph) : androidx.wor
             NightlyWorker::class.java.name -> NightlyWorker(appContext, workerParameters)
             BriefingWorker::class.java.name -> BriefingWorker(appContext, workerParameters)
             SyncWorker::class.java.name -> SyncWorker(appContext, workerParameters)
+            OutboxWorker::class.java.name -> OutboxWorker(appContext, workerParameters)
             else -> null
         }
     }

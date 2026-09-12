@@ -109,6 +109,12 @@ fun SettingsScreen(vm: HerViewModel) {
         }
         if (advanced) {
             item {
+                Text("Experimental", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = 1.2.sp)
+                Toggle("Memory navigator (SQL)", app.memoryTabEnabled) {
+                    vm.updateSettings { it.copy(memoryTabEnabled = !it.memoryTabEnabled) }
+                }
+            }
+            item {
                 Text("Developer", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = 1.2.sp)
                 Toggle("Developer mode", app.developerMode) { vm.updateSettings { it.copy(developerMode = !it.developerMode) } }
                 Row {

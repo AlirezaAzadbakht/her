@@ -20,6 +20,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -32,9 +33,11 @@ fun ConversationMarkdown(
     color: Color,
     modifier: Modifier = Modifier,
     style: TextStyle = ConversationStyle,
+    textAlign: TextAlign = TextAlign.Start,
 ) {
     val blocks = remember(content) { MarkdownParser.parse(content) }
     val link = MaterialTheme.colorScheme.primary
+    val aligned = style.copy(textAlign = textAlign)
     Column(modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             val top = if (index == 0) 0.dp else 8.dp
@@ -42,9 +45,10 @@ fun ConversationMarkdown(
                 is MdBlock.Paragraph -> {
                     Text(
                         text = annotate(block.inlines, color, link),
-                        style = style,
+                        style = aligned,
                         color = color,
-                        modifier = Modifier.padding(top = top),
+                        textAlign = textAlign,
+                        modifier = Modifier.fillMaxWidth().padding(top = top),
                     )
                 }
                 is MdBlock.Heading -> {
@@ -55,25 +59,28 @@ fun ConversationMarkdown(
                     }
                     Text(
                         text = annotate(block.inlines, color, link),
-                        style = style.copy(fontSize = size, fontWeight = FontWeight.Medium, lineHeight = (size.value + 8).sp),
+                        style = aligned.copy(fontSize = size, fontWeight = FontWeight.Medium, lineHeight = (size.value + 8).sp),
                         color = color,
-                        modifier = Modifier.padding(top = top),
+                        textAlign = textAlign,
+                        modifier = Modifier.fillMaxWidth().padding(top = top),
                     )
                 }
                 is MdBlock.Quote -> {
                     Text(
                         text = annotate(block.inlines, color, link),
-                        style = style.copy(fontStyle = FontStyle.Italic),
+                        style = aligned.copy(fontStyle = FontStyle.Italic),
                         color = color.copy(alpha = 0.86f),
-                        modifier = Modifier.padding(top = top, start = 12.dp),
+                        textAlign = textAlign,
+                        modifier = Modifier.fillMaxWidth().padding(top = top, start = 12.dp),
                     )
                 }
                 is MdBlock.Code -> {
                     SelectionContainer {
                         Text(
                             text = block.text,
-                            style = style.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp, lineHeight = 22.sp),
+                            style = aligned.copy(fontFamily = FontFamily.Monospace, fontSize = 15.sp, lineHeight = 22.sp),
                             color = color,
+                            textAlign = textAlign,
                             modifier = Modifier
                                 .padding(top = top)
                                 .fillMaxWidth()
@@ -83,18 +90,19 @@ fun ConversationMarkdown(
                     }
                 }
                 is MdBlock.ListBlock -> {
-                    Column(Modifier.padding(top = top)) {
+                    Column(Modifier.fillMaxWidth().padding(top = top)) {
                         block.items.forEachIndexed { itemIndex, item ->
-                            Row(Modifier.padding(bottom = 4.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
                                 Text(
                                     text = if (block.ordered) "${itemIndex + 1}.  " else "•  ",
-                                    style = style,
+                                    style = aligned,
                                     color = color,
                                 )
                                 Text(
                                     text = annotate(item, color, link),
-                                    style = style,
+                                    style = aligned,
                                     color = color,
+                                    textAlign = textAlign,
                                     modifier = Modifier.weight(1f),
                                 )
                             }

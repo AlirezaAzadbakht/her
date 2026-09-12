@@ -457,6 +457,18 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<ChatMessageEntity>
 
+    @Query("SELECT * FROM chat_messages WHERE role = :role AND deletedAt IS NULL ORDER BY createdAt DESC LIMIT 1")
+    fun observeLatestByRole(role: MessageRole): Flow<ChatMessageEntity?>
+
+    @Query("SELECT * FROM chat_messages WHERE status = :status AND role = :role AND deletedAt IS NULL ORDER BY createdAt ASC")
+    suspend fun pending(status: MessageStatus = MessageStatus.PENDING, role: MessageRole = MessageRole.USER): List<ChatMessageEntity>
+
+    @Query("SELECT COUNT(*) FROM chat_messages WHERE status = :status AND role = :role AND deletedAt IS NULL")
+    fun observePendingCount(status: MessageStatus = MessageStatus.PENDING, role: MessageRole = MessageRole.USER): Flow<Int>
+
+    @Query("UPDATE chat_messages SET status = :status, updatedAt = :at, version = version + 1 WHERE id IN (:ids)")
+    suspend fun markStatus(ids: List<String>, status: MessageStatus, at: Long)
+
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun get(id: String): ChatMessageEntity?
 

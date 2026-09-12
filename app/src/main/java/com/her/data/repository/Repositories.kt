@@ -47,6 +47,8 @@ import com.her.domain.ImportantDate
 import com.her.domain.LongTermMemory
 import com.her.domain.MemoryRelationship
 import com.her.domain.MemoryStatus
+import com.her.domain.MessageRole
+import com.her.domain.MessageStatus
 import com.her.domain.OpenLoop
 import com.her.domain.PendingConfirmation
 import com.her.domain.Person
@@ -74,6 +76,24 @@ class HerRepository(
 
     fun observeMessages(): Flow<List<ChatMessage>> =
         chatDao.observeAll().map { list -> list.map { it.toDomain() } }
+
+    fun observeLatestAssistant(): Flow<ChatMessage?> =
+        chatDao.observeLatestByRole(MessageRole.ASSISTANT).map { it?.toDomain() }
+
+    fun observePendingCount(): Flow<Int> = chatDao.observePendingCount()
+
+    suspend fun pendingUserMessages(): List<ChatMessage> = chatDao.pending().map { it.toDomain() }
+
+    suspend fun markSent(ids: List<String>) {
+        if (ids.isEmpty()) return
+        val at = nowMillis()
+        chatDao.markStatus(ids, MessageStatus.SENT, at)
+        ids.forEach { id ->
+            chatDao.get(id)?.toDomain()?.let { msg ->
+                enqueue("chat_messages", msg.id, SyncOpType.UPSERT, msg.toJson())
+            }
+        }
+    }
 
     suspend fun recentMessages(limit: Int): List<ChatMessage> =
         chatDao.recent(limit).reversed().map { it.toDomain() }

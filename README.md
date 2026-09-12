@@ -1,6 +1,6 @@
 # Her
 
-A text-only, persistent personal AI assistant for Android. There is one conversation for the life of the app. You talk naturally. Her decides what becomes a memory, a goal, a grocery item, a date, or something she should follow up on later.
+A text-only, persistent personal AI assistant for Android. There is one conversation for the life of the app, but the screen shows only her latest message — not a chat thread. You talk naturally. Her decides what becomes a memory, a goal, a grocery item, a date, or something she should follow up on later. Offline notes queue locally and are handled together when the network returns.
 
 Working notes for architecture and workflows: [wiki/Home.md](wiki/Home.md).
 
@@ -60,6 +60,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**.
 3. Continue. Conversation onboarding starts after the connection works.
 4. Optional later: calendar permission, Google OAuth client ID for Drive/Calendar, web search.
+5. Optional: Settings → Advanced → Experimental to hide the Memory SQL navigator (on by default).
 
 API credentials stay in Android Keystore-backed storage on this device. They are never written to Room and never synced.
 
@@ -67,7 +68,7 @@ API credentials stay in Android Keystore-backed storage on this device. They are
 
 ```
 UI → Agent runners → Tool registry → Repositories → Room
-                 ↘ OpenAI-compatible LLM
+                 ↘ OpenAI-compatible LLM (streaming chat, blocking background)
 Background: hourly (≤10 calls), nightly (≤50), morning briefing
 Sync: Drive appDataFolder NDJSON change log (not whole-database overwrite)
 ```

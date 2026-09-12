@@ -121,7 +121,8 @@ class HerSimulationTest {
         assertTrue(groceries.filter { it.status == GroceryStatus.ACTIVE }.none { it.name == "coffee" })
         assertTrue(messages.count { it.role == MessageRole.ASSISTANT } >= 4)
 
-        val html = renderPhone(messages, groceries, people, goals, commitments, profile.userName)
+        val latest = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
+        val html = renderPhone(latest, groceries, people, goals, commitments, profile.userName)
         val reportsDir = File(System.getProperty("user.dir"), "build/reports").apply { mkdirs() }
         val out = File(reportsDir, "her-simulation.html")
         out.writeText(html)
@@ -169,7 +170,7 @@ class HerSimulationTest {
     }
 
     private fun renderPhone(
-        messages: List<ChatMessage>,
+        latest: ChatMessage?,
         groceries: List<com.her.domain.GroceryItem>,
         people: List<com.her.domain.Person>,
         goals: List<com.her.domain.Goal>,
@@ -177,21 +178,22 @@ class HerSimulationTest {
         userName: String?,
     ): String {
         fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        val bubbles = messages.joinToString("\n") { msg ->
-            val who = if (msg.role == MessageRole.USER) "you" else "her"
-            val cls = if (msg.role == MessageRole.USER) "user" else "her"
-            """<div class="msg $cls"><p>${esc(msg.content)}</p><span>$who</span></div>"""
+        val utterance = latest?.content?.let { """<div class="msg her"><p>${esc(it)}</p></div>""" } ?: ""
+        val tables = listOf(
+            "chat_messages" to 0,
+            "groceries" to groceries.size,
+            "people" to people.size,
+            "goals" to goals.size,
+            "commitments" to commitments.size,
+        )
+        val tableList = tables.joinToString("\n") { (name, n) ->
+            """<p class="sql">${esc(name)} · $n</p>"""
         }
-        val memory = buildString {
-            fun sec(title: String, rows: List<String>) {
-                if (rows.isEmpty()) return
-                append("<h3>$title</h3>")
-                rows.forEach { append("<p>${esc(it)}</p>") }
+        val sample = buildString {
+            append("<p class=\"sql muted\">SELECT * FROM groceries ORDER BY rowid DESC LIMIT 50</p>")
+            groceries.filter { it.status == GroceryStatus.ACTIVE }.forEach {
+                append("<p class=\"sql\">${esc(it.name)}</p>")
             }
-            sec("Groceries", groceries.filter { it.status == GroceryStatus.ACTIVE }.map { it.name })
-            sec("People", people.map { "${it.name} · ${it.relationship ?: ""} ${it.birthday ?: ""}" })
-            sec("Goals", goals.map { it.title })
-            sec("Commitments", commitments.map { it.title })
         }
         return """
 <!doctype html>
@@ -203,15 +205,14 @@ class HerSimulationTest {
   .phone { width:380px; background:#1a1410; border-radius:28px; padding:22px 22px 0; min-height:720px;
            display:flex; flex-direction:column; border:1px solid #3a2d24; }
   h1 { font-family: system-ui; font-size:12px; letter-spacing:2px; font-weight:500; color:#e8a87c; margin:0 0 18px; }
-  .thread { flex:1; display:flex; flex-direction:column; gap:22px; overflow:auto; padding-bottom:16px; }
-  .msg p { margin:0; font-size:17px; line-height:1.5; }
-  .msg.user p { color:#b9a99a; }
-  .msg span { display:block; margin-top:6px; font-family:system-ui; font-size:10px; letter-spacing:1px; color:#6d5c50; }
+  .stage { flex:1; display:flex; flex-direction:column; justify-content:flex-start; padding-bottom:16px; }
+  .msg p { margin:0; font-size:18px; line-height:1.55; }
   nav { display:flex; justify-content:space-between; font-family:system-ui; font-size:13px; letter-spacing:1.2px;
         color:#b9a99a; padding:16px 4px 20px; }
   nav .on { color:#e8a87c; }
   .composer { border-top:1px solid #3a2d24; color:#6d5c50; font-size:16px; padding:14px 0 10px; }
-  .memory p { font-size:15px; line-height:1.45; margin:0 0 8px; }
+  .sql { font-family: ui-monospace, monospace; font-size:13px; line-height:1.45; margin:0 0 8px; }
+  .sql.muted { color:#b9a99a; }
   h3 { font-family:system-ui; font-size:11px; letter-spacing:1.4px; color:#b9a99a; font-weight:500; margin:18px 0 8px; }
   .note { max-width:420px; color:#b9a99a; font-family:system-ui; font-size:14px; line-height:1.5; }
 </style></head>
@@ -219,18 +220,23 @@ class HerSimulationTest {
 <div class="wrap">
   <div class="phone">
     <h1>HER</h1>
-    <div class="thread">$bubbles</div>
+    <div class="stage">$utterance</div>
     <div class="composer">Write something</div>
     <nav><span class="on">Her</span><span>Memory</span><span>Settings</span></nav>
   </div>
   <div class="phone">
     <h1>MEMORY</h1>
-    <div class="thread">$memory</div>
+    <div class="stage">
+      <h3>TABLES</h3>
+      $tableList
+      <h3>QUERY</h3>
+      $sample
+    </div>
     <nav><span>Her</span><span class="on">Memory</span><span>Settings</span></nav>
   </div>
   <div class="note">
-    <p>Simulated first-day conversation for ${esc(userName ?: "you")}.</p>
-    <p>Messages and structured records were written through the real Room repositories and tool registry. The model replies were scripted because no live API key is configured in this environment.</p>
+    <p>Simulated first day for ${esc(userName ?: "you")}. The screen shows only her latest message.</p>
+    <p>Records were written through the real Room repositories and tool registry. Replies were scripted because no live API key is configured here.</p>
   </div>
 </div>
 </body></html>

@@ -1,29 +1,27 @@
 package com.her.ui.her
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,51 +37,84 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.her.domain.ChatMessage
-import com.her.domain.MessageRole
+import com.her.agent.runner.TurnState
 import com.her.ui.HerViewModel
 import com.her.ui.markdown.ConversationMarkdown
 import com.her.ui.theme.ConversationStyle
 
 @Composable
 fun HerScreen(vm: HerViewModel) {
-    val messages by vm.messages.collectAsState()
-    val sending by vm.sending.collectAsState()
+    val latest by vm.latestAssistant.collectAsState()
+    val turn by vm.turnState.collectAsState()
     val error by vm.sendError.collectAsState()
     val share by vm.pendingShare.collectAsState()
+    val pendingCount by vm.pendingCount.collectAsState()
+    val online by vm.online.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
-    val listState = rememberLazyListState()
+    val scroll = rememberScrollState()
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    val streamingText = (turn as? TurnState.Streaming)?.text.orEmpty()
+    val displayText = if (streamingText.isNotBlank()) streamingText else latest?.content.orEmpty()
+    val thinking = turn is TurnState.Thinking || (turn is TurnState.Streaming && streamingText.isBlank())
+    val utteranceKey = when {
+        turn is TurnState.Streaming && streamingText.isNotBlank() -> "stream"
+        thinking -> "think"
+        else -> latest?.id ?: "empty"
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding()
             .padding(horizontal = 22.dp),
     ) {
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            state = listState,
-            verticalArrangement = Arrangement.spacedBy(22.dp),
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
         ) {
-            item { Spacer(Modifier.height(12.dp)) }
-            items(messages, key = { it.id }) { message ->
-                MessageLine(message, onDelete = { vm.deleteMessage(it) }, onForget = { vm.forgetFromMessage(it) })
-            }
-            if (sending) {
-                item {
-                    Text("…", style = ConversationStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            ThinkingAnimation(
+                visible = thinking,
+                modifier = Modifier.fillMaxSize(),
+            )
+            AnimatedContent(
+                targetState = utteranceKey,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "utterance",
+                modifier = Modifier.fillMaxSize(),
+            ) { key ->
+                if (key != "think" && displayText.isNotBlank()) {
+                    BoxWithConstraints(Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = maxHeight)
+                                .verticalScroll(scroll)
+                                .padding(vertical = 20.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ConversationMarkdown(
+                                content = displayText,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
             }
-            item { Spacer(Modifier.height(8.dp)) }
         }
         val sharedText = share
-        if (!sharedText.isNullOrBlank()) {
+        if (!online && pendingCount > 0) {
+            Text(
+                "offline · $pendingCount waiting",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        } else if (!sharedText.isNullOrBlank()) {
             Text(
                 "Shared: ${sharedText.take(120)}",
                 color = MaterialTheme.colorScheme.primary,
@@ -96,7 +127,7 @@ fun HerScreen(vm: HerViewModel) {
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         fun sendDraft() {
-            if (draft.text.isNotBlank() && !sending) {
+            if (draft.text.isNotBlank()) {
                 vm.send(draft.text)
                 draft = TextFieldValue("")
             }
@@ -135,38 +166,10 @@ fun HerScreen(vm: HerViewModel) {
             )
             TextButton(
                 onClick = { sendDraft() },
-                enabled = draft.text.isNotBlank() && !sending,
+                enabled = draft.text.isNotBlank(),
             ) {
                 Text("Send", color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
-
-@Composable
-private fun MessageLine(
-    message: ChatMessage,
-    onDelete: (String) -> Unit,
-    onForget: (String) -> Unit,
-) {
-    var menu by remember { mutableStateOf(false) }
-    val user = message.role == MessageRole.USER
-    Column(Modifier.fillMaxWidth()) {
-        ConversationMarkdown(
-            content = message.content,
-            color = if (user) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = if (user) "you" else "her",
-            color = MaterialTheme.colorScheme.outline,
-            fontSize = 11.sp,
-            letterSpacing = 1.sp,
-            modifier = Modifier.padding(top = 6.dp).clickable { menu = true },
-        )
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text("Delete message") }, onClick = { menu = false; onDelete(message.id) })
-            DropdownMenuItem(text = { Text("Forget information from this") }, onClick = { menu = false; onForget(message.id) })
-        }
-    }
-}
-

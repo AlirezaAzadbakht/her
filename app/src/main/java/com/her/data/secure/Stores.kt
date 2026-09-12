@@ -76,6 +76,7 @@ data class AppSettings(
     val apiConfiguredOnce: Boolean,
     val lastNotificationKey: String,
     val lastNotificationAt: Long,
+    val memoryTabEnabled: Boolean,
 )
 
 class AppSettingsStore(context: Context) {
@@ -109,6 +110,7 @@ class AppSettingsStore(context: Context) {
             apiConfiguredOnce = prefs.getBoolean(KEY_API_ONCE, false),
             lastNotificationKey = prefs.getString(KEY_NOTIF, "") ?: "",
             lastNotificationAt = prefs.getLong(KEY_NOTIF_AT, 0L),
+            memoryTabEnabled = prefs.getBoolean(KEY_MEMORY_TAB, true),
         )
     }
 
@@ -134,6 +136,7 @@ class AppSettingsStore(context: Context) {
             putBoolean(KEY_API_ONCE, next.apiConfiguredOnce)
             putString(KEY_NOTIF, next.lastNotificationKey)
             putLong(KEY_NOTIF_AT, next.lastNotificationAt)
+            putBoolean(KEY_MEMORY_TAB, next.memoryTabEnabled)
         }
         _state.value = next
     }
@@ -158,5 +161,6 @@ class AppSettingsStore(context: Context) {
         private const val KEY_API_ONCE = "api_configured_once"
         private const val KEY_NOTIF = "last_notif_key"
         private const val KEY_NOTIF_AT = "last_notif_at"
+        private const val KEY_MEMORY_TAB = "memory_tab_enabled"
     }
 }

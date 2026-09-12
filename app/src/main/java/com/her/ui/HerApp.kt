@@ -10,27 +10,33 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.data.secure.LlmSettings
 import com.her.ui.her.HerScreen
-import com.her.ui.memory.MemoryScreen
+import com.her.ui.memory.SqlNavigatorScreen
 import com.her.ui.onboarding.SetupScreen
 import com.her.ui.settings.SettingsScreen
 
@@ -38,8 +44,13 @@ enum class Dest { Her, Memory, Settings }
 
 @Composable
 fun HerApp(vm: HerViewModel) {
-    val configured = vm.llmSettings().isConfigured || vm.settings.value.apiConfiguredOnce
+    val settings by vm.settings.collectAsState()
+    val configured = vm.llmSettings().isConfigured || settings.apiConfiguredOnce
     var dest by rememberSaveable { mutableStateOf(Dest.Her) }
+
+    LaunchedEffect(settings.memoryTabEnabled) {
+        if (!settings.memoryTabEnabled && dest == Dest.Memory) dest = Dest.Her
+    }
 
     Box(
         modifier = Modifier
@@ -51,15 +62,22 @@ fun HerApp(vm: HerViewModel) {
             SetupScreen(
                 initial = vm.llmSettings(),
                 message = vm.connectionMessage.value,
-                onSave = { settings: LlmSettings ->
-                    vm.saveLlm(settings)
+                onSave = { next: LlmSettings ->
+                    vm.saveLlm(next)
                     vm.testConnection()
                 },
             )
             return
         }
 
-        Column(Modifier.fillMaxSize()) {
+        val tabs = buildList {
+            add(Dest.Her)
+            if (settings.memoryTabEnabled) add(Dest.Memory)
+            add(Dest.Settings)
+        }
+
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        Column(Modifier.fillMaxSize().imePadding()) {
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -72,18 +90,20 @@ fun HerApp(vm: HerViewModel) {
                 ) { current ->
                     when (current) {
                         Dest.Her -> HerScreen(vm)
-                        Dest.Memory -> MemoryScreen(vm)
+                        Dest.Memory -> SqlNavigatorScreen(vm)
                         Dest.Settings -> SettingsScreen(vm)
                     }
                 }
             }
-            BottomNav(dest) { dest = it }
+            if (!imeVisible) {
+                BottomNav(dest, tabs) { dest = it }
+            }
         }
     }
 }
 
 @Composable
-private fun BottomNav(dest: Dest, onSelect: (Dest) -> Unit) {
+private fun BottomNav(dest: Dest, tabs: List<Dest>, onSelect: (Dest) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -92,7 +112,7 @@ private fun BottomNav(dest: Dest, onSelect: (Dest) -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Dest.entries.forEach { item ->
+        tabs.forEach { item ->
             val selected = item == dest
             Text(
                 text = item.name,

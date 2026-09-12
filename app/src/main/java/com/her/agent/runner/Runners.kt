@@ -10,7 +10,7 @@ import com.her.data.remote.LlmClient
 import com.her.data.remote.LlmException
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
-import com.her.data.secure.SecureSettingsStore
+import com.her.data.secure.LlmSettings
 import com.her.domain.AgentRun
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
@@ -21,6 +21,11 @@ import com.her.domain.MessageStatus
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class CallBudget(val maxCalls: Int) {
@@ -42,26 +47,47 @@ data class TurnResult(
     val runId: String,
 )
 
+sealed class TurnState {
+    data object Idle : TurnState()
+    data object Thinking : TurnState()
+    data class Streaming(val text: String) : TurnState()
+}
+
 class AgentOrchestrator(
     private val repo: HerRepository,
     private val llm: LlmClient,
-    private val secure: SecureSettingsStore,
+    private val llmSettings: () -> LlmSettings,
     private val settings: AppSettingsStore,
     private val contextBuilder: ContextBuilder,
     private val tools: ToolRegistry,
     private val notifier: Notifier,
     private val policy: NotificationPolicy,
 ) {
-    suspend fun handleUserMessage(text: String, metadataJson: String? = null): TurnResult {
-        val saved = persistUser(text, metadataJson)
-        return runTurn(
+    private val outboxMutex = Mutex()
+    private val _turnState = MutableStateFlow<TurnState>(TurnState.Idle)
+    val turnState: StateFlow<TurnState> = _turnState.asStateFlow()
+
+    suspend fun enqueueUserMessage(text: String, metadataJson: String? = null): ChatMessage {
+        return persistUser(text, metadataJson)
+    }
+
+    suspend fun processOutbox(): TurnResult? = outboxMutex.withLock {
+        val pending = repo.pendingUserMessages()
+        if (pending.isEmpty()) return null
+        val joined = pending.joinToString("\n\n") { it.content }
+        val result = runTurn(
             type = AgentRunType.CHAT,
             budget = CallBudget(settings.read().chatToolCallLimit.coerceAtLeast(1)),
-            latestUserText = saved.content,
+            latestUserText = joined,
             extraSystem = null,
             persistAssistant = true,
             allowNotify = false,
+            streamToUi = true,
         )
+        if (!result.failed) {
+            repo.markSent(pending.map { it.id })
+        }
+        result
     }
 
     suspend fun runHourly(): TurnResult {
@@ -140,10 +166,10 @@ class AgentOrchestrator(
             deviceId = repo.deviceId,
             version = 1,
             deletedAt = null,
-            status = MessageStatus.SENT,
+            status = MessageStatus.PENDING,
             metadataJson = metadataJson,
         )
-        repo.saveMessage(message)
+        repo.saveMessage(message, enqueueSync = false)
         return message
     }
 
@@ -172,11 +198,13 @@ class AgentOrchestrator(
         extraSystem: String?,
         persistAssistant: Boolean,
         allowNotify: Boolean,
+        streamToUi: Boolean = false,
     ): TurnResult = withContext(Dispatchers.IO) {
         val runId = newId()
         val started = nowMillis()
         repo.saveRun(AgentRun(runId, type, started, null, 0, AgentRunStatus.RUNNING, null, null))
-        val llmSettings = secure.read()
+        val configured = llmSettings()
+        if (streamToUi) _turnState.value = TurnState.Thinking
         try {
             val built = contextBuilder.build(latestUserText)
             val messages = built.messages.toMutableList()
@@ -186,10 +214,20 @@ class AgentOrchestrator(
             repo.logDebug("prompt", redactSecrets(built.systemBundle))
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.content}" })
             var lastText: String? = null
+            var preamble = ""
             while (budget.canCall()) {
                 budget.consume()
+                val round = StringBuilder()
                 val response = try {
-                    llm.complete(llmSettings, messages, tools.specs())
+                    if (streamToUi) {
+                        llm.stream(configured, messages, tools.specs()) { delta ->
+                            round.append(delta)
+                            val display = if (preamble.isNotEmpty()) "$preamble\n\n$round" else round.toString()
+                            _turnState.value = TurnState.Streaming(display)
+                        }
+                    } else {
+                        llm.complete(configured, messages, tools.specs())
+                    }
                 } catch (e: LlmException) {
                     repo.recordUsage(type, 0, 0, 0, error = true)
                     throw e
@@ -197,9 +235,21 @@ class AgentOrchestrator(
                 repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
                 repo.logDebug("llm", redactSecrets(response.rawJson.take(8000)))
                 val msg = response.message
-                lastText = msg.content?.trim()
+                val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
                 val calls = msg.toolCalls.orEmpty()
-                if (calls.isEmpty()) break
+                if (calls.isEmpty()) {
+                    lastText = when {
+                        preamble.isNotEmpty() && roundText.isNotBlank() -> "$preamble\n\n$roundText"
+                        roundText.isNotBlank() -> roundText
+                        preamble.isNotBlank() -> preamble
+                        else -> null
+                    }
+                    break
+                }
+                if (roundText.isNotBlank()) {
+                    preamble = if (preamble.isEmpty()) roundText else "$preamble\n\n$roundText"
+                }
+                if (streamToUi) _turnState.value = TurnState.Thinking
                 messages += msg
                 calls.forEach { call ->
                     val result = tools.execute(call.name, call.arguments)
@@ -253,6 +303,8 @@ class AgentOrchestrator(
                 )
             }
             TurnResult(null, true, error, budget.used, runId)
+        } finally {
+            if (streamToUi) _turnState.value = TurnState.Idle
         }
     }
 

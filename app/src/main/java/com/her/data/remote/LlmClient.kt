@@ -18,10 +18,10 @@ import org.json.JSONObject
 
 class LlmException(message: String, val status: Int? = null) : IOException(message)
 
-class LlmClient(
+open class LlmClient(
     private val http: OkHttpClient = defaultClient(),
 ) {
-    suspend fun complete(
+    open suspend fun complete(
         settings: LlmSettings,
         messages: List<LlmMessage>,
         tools: List<ToolSpec> = emptyList(),
@@ -29,35 +29,7 @@ class LlmClient(
         if (!settings.isConfigured) {
             throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
         }
-        val body = JSONObject()
-            .put("model", settings.model)
-            .put("messages", messages.toJsonArray())
-            .apply {
-                if (tools.isNotEmpty()) {
-                    put("tools", JSONArray().apply {
-                        tools.forEach { spec ->
-                            put(
-                                JSONObject()
-                                    .put("type", "function")
-                                    .put(
-                                        "function",
-                                        JSONObject()
-                                            .put("name", spec.name)
-                                            .put("description", spec.description)
-                                            .put("parameters", JSONObject(spec.parametersJson)),
-                                    ),
-                            )
-                        }
-                    })
-                    put("tool_choice", "auto")
-                }
-            }
-        val request = Request.Builder()
-            .url(settings.baseUrl.trimEnd('/') + "/chat/completions")
-            .addHeader("Authorization", "Bearer ${settings.apiKey}")
-            .addHeader("Content-Type", "application/json")
-            .post(body.toString().toRequestBody(JSON))
-            .build()
+        val request = request(settings, messages, tools, stream = false)
         val started = System.currentTimeMillis()
         http.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()
@@ -72,12 +44,103 @@ class LlmClient(
         }
     }
 
+    open suspend fun stream(
+        settings: LlmSettings,
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec> = emptyList(),
+        onDelta: (String) -> Unit,
+    ): LlmResponse {
+        if (!settings.isConfigured) {
+            throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
+        }
+        val request = request(settings, messages, tools, stream = true)
+        val started = System.currentTimeMillis()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val raw = response.body?.string().orEmpty()
+                if (looksLikeStreamingUnsupported(response.code, raw)) {
+                    return complete(settings, messages, tools).also { result ->
+                        result.message.content?.takeIf { it.isNotBlank() }?.let(onDelta)
+                    }
+                }
+                throw LlmException(
+                    redactSecrets("LLM request failed (${response.code}): ${raw.take(400)}"),
+                    response.code,
+                )
+            }
+            val contentType = response.header("Content-Type").orEmpty()
+            val body = response.body ?: throw LlmException("LLM stream had no body")
+            if (!contentType.contains("event-stream", ignoreCase = true) &&
+                !contentType.contains("text/event", ignoreCase = true)
+            ) {
+                val raw = body.string()
+                val parsed = parseResponse(raw, System.currentTimeMillis() - started)
+                parsed.message.content?.takeIf { it.isNotBlank() }?.let(onDelta)
+                return parsed
+            }
+            val acc = StreamAccumulator()
+            val source = body.source()
+            while (!source.exhausted()) {
+                val line = source.readUtf8Line() ?: break
+                val data = sseData(line) ?: continue
+                val result = acc.accept(data)
+                result.contentDelta?.let(onDelta)
+                if (!result.continueStreaming) break
+            }
+            return acc.toResponse(System.currentTimeMillis() - started)
+        }
+    }
+
     suspend fun ping(settings: LlmSettings): String {
         val result = complete(
             settings = settings,
             messages = listOf(LlmMessage(role = "user", content = "Reply with the single word ok.")),
         )
         return result.message.content?.trim().orEmpty().ifBlank { "ok" }
+    }
+
+    private fun request(
+        settings: LlmSettings,
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec>,
+        stream: Boolean,
+    ): Request {
+        val body = JSONObject()
+            .put("model", settings.model)
+            .put("messages", messages.toJsonArray())
+            .apply {
+                if (tools.isNotEmpty()) {
+                    put(
+                        "tools",
+                        JSONArray().apply {
+                            tools.forEach { spec ->
+                                put(
+                                    JSONObject()
+                                        .put("type", "function")
+                                        .put(
+                                            "function",
+                                            JSONObject()
+                                                .put("name", spec.name)
+                                                .put("description", spec.description)
+                                                .put("parameters", JSONObject(spec.parametersJson)),
+                                        ),
+                                )
+                            }
+                        },
+                    )
+                    put("tool_choice", "auto")
+                }
+                if (stream) {
+                    put("stream", true)
+                    put("stream_options", JSONObject().put("include_usage", true))
+                }
+            }
+        return Request.Builder()
+            .url(settings.baseUrl.trimEnd('/') + "/chat/completions")
+            .addHeader("Authorization", "Bearer ${settings.apiKey}")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody(JSON))
+            .build()
     }
 
     private fun parseResponse(raw: String, latency: Long): LlmResponse {
@@ -127,6 +190,15 @@ class LlmClient(
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .build()
+
+        internal fun looksLikeStreamingUnsupported(status: Int, raw: String): Boolean {
+            val lower = raw.lowercase()
+            if ("stream" !in lower) return false
+            return status in setOf(400, 404, 422) ||
+                "not support" in lower ||
+                "unsupported" in lower ||
+                "disabled" in lower
+        }
     }
 }
 

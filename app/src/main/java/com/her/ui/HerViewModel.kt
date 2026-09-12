@@ -4,10 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
+import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
-import com.her.domain.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,33 +20,34 @@ import org.json.JSONObject
 class HerViewModel(application: Application) : AndroidViewModel(application) {
     private val graph = (application as HerApplication).graph
 
-    val messages: StateFlow<List<ChatMessage>> = graph.repo.observeMessages()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val profile: StateFlow<UserProfile?> = graph.repo.observeProfile()
+    val latestAssistant: StateFlow<ChatMessage?> = graph.repo.observeLatestAssistant()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+    val online: StateFlow<Boolean> = graph.connectivity.online
+    val turnState: StateFlow<TurnState> = graph.orchestrator.turnState
     val settings = graph.settings.state
+    val sqlBrowser = graph.sqlBrowser
 
-    val sending = MutableStateFlow(false)
     val sendError = MutableStateFlow<String?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
     val googleMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
 
-    val people = graph.repo.observePeople().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val projects = graph.repo.observeProjects().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val goals = graph.repo.observeGoals().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val tasks = graph.repo.observeTasks().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val commitments = graph.repo.observeCommitments().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val openLoops = graph.repo.observeOpenLoops().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val routines = graph.repo.observeRoutines().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val groceries = graph.repo.observeGroceries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val dates = graph.repo.observeImportantDates().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val shortMemories = graph.repo.observeShort().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val longMemories = graph.repo.observeLong().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debugEvents = graph.repo.observeDebug().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val runs = graph.repo.observeRuns().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val usage = graph.repo.observeUsageToday().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    init {
+        viewModelScope.launch {
+            graph.connectivity.online.collect { on ->
+                if (!on) return@collect
+                val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
+                if (result?.failed == true) sendError.value = result.error
+            }
+        }
+    }
 
     fun llmSettings(): LlmSettings = graph.secure.read()
 
@@ -56,16 +57,22 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun send(text: String) {
         val trimmed = text.trim()
-        if (trimmed.isBlank() || sending.value) return
-        sending.value = true
+        if (trimmed.isBlank()) return
         sendError.value = null
         viewModelScope.launch {
-            val result = withContext(Dispatchers.IO) {
-                graph.orchestrator.handleUserMessage(trimmed, pendingShare.value?.let { JSONObject().put("shared", it).toString() })
+            withContext(Dispatchers.IO) {
+                graph.orchestrator.enqueueUserMessage(
+                    trimmed,
+                    pendingShare.value?.let { JSONObject().put("shared", it).toString() },
+                )
+                pendingShare.value = null
+                if (graph.connectivity.online.value) {
+                    val result = graph.orchestrator.processOutbox()
+                    if (result?.failed == true) sendError.value = result.error
+                } else {
+                    graph.scheduler.enqueueOutbox()
+                }
             }
-            pendingShare.value = null
-            sending.value = false
-            if (result.failed) sendError.value = result.error
         }
     }
 
@@ -82,22 +89,6 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             graph.repo.activeLong().filter { it.sourceMessageId == id }.forEach { graph.repo.deleteLong(it.id) }
             graph.repo.activeShort().filter { it.sourceMessageId == id }.forEach { graph.repo.deleteShort(it.id) }
             graph.repo.logActivity("memory", "Forgot information from message $id")
-        }
-    }
-
-    fun deleteLong(id: String) {
-        viewModelScope.launch(Dispatchers.IO) { graph.repo.deleteLong(id) }
-    }
-
-    fun deleteShort(id: String) {
-        viewModelScope.launch(Dispatchers.IO) { graph.repo.deleteShort(id) }
-    }
-
-    fun updateLongContent(id: String, content: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            graph.repo.getLong(id)?.let {
-                graph.repo.upsertLong(it.copy(content = content, updatedAt = System.currentTimeMillis(), version = it.version + 1))
-            }
         }
     }
 

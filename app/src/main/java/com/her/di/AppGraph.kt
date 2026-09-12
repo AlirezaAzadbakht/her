@@ -7,8 +7,10 @@ import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
 import com.her.core.newId
 import com.her.core.nowMillis
+import com.her.core.ConnectivityObserver
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
+import com.her.data.db.SqlBrowser
 import com.her.data.drive.SyncEngine
 import com.her.data.google.GoogleAuthService
 import com.her.data.remote.LlmClient
@@ -32,9 +34,11 @@ class AppGraph(context: Context) {
 
     val settings = AppSettingsStore(appContext)
     val secure = SecureSettingsStore(appContext)
+    val connectivity = ConnectivityObserver(appContext)
     val db: HerDatabase = Room.databaseBuilder(appContext, HerDatabase::class.java, "her.db")
         .build()
     val repo = HerRepository(db, settings)
+    val sqlBrowser = SqlBrowser(db)
     val ranker = HybridRanker(repo, NoOpEmbeddingProvider())
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
@@ -70,6 +74,6 @@ class AppGraph(context: Context) {
     }
 
     val orchestrator: AgentOrchestrator by lazy {
-        AgentOrchestrator(repo, llm, secure, settings, contextBuilder, tools, notifier, policy)
+        AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy)
     }
 }

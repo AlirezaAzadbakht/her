@@ -58,6 +58,42 @@ class RoomDaoTest {
     }
 
     @Test
+    fun pendingAndLatestAssistant() = runBlocking {
+        db.chatDao().upsert(
+            ChatMessageEntity(
+                id = "u1",
+                role = MessageRole.USER,
+                content = "one",
+                createdAt = 1,
+                updatedAt = 1,
+                deviceId = "dev",
+                version = 1,
+                deletedAt = null,
+                status = MessageStatus.PENDING,
+                metadataJson = null,
+            ),
+        )
+        db.chatDao().upsert(
+            ChatMessageEntity(
+                id = "a1",
+                role = MessageRole.ASSISTANT,
+                content = "hello",
+                createdAt = 2,
+                updatedAt = 2,
+                deviceId = "dev",
+                version = 1,
+                deletedAt = null,
+                status = MessageStatus.SENT,
+                metadataJson = null,
+            ),
+        )
+        assertEquals(1, db.chatDao().pending().size)
+        db.chatDao().markStatus(listOf("u1"), MessageStatus.SENT, 3)
+        assertEquals(0, db.chatDao().pending().size)
+        assertEquals(MessageStatus.SENT, db.chatDao().get("u1")?.status)
+    }
+
+    @Test
     fun groceryStatusPersists() = runBlocking {
         db.groceryDao().upsert(
             GroceryEntity(
