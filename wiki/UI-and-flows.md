@@ -14,10 +14,11 @@ The Memory tab is an experimental read-only SQL navigator. It defaults on (`memo
    - Assistant: *“Hi, {user}. I'm {her}.”*
    - Agent queue item: learn timezone and what matters — slowly, not as an interview.
 6. Her and Settings become available. Memory appears when the experimental flag is on.
+7. The first time that main UI appears, Android asks for calendar read/write (and notifications on API 33+). The ask is stored as `runtimePermissionsAsked` so it does not repeat. If they grant calendar, `calendarEnabled` turns on. Denial leaves the internal calendar only; Settings → Calendar access can ask again.
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or Drive.
 
-Optional later, in Settings: calendar permission, Google OAuth client ID (Drive / Calendar), web search.
+Optional later, in Settings: Calendar access (requests permission if needed), Google OAuth client ID (Drive / Calendar), web search.
 
 ## Her (single utterance)
 

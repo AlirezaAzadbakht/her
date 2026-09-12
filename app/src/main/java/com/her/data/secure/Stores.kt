@@ -77,6 +77,7 @@ data class AppSettings(
     val lastNotificationKey: String,
     val lastNotificationAt: Long,
     val memoryTabEnabled: Boolean,
+    val runtimePermissionsAsked: Boolean,
 )
 
 class AppSettingsStore(context: Context, prefsName: String = "her_app_settings") {
@@ -111,6 +112,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             lastNotificationKey = prefs.getString(KEY_NOTIF, "") ?: "",
             lastNotificationAt = prefs.getLong(KEY_NOTIF_AT, 0L),
             memoryTabEnabled = prefs.getBoolean(KEY_MEMORY_TAB, true),
+            runtimePermissionsAsked = prefs.getBoolean(KEY_PERM_ASKED, false),
         )
     }
 
@@ -137,6 +139,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putString(KEY_NOTIF, next.lastNotificationKey)
             putLong(KEY_NOTIF_AT, next.lastNotificationAt)
             putBoolean(KEY_MEMORY_TAB, next.memoryTabEnabled)
+            putBoolean(KEY_PERM_ASKED, next.runtimePermissionsAsked)
         }
         _state.value = next
     }
@@ -162,5 +165,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_NOTIF = "last_notif_key"
         private const val KEY_NOTIF_AT = "last_notif_at"
         private const val KEY_MEMORY_TAB = "memory_tab_enabled"
+        private const val KEY_PERM_ASKED = "runtime_permissions_asked"
     }
 }

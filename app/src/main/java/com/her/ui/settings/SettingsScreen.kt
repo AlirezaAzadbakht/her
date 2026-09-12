@@ -26,6 +26,7 @@ import com.her.core.QuietHours
 import com.her.data.secure.LlmSettings
 import com.her.ui.HerViewModel
 import com.her.ui.onboarding.QuietField
+import com.her.ui.onboarding.rememberCalendarPermissionRequester
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -47,6 +48,9 @@ fun SettingsScreen(vm: HerViewModel) {
     var googleClient by remember { mutableStateOf(app.googleClientId) }
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var advanced by remember { mutableStateOf(false) }
+    val requestCalendar = rememberCalendarPermissionRequester {
+        vm.updateSettings { it.copy(calendarEnabled = true) }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp),
@@ -73,7 +77,15 @@ fun SettingsScreen(vm: HerViewModel) {
                 vm.updateSettings { it.copy(quietHours = QuietHours(start, end)) }
             }) { Text("Save quiet hours") }
         }
-        item { Toggle("Calendar access", app.calendarEnabled) { vm.updateSettings { it.copy(calendarEnabled = !it.calendarEnabled) } } }
+        item {
+            Toggle("Calendar access", app.calendarEnabled) {
+                if (app.calendarEnabled) {
+                    vm.updateSettings { it.copy(calendarEnabled = false) }
+                } else {
+                    requestCalendar()
+                }
+            }
+        }
         item { Toggle("Drive sync", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } } }
         item { Toggle("Web search", app.webSearchEnabled) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } } }
         item { Toggle("Embeddings (optional)", app.embeddingsEnabled) { vm.updateSettings { it.copy(embeddingsEnabled = !it.embeddingsEnabled) } } }

@@ -38,6 +38,7 @@ import com.her.ui.theme.HerFontFamily
 import com.her.ui.her.HerScreen
 import com.her.ui.memory.SqlNavigatorScreen
 import com.her.ui.onboarding.NameOnboarding
+import com.her.ui.onboarding.RequestFirstRunPermissions
 import com.her.ui.onboarding.SetupScreen
 import com.her.ui.settings.SettingsScreen
 
@@ -79,6 +80,14 @@ fun HerApp(vm: HerViewModel) {
                 onSave = { next: LlmSettings -> vm.saveAndTest(next) },
             )
         } else {
+            RequestFirstRunPermissions(asked = settings.runtimePermissionsAsked) { calendarGranted ->
+                vm.updateSettings { current ->
+                    current.copy(
+                        runtimePermissionsAsked = true,
+                        calendarEnabled = current.calendarEnabled || calendarGranted,
+                    )
+                }
+            }
             val tabs = buildList {
                 add(Dest.Her)
                 if (settings.memoryTabEnabled) add(Dest.Memory)
