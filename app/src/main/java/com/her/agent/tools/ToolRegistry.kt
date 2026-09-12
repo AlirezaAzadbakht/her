@@ -59,7 +59,7 @@ fun interface ToolHandler {
     suspend fun invoke(args: JSONObject): JSONObject
 }
 
-class ToolRegistry(
+open class ToolRegistry(
     private val repo: HerRepository,
     private val ranker: MemoryRanker,
     private val settings: AppSettingsStore,
@@ -75,7 +75,7 @@ class ToolRegistry(
 
     fun specs(): List<ToolSpec> = handlers.values.map { it.first }
 
-    suspend fun execute(name: String, arguments: String): ToolResult {
+    open suspend fun execute(name: String, arguments: String): ToolResult {
         val spec = handlers[name] ?: return ToolResult(name, false, jsonObjectOf("error" to "Unknown tool: $name").toString())
         return try {
             val args = if (arguments.isBlank()) JSONObject() else JSONObject(arguments)
@@ -321,7 +321,7 @@ class ToolRegistry(
         register("get_person", "Get a person by id or name.", objSchema("id" to str(), "name" to str())) { args ->
             val person = args.optStringOrNull("id")?.let { repo.getPerson(it) }
                 ?: args.optStringOrNull("name")?.let { q -> repo.searchPeople(q).firstOrNull() }
-            jsonObjectOf("ok" to (person != null), "person" to person?.let { JSONObject(it.toJson()) })
+            jsonObjectOf("ok" to true, "person" to person?.let { JSONObject(it.toJson()) })
         }
         register("search_people", "Search people.", objSchema("query" to str(), required = listOf("query"))) { args ->
             jsonObjectOf("ok" to true, "people" to JSONArray(repo.searchPeople(args.requiredString("query")).map { JSONObject(it.toJson()) }))
@@ -360,7 +360,7 @@ class ToolRegistry(
         register("get_project", "Get a project.", objSchema("id" to str(), "name" to str())) { args ->
             val project = args.optStringOrNull("id")?.let { repo.getProject(it) }
                 ?: args.optStringOrNull("name")?.let { n -> repo.searchProjects(n).firstOrNull() }
-            jsonObjectOf("ok" to (project != null), "project" to project?.let { JSONObject(it.toJson()) })
+            jsonObjectOf("ok" to true, "project" to project?.let { JSONObject(it.toJson()) })
         }
         register("search_projects", "Search projects.", objSchema("query" to str(), required = listOf("query"))) { args ->
             jsonObjectOf("ok" to true, "projects" to JSONArray(repo.searchProjects(args.requiredString("query")).map { JSONObject(it.toJson()) }))
@@ -511,9 +511,37 @@ class ToolRegistry(
         register("get_important_dates", "List important dates.", objSchema()) { jsonObjectOf("ok" to true, "dates" to JSONArray(repo.importantDates().map { JSONObject(it.toJson()) })) }
         register("create_important_date", "Create an important date.", objSchema("title" to str(), "dateIso" to str(), "relatedPersonId" to str(), required = listOf("title", "dateIso"))) { args ->
             val now = nowMillis()
-            val id = newId()
-            repo.saveImportantDate(ImportantDate(id, args.requiredString("title"), args.requiredString("dateIso"), args.optStringOrNull("recurrence"), args.optStringOrNull("relatedPersonId"), args.optStringOrNull("notes"), args.optDoubleOr("importance", 0.7), now, now, repo.deviceId, 1, null))
-            jsonObjectOf("ok" to true, "id" to id)
+            val title = args.requiredString("title")
+            val relatedPersonId = args.optStringOrNull("relatedPersonId")
+            val existing = repo.importantDates().firstOrNull { date ->
+                (relatedPersonId != null && date.relatedPersonId == relatedPersonId) ||
+                    date.title.equals(title, ignoreCase = true)
+            }
+            val item = (existing ?: ImportantDate(
+                id = newId(),
+                title = title,
+                dateIso = args.requiredString("dateIso"),
+                recurrence = null,
+                relatedPersonId = relatedPersonId,
+                notes = null,
+                importance = 0.7,
+                createdAt = now,
+                updatedAt = now,
+                deviceId = repo.deviceId,
+                version = 1,
+                deletedAt = null,
+            )).copy(
+                title = title,
+                dateIso = args.requiredString("dateIso"),
+                recurrence = args.optStringOrNull("recurrence") ?: existing?.recurrence,
+                relatedPersonId = relatedPersonId ?: existing?.relatedPersonId,
+                notes = args.optStringOrNull("notes") ?: existing?.notes,
+                importance = args.optDoubleOr("importance", existing?.importance ?: 0.7),
+                updatedAt = now,
+                version = (existing?.version ?: 0) + 1,
+            )
+            repo.saveImportantDate(item)
+            jsonObjectOf("ok" to true, "id" to item.id)
         }
         register("update_important_date", "Update an important date.", objSchema("id" to str(), "title" to str(), "dateIso" to str(), required = listOf("id"))) { args ->
             val existing = repo.getImportantDate(args.requiredString("id")) ?: throw ToolValidationException("Date not found")
@@ -612,7 +640,16 @@ class ToolRegistry(
                 "system" to JSONArray(system.map { JSONObject(it.toJson()) }),
             )
         }
-        register("create_calendar_event", "Create an internal reminder/event. Also writes to the system calendar when permission exists.", objSchema("title" to str(), "when" to str(), "notes" to str(), required = listOf("title", "when"))) { args ->
+        register(
+            "create_calendar_event",
+            "Create an internal reminder/event. Also writes to the system calendar when permission exists.",
+            objSchema(
+                "title" to str(),
+                "when" to str("ISO-8601, epoch millis, or a natural phrase such as 'next Tuesday at 10am'"),
+                "notes" to str(),
+                required = listOf("title", "when"),
+            ),
+        ) { args ->
             val start = parseWhen(args.requiredString("when")) ?: throw ToolValidationException("Could not understand the time")
             val now = nowMillis()
             val id = newId()

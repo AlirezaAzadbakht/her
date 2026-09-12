@@ -1,0 +1,38 @@
+{
+  "id": "person-birthday-to-important-date",
+  "title": "Record a birthday on the person and as an important date",
+  "tags": ["people", "dates"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+  },
+  "turns": [
+    { "user": "My sister Neda's birthday is March 12." }
+  ],
+  "expect": {
+    "tools_called": ["update_person"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "people",
+        "count": 1,
+        "where": {
+          "name": { "contains": "Neda" },
+          "birthday": { "contains_any": ["March", "Mar", "03-12", "3/12", "12"] }
+        }
+      },
+      {
+        "table": "important_dates",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["Neda", "birthday"] },
+          "dateIso": { "contains_any": ["03-12", "March", "03/12", "2027-03-12", "-03-12"] }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["Neda", "March", "12"],
+      "judge": "She stored Neda as a sister and kept March 12 as an important date."
+    }
+  }
+}

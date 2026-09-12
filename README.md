@@ -21,6 +21,15 @@ source scripts/env.sh
 ./gradlew testDebugUnitTest
 ```
 
+Scenarios (live LLM, not part of CI) read `LLM_API_BASE_URL`, `LLM_MODEL_IDENTIFIER`, and `LLM_API_SECRET_KEY` from the repo-root `.env`:
+
+```bash
+make scenarios
+make scenario ID=calendar-set-meeting
+```
+
+See [wiki/Scenario-engine.md](wiki/Scenario-engine.md).
+
 `local.properties` should contain:
 
 ```

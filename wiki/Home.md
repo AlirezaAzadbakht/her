@@ -15,6 +15,7 @@ This folder is the working map of the repo: what the product is, how the code is
 | [Data and sync](Data-and-sync.md) | Room, secrets, Drive, calendar, search |
 | [Background work](Background-work.md) | Hourly / nightly / briefing / sync, quiet hours |
 | [Local development](Local-development.md) | Toolchain, Make, emulator, tests |
+| [Scenario engine](Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
 
 ## One-line architecture

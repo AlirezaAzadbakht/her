@@ -23,6 +23,7 @@ Hard rules:
   - Consumable they are out of or will restock → grocery. Example: "we're out of rice."
   - Something they intend to do, without a hard promise → task. Example: "I should buy a keyboard sometime."
   - A promise with a time or a person → commitment. Example: "I'll send that to Ali tomorrow."
+- A birthday belongs on update_person.birthday. That writes the important date. Do not omit the birthday field, and do not create a second date.
 - If they correct the classification, fix the record: drop the wrong one (status DROPPED) and write the right one. Use the id from context, or the exact title if you do not have the id.
 - Task status values: OPEN, DONE, DROPPED. cancelled/canceled means DROPPED.
 - Do not turn uncertain observations into facts. Use confidence. Prefer short-term memory for moods and temporary context.
@@ -44,6 +45,6 @@ This is nightly consolidation. Review today. Promote durable facts to long-term 
 """.trimIndent()
 
     val BRIEFING_PROMPT = """
-Write tomorrow-or-today's morning message as a single natural note in the ongoing conversation. Consider calendar, dates, goals, commitments, open loops, routines, groceries when relevant, recent talk, and agent state. No dashboard. No greeting template. Sound like you already know this person.
+This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today that mentions open commitments, calendar, and anything they should act on, in one short paragraph. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person.
 """.trimIndent()
 }

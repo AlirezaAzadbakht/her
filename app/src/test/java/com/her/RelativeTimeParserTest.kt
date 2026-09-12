@@ -36,4 +36,42 @@ class RelativeTimeParserTest {
         assertNotNull(parsed)
         assertEquals(18, parsed!!.hour)
     }
+
+    @Test
+    fun isoOffsetDateTime() {
+        val tehran = ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(0, 6), ZoneId.of("Asia/Tehran"))
+        val parsed = RelativeTimeParser.parse("2026-09-15T10:00:00+03:30", tehran)
+        assertNotNull(parsed)
+        assertEquals(LocalDate.of(2026, 9, 15), parsed!!.toLocalDate())
+        assertEquals(10, parsed.hour)
+        assertEquals(0, parsed.minute)
+    }
+
+    @Test
+    fun spaceSeparatedDateTime() {
+        val parsed = RelativeTimeParser.parse("2026-09-15 10:00", now)
+        assertNotNull(parsed)
+        assertEquals(LocalDate.of(2026, 9, 15), parsed!!.toLocalDate())
+        assertEquals(10, parsed.hour)
+    }
+
+    @Test
+    fun naturalContextBundleFormat() {
+        val tehran = ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(0, 6), ZoneId.of("Asia/Tehran"))
+        val parsed = RelativeTimeParser.parse("Tuesday, September 15, 2026 at 10:00 AM Asia/Tehran", tehran)
+        assertNotNull(parsed)
+        assertEquals(LocalDate.of(2026, 9, 15), parsed!!.toLocalDate())
+        assertEquals(10, parsed.hour)
+        assertEquals(ZoneId.of("Asia/Tehran"), parsed.zone)
+    }
+
+    @Test
+    fun nextTuesdayAtTen() {
+        val tehran = ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(0, 6), ZoneId.of("Asia/Tehran"))
+        val parsed = RelativeTimeParser.parse("next Tuesday at 10am", tehran)
+        assertNotNull(parsed)
+        assertEquals(LocalDate.of(2026, 9, 15), parsed!!.toLocalDate())
+        assertEquals(10, parsed.hour)
+        assertEquals(0, parsed.minute)
+    }
 }

@@ -1,0 +1,31 @@
+{
+  "id": "commitment-then-briefing",
+  "title": "Create a commitment and mention it in the morning briefing",
+  "tags": ["commitments", "briefing"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+  },
+  "turns": [
+    { "user": "I promised to send the report to Sara tomorrow." },
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "tools_called": ["create_commitment"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "commitments",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["report", "Sara"] },
+          "status": { "equals": "OPEN" }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["report", "Sara"],
+      "judge": "Mentions sending the report to Sara as something on the board for today or tomorrow."
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import java.time.Duration
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -73,6 +74,7 @@ android {
                 "robolectric.dependency.dir",
                 layout.buildDirectory.dir("robolectric-jars").get().asFile.absolutePath,
             )
+            it.filter.excludeTestsMatching("com.her.scenario.ScenarioEngineTest")
         }
     }
 
@@ -147,4 +149,45 @@ val prefetchRobolectricJars = tasks.register<Copy>("prefetchRobolectricJars") {
 
 tasks.withType<Test>().configureEach {
     dependsOn(prefetchRobolectricJars)
+    systemProperty("her.repoRoot", rootProject.projectDir.absolutePath)
+}
+
+afterEvaluate {
+    val unitTest = tasks.named<Test>("testDebugUnitTest")
+    unitTest.configure {
+        filter {
+            excludeTestsMatching("com.her.scenario.ScenarioEngineTest")
+        }
+    }
+
+    tasks.register<Test>("scenarioTest") {
+        group = "verification"
+        description = "Runs the scenario pool against the live LLM from .env (slow, manual)."
+        val source = unitTest.get()
+        testClassesDirs = source.testClassesDirs
+        classpath = source.classpath
+        setDependsOn(source.dependsOn)
+        systemProperty("java.net.preferIPv4Stack", "true")
+        systemProperty("robolectric.offline", "true")
+        systemProperty(
+            "robolectric.dependency.dir",
+            layout.buildDirectory.dir("robolectric-jars").get().asFile.absolutePath,
+        )
+        systemProperty("her.repoRoot", rootProject.projectDir.absolutePath)
+        listOf("scenario.only", "scenario.filter", "scenario.attempts", "scenario.parallel").forEach { key ->
+            val value = project.findProperty(key)?.toString().orEmpty()
+            if (value.isNotEmpty()) {
+                systemProperty(key, value)
+            }
+        }
+        filter {
+            includeTestsMatching("com.her.scenario.ScenarioEngineTest")
+        }
+        outputs.upToDateWhen { false }
+        testLogging {
+            showStandardStreams = true
+            events("passed", "skipped", "failed", "standardOut", "standardError")
+        }
+        timeout.set(Duration.ofMinutes(45))
+    }
 }

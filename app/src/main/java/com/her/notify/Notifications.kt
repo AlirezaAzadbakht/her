@@ -49,7 +49,7 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
         hours.contains(now.toLocalTime())
 }
 
-class Notifier(private val context: Context) {
+open class Notifier(private val context: Context) {
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(NotificationManager::class.java)
@@ -61,7 +61,7 @@ class Notifier(private val context: Context) {
         }
     }
 
-    fun show(text: String, briefing: Boolean) {
+    open fun show(text: String, briefing: Boolean) {
         val open = PendingIntent.getActivity(
             context,
             1,

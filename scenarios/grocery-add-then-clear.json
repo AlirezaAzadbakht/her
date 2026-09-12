@@ -1,0 +1,33 @@
+{
+  "id": "grocery-add-then-clear",
+  "title": "Add groceries then clear purchased items",
+  "tags": ["groceries"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+  },
+  "turns": [
+    { "user": "We're out of coffee. Also rice." },
+    { "user": "I bought everything except eggs. We still need eggs." }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery", "clear_purchased_groceries"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "equals_ignore_case": "eggs" }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "groceries",
+        "count": 0,
+        "where": { "name": { "equals_ignore_case": "coffee" }, "status": { "equals": "ACTIVE" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["egg"],
+      "judge": "Coffee and rice are off the list and eggs remain."
+    }
+  }
+}

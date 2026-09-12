@@ -9,12 +9,14 @@ AVD := her
 PKG := com.her.debug
 ACTIVITY := $(PKG)/com.her.MainActivity
 
-.PHONY: help emulate apk stop
+.PHONY: help emulate apk stop scenarios scenario
 
 help:
 	@echo "make emulate  - boot the her AVD, install the debug APK, launch the app"
 	@echo "make apk      - assemble the debug APK (always rebuilds)"
 	@echo "make stop     - stop the running emulator"
+	@echo "make scenarios - run the scenario pool against the live LLM from .env"
+	@echo "make scenario ID=calendar-set-meeting - run one scenario"
 
 apk:
 	source "$(ROOT)/scripts/env.sh"
@@ -47,3 +49,11 @@ emulate:
 stop:
 	source "$(ROOT)/scripts/env.sh"
 	adb emu kill || true
+
+scenarios:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:scenarioTest
+
+scenario:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:scenarioTest -Pscenario.only="$(ID)"

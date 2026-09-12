@@ -79,8 +79,8 @@ data class AppSettings(
     val memoryTabEnabled: Boolean,
 )
 
-class AppSettingsStore(context: Context) {
-    private val prefs = context.getSharedPreferences("her_app_settings", Context.MODE_PRIVATE)
+class AppSettingsStore(context: Context, prefsName: String = "her_app_settings") {
+    private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
     private val _state = MutableStateFlow(read())
     val state: StateFlow<AppSettings> = _state.asStateFlow()
 

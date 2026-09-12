@@ -1,0 +1,30 @@
+{
+  "id": "recurring-monthly-task",
+  "title": "Create a monthly recurring responsibility",
+  "tags": ["tasks", "recurring"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+  },
+  "turns": [
+    { "user": "Create a monthly task to review the budget on the first of each month." }
+  ],
+  "expect": {
+    "tools_called": ["create_recurring_responsibility"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "recurring_responsibilities",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["budget", "review"] },
+          "cadence": { "contains_any": ["month", "monthly"] }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["month", "budget"],
+      "judge": "She confirms a monthly budget review is on the books."
+    }
+  }
+}

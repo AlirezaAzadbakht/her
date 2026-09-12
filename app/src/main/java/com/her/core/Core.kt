@@ -4,10 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
+import java.time.temporal.ChronoField
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
@@ -92,10 +96,70 @@ data class QuietHours(
 
 object RelativeTimeParser {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val naturalDateTime: DateTimeFormatter = DateTimeFormatterBuilder()
+        .parseCaseInsensitive()
+        .appendPattern("EEEE, MMMM d, yyyy 'at' h:mm a")
+        .toFormatter(Locale.US)
+    private val localDateTimeSpace: DateTimeFormatter = DateTimeFormatterBuilder()
+        .append(dateFormatter)
+        .appendLiteral(' ')
+        .appendValue(ChronoField.HOUR_OF_DAY, 2)
+        .appendLiteral(':')
+        .appendValue(ChronoField.MINUTE_OF_HOUR, 2)
+        .optionalStart()
+        .appendLiteral(':')
+        .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
+        .optionalEnd()
+        .toFormatter()
+    private val zoneSuffix = Regex("""\s+([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
+    private val atClock = Regex("""^(.*?)\s+at\s+(.+)$""", RegexOption.IGNORE_CASE)
+    private val trailingClock = Regex(
+        """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?)$""",
+        RegexOption.IGNORE_CASE,
+    )
 
     fun parse(phrase: String, now: ZonedDateTime): ZonedDateTime? {
-        val text = phrase.trim().lowercase(Locale.US)
-        if (text.isBlank()) return null
+        val raw = phrase.trim()
+        if (raw.isBlank()) return null
+        raw.toLongOrNull()?.let { n ->
+            val millis = if (n > 10_000_000_000L) n else n * 1000
+            return Instant.ofEpochMilli(millis).atZone(now.zone)
+        }
+        parseIso(raw, now)?.let { return it }
+        parseNatural(raw, now)?.let { return it }
+        val text = raw.lowercase(Locale.US)
+        splitClock(text)?.let { (datePhrase, clockPhrase) ->
+            val date = parseBareDate(datePhrase, now) ?: return null
+            val clock = parseClock(clockPhrase) ?: return null
+            return date.atTime(clock).atZone(now.zone)
+        }
+        return parseBareDateTime(text, now)
+    }
+
+    private fun parseIso(raw: String, now: ZonedDateTime): ZonedDateTime? {
+        runCatching { return OffsetDateTime.parse(raw).atZoneSameInstant(now.zone) }
+        runCatching { return ZonedDateTime.parse(raw).withZoneSameInstant(now.zone) }
+        runCatching { return Instant.parse(raw).atZone(now.zone) }
+        runCatching { return LocalDateTime.parse(raw).atZone(now.zone) }
+        runCatching { return LocalDateTime.parse(raw, localDateTimeSpace).atZone(now.zone) }
+        if (raw.matches(Regex("""\d{4}-\d{2}-\d{2}"""))) {
+            return LocalDate.parse(raw, dateFormatter).atStartOfDay(now.zone)
+        }
+        return null
+    }
+
+    private fun parseNatural(raw: String, now: ZonedDateTime): ZonedDateTime? {
+        var text = raw.trim()
+        val zoneMatch = zoneSuffix.find(text)
+        val zone = zoneMatch?.groupValues?.get(1)?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+        if (zone != null) {
+            text = text.substring(0, zoneMatch.range.first).trim()
+        }
+        val parsed = runCatching { LocalDateTime.parse(text, naturalDateTime) }.getOrNull() ?: return null
+        return parsed.atZone(zone ?: now.zone)
+    }
+
+    private fun parseBareDateTime(text: String, now: ZonedDateTime): ZonedDateTime? {
         return when {
             text == "now" -> now
             text == "today" -> now.toLocalDate().atStartOfDay(now.zone)
@@ -110,10 +174,54 @@ object RelativeTimeParser {
             text == "next month" -> now.toLocalDate().plusMonths(1).atStartOfDay(now.zone)
             text.startsWith("in ") -> parseIn(text.removePrefix("in ").trim(), now)
             text.startsWith("next ") -> parseNextWeekday(text.removePrefix("next ").trim(), now)
-            text.matches(Regex("""\d{4}-\d{2}-\d{2}""")) ->
-                LocalDate.parse(text, dateFormatter).atStartOfDay(now.zone)
+                ?.atStartOfDay(now.zone)
+            else -> parseBareDate(text, now)?.atStartOfDay(now.zone)
+        }
+    }
+
+    private fun parseBareDate(text: String, now: ZonedDateTime): LocalDate? {
+        val trimmed = text.trim()
+        return when {
+            trimmed == "today" || trimmed == "now" -> now.toLocalDate()
+            trimmed == "tomorrow" -> now.toLocalDate().plusDays(1)
+            trimmed == "yesterday" -> now.toLocalDate().minusDays(1)
+            trimmed == "this evening" || trimmed == "tonight" ||
+                trimmed == "this morning" || trimmed == "this afternoon" -> now.toLocalDate()
+            trimmed == "next week" -> now.toLocalDate().plusWeeks(1)
+            trimmed == "last week" -> now.toLocalDate().minusWeeks(1)
+            trimmed == "next month" -> now.toLocalDate().plusMonths(1)
+            trimmed.startsWith("in ") -> parseIn(trimmed.removePrefix("in ").trim(), now)?.toLocalDate()
+            trimmed.startsWith("next ") -> parseNextWeekday(trimmed.removePrefix("next ").trim(), now)
+            trimmed.matches(Regex("""\d{4}-\d{2}-\d{2}""")) -> LocalDate.parse(trimmed, dateFormatter)
             else -> null
         }
+    }
+
+    private fun splitClock(text: String): Pair<String, String>? {
+        atClock.matchEntire(text)?.let { match ->
+            val date = match.groupValues[1].trim()
+            val clock = match.groupValues[2].trim()
+            if (date.isNotEmpty() && parseClock(clock) != null) return date to clock
+        }
+        trailingClock.matchEntire(text)?.let { match ->
+            val date = match.groupValues[1].trim()
+            val clock = match.groupValues[2].trim()
+            if (date.isNotEmpty() && parseClock(clock) != null) return date to clock
+        }
+        return null
+    }
+
+    private fun parseClock(raw: String): LocalTime? {
+        val text = raw.trim().lowercase(Locale.US).replace(".", "")
+        val match = Regex("""^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(am|pm)?$""").matchEntire(text)
+            ?: return null
+        var hour = match.groupValues[1].toInt()
+        val minute = match.groupValues[2].takeIf { it.isNotEmpty() }?.toInt() ?: 0
+        val second = match.groupValues[3].takeIf { it.isNotEmpty() }?.toInt() ?: 0
+        val meridiem = match.groupValues[4]
+        if (meridiem == "pm" && hour < 12) hour += 12
+        if (meridiem == "am" && hour == 12) hour = 0
+        return runCatching { LocalTime.of(hour, minute, second) }.getOrNull()
     }
 
     private fun parseIn(rest: String, now: ZonedDateTime): ZonedDateTime? {
@@ -130,13 +238,13 @@ object RelativeTimeParser {
         }
     }
 
-    private fun parseNextWeekday(name: String, now: ZonedDateTime): ZonedDateTime? {
-        val target = weekday(name) ?: return null
+    private fun parseNextWeekday(name: String, now: ZonedDateTime): LocalDate? {
+        val target = weekday(name.substringBefore(' ').trim()) ?: return null
         var date = now.toLocalDate().plusDays(1)
         while (date.dayOfWeek != target) {
             date = date.plusDays(1)
         }
-        return date.atStartOfDay(now.zone)
+        return date
     }
 
     private fun parseAmount(raw: String): Long? = raw.toLongOrNull() ?: when (raw.lowercase(Locale.US)) {

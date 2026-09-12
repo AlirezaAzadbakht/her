@@ -35,6 +35,8 @@ make help      # list
 make apk       # always rebuild debug APK
 make emulate   # boot AVD her, install if needed, launch
 make stop      # adb emu kill
+make scenarios # live-LLM scenario pool (needs repo-root .env)
+make scenario ID=calendar-set-meeting
 ```
 
 `emulate` behavior (easy to misread as a crash):
@@ -58,6 +60,8 @@ All tests are JVM / Robolectric unit tests under `app/src/test/java/com/her/`. T
 | Test | Why it exists |
 |------|----------------|
 | `HerSimulationTest` | Scripted first days through real Room + tools (no live LLM). Writes `build/reports/her-simulation.html` and `.txt` under the test working directory |
+| `ScenarioPoolValidationTest` | Parses `scenarios/*.json` with no LLM calls (this is what CI runs) |
+| `ScenarioEngineTest` | Live-LLM pool; **not** in `testDebugUnitTest`. Run `make scenarios`. See [Scenario engine](Scenario-engine.md) |
 | `MarkdownParserTest` | Local chat markdown |
 | `EnumParseTest` | `cancelled` → `DROPPED` |
 | `RoomDaoTest` | FTS + grocery persistence |
