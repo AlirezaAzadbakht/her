@@ -32,7 +32,16 @@ emulate:
 			sleep 2
 		done
 	fi
-	adb install -r -t "$(APK)"
+	remote_path="$$(adb shell pm path "$(PKG)" 2>/dev/null | sed -n 's/^package://p' | tr -d '\r')"
+	if [[ -z "$$remote_path" ]]; then
+		adb install -t "$(APK)"
+	else
+		local_md5="$$(md5sum "$(APK)" | awk '{print $$1}')"
+		remote_md5="$$(adb shell md5sum "$$remote_path" | awk '{print $$1}')"
+		if [[ "$$local_md5" != "$$remote_md5" ]]; then
+			adb install -r -t "$(APK)"
+		fi
+	fi
 	adb shell am start -n "$(ACTIVITY)"
 
 stop:

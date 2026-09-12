@@ -32,6 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -39,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.her.domain.ChatMessage
 import com.her.domain.MessageRole
 import com.her.ui.HerViewModel
+import com.her.ui.markdown.ConversationMarkdown
 import com.her.ui.theme.ConversationStyle
 
 @Composable
@@ -89,6 +95,12 @@ fun HerScreen(vm: HerViewModel) {
             Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.padding(bottom = 8.dp))
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        fun sendDraft() {
+            if (draft.text.isNotBlank() && !sending) {
+                vm.send(draft.text)
+                draft = TextFieldValue("")
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -96,14 +108,24 @@ fun HerScreen(vm: HerViewModel) {
             BasicTextField(
                 value = draft,
                 onValueChange = { draft = it },
-                modifier = Modifier.weight(1f).padding(end = 12.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 12.dp)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown &&
+                            (event.key == Key.Enter || event.key == Key.NumPadEnter)
+                        ) {
+                            sendDraft()
+                            true
+                        } else {
+                            false
+                        }
+                    },
+                singleLine = true,
                 textStyle = ConversationStyle.copy(color = MaterialTheme.colorScheme.onBackground, fontSize = 17.sp),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = {
-                    vm.send(draft.text)
-                    draft = TextFieldValue("")
-                }),
+                keyboardActions = KeyboardActions(onSend = { sendDraft() }),
                 decorationBox = { inner ->
                     if (draft.text.isEmpty()) {
                         Text("Write something", style = ConversationStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 17.sp))
@@ -112,10 +134,7 @@ fun HerScreen(vm: HerViewModel) {
                 },
             )
             TextButton(
-                onClick = {
-                    vm.send(draft.text)
-                    draft = TextFieldValue("")
-                },
+                onClick = { sendDraft() },
                 enabled = draft.text.isNotBlank() && !sending,
             ) {
                 Text("Send", color = MaterialTheme.colorScheme.primary)
@@ -133,11 +152,9 @@ private fun MessageLine(
     var menu by remember { mutableStateOf(false) }
     val user = message.role == MessageRole.USER
     Column(Modifier.fillMaxWidth()) {
-        Text(
-            text = message.content,
-            style = ConversationStyle,
+        ConversationMarkdown(
+            content = message.content,
             color = if (user) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.fillMaxWidth(),
         )
         Text(
             text = if (user) "you" else "her",

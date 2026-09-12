@@ -103,6 +103,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    implementation(libs.mikepenz.markdown)
+    implementation(libs.mikepenz.markdown.m3)
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
