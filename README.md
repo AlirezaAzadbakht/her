@@ -27,6 +27,31 @@ sdk.dir=/absolute/path/to/android-sdk
 
 If `dl.google.com` is unreachable, the Gradle files already prefer Aliyun / JetBrains mirrors for Google Maven artifacts.
 
+## CI / release
+
+GitHub Actions runs unit tests and uploads a debug APK on pushes and pull requests. Pushing a version tag publishes a signed APK to a GitHub Release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Create a keystore (keep the `.jks` file private; you need the same one for every update):
+
+```bash
+keytool -genkeypair -v \
+  -keystore her-release.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias her
+```
+
+Then add these repository secrets (`Settings → Secrets and variables → Actions`):
+
+- `RELEASE_KEYSTORE_BASE64` — `base64 -w 0 her-release.jks`
+- `RELEASE_STORE_PASSWORD` — keystore password
+- `RELEASE_KEY_ALIAS` — key alias (`her` if you used the command above)
+- `RELEASE_KEY_PASSWORD` — key password
+
 ## First run
 
 1. Open the app.

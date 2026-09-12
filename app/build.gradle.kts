@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+fun envOrProp(name: String): String? =
+    System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: (project.findProperty(name) as String?)?.trim()?.takeIf { it.isNotEmpty() }
+
 android {
     namespace = "com.her"
     compileSdk = 36
@@ -15,14 +19,29 @@ android {
         applicationId = "com.her"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = envOrProp("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = envOrProp("VERSION_NAME") ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    val releaseStoreFilePath = envOrProp("RELEASE_STORE_FILE")
+    if (releaseStoreFilePath != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseStoreFilePath)
+                storePassword = envOrProp("RELEASE_STORE_PASSWORD")
+                keyAlias = envOrProp("RELEASE_KEY_ALIAS")
+                keyPassword = envOrProp("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseStoreFilePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

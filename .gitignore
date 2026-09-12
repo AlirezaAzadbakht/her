@@ -10,6 +10,8 @@ captures/
 *.apk
 *.ap_
 *.aab
+*.jks
+*.keystore
 .DS_Store
 *.log
 .kotlin/
