@@ -185,3 +185,37 @@ internal object MarkdownParser {
         return out
     }
 }
+
+internal enum class ContentDirection { Ltr, Rtl }
+
+internal fun List<MdInline>.plainText(): String = buildString {
+    this@plainText.forEach { appendPlain(it) }
+}
+
+private fun StringBuilder.appendPlain(inline: MdInline) {
+    when (inline) {
+        is MdInline.Text -> append(inline.value)
+        is MdInline.Code -> append(inline.value)
+        is MdInline.Strong -> inline.children.forEach { appendPlain(it) }
+        is MdInline.Emphasis -> inline.children.forEach { appendPlain(it) }
+        is MdInline.Strike -> inline.children.forEach { appendPlain(it) }
+        is MdInline.Link -> inline.label.forEach { appendPlain(it) }
+    }
+}
+
+/** First strong character, same rule as HTML `dir=auto` (Unicode P2: L, R, or AL). */
+internal fun firstStrongDirection(text: String): ContentDirection? {
+    var i = 0
+    while (i < text.length) {
+        val cp = text.codePointAt(i)
+        i += Character.charCount(cp)
+        when (Character.getDirectionality(cp)) {
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT,
+            Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC,
+            -> return ContentDirection.Rtl
+            Character.DIRECTIONALITY_LEFT_TO_RIGHT,
+            -> return ContentDirection.Ltr
+        }
+    }
+    return null
+}
