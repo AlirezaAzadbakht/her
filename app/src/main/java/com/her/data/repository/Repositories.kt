@@ -74,9 +74,6 @@ class HerRepository(
     private val memoryDao get() = db.memoryDao()
     val deviceId: String get() = settings.read().deviceId
 
-    fun observeMessages(): Flow<List<ChatMessage>> =
-        chatDao.observeAll().map { list -> list.map { it.toDomain() } }
-
     fun observeLatestAssistant(): Flow<ChatMessage?> =
         chatDao.observeLatestByRole(MessageRole.ASSISTANT).map { it?.toDomain() }
 
@@ -108,12 +105,6 @@ class HerRepository(
         if (enqueueSync) enqueue("chat_messages", message.id, SyncOpType.UPSERT, message.toJson())
     }
 
-    suspend fun deleteMessage(id: String) {
-        val at = nowMillis()
-        chatDao.softDelete(id, at)
-        enqueue("chat_messages", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
-    }
-
     suspend fun upsertShort(memory: ShortTermMemory) {
         memoryDao.upsertShort(memory.toEntity())
         enqueue("short_term_memories", memory.id, SyncOpType.UPSERT, memory.toJson())
@@ -128,8 +119,6 @@ class HerRepository(
     suspend fun getLong(id: String) = memoryDao.getLong(id)?.toDomain()
     suspend fun activeShort(): List<ShortTermMemory> = memoryDao.activeShort(nowMillis()).map { it.toDomain() }
     suspend fun activeLong(): List<LongTermMemory> = memoryDao.longByStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
-    fun observeShort() = memoryDao.observeShort().map { it.map { e -> e.toDomain() } }
-    fun observeLong() = memoryDao.observeLong().map { it.map { e -> e.toDomain() } }
 
     suspend fun searchShort(query: String, limit: Int) =
         runCatching { memoryDao.searchShort(sanitizeFts(query), limit) }.getOrDefault(emptyList()).map { it.toDomain() }
@@ -168,15 +157,12 @@ class HerRepository(
         return created
     }
 
-    fun observeProfile() = db.profileDao().observe(UserProfile.PROFILE_ID).map { it?.toDomain() }
-
     suspend fun saveProfile(profile: UserProfile) {
         db.profileDao().upsert(profile.toEntity())
         enqueue("user_profile", profile.id, SyncOpType.UPSERT, profile.toJson())
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }
-    fun observePeople() = db.personDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getPerson(id: String) = db.personDao().get(id)?.toDomain()
     suspend fun searchPeople(q: String) = db.personDao().search("%$q%").map { it.toDomain() }
     suspend fun savePerson(person: Person) {
@@ -185,7 +171,6 @@ class HerRepository(
     }
 
     suspend fun projects() = db.projectDao().allActive().map { it.toDomain() }
-    fun observeProjects() = db.projectDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getProject(id: String) = db.projectDao().get(id)?.toDomain()
     suspend fun searchProjects(q: String) = db.projectDao().search("%$q%").map { it.toDomain() }
     suspend fun saveProject(project: Project) {
@@ -194,7 +179,6 @@ class HerRepository(
     }
 
     suspend fun goals() = db.goalDao().allActive().map { it.toDomain() }
-    fun observeGoals() = db.goalDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getGoal(id: String) = db.goalDao().get(id)?.toDomain()
     suspend fun saveGoal(goal: Goal) {
         db.goalDao().upsert(goal.toEntity())
@@ -202,7 +186,6 @@ class HerRepository(
     }
 
     suspend fun tasks() = db.taskDao().allActive().map { it.toDomain() }
-    fun observeTasks() = db.taskDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getTask(id: String) = db.taskDao().get(id)?.toDomain()
     suspend fun saveTask(task: TaskItem) {
         db.taskDao().upsert(task.toEntity())
@@ -210,7 +193,6 @@ class HerRepository(
     }
 
     suspend fun commitments() = db.commitmentDao().allActive().map { it.toDomain() }
-    fun observeCommitments() = db.commitmentDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getCommitment(id: String) = db.commitmentDao().get(id)?.toDomain()
     suspend fun saveCommitment(item: Commitment) {
         db.commitmentDao().upsert(item.toEntity())
@@ -218,7 +200,6 @@ class HerRepository(
     }
 
     suspend fun openLoops() = db.openLoopDao().allActive().map { it.toDomain() }
-    fun observeOpenLoops() = db.openLoopDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getOpenLoop(id: String) = db.openLoopDao().get(id)?.toDomain()
     suspend fun saveOpenLoop(item: OpenLoop) {
         db.openLoopDao().upsert(item.toEntity())
@@ -226,7 +207,6 @@ class HerRepository(
     }
 
     suspend fun routines() = db.routineDao().allActive().map { it.toDomain() }
-    fun observeRoutines() = db.routineDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getRoutine(id: String) = db.routineDao().get(id)?.toDomain()
     suspend fun saveRoutine(item: Routine) {
         db.routineDao().upsert(item.toEntity())
@@ -234,7 +214,6 @@ class HerRepository(
     }
 
     suspend fun groceries() = db.groceryDao().allActive().map { it.toDomain() }
-    fun observeGroceries() = db.groceryDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getGrocery(id: String) = db.groceryDao().get(id)?.toDomain()
     suspend fun saveGrocery(item: GroceryItem) {
         db.groceryDao().upsert(item.toEntity())
@@ -251,7 +230,6 @@ class HerRepository(
     }
 
     suspend fun importantDates() = db.importantDateDao().allActive().map { it.toDomain() }
-    fun observeImportantDates() = db.importantDateDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getImportantDate(id: String) = db.importantDateDao().get(id)?.toDomain()
     suspend fun saveImportantDate(item: ImportantDate) {
         db.importantDateDao().upsert(item.toEntity())
@@ -259,7 +237,6 @@ class HerRepository(
     }
 
     suspend fun responsibilities() = db.responsibilityDao().allActive().map { it.toDomain() }
-    fun observeResponsibilities() = db.responsibilityDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getResponsibility(id: String) = db.responsibilityDao().get(id)?.toDomain()
     suspend fun saveResponsibility(item: RecurringResponsibility) {
         db.responsibilityDao().upsert(item.toEntity())
@@ -267,8 +244,6 @@ class HerRepository(
     }
 
     suspend fun calendarInRange(from: Long, to: Long) = db.calendarDao().inRange(from, to).map { it.toDomain() }
-    suspend fun calendarAll() = db.calendarDao().allActive().map { it.toDomain() }
-    fun observeCalendar() = db.calendarDao().observe().map { it.map { e -> e.toDomain() } }
     suspend fun getCalendarEvent(id: String) = db.calendarDao().get(id)?.toDomain()
     suspend fun saveCalendarEvent(item: CalendarEvent) {
         db.calendarDao().upsert(item.toEntity())
@@ -315,10 +290,6 @@ class HerRepository(
         db.logDao().upsertRun(run.toEntity())
     }
 
-    suspend fun getRun(id: String) = db.logDao().getRun(id)?.toDomain()
-    suspend fun recentRuns(limit: Int = 40) = db.logDao().recentRuns(limit).map { it.toDomain() }
-    suspend fun recentActivity(limit: Int = 80) = db.logDao().recentActivity(limit).map { it.toDomain() }
-    suspend fun recentDebug(limit: Int = 40) = db.logDao().recentDebug(limit).map { it.toDomain() }
     fun observeActivity(limit: Int = 80) = db.logDao().observeActivity(limit).map { it.map { e -> e.toDomain() } }
     fun observeDebug(limit: Int = 40) = db.logDao().observeDebug(limit).map { it.map { e -> e.toDomain() } }
     fun observeRuns(limit: Int = 40) = db.logDao().observeRuns(limit).map { it.map { e -> e.toDomain() } }
@@ -344,11 +315,6 @@ class HerRepository(
             errors = current.errors + if (error) 1 else 0,
         )
         db.logDao().upsertUsage(next)
-    }
-
-    suspend fun usageToday(): ApiUsageDay {
-        val day = LocalDate.now().toString()
-        return db.logDao().usage(day)?.toDomain() ?: ApiUsageDay(day, 0, 0, 0, 0, 0, 0, 0, 0, 0)
     }
 
     fun observeUsageToday() = db.logDao().observeUsage(LocalDate.now().toString()).map { it?.toDomain() }

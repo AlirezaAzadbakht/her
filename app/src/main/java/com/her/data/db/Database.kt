@@ -12,7 +12,6 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import androidx.room.Update
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
@@ -451,9 +450,6 @@ class HerConverters {
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL ORDER BY createdAt ASC")
-    fun observeAll(): Flow<List<ChatMessageEntity>>
-
     @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<ChatMessageEntity>
 
@@ -482,14 +478,8 @@ interface ChatDao {
     )
     suspend fun search(query: String, limit: Int): List<ChatMessageEntity>
 
-    @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL")
-    suspend fun allActive(): List<ChatMessageEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: ChatMessageEntity)
-
-    @Query("UPDATE chat_messages SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
-    suspend fun softDelete(id: String, at: Long)
 }
 
 @Dao
@@ -511,12 +501,6 @@ interface MemoryDao {
 
     @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL AND status = :status ORDER BY importance DESC, updatedAt DESC")
     suspend fun longByStatus(status: MemoryStatus): List<LongTermMemoryEntity>
-
-    @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL")
-    fun observeShort(): Flow<List<ShortTermMemoryEntity>>
-
-    @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL")
-    fun observeLong(): Flow<List<LongTermMemoryEntity>>
 
     @Query(
         """
@@ -543,21 +527,12 @@ interface MemoryDao {
 
     @Query("UPDATE long_term_memories SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun deleteLong(id: String, at: Long)
-
-    @Query("SELECT * FROM short_term_memories")
-    suspend fun allShort(): List<ShortTermMemoryEntity>
-
-    @Query("SELECT * FROM long_term_memories")
-    suspend fun allLong(): List<LongTermMemoryEntity>
 }
 
 @Dao
 interface ProfileDao {
     @Query("SELECT * FROM user_profile WHERE id = :id LIMIT 1")
     suspend fun get(id: String): UserProfileEntity?
-
-    @Query("SELECT * FROM user_profile WHERE id = :id LIMIT 1")
-    fun observe(id: String): Flow<UserProfileEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: UserProfileEntity)
@@ -573,9 +548,6 @@ interface PersonDao {
 
     @Query("SELECT * FROM people WHERE deletedAt IS NULL ORDER BY lastMentioned DESC, name ASC")
     suspend fun allActive(): List<PersonEntity>
-
-    @Query("SELECT * FROM people WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<PersonEntity>>
 
     @Query("SELECT * FROM people WHERE deletedAt IS NULL AND (name LIKE :q OR relationship LIKE :q OR importantNotes LIKE :q)")
     suspend fun search(q: String): List<PersonEntity>
@@ -595,9 +567,6 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE deletedAt IS NULL ORDER BY importance DESC, updatedAt DESC")
     suspend fun allActive(): List<ProjectEntity>
 
-    @Query("SELECT * FROM projects WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<ProjectEntity>>
-
     @Query("SELECT * FROM projects WHERE deletedAt IS NULL AND (name LIKE :q OR description LIKE :q OR summary LIKE :q)")
     suspend fun search(q: String): List<ProjectEntity>
 
@@ -616,9 +585,6 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE deletedAt IS NULL ORDER BY priority DESC, updatedAt DESC")
     suspend fun allActive(): List<GoalEntity>
 
-    @Query("SELECT * FROM goals WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<GoalEntity>>
-
     @Query("UPDATE goals SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -633,9 +599,6 @@ interface TaskDao {
 
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<TaskEntity>
-
-    @Query("SELECT * FROM tasks WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<TaskEntity>>
 
     @Query("UPDATE tasks SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
@@ -652,9 +615,6 @@ interface CommitmentDao {
     @Query("SELECT * FROM commitments WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<CommitmentEntity>
 
-    @Query("SELECT * FROM commitments WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<CommitmentEntity>>
-
     @Query("UPDATE commitments SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -669,9 +629,6 @@ interface OpenLoopDao {
 
     @Query("SELECT * FROM open_loops WHERE deletedAt IS NULL ORDER BY importance DESC")
     suspend fun allActive(): List<OpenLoopEntity>
-
-    @Query("SELECT * FROM open_loops WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<OpenLoopEntity>>
 
     @Query("UPDATE open_loops SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
@@ -688,9 +645,6 @@ interface RoutineDao {
     @Query("SELECT * FROM routines WHERE deletedAt IS NULL ORDER BY confidence DESC")
     suspend fun allActive(): List<RoutineEntity>
 
-    @Query("SELECT * FROM routines WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<RoutineEntity>>
-
     @Query("UPDATE routines SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -705,12 +659,6 @@ interface GroceryDao {
 
     @Query("SELECT * FROM groceries WHERE deletedAt IS NULL ORDER BY status ASC, name ASC")
     suspend fun allActive(): List<GroceryEntity>
-
-    @Query("SELECT * FROM groceries WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<GroceryEntity>>
-
-    @Query("SELECT * FROM groceries WHERE deletedAt IS NULL AND status = :status")
-    suspend fun byStatus(status: GroceryStatus): List<GroceryEntity>
 
     @Query("UPDATE groceries SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
@@ -727,9 +675,6 @@ interface ImportantDateDao {
     @Query("SELECT * FROM important_dates WHERE deletedAt IS NULL ORDER BY dateIso ASC")
     suspend fun allActive(): List<ImportantDateEntity>
 
-    @Query("SELECT * FROM important_dates WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<ImportantDateEntity>>
-
     @Query("UPDATE important_dates SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -745,9 +690,6 @@ interface ResponsibilityDao {
     @Query("SELECT * FROM recurring_responsibilities WHERE deletedAt IS NULL ORDER BY nextDueAt IS NULL, nextDueAt ASC")
     suspend fun allActive(): List<RecurringResponsibilityEntity>
 
-    @Query("SELECT * FROM recurring_responsibilities WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<RecurringResponsibilityEntity>>
-
     @Query("UPDATE recurring_responsibilities SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -762,12 +704,6 @@ interface CalendarDao {
 
     @Query("SELECT * FROM calendar_events WHERE deletedAt IS NULL AND startAt >= :from AND startAt <= :to ORDER BY startAt ASC")
     suspend fun inRange(from: Long, to: Long): List<CalendarEventEntity>
-
-    @Query("SELECT * FROM calendar_events WHERE deletedAt IS NULL")
-    fun observe(): Flow<List<CalendarEventEntity>>
-
-    @Query("SELECT * FROM calendar_events WHERE deletedAt IS NULL")
-    suspend fun allActive(): List<CalendarEventEntity>
 
     @Query("UPDATE calendar_events SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
@@ -836,19 +772,10 @@ interface LogDao {
     suspend fun upsertUsage(entity: ApiUsageEntity)
 
     @Query("SELECT * FROM activity_log ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun recentActivity(limit: Int): List<ActivityLogEntity>
-
-    @Query("SELECT * FROM activity_log ORDER BY createdAt DESC LIMIT :limit")
     fun observeActivity(limit: Int): Flow<List<ActivityLogEntity>>
 
     @Query("SELECT * FROM debug_events ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun recentDebug(limit: Int): List<DebugEventEntity>
-
-    @Query("SELECT * FROM debug_events ORDER BY createdAt DESC LIMIT :limit")
     fun observeDebug(limit: Int): Flow<List<DebugEventEntity>>
-
-    @Query("SELECT * FROM agent_runs ORDER BY startedAt DESC LIMIT :limit")
-    suspend fun recentRuns(limit: Int): List<AgentRunEntity>
 
     @Query("SELECT * FROM agent_runs ORDER BY startedAt DESC LIMIT :limit")
     fun observeRuns(limit: Int): Flow<List<AgentRunEntity>>
@@ -856,14 +783,8 @@ interface LogDao {
     @Query("SELECT * FROM api_usage WHERE day = :day LIMIT 1")
     suspend fun usage(day: String): ApiUsageEntity?
 
-    @Query("SELECT * FROM api_usage ORDER BY day DESC LIMIT :limit")
-    suspend fun usageHistory(limit: Int): List<ApiUsageEntity>
-
     @Query("SELECT * FROM api_usage WHERE day = :day LIMIT 1")
     fun observeUsage(day: String): Flow<ApiUsageEntity?>
-
-    @Query("SELECT * FROM agent_runs WHERE id = :id LIMIT 1")
-    suspend fun getRun(id: String): AgentRunEntity?
 }
 
 @Dao
@@ -885,9 +806,6 @@ interface SyncDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertCursor(entity: SyncCursorEntity)
-
-    @Query("SELECT * FROM sync_ops ORDER BY createdAt DESC LIMIT :limit")
-    suspend fun recent(limit: Int): List<SyncOpEntity>
 }
 
 @Dao

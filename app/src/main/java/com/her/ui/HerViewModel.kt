@@ -80,18 +80,6 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         pendingShare.value = shared
     }
 
-    fun deleteMessage(id: String) {
-        viewModelScope.launch(Dispatchers.IO) { graph.repo.deleteMessage(id) }
-    }
-
-    fun forgetFromMessage(id: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            graph.repo.activeLong().filter { it.sourceMessageId == id }.forEach { graph.repo.deleteLong(it.id) }
-            graph.repo.activeShort().filter { it.sourceMessageId == id }.forEach { graph.repo.deleteShort(it.id) }
-            graph.repo.logActivity("memory", "Forgot information from message $id")
-        }
-    }
-
     fun testConnection() {
         connectionMessage.value = "Checking…"
         viewModelScope.launch {
@@ -124,9 +112,5 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             }
             googleMessage.value = outcome.message
         }
-    }
-
-    suspend fun latestPrompt(): String = withContext(Dispatchers.IO) {
-        graph.repo.recentDebug(8).firstOrNull { it.kind == "prompt" }?.payload ?: "No prompt captured yet."
     }
 }
