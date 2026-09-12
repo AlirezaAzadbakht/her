@@ -18,12 +18,12 @@ help:
 
 apk:
 	source "$(ROOT)/scripts/env.sh"
-	"$(ROOT)/gradlew" assembleDebug
+	gradle assembleDebug
 
 emulate:
 	source "$(ROOT)/scripts/env.sh"
 	if [[ ! -f "$(APK)" ]]; then
-		"$(ROOT)/gradlew" assembleDebug
+		gradle assembleDebug
 	fi
 	if ! adb devices | grep -qE 'emulator-[0-9]+[[:space:]]+device'; then
 		emulator -avd "$(AVD)" -gpu swiftshader_indirect -accel on -no-audio &

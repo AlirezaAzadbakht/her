@@ -1,5 +1,7 @@
 package com.her.agent.tools
 
+import com.her.core.COMMON_DONE
+import com.her.core.COMMON_DROPPED
 import com.her.core.RelativeTimeParser
 import com.her.core.ToolValidationException
 import com.her.core.clamp01
@@ -10,6 +12,7 @@ import com.her.core.optDoubleOr
 import com.her.core.optLongOrNull
 import com.her.core.optStringList
 import com.her.core.optStringOrNull
+import com.her.core.parseEnum
 import com.her.core.requiredString
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.remote.WebSearchClient
@@ -153,7 +156,7 @@ class ToolRegistry(
 
         register(
             "remember",
-            "Store a memory. Use short_term for temporary/uncertain context; long_term for durable facts.",
+            "Store a fact, preference, or household spec. Use short_term for temporary/uncertain context; long_term for durable facts. Do not use this for todos — that is create_task or add_grocery.",
             objSchema(
                 "content" to str("Memory text"),
                 "scope" to str("short_term or long_term"),
@@ -251,7 +254,7 @@ class ToolRegistry(
                             content = args.optStringOrNull("content") ?: long.content,
                             confidence = args.optDoubleOr("confidence", long.confidence),
                             importance = args.optDoubleOr("importance", long.importance),
-                            status = args.optStringOrNull("status")?.let { MemoryStatus.valueOf(it) } ?: long.status,
+                            status = parseEnum<MemoryStatus>(args.optStringOrNull("status")) ?: long.status,
                             updatedAt = now,
                             version = long.version + 1,
                         ),
@@ -370,7 +373,7 @@ class ToolRegistry(
                 name = args.optStringOrNull("name") ?: existing?.name ?: args.requiredString("name"),
                 description = args.optStringOrNull("description") ?: existing?.description,
                 summary = args.optStringOrNull("summary") ?: existing?.summary,
-                status = args.optStringOrNull("status")?.let { ProjectStatus.valueOf(it) } ?: existing?.status ?: ProjectStatus.ACTIVE,
+                status = parseEnum<ProjectStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED + mapOf("PAUSED" to "PAUSED")) ?: existing?.status ?: ProjectStatus.ACTIVE,
                 importance = args.optDoubleOr("importance", existing?.importance ?: 0.5),
                 updatedAt = now,
                 version = (existing?.version ?: 0) + 1,
@@ -392,7 +395,7 @@ class ToolRegistry(
             val existing = repo.getGoal(args.requiredString("id")) ?: throw ToolValidationException("Goal not found")
             repo.saveGoal(existing.copy(
                 title = args.optStringOrNull("title") ?: existing.title,
-                status = args.optStringOrNull("status")?.let { GoalStatus.valueOf(it) } ?: existing.status,
+                status = parseEnum<GoalStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED) ?: existing.status,
                 progressSummary = args.optStringOrNull("progressSummary") ?: existing.progressSummary,
                 priority = args.optDoubleOr("priority", existing.priority),
                 updatedAt = nowMillis(),
@@ -402,16 +405,32 @@ class ToolRegistry(
         }
 
         register("get_tasks", "List tasks.", objSchema()) { jsonObjectOf("ok" to true, "tasks" to JSONArray(repo.tasks().map { JSONObject(it.toJson()) })) }
-        register("create_task", "Create a task (softer than a commitment).", objSchema("title" to str(), "description" to str(), "dueAt" to str(), required = listOf("title"))) { args ->
+        register("create_task", "Create a task only when they intend to do something. Household facts and specs belong in remember, not here.", objSchema("title" to str(), "description" to str(), "dueAt" to str(), required = listOf("title"))) { args ->
             val now = nowMillis()
             val id = newId()
             repo.saveTask(TaskItem(id, args.requiredString("title"), args.optStringOrNull("description"), TaskStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedProjectId"), args.optStringOrNull("relatedGoalId"), now, now, repo.deviceId, 1, null))
             jsonObjectOf("ok" to true, "id" to id)
         }
-        register("update_task", "Update a task.", objSchema("id" to str(), "status" to str(), "title" to str(), required = listOf("id"))) { args ->
-            val existing = repo.getTask(args.requiredString("id")) ?: throw ToolValidationException("Task not found")
-            repo.saveTask(existing.copy(title = args.optStringOrNull("title") ?: existing.title, status = args.optStringOrNull("status")?.let { TaskStatus.valueOf(it) } ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
-            jsonObjectOf("ok" to true)
+        register(
+            "update_task",
+            "Update a task. id may be the task id from context or the exact title. status: OPEN, DONE, DROPPED. cancelled/canceled maps to DROPPED.",
+            objSchema("id" to str("Task id or title"), "status" to str("OPEN, DONE, DROPPED"), "title" to str(), required = listOf("id")),
+        ) { args ->
+            val existing = requireTask(args.requiredString("id"))
+            val status = parseEnum<TaskStatus>(
+                args.optStringOrNull("status"),
+                COMMON_DONE + COMMON_DROPPED + mapOf("TODO" to "OPEN", "PENDING" to "OPEN"),
+            ) ?: existing.status
+            repo.saveTask(
+                existing.copy(
+                    title = args.optStringOrNull("title") ?: existing.title,
+                    status = status,
+                    updatedAt = nowMillis(),
+                    version = existing.version + 1,
+                    deletedAt = if (status == TaskStatus.DROPPED) nowMillis() else existing.deletedAt,
+                ),
+            )
+            jsonObjectOf("ok" to true, "id" to existing.id, "status" to status.name)
         }
 
         register("get_commitments", "List commitments.", objSchema()) { jsonObjectOf("ok" to true, "commitments" to JSONArray(repo.commitments().map { JSONObject(it.toJson()) })) }
@@ -423,7 +442,7 @@ class ToolRegistry(
         }
         register("update_commitment", "Update a commitment.", objSchema("id" to str(), "status" to str(), "title" to str(), required = listOf("id"))) { args ->
             val existing = repo.getCommitment(args.requiredString("id")) ?: throw ToolValidationException("Commitment not found")
-            repo.saveCommitment(existing.copy(title = args.optStringOrNull("title") ?: existing.title, status = args.optStringOrNull("status")?.let { CommitmentStatus.valueOf(it) } ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
+            repo.saveCommitment(existing.copy(title = args.optStringOrNull("title") ?: existing.title, status = parseEnum<CommitmentStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED + mapOf("MISSED" to "MISSED")) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
         }
 
@@ -436,7 +455,7 @@ class ToolRegistry(
         }
         register("update_open_loop", "Update an open loop.", objSchema("id" to str(), "status" to str(), "description" to str(), required = listOf("id"))) { args ->
             val existing = repo.getOpenLoop(args.requiredString("id")) ?: throw ToolValidationException("Open loop not found")
-            repo.saveOpenLoop(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = args.optStringOrNull("status")?.let { OpenLoopStatus.valueOf(it) } ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
+            repo.saveOpenLoop(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = parseEnum<OpenLoopStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("CLOSED" to "CLOSED", "DONE" to "CLOSED")) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
         }
         register("close_open_loop", "Close an open loop.", objSchema("id" to str(), required = listOf("id"))) { args ->
@@ -476,7 +495,7 @@ class ToolRegistry(
         }
         register("update_grocery", "Update a grocery item.", objSchema("id" to str(), "status" to str(), "quantity" to str(), required = listOf("id"))) { args ->
             val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
-            repo.saveGrocery(existing.copy(status = args.optStringOrNull("status")?.let { GroceryStatus.valueOf(it) } ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, updatedAt = nowMillis(), version = existing.version + 1))
+            repo.saveGrocery(existing.copy(status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
         }
         register("remove_grocery", "Remove a grocery item.", objSchema("id" to str(), required = listOf("id"))) { args ->
@@ -547,7 +566,7 @@ class ToolRegistry(
         }
         register("update_agent_queue_item", "Update a queue item.", objSchema("id" to str(), "status" to str(), "description" to str(), required = listOf("id"))) { args ->
             val existing = repo.getAgentQueue(args.requiredString("id")) ?: throw ToolValidationException("Queue item not found")
-            repo.saveAgentQueue(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = args.optStringOrNull("status")?.let { QueueStatus.valueOf(it) } ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
+            repo.saveAgentQueue(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = parseEnum<QueueStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
         }
         register("complete_agent_queue_item", "Complete a queue item.", objSchema("id" to str(), required = listOf("id"))) { args ->
@@ -636,6 +655,20 @@ class ToolRegistry(
         val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
         val now = Instant.ofEpochMilli(nowMillis()).atZone(zone)
         return RelativeTimeParser.parse(raw, now)?.toInstant()?.toEpochMilli()
+    }
+
+    private suspend fun requireTask(idOrTitle: String): TaskItem {
+        repo.getTask(idOrTitle)?.let { return it }
+        val all = repo.tasks()
+        all.firstOrNull { it.id.equals(idOrTitle, ignoreCase = true) }?.let { return it }
+        val exact = all.filter { it.title.equals(idOrTitle, ignoreCase = true) }
+        if (exact.size == 1) return exact.first()
+        val loose = all.filter { it.title.contains(idOrTitle, ignoreCase = true) }
+        return loose.singleOrNull()
+            ?: throw ToolValidationException(
+                if (exact.isEmpty() && loose.isEmpty()) "Task not found: $idOrTitle"
+                else "Multiple tasks match '$idOrTitle'; pass the id from context",
+            )
     }
 }
 

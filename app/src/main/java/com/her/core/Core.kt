@@ -188,3 +188,32 @@ fun lexicalOverlap(query: String, content: String): Double {
 
 fun formatNaturalDate(zoned: ZonedDateTime): String =
     zoned.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy 'at' h:mm a", Locale.US))
+
+inline fun <reified T : Enum<T>> parseEnum(raw: String?, aliases: Map<String, String> = emptyMap()): T? {
+    if (raw.isNullOrBlank()) return null
+    val key = raw.trim().uppercase(Locale.US).replace('-', '_').replace(' ', '_')
+    val mapped = aliases[key] ?: key
+    return enumValues<T>().firstOrNull { it.name == mapped }
+}
+
+fun normalizeStatusKey(raw: String): String =
+    raw.trim().uppercase(Locale.US).replace('-', '_').replace(' ', '_')
+
+val COMMON_DONE = mapOf(
+    "COMPLETE" to "DONE",
+    "COMPLETED" to "DONE",
+    "FINISHED" to "DONE",
+    "FINISH" to "DONE",
+)
+
+val COMMON_DROPPED = mapOf(
+    "CANCELLED" to "DROPPED",
+    "CANCELED" to "DROPPED",
+    "CANCEL" to "DROPPED",
+    "DROP" to "DROPPED",
+    "DELETE" to "DROPPED",
+    "DELETED" to "DROPPED",
+    "REMOVED" to "DROPPED",
+    "REMOVE" to "DROPPED",
+    "CLOSED" to "DROPPED",
+)

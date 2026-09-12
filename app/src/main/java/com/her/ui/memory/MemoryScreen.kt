@@ -25,6 +25,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.core.nowMillis
+import com.her.domain.MemoryStatus
+import com.her.domain.UserProfile
 import com.her.ui.HerViewModel
 
 @Composable
@@ -32,6 +35,7 @@ fun MemoryScreen(vm: HerViewModel) {
     var query by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<Pair<String, String>?>(null) }
     var confirmWipe by remember { mutableStateOf(false) }
+    val profile by vm.profile.collectAsState()
     val longMem by vm.longMemories.collectAsState()
     val shortMem by vm.shortMemories.collectAsState()
     val people by vm.people.collectAsState()
@@ -45,13 +49,36 @@ fun MemoryScreen(vm: HerViewModel) {
     val dates by vm.dates.collectAsState()
 
     fun match(text: String) = query.isBlank() || text.contains(query, ignoreCase = true)
+    val now = nowMillis()
+
+    val information = buildList {
+        addAll(profileRows(profile).filter { match(it.title + " " + (it.detail ?: "")) })
+        addAll(
+            longMem.filter { it.status == MemoryStatus.ACTIVE && it.deletedAt == null && match(it.content) }.map {
+                MemoryRowData(
+                    id = it.id,
+                    title = it.content,
+                    detail = listOfNotNull(
+                        it.category.takeIf { c -> c.isNotBlank() && c != "general" },
+                        "Source ${it.source.name}",
+                    ).joinToString(" · ").ifBlank { null },
+                    kind = "long",
+                )
+            },
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Text("Memory", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, letterSpacing = 1.4.sp, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+            Text(
+                "Memory",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+            )
             BasicTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -65,21 +92,21 @@ fun MemoryScreen(vm: HerViewModel) {
             )
         }
         section(
-            title = "Long-term",
-            rows = longMem.filter { match(it.content) }.map {
-                MemoryRowData(it.id, it.content, "Source ${it.source.name}" + (it.sourceMessageId?.let { id -> " · message $id" } ?: "") + (it.derivedFromJson?.let { d -> " · derived $d" } ?: ""), "long")
-            },
-            onEdit = { editing = it.id to it.title },
-            onDelete = { vm.deleteLong(it.id) },
+            title = "Information",
+            rows = information,
+            showWhenEmpty = true,
+            emptyHint = "Facts she keeps about you will appear here — names, household details, preferences.",
+            onEdit = { if (it.kind == "long") editing = it.id to it.title },
+            onDelete = { if (it.kind == "long") vm.deleteLong(it.id) },
         )
         section(
-            title = "Short-term",
-            rows = shortMem.filter { match(it.content) }.map {
+            title = "Right now",
+            rows = shortMem.filter { (it.expiresAt == null || it.expiresAt > now) && it.deletedAt == null && match(it.content) }.map {
                 MemoryRowData(it.id, it.content, "Source ${it.source.name}", "short")
             },
             onDelete = { vm.deleteShort(it.id) },
         )
-        section("People", people.filter { match(it.name + (it.importantNotes ?: "")) }.map { MemoryRowData(it.id, "${it.name} · ${it.relationship ?: ""} ${it.birthday ?: ""}", it.importantNotes, "person") })
+        section("People", people.filter { match(it.name + (it.importantNotes ?: "")) }.map { MemoryRowData(it.id, "${it.name} · ${it.relationship ?: ""} ${it.birthday ?: ""}".trim(), it.importantNotes, "person") })
         section("Projects", projects.filter { match(it.name) }.map { MemoryRowData(it.id, "${it.name} — ${it.summary ?: it.description ?: ""}", null, "project") })
         section("Goals", goals.filter { match(it.title) }.map { MemoryRowData(it.id, it.title, it.progressSummary, "goal") })
         section("Tasks", tasks.filter { match(it.title) }.map { MemoryRowData(it.id, it.title, it.status.name, "task") })
@@ -135,6 +162,21 @@ fun MemoryScreen(vm: HerViewModel) {
     }
 }
 
+private fun profileRows(profile: UserProfile?): List<MemoryRowData> {
+    if (profile == null) return emptyList()
+    return listOfNotNull(
+        profile.userName?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-name", it, "Your name", "profile") },
+        profile.assistantName?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-her", "You call her $it", "What you named her", "profile") },
+        profile.timezone?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-tz", it, "Timezone", "profile") },
+        profile.preferredLanguage?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-lang", it, "Language", "profile") },
+        profile.country?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-country", it, "Country", "profile") },
+        profile.occupationOrStudyContext?.takeIf { it.isNotBlank() }?.let { MemoryRowData("profile-work", it, "Work or study", "profile") },
+        listOfNotNull(profile.typicalWakeTime, profile.typicalSleepTime).takeIf { it.isNotEmpty() }?.let {
+            MemoryRowData("profile-hours", it.joinToString(" / "), "Wake / sleep", "profile")
+        },
+    )
+}
+
 private data class MemoryRowData(
     val id: String,
     val title: String,
@@ -145,19 +187,32 @@ private data class MemoryRowData(
 private fun androidx.compose.foundation.lazy.LazyListScope.section(
     title: String,
     rows: List<MemoryRowData>,
+    showWhenEmpty: Boolean = false,
+    emptyHint: String? = null,
     onEdit: ((MemoryRowData) -> Unit)? = null,
     onDelete: ((MemoryRowData) -> Unit)? = null,
 ) {
-    if (rows.isEmpty()) return
+    if (rows.isEmpty() && !showWhenEmpty) return
     item {
         Text(
             title,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.SansSerif,
             fontSize = 12.sp,
-            letterSpacing = 1.3.sp,
             modifier = Modifier.padding(top = 18.dp, bottom = 4.dp),
         )
+    }
+    if (rows.isEmpty()) {
+        item {
+            Text(
+                emptyHint ?: "",
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                fontSize = 15.sp,
+                lineHeight = 22.sp,
+                modifier = Modifier.padding(vertical = 6.dp),
+            )
+        }
+        return
     }
     items(rows, key = { it.id + it.kind }) { row ->
         MemoryRow(row, onEdit, onDelete)
@@ -178,10 +233,10 @@ private fun MemoryRow(
             .padding(vertical = 6.dp),
     ) {
         Text(row.title, color = MaterialTheme.colorScheme.onBackground, fontSize = 16.sp, lineHeight = 22.sp)
+        row.detail?.takeIf { it.isNotBlank() && (open || row.kind == "profile") }?.let {
+            Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+        }
         if (open) {
-            row.detail?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
-            }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (row.kind == "long") {
                     Text("Edit", color = MaterialTheme.colorScheme.primary, modifier = Modifier.clickable { onEdit?.invoke(row) })
