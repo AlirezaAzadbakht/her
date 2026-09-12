@@ -1,6 +1,7 @@
 package com.her.scenario
 
 import com.her.core.RelativeTimeParser
+import com.her.core.normalizeDigits
 import com.her.data.repository.HerRepository
 import com.her.domain.ChatMessage
 import com.her.domain.MessageRole
@@ -78,8 +79,8 @@ object Checks {
         }
         val reply = expect.reply
         if (reply != null && reply.mustMentionAny.isNotEmpty()) {
-            val text = lastReply.orEmpty()
-            val hit = reply.mustMentionAny.any { text.contains(it, ignoreCase = true) }
+            val text = normalizeDigits(lastReply.orEmpty())
+            val hit = reply.mustMentionAny.any { text.contains(normalizeDigits(it), ignoreCase = true) }
             results += CheckResult(
                 name = "reply.must_mention_any",
                 passed = hit,

@@ -51,7 +51,7 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
   "pending": false,
   "settings": { "chatToolCallLimit": 12 },
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" },
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [{ "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }]
   },
   "turns": [
@@ -141,4 +141,4 @@ Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` pr
 - No time travel. The production clock is `System.currentTimeMillis()`, so a scenario cannot span simulated days.
 - No device calendar or Drive side effects under Robolectric.
 - Cost and wall time scale with `attempts` × pool size.
-- `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, and the context-bundle date format. Calendar `time_is` checks compare against that same parser.
+- `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.

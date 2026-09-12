@@ -4,7 +4,7 @@
   "tags": ["commitments", "briefing"],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
   },
   "turns": [
     { "user": "I promised to send the report to Sara tomorrow." },

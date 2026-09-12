@@ -1,0 +1,31 @@
+{
+  "id": "calendar-reschedule-event",
+  "title": "Move an existing event to a new time",
+  "tags": ["calendar", "reschedule"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "Roadmap review", "when": "tomorrow at 10am" } }
+    ]
+  },
+  "turns": [
+    { "user": "Move the roadmap review to 3pm tomorrow instead." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "calendar_events",
+        "count": 1,
+        "where": {
+          "title": { "contains": "roadmap" },
+          "startAt": { "date_is": "tomorrow", "time_is": "15:00" }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "The roadmap review now starts at 3pm tomorrow and there is no leftover 10am copy."
+    }
+  }
+}

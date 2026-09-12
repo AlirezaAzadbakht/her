@@ -1,0 +1,31 @@
+{
+  "id": "person-preference-recall",
+  "title": "Remember a person's preferences and use them later",
+  "tags": ["people", "memory"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "My cousin Reza is vegetarian and he hates loud restaurants." },
+    { "user": "I'm taking Reza out to eat on Friday. Any thoughts?" }
+  ],
+  "expect": {
+    "tools_called": ["update_person"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "people",
+        "count": 1,
+        "where": {
+          "name": { "contains": "Reza" },
+          "relationship": { "contains": "cousin" }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["vegetarian", "quiet", "loud"],
+      "judge": "Her suggestion respects that Reza is vegetarian and dislikes loud places, using what she stored earlier."
+    }
+  }
+}

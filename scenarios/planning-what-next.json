@@ -1,0 +1,25 @@
+{
+  "id": "planning-what-next",
+  "title": "Recommend what to work on given deadlines and meetings",
+  "tags": ["planning", "prioritization"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "Client call", "when": "today at 4pm" } },
+      { "name": "create_task", "arguments": { "title": "Finish the quarterly report", "dueAt": "today" } },
+      { "name": "create_task", "arguments": { "title": "Refactor the settings screen", "dueAt": "next month" } },
+      { "name": "create_task", "arguments": { "title": "Book flights for the conference", "dueAt": "in three days" } }
+    ]
+  },
+  "turns": [
+    { "user": "I have about three hours this morning. What should I work on?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["quarterly", "report"],
+      "judge": "She recommends the quarterly report due today ahead of the flights and the settings refactor due next month, and gives a reason tied to the deadlines rather than listing everything."
+    }
+  }
+}

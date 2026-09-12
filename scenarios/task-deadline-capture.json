@@ -1,0 +1,31 @@
+{
+  "id": "task-deadline-capture",
+  "title": "Capture a task with its deadline",
+  "tags": ["tasks", "deadlines"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I have to file the tax form before next Thursday." }
+  ],
+  "expect": {
+    "tools_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["tax", "file"] },
+          "status": { "equals": "OPEN" },
+          "dueAt": { "not_empty": true, "within_days": 14 }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["thursday", "tax"],
+      "judge": "She confirms the tax form is tracked with the Thursday deadline."
+    }
+  }
+}

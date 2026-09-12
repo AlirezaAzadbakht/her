@@ -1,0 +1,34 @@
+{
+  "id": "jalali-numeric-deadline",
+  "title": "Numeric Jalali deadline is converted to the right Gregorian day",
+  "tags": ["jalali", "dates", "tasks"],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "Persian"
+    }
+  },
+  "turns": [
+    { "user": "باید تا ۱۴۰۶/۰۷/۰۱ ماشین را سرویس کنم." }
+  ],
+  "expect": {
+    "tools_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 1,
+        "where": {
+          "status": { "equals": "OPEN" },
+          "dueAt": { "not_empty": true, "date_is": "2027-09-23" }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "The Jalali date 1406/07/01 is converted to 23 September 2027. Any other stored due date is a failure."
+    }
+  }
+}

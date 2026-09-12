@@ -7,6 +7,7 @@ import com.her.core.ToolValidationException
 import com.her.core.clamp01
 import com.her.core.jsonObjectOf
 import com.her.core.newId
+import com.her.core.normalizeDateIso
 import com.her.core.nowMillis
 import com.her.core.optDoubleOr
 import com.her.core.optLongOrNull
@@ -52,6 +53,7 @@ import com.her.domain.ToolResult
 import com.her.domain.ToolSpec
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -326,14 +328,27 @@ open class ToolRegistry(
         register("search_people", "Search people.", objSchema("query" to str(), required = listOf("query"))) { args ->
             jsonObjectOf("ok" to true, "people" to JSONArray(repo.searchPeople(args.requiredString("query")).map { JSONObject(it.toJson()) }))
         }
-        register("update_person", "Create or update a person.", objSchema("id" to str(), "name" to str(), "relationship" to str(), "birthday" to str(), "importantNotes" to str(), "preferences" to str(), "confidence" to num())) { args ->
+        register(
+            "update_person",
+            "Create or update a person.",
+            objSchema(
+                "id" to str(),
+                "name" to str(),
+                "relationship" to str(),
+                "birthday" to str("Gregorian or Jalali date; it is normalized to ISO before storage"),
+                "importantNotes" to str(),
+                "preferences" to str(),
+                "confidence" to num(),
+            ),
+        ) { args ->
             val now = nowMillis()
+            val birthday = normalizeDateIso(args.optStringOrNull("birthday"), nowZoned())
             val existing = args.optStringOrNull("id")?.let { repo.getPerson(it) }
                 ?: args.optStringOrNull("name")?.let { n -> repo.people().firstOrNull { it.name.equals(n, true) } }
             val person = (existing ?: Person(newId(), args.requiredString("name"), null, null, null, null, now, 0.8, now, now, repo.deviceId, 1, null)).copy(
                 name = args.optStringOrNull("name") ?: existing?.name ?: args.requiredString("name"),
                 relationship = args.optStringOrNull("relationship") ?: existing?.relationship,
-                birthday = args.optStringOrNull("birthday") ?: existing?.birthday,
+                birthday = birthday ?: existing?.birthday,
                 importantNotes = args.optStringOrNull("importantNotes") ?: existing?.importantNotes,
                 preferences = args.optStringOrNull("preferences") ?: existing?.preferences,
                 confidence = args.optDoubleOr("confidence", existing?.confidence ?: 0.8),
@@ -342,7 +357,7 @@ open class ToolRegistry(
                 version = (existing?.version ?: 0) + 1,
             )
             repo.savePerson(person)
-            args.optStringOrNull("birthday")?.let { bday ->
+            birthday?.let { bday ->
                 val title = "${person.name}'s birthday"
                 val existingDate = repo.importantDates().firstOrNull { it.relatedPersonId == person.id || it.title.equals(title, true) }
                 repo.saveImportantDate(
@@ -509,9 +524,19 @@ open class ToolRegistry(
         }
 
         register("get_important_dates", "List important dates.", objSchema()) { jsonObjectOf("ok" to true, "dates" to JSONArray(repo.importantDates().map { JSONObject(it.toJson()) })) }
-        register("create_important_date", "Create an important date.", objSchema("title" to str(), "dateIso" to str(), "relatedPersonId" to str(), required = listOf("title", "dateIso"))) { args ->
+        register(
+            "create_important_date",
+            "Create an important date.",
+            objSchema(
+                "title" to str(),
+                "dateIso" to str("Gregorian or Jalali date; it is normalized to ISO before storage"),
+                "relatedPersonId" to str(),
+                required = listOf("title", "dateIso"),
+            ),
+        ) { args ->
             val now = nowMillis()
             val title = args.requiredString("title")
+            val dateIso = normalizeDateIso(args.requiredString("dateIso"), nowZoned()) ?: args.requiredString("dateIso")
             val relatedPersonId = args.optStringOrNull("relatedPersonId")
             val existing = repo.importantDates().firstOrNull { date ->
                 (relatedPersonId != null && date.relatedPersonId == relatedPersonId) ||
@@ -520,7 +545,7 @@ open class ToolRegistry(
             val item = (existing ?: ImportantDate(
                 id = newId(),
                 title = title,
-                dateIso = args.requiredString("dateIso"),
+                dateIso = dateIso,
                 recurrence = null,
                 relatedPersonId = relatedPersonId,
                 notes = null,
@@ -532,7 +557,7 @@ open class ToolRegistry(
                 deletedAt = null,
             )).copy(
                 title = title,
-                dateIso = args.requiredString("dateIso"),
+                dateIso = dateIso,
                 recurrence = args.optStringOrNull("recurrence") ?: existing?.recurrence,
                 relatedPersonId = relatedPersonId ?: existing?.relatedPersonId,
                 notes = args.optStringOrNull("notes") ?: existing?.notes,
@@ -545,7 +570,7 @@ open class ToolRegistry(
         }
         register("update_important_date", "Update an important date.", objSchema("id" to str(), "title" to str(), "dateIso" to str(), required = listOf("id"))) { args ->
             val existing = repo.getImportantDate(args.requiredString("id")) ?: throw ToolValidationException("Date not found")
-            repo.saveImportantDate(existing.copy(title = args.optStringOrNull("title") ?: existing.title, dateIso = args.optStringOrNull("dateIso") ?: existing.dateIso, updatedAt = nowMillis(), version = existing.version + 1))
+            repo.saveImportantDate(existing.copy(title = args.optStringOrNull("title") ?: existing.title, dateIso = normalizeDateIso(args.optStringOrNull("dateIso"), nowZoned()) ?: existing.dateIso, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
         }
 
@@ -645,7 +670,7 @@ open class ToolRegistry(
             "Create an internal reminder/event. Also writes to the system calendar when permission exists.",
             objSchema(
                 "title" to str(),
-                "when" to str("ISO-8601, epoch millis, or a natural phrase such as 'next Tuesday at 10am'"),
+                "when" to str("ISO-8601, epoch millis, Jalali, or a natural phrase such as 'next Tuesday at 10am'"),
                 "notes" to str(),
                 required = listOf("title", "when"),
             ),
@@ -662,9 +687,32 @@ open class ToolRegistry(
             )
             jsonObjectOf("ok" to true, "id" to id, "externalId" to externalId, "systemWrite" to (externalId != null))
         }
-        register("update_calendar_event", "Update an internal calendar event.", objSchema("id" to str(), "title" to str(), required = listOf("id"))) { args ->
+        register(
+            "update_calendar_event",
+            "Update an internal calendar event. Pass when to move it; do not delete and recreate.",
+            objSchema(
+                "id" to str(),
+                "title" to str(),
+                "when" to str("ISO-8601, epoch millis, Jalali, or a natural phrase such as 'tomorrow at 3pm'"),
+                "notes" to str(),
+                required = listOf("id"),
+            ),
+        ) { args ->
             val existing = repo.getCalendarEvent(args.requiredString("id")) ?: throw ToolValidationException("Event not found")
-            repo.saveCalendarEvent(existing.copy(title = args.optStringOrNull("title") ?: existing.title, updatedAt = nowMillis(), version = existing.version + 1))
+            val start = args.optStringOrNull("when")?.let {
+                parseWhen(it) ?: throw ToolValidationException("Could not understand the time")
+            }
+            val duration = (existing.endAt ?: (existing.startAt + 60 * 60 * 1000)) - existing.startAt
+            repo.saveCalendarEvent(
+                existing.copy(
+                    title = args.optStringOrNull("title") ?: existing.title,
+                    startAt = start ?: existing.startAt,
+                    endAt = start?.plus(duration) ?: existing.endAt,
+                    notes = args.optStringOrNull("notes") ?: existing.notes,
+                    updatedAt = nowMillis(),
+                    version = existing.version + 1,
+                ),
+            )
             jsonObjectOf("ok" to true)
         }
         register("delete_calendar_event", "Delete a calendar event. External deletes require confirmation.", objSchema("id" to str(), "confirmId" to str(), required = listOf("id"))) { args ->
@@ -685,13 +733,16 @@ open class ToolRegistry(
         }
     }
 
+    private suspend fun nowZoned(): ZonedDateTime {
+        val profile = repo.getProfile()
+        val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
+        return Instant.ofEpochMilli(nowMillis()).atZone(zone)
+    }
+
     private suspend fun parseWhen(raw: String?): Long? {
         if (raw.isNullOrBlank()) return null
         raw.toLongOrNull()?.let { return it }
-        val profile = repo.getProfile()
-        val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
-        val now = Instant.ofEpochMilli(nowMillis()).atZone(zone)
-        return RelativeTimeParser.parse(raw, now)?.toInstant()?.toEpochMilli()
+        return RelativeTimeParser.parse(raw, nowZoned())?.toInstant()?.toEpochMilli()
     }
 
     private suspend fun requireTask(idOrTitle: String): TaskItem {

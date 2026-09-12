@@ -119,7 +119,7 @@ object RelativeTimeParser {
     )
 
     fun parse(phrase: String, now: ZonedDateTime): ZonedDateTime? {
-        val raw = phrase.trim()
+        val raw = normalizeDigits(phrase).trim()
         if (raw.isBlank()) return null
         raw.toLongOrNull()?.let { n ->
             val millis = if (n > 10_000_000_000L) n else n * 1000
@@ -127,7 +127,7 @@ object RelativeTimeParser {
         }
         parseIso(raw, now)?.let { return it }
         parseNatural(raw, now)?.let { return it }
-        val text = raw.lowercase(Locale.US)
+        val text = rewritePersianClock(raw.lowercase(Locale.US))
         splitClock(text)?.let { (datePhrase, clockPhrase) ->
             val date = parseBareDate(datePhrase, now) ?: return null
             val clock = parseClock(clockPhrase) ?: return null
@@ -193,7 +193,7 @@ object RelativeTimeParser {
             trimmed.startsWith("in ") -> parseIn(trimmed.removePrefix("in ").trim(), now)?.toLocalDate()
             trimmed.startsWith("next ") -> parseNextWeekday(trimmed.removePrefix("next ").trim(), now)
             trimmed.matches(Regex("""\d{4}-\d{2}-\d{2}""")) -> LocalDate.parse(trimmed, dateFormatter)
-            else -> null
+            else -> JalaliDate.parse(trimmed, now)
         }
     }
 
@@ -210,6 +210,17 @@ object RelativeTimeParser {
         }
         return null
     }
+
+    private fun rewritePersianClock(text: String): String =
+        text
+            .replace("بعد از ظهر", "pm")
+            .replace("بعدازظهر", "pm")
+            .replace("صبح", "am")
+            .replace("عصر", "pm")
+            .replace("شب", "pm")
+            .replace("ساعت", "at")
+            .replace(Regex("""\s+"""), " ")
+            .trim()
 
     private fun parseClock(raw: String): LocalTime? {
         val text = raw.trim().lowercase(Locale.US).replace(".", "")

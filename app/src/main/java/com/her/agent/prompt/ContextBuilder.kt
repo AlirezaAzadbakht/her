@@ -9,12 +9,18 @@ import com.her.domain.LlmMessage
 import com.her.domain.MemoryHit
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 data class BuiltContext(
     val messages: List<LlmMessage>,
     val retrieved: List<MemoryHit>,
     val systemBundle: String,
 )
+
+private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
 
 class ContextBuilder(
     private val repo: HerRepository,
@@ -65,16 +71,16 @@ class ContextBuilder(
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })
             appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" })
             appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" })
-            appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]" })
-            appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${it.dueAt?.let { d -> " due $d" } ?: ""}" })
+            appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
+            appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
             appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" })
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
             appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" })
-            appendSection("Internal calendar", internalCal.map { "${it.id} | ${it.startAt} ${it.title}" })
-            if (systemCal.isNotEmpty()) appendSection("System calendar", systemCal.map { "${it.id} | ${it.startAt} ${it.title}" })
+            appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
+            if (systemCal.isNotEmpty()) appendSection("System calendar", systemCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
             appendSection("Agent state", state.map { "${it.id} | ${it.kind}: ${it.content}" })
-            appendSection("Agent queue", queue.map { "${it.id} | ${it.description} [${it.status}]" })
+            appendSection("Agent queue", queue.map { "${it.id} | ${it.description} [${it.status}]${due(it.dueAt, now, zone)}" })
             extraSystem?.let {
                 appendLine()
                 appendLine(it)
@@ -89,6 +95,26 @@ class ContextBuilder(
             }
         }
         return BuiltContext(messages, memories, bundle)
+    }
+
+    private fun stamp(millis: Long, zone: ZoneId): String =
+        formatNaturalDate(Instant.ofEpochMilli(millis).atZone(zone))
+
+    private fun clock(millis: Long?, zone: ZoneId): String =
+        millis?.let { Instant.ofEpochMilli(it).atZone(zone).format(clockFormat) } ?: "?"
+
+    private fun due(millis: Long?, now: ZonedDateTime, zone: ZoneId): String {
+        if (millis == null) return ""
+        val when_ = Instant.ofEpochMilli(millis).atZone(zone)
+        val days = ChronoUnit.DAYS.between(now.toLocalDate(), when_.toLocalDate())
+        val marker = when {
+            when_.isBefore(now) -> " OVERDUE"
+            days == 0L -> " due today"
+            days == 1L -> " due tomorrow"
+            days <= 3L -> " due in $days days"
+            else -> ""
+        }
+        return " due ${stamp(millis, zone)}$marker"
     }
 
     private fun StringBuilder.appendSection(title: String, lines: List<String>) {

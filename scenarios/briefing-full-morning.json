@@ -1,0 +1,23 @@
+{
+  "id": "briefing-full-morning",
+  "title": "Morning briefing covers schedule, overdue work, and commitments",
+  "tags": ["briefing", "proactive"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "Design review", "when": "today at 11am" } },
+      { "name": "create_task", "arguments": { "title": "Renew the domain", "dueAt": "yesterday" } },
+      { "name": "create_commitment", "arguments": { "title": "Send the invoice to Mina", "dueAt": "today", "promisedTo": "Mina" } }
+    ]
+  },
+  "turns": [
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "One short morning note that covers the 11am design review, the overdue domain renewal, and the invoice promised to Mina. Not a dashboard, not a reply to a user message."
+    }
+  }
+}

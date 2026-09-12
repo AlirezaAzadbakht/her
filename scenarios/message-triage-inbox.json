@@ -1,0 +1,19 @@
+{
+  "id": "message-triage-inbox",
+  "title": "Triage an inbox and draft the reply that matters",
+  "tags": ["messages", "triage"],
+  "attempts": 1,
+  "pending": true,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Go through my inbox and tell me what actually needs a reply today, then draft the important one." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She reads the actual message store, names which conversations need a reply today, and drafts the important reply. Saying she has no access to messages is a failure."
+    }
+  }
+}

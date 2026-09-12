@@ -1,0 +1,19 @@
+{
+  "id": "reminder-deadline-conditional",
+  "title": "Nudge only if the work is still not done by a deadline",
+  "tags": ["reminders", "conditional", "deadlines"],
+  "attempts": 1,
+  "pending": true,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Remind me about the invoice on Thursday, but only if I haven't sent it by then." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "The nudge is stored as conditional on the invoice still being unsent by Thursday, not as an unconditional Thursday reminder."
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "meeting-prep-context",
+  "title": "Pull last time's context before a meeting",
+  "tags": ["meetings", "memory"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } },
+      { "name": "create_calendar_event", "arguments": { "title": "Roadmap review with Sara", "when": "tomorrow at 10am" } },
+      {
+        "name": "remember",
+        "arguments": {
+          "content": "Last roadmap review with Sara ended with the pricing page unresolved; she asked for numbers by the next meeting.",
+          "scope": "long_term",
+          "type": "work",
+          "source": "USER_EXPLICIT"
+        }
+      },
+      { "name": "create_task", "arguments": { "title": "Pull pricing page numbers for Sara", "dueAt": "tomorrow" } }
+    ]
+  },
+  "turns": [
+    { "user": "What do I need for my meeting with Sara?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["pricing", "numbers"],
+      "judge": "She surfaces that the pricing page was left unresolved last time and that Sara expects numbers, referencing the open task."
+    }
+  }
+}

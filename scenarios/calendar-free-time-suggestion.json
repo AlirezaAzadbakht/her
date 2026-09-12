@@ -1,0 +1,22 @@
+{
+  "id": "calendar-free-time-suggestion",
+  "title": "Suggest a free slot around existing events",
+  "tags": ["calendar", "planning"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "Standup", "when": "tomorrow at 9am" } },
+      { "name": "create_calendar_event", "arguments": { "title": "Client call", "when": "tomorrow at 2pm" } }
+    ]
+  },
+  "turns": [
+    { "user": "I need a free hour tomorrow for deep work. When am I open?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She proposes at least one concrete free window tomorrow that does not overlap the 9am standup or the 2pm client call."
+    }
+  }
+}

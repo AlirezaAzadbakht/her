@@ -1,0 +1,22 @@
+{
+  "id": "deadline-warning-proactive",
+  "title": "Warn about an overdue task on an autonomous pass",
+  "tags": ["tasks", "deadlines", "proactive"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Send the signed contract to the landlord", "dueAt": "yesterday" } }
+    ]
+  },
+  "turns": [
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["contract", "landlord"],
+      "judge": "The autonomous pass speaks up about the overdue signed contract instead of staying silent."
+    }
+  }
+}

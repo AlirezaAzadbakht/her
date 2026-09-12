@@ -4,7 +4,7 @@
   "tags": ["tasks", "recurring"],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
   },
   "turns": [
     { "user": "Create a monthly task to review the budget on the first of each month." }

@@ -1,0 +1,19 @@
+{
+  "id": "followup-call-next-week",
+  "title": "Remember a promise to call someone next week",
+  "tags": ["follow-up", "commitments"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I told Reza I'd call him next week about the contract." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["Reza", "call"],
+      "judge": "The promise to call Reza next week about the contract is stored as a commitment or task with a time next week, not left only in chat."
+    }
+  }
+}

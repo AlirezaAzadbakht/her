@@ -5,7 +5,7 @@
   "attempts": 2,
   "settings": { "chatToolCallLimit": 12 },
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" },
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [{ "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }]
   },
   "turns": [

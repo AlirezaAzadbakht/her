@@ -1,0 +1,22 @@
+{
+  "id": "calendar-prepare-to-leave",
+  "title": "Set a leave-early reminder before an event",
+  "tags": ["calendar", "reminders"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "Dentist", "when": "tomorrow at 10am" } }
+    ]
+  },
+  "turns": [
+    { "user": "The dentist is 30 minutes away. Make sure I leave in time tomorrow." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["9:30", "half an hour", "30 minutes", "9.30"],
+      "judge": "She records something that will get him moving by about 9:30am and says so, rather than only acknowledging the travel time."
+    }
+  }
+}

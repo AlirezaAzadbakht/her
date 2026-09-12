@@ -1,0 +1,19 @@
+{
+  "id": "proactive-stay-quiet",
+  "title": "Stay quiet on an autonomous pass when nothing needs attention",
+  "tags": ["proactive", "notifications"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "tools_not_called": ["send_user_message"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "chat_messages", "count": 0, "where": { "role": { "equals": "ASSISTANT" } } }
+    ]
+  }
+}
