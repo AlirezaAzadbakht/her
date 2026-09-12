@@ -1,0 +1,161 @@
+package com.her.data.remote
+
+import com.her.core.redactSecrets
+import com.her.data.secure.LlmSettings
+import com.her.domain.LlmMessage
+import com.her.domain.LlmResponse
+import com.her.domain.LlmToolCall
+import com.her.domain.LlmUsage
+import com.her.domain.ToolSpec
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+
+class LlmException(message: String, val status: Int? = null) : IOException(message)
+
+class LlmClient(
+    private val http: OkHttpClient = defaultClient(),
+) {
+    suspend fun complete(
+        settings: LlmSettings,
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec> = emptyList(),
+    ): LlmResponse {
+        if (!settings.isConfigured) {
+            throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
+        }
+        val body = JSONObject()
+            .put("model", settings.model)
+            .put("messages", messages.toJsonArray())
+            .apply {
+                if (tools.isNotEmpty()) {
+                    put("tools", JSONArray().apply {
+                        tools.forEach { spec ->
+                            put(
+                                JSONObject()
+                                    .put("type", "function")
+                                    .put(
+                                        "function",
+                                        JSONObject()
+                                            .put("name", spec.name)
+                                            .put("description", spec.description)
+                                            .put("parameters", JSONObject(spec.parametersJson)),
+                                    ),
+                            )
+                        }
+                    })
+                    put("tool_choice", "auto")
+                }
+            }
+        val request = Request.Builder()
+            .url(settings.baseUrl.trimEnd('/') + "/chat/completions")
+            .addHeader("Authorization", "Bearer ${settings.apiKey}")
+            .addHeader("Content-Type", "application/json")
+            .post(body.toString().toRequestBody(JSON))
+            .build()
+        val started = System.currentTimeMillis()
+        http.newCall(request).execute().use { response ->
+            val raw = response.body?.string().orEmpty()
+            val latency = System.currentTimeMillis() - started
+            if (!response.isSuccessful) {
+                throw LlmException(
+                    redactSecrets("LLM request failed (${response.code}): ${raw.take(400)}"),
+                    response.code,
+                )
+            }
+            return parseResponse(raw, latency)
+        }
+    }
+
+    suspend fun ping(settings: LlmSettings): String {
+        val result = complete(
+            settings = settings,
+            messages = listOf(LlmMessage(role = "user", content = "Reply with the single word ok.")),
+        )
+        return result.message.content?.trim().orEmpty().ifBlank { "ok" }
+    }
+
+    private fun parseResponse(raw: String, latency: Long): LlmResponse {
+        val root = JSONObject(raw)
+        val choice = root.optJSONArray("choices")?.optJSONObject(0)
+            ?: throw LlmException("LLM response had no choices")
+        val message = choice.optJSONObject("message") ?: JSONObject()
+        val toolCalls = message.optJSONArray("tool_calls")
+        val parsedCalls = if (toolCalls == null) {
+            null
+        } else {
+            buildList<LlmToolCall> {
+                for (i in 0 until toolCalls.length()) {
+                    val call = toolCalls.getJSONObject(i)
+                    val fn = call.optJSONObject("function") ?: JSONObject()
+                    add(
+                        LlmToolCall(
+                            id = call.optString("id", "call_$i"),
+                            name = fn.optString("name"),
+                            arguments = fn.optString("arguments", "{}"),
+                        ),
+                    )
+                }
+            }
+        }
+        val usage = root.optJSONObject("usage")
+        return LlmResponse(
+            message = LlmMessage(
+                role = message.optString("role", "assistant"),
+                content = message.optString("content").takeIf { it.isNotBlank() },
+                toolCalls = parsedCalls,
+            ),
+            usage = LlmUsage(
+                inputTokens = usage?.optInt("prompt_tokens") ?: 0,
+                outputTokens = usage?.optInt("completion_tokens") ?: 0,
+                latencyMs = latency,
+            ),
+            rawJson = raw,
+        )
+    }
+
+    companion object {
+        private val JSON = "application/json; charset=utf-8".toMediaType()
+
+        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+}
+
+private fun List<LlmMessage>.toJsonArray(): JSONArray {
+    val array = JSONArray()
+    forEach { message ->
+        val obj = JSONObject().put("role", message.role)
+        if (message.content != null) obj.put("content", message.content)
+        if (message.toolCallId != null) obj.put("tool_call_id", message.toolCallId)
+        if (message.name != null) obj.put("name", message.name)
+        message.toolCalls?.let { calls ->
+            obj.put(
+                "tool_calls",
+                JSONArray().apply {
+                    calls.forEach { call ->
+                        put(
+                            JSONObject()
+                                .put("id", call.id)
+                                .put("type", "function")
+                                .put(
+                                    "function",
+                                    JSONObject().put("name", call.name).put("arguments", call.arguments),
+                                ),
+                        )
+                    }
+                },
+            )
+        }
+        array.put(obj)
+    }
+    return array
+}

@@ -1,0 +1,4 @@
+-keepattributes *Annotation*, InnerClasses, Signature
+-keep class com.her.** { *; }
+-dontwarn okhttp3.**
+-dontwarn kotlinx.serialization.**

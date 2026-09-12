@@ -1,0 +1,16 @@
+.toolchain/
+local.properties
+local.toolchain.properties
+.gradle/
+**/build/
+.idea/
+*.iml
+.cxx/
+captures/
+*.apk
+*.ap_
+*.aab
+.DS_Store
+*.log
+.kotlin/
+*.hprof

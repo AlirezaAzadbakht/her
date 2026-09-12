@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Her" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">#1A1410</item>
+        <item name="android:navigationBarColor">#1A1410</item>
+        <item name="android:windowBackground">#1A1410</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

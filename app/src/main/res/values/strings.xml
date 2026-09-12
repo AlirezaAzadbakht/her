@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Her</string>
+    <string name="nav_her">Her</string>
+    <string name="nav_memory">Memory</string>
+    <string name="nav_settings">Settings</string>
+    <string name="channel_her">Her</string>
+    <string name="share_label">Her</string>
+</resources>
