@@ -16,3 +16,4 @@ captures/
 *.log
 .kotlin/
 *.hprof
+.env
