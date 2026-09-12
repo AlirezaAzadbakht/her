@@ -2,14 +2,17 @@ package com.her.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.her.R
 
 val WarmNight = Color(0xFF1A1410)
 val WarmSurface = Color(0xFF241C16)
@@ -18,6 +21,14 @@ val WarmMute = Color(0xFFB9A99A)
 val WarmAccent = Color(0xFFE8A87C)
 val WarmUser = Color(0xFFD8C4B0)
 val WarmLine = Color(0x33E8A87C)
+
+val HerFontFamily = FontFamily(
+    Font(R.font.vazirmatn, FontWeight.Light),
+    Font(R.font.vazirmatn, FontWeight.Normal),
+    Font(R.font.vazirmatn, FontWeight.Medium),
+    Font(R.font.vazirmatn, FontWeight.SemiBold),
+    Font(R.font.vazirmatn, FontWeight.Bold),
+)
 
 private val DarkColors = darkColorScheme(
     primary = WarmAccent,
@@ -46,17 +57,39 @@ private val LightColors = lightColorScheme(
 )
 
 val ConversationStyle = TextStyle(
-    fontFamily = FontFamily.Serif,
+    fontFamily = HerFontFamily,
     fontWeight = FontWeight.Normal,
     fontSize = 19.sp,
-    lineHeight = 28.sp,
+    lineHeight = 30.sp,
 )
+
+private val HerTypography = Typography().let { base ->
+    fun TextStyle.her() = copy(fontFamily = HerFontFamily)
+    base.copy(
+        displayLarge = base.displayLarge.her(),
+        displayMedium = base.displayMedium.her(),
+        displaySmall = base.displaySmall.her(),
+        headlineLarge = base.headlineLarge.her(),
+        headlineMedium = base.headlineMedium.her(),
+        headlineSmall = base.headlineSmall.her(),
+        titleLarge = base.titleLarge.her(),
+        titleMedium = base.titleMedium.her(),
+        titleSmall = base.titleSmall.her(),
+        bodyLarge = base.bodyLarge.her(),
+        bodyMedium = base.bodyMedium.her(),
+        bodySmall = base.bodySmall.her(),
+        labelLarge = base.labelLarge.her(),
+        labelMedium = base.labelMedium.her(),
+        labelSmall = base.labelSmall.her(),
+    )
+}
 
 @Composable
 fun HerTheme(content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     MaterialTheme(
         colorScheme = if (dark) DarkColors else LightColors,
+        typography = HerTypography,
         content = content,
     )
 }
