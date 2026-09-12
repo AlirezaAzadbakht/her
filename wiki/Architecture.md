@@ -8,7 +8,7 @@ Single Android module `:app`. Kotlin, Jetpack Compose, Material 3, Room, WorkMan
 UI (Compose + HerViewModel)
   → AgentOrchestrator          chat / hourly / nightly / briefing
       → ContextBuilder         system prompt + structured snapshot + recent messages
-      → LlmClient              POST {baseUrl}/chat/completions
+      → LlmClient              POST {baseUrl}/chat/completions (stream for chat)
       → ToolRegistry           schema + execute
           → HerRepository      domain ↔ Room, usage, sync ops
               → HerDatabase    her.db
@@ -22,7 +22,7 @@ UI (Compose + HerViewModel)
 |-------|------|------|
 | `HerApplication` | `app/src/main/java/com/her/HerApplication.kt` | Builds `AppGraph`, enqueues WorkManager, provides `HerWorkerFactory` |
 | `MainActivity` | `app/src/main/java/com/her/MainActivity.kt` | Compose host; `ACTION_SEND` text/plain → `consumeShare()` |
-| `HerApp` | `app/src/main/java/com/her/ui/HerApp.kt` | Setup gate, then three tabs: Her / Memory / Settings |
+| `HerApp` | `app/src/main/java/com/her/ui/HerApp.kt` | Setup gate, then Her / optional Memory / Settings |
 | `HerViewModel` | `app/src/main/java/com/her/ui/HerViewModel.kt` | UI state and agent triggers |
 
 WorkManager’s default initializer is disabled in the manifest. The Application supplies the factory.
@@ -67,7 +67,7 @@ Dropped tasks also set `deletedAt` so they leave the live lists.
 
 `app/src/main/AndroidManifest.xml`:
 
-- Permissions: internet, notifications, boot, read/write calendar
+- Permissions: internet, network state, notifications, boot, read/write calendar
 - `allowBackup="false"`
 - `usesCleartextTraffic="true"` (local / custom LLM endpoints)
 - Debug application id: `com.her.debug`

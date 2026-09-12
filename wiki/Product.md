@@ -4,7 +4,7 @@ Source of truth for voice and classification is `app/src/main/java/com/her/agent
 
 ## What she is
 
-A persistent personal assistant. There is only one conversation. She already knows this person, or she is just beginning to.
+A persistent personal assistant. There is only one conversation for the life of the app, but the screen shows **only her latest message**. She already knows this person, or she is just beginning to.
 
 Voice:
 
@@ -55,4 +55,4 @@ Other constraints:
 
 ## What the Memory page is for
 
-Structured records are not a second chat. [UI and flows](UI-and-flows.md) describes the sections. Lasting facts belong under **Information**. Temporary context belongs under **Right now**.
+The Memory tab is an experimental, read-only SQL navigator over her local database — table list, row grid, free-form `SELECT`. It is not a second chat and not a curated memory UI. Structured records still live in Room and still feed her context; you inspect them as tables. The tab can be hidden under Settings → Advanced → Experimental (default on). See [UI and flows](UI-and-flows.md).

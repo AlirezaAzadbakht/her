@@ -7,7 +7,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 `AgentOrchestrator` in `app/src/main/java/com/her/agent/runner/Runners.kt`:
 
 1. `ContextBuilder` assembles messages.
-2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`.
+2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn.
 3. Each tool call is validated and executed by `ToolRegistry`.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted.

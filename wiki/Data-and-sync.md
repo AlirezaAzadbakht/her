@@ -12,7 +12,7 @@ Important record kinds:
 |--------|------|
 | `ChatMessage` | The one conversation |
 | `ShortTermMemory` | Temporary context; can expire |
-| `LongTermMemory` | Durable facts; shown under Memory → Information |
+| `LongTermMemory` | Durable facts; inspectable via the Memory SQL navigator |
 | `UserProfile` | Single row, id `user-profile` |
 | People, projects, goals, tasks, commitments, open loops | Structured life |
 | Groceries, routines, important dates, responsibilities | Household / repeating |

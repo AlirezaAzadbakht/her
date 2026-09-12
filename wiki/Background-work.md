@@ -10,6 +10,7 @@ All periodic work requires a network connection.
 | `NightlyWorker` | `her-nightly` | Every 1 day, first run delayed to **03:00** local |
 | `BriefingWorker` | `her-briefing` | Every 1 day, first run delayed to **quiet-hours end** (default 08:00) |
 | `SyncWorker` | `her-sync` | Every 6 hours; no-ops if Drive is disabled |
+| `OutboxWorker` | `her-outbox` | One-shot when `PENDING` user rows exist; waits for `NetworkType.CONNECTED` |
 
 Developer Settings can fire `runHourlyNow()`, `runNightlyNow()`, `runSyncNow()`.
 

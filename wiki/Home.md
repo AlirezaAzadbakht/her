@@ -10,7 +10,7 @@ This folder is the working map of the repo: what the product is, how the code is
 |------|----------------|
 | [Product](Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](Architecture.md) | Packages, data flow, entry points |
-| [UI and flows](UI-and-flows.md) | Screens, first run, Memory page, share |
+| [UI and flows](UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
 | [Agent](Agent.md) | LLM loop, tools, context, call budgets |
 | [Data and sync](Data-and-sync.md) | Room, secrets, Drive, calendar, search |
 | [Background work](Background-work.md) | Hourly / nightly / briefing / sync, quiet hours |
