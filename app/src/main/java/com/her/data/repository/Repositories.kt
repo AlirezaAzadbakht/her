@@ -63,6 +63,8 @@ import com.her.domain.UserProfile
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
@@ -160,6 +162,15 @@ class HerRepository(
     suspend fun saveProfile(profile: UserProfile) {
         db.profileDao().upsert(profile.toEntity())
         enqueue("user_profile", profile.id, SyncOpType.UPSERT, profile.toJson())
+    }
+
+    fun observeProfile(): Flow<UserProfile> = flow {
+        emit(getProfile())
+        emitAll(
+            db.profileDao().observe(UserProfile.PROFILE_ID).map { entity ->
+                entity?.toDomain() ?: getProfile()
+            },
+        )
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }

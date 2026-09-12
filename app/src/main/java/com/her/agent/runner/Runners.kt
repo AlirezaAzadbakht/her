@@ -314,12 +314,15 @@ class AgentOrchestrator(
             settings.update { it.copy(onboardingSeeded = true) }
             return
         }
+        val profile = repo.getProfile()
+        val user = profile.userName?.trim().orEmpty().ifBlank { "there" }
+        val her = profile.assistantName?.trim().orEmpty().ifBlank { "Her" }
         val now = nowMillis()
         repo.saveMessage(
             ChatMessage(
                 id = newId(),
                 role = MessageRole.ASSISTANT,
-                content = "Hi. Before we really start, what should I call you?",
+                content = "Hi, $user. I'm $her.",
                 createdAt = now,
                 updatedAt = now,
                 deviceId = repo.deviceId,
@@ -332,7 +335,7 @@ class AgentOrchestrator(
         repo.saveAgentQueue(
             com.her.domain.AgentQueueItem(
                 id = newId(),
-                description = "Learn what they want to call me, then gather timezone and what matters right now — slowly, not as an interview.",
+                description = "Learn timezone and what matters right now — slowly, not as an interview.",
                 status = com.her.domain.QueueStatus.OPEN,
                 priority = 0.8,
                 dueAt = null,

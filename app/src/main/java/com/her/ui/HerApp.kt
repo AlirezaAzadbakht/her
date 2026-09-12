@@ -30,13 +30,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.data.secure.LlmSettings
+import com.her.ui.theme.HerFontFamily
 import com.her.ui.her.HerScreen
 import com.her.ui.memory.SqlNavigatorScreen
+import com.her.ui.onboarding.NameOnboarding
 import com.her.ui.onboarding.SetupScreen
 import com.her.ui.settings.SettingsScreen
 
@@ -45,8 +46,10 @@ enum class Dest { Her, Memory, Settings }
 @Composable
 fun HerApp(vm: HerViewModel) {
     val settings by vm.settings.collectAsState()
+    val profile by vm.profile.collectAsState()
     val connectionMessage by vm.connectionMessage.collectAsState()
     val checkingConnection by vm.checkingConnection.collectAsState()
+    val named = !profile?.userName.isNullOrBlank() && !profile?.assistantName.isNullOrBlank()
     val configured = settings.apiConfiguredOnce
     var dest by rememberSaveable { mutableStateOf(Dest.Her) }
 
@@ -60,7 +63,15 @@ fun HerApp(vm: HerViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding(),
     ) {
-        if (!configured) {
+        if (profile == null) {
+            // Wait for the profile row so first-run name steps do not flash the LLM form.
+        } else if (!named) {
+            NameOnboarding(
+                userName = profile?.userName,
+                onSaveUserName = { vm.saveUserName(it) },
+                onSaveAssistantName = { vm.saveAssistantName(it) },
+            )
+        } else if (!configured) {
             SetupScreen(
                 initial = vm.llmSettings(),
                 message = connectionMessage,
@@ -117,7 +128,7 @@ private fun BottomNav(dest: Dest, tabs: List<Dest>, onSelect: (Dest) -> Unit) {
                 text = item.name,
                 modifier = Modifier.clickable { onSelect(item) }.padding(8.dp),
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontFamily = FontFamily.SansSerif,
+                fontFamily = HerFontFamily,
                 fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                 fontSize = 14.sp,
                 letterSpacing = 1.2.sp,

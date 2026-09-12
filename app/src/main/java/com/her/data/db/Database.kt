@@ -534,6 +534,9 @@ interface ProfileDao {
     @Query("SELECT * FROM user_profile WHERE id = :id LIMIT 1")
     suspend fun get(id: String): UserProfileEntity?
 
+    @Query("SELECT * FROM user_profile WHERE id = :id LIMIT 1")
+    fun observe(id: String): Flow<UserProfileEntity?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: UserProfileEntity)
 }

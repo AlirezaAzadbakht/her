@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
 import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
+import com.her.core.nowMillis
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
+import com.her.domain.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +24,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     val latestAssistant: StateFlow<ChatMessage?> = graph.repo.observeLatestAssistant()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val profile: StateFlow<UserProfile?> = graph.repo.observeProfile()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val online: StateFlow<Boolean> = graph.connectivity.online
@@ -46,6 +50,32 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                 if (!on) return@collect
                 val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
                 if (result?.failed == true) sendError.value = result.error
+            }
+        }
+    }
+
+    fun saveUserName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val current = graph.repo.getProfile()
+                graph.repo.saveProfile(
+                    current.copy(userName = trimmed, updatedAt = nowMillis(), version = current.version + 1),
+                )
+            }
+        }
+    }
+
+    fun saveAssistantName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val current = graph.repo.getProfile()
+                graph.repo.saveProfile(
+                    current.copy(assistantName = trimmed, updatedAt = nowMillis(), version = current.version + 1),
+                )
             }
         }
     }

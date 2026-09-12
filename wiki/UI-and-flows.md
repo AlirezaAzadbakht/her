@@ -6,13 +6,14 @@ The Memory tab is an experimental read-only SQL navigator. It defaults on (`memo
 
 ## First run
 
-1. `HerApp` shows `SetupScreen` until `apiConfiguredOnce` is true.
-2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
-3. `saveAndTest()` writes the credentials, then `LlmClient.ping()` (a short chat request, ~35s timeout) on a background thread. The button shows **Checking…**.
-4. On success: `apiConfiguredOnce = true` and `seedOnboardingIfNeeded()`:
-   - Assistant: *“Hi. Before we really start, what should I call you?”*
-   - Agent queue item: learn the name, then timezone and what matters — slowly, not as an interview.
-5. Her and Settings become available. Memory appears when the experimental flag is on.
+1. `HerApp` asks **What should I call you?**, then **And what should I be called?** Names go on `UserProfile`.
+2. Then `SetupScreen` until `apiConfiguredOnce` is true.
+3. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
+4. `saveAndTest()` writes the credentials, then `LlmClient.ping()` (a short chat request, ~35s timeout) on a background thread. The button shows **Checking…**.
+5. On success: `apiConfiguredOnce = true` and `seedOnboardingIfNeeded()`:
+   - Assistant: *“Hi, {user}. I'm {her}.”*
+   - Agent queue item: learn timezone and what matters — slowly, not as an interview.
+6. Her and Settings become available. Memory appears when the experimental flag is on.
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or Drive.
 

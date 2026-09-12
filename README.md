@@ -56,9 +56,9 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 
 ## First run
 
-1. Open the app.
+1. Open the app. Give your name, then hers.
 2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**.
-3. Continue. Conversation onboarding starts after the connection works.
+3. Continue. She greets you by those names after the connection works.
 4. Optional later: calendar permission, Google OAuth client ID for Drive/Calendar, web search.
 5. Optional: Settings → Advanced → Experimental to hide the Memory SQL navigator (on by default).
 

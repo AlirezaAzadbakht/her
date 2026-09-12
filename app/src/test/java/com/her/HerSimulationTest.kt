@@ -59,17 +59,10 @@ class HerSimulationTest {
 
     @Test
     fun simulateFirstDays() = runBlocking {
-        assistant("Hi. Before we really start, what should I call you?")
-        queue("Learn what they want to call me, then gather timezone and what matters right now — slowly.")
-
-        user("Call me Alireza.")
-        call("update_user_profile", """{"userName":"Alireza","timezone":"Asia/Tehran"}""")
-        assistant("Alireza. And what would you like to call me?")
-
-        user("Her is fine.")
-        call("update_user_profile", """{"assistantName":"Her"}""")
-        call("complete_agent_queue_item", """{"id":"${openQueueId()}"}""")
-        assistant("Alright. I'll stay Her. Whenever something's on your mind — a project, a date, something you need from the store — just say it. I'll keep track.")
+        call("update_user_profile", """{"userName":"Alireza","assistantName":"Her","timezone":"Asia/Tehran"}""")
+        assistant("Hi, Alireza. I'm Her.")
+        queue("Learn timezone and what matters right now — slowly, not as an interview.")
+        assistant("Whenever something's on your mind — a project, a date, something you need from the store — just say it. I'll keep track.")
 
         user("We're out of coffee. Also rice.")
         call("add_grocery", """{"name":"coffee","reason":"out"}""")
