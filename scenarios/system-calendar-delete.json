@@ -1,0 +1,32 @@
+{
+  "id": "system-calendar-delete",
+  "title": "Deleting a device-calendar event removes it after confirmation",
+  "tags": ["calendar", "system-calendar"],
+  "attempts": 2,
+  "pending": true,
+  "settings": { "calendarEnabled": true, "chatToolCallLimit": 12 },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Dentist", "when": "tomorrow at 10am" }
+    ]
+  },
+  "turns": [
+    { "user": "Cancel the dentist tomorrow. Yes, delete it." }
+  ],
+  "expect": {
+    "tools_called": ["delete_calendar_event"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 0,
+        "where": { "title": { "contains": "dentist" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["dentist"],
+      "judge": "The dentist is gone from the device calendar, not only acknowledged in chat."
+    }
+  }
+}

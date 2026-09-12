@@ -49,7 +49,7 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
   "tags": ["calendar"],
   "attempts": 2,
   "pending": false,
-  "settings": { "chatToolCallLimit": 12 },
+  "settings": { "chatToolCallLimit": 12, "calendarEnabled": false },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [{ "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }]
@@ -126,6 +126,7 @@ Rows are flattened by an explicit mapper, not reflection.
 | `important_dates` | id, title, dateIso, recurrence, relatedPersonId, notes, importance |
 | `recurring_responsibilities` | id, title, cadence, nextDueAt, notes |
 | `calendar_events` | id, title, startAt, endAt, location, notes, source |
+| `system_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of the device calendar) |
 | `agent_queue` | id, description, status, priority, dueAt |
 | `agent_state` | id, kind, content, confidence |
 | `memories_long` | id, content, category, confidence, importance, status, source |
@@ -134,11 +135,13 @@ Rows are flattened by an explicit mapper, not reflection.
 
 ## What the harness does
 
-Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, and a notifier that records instead of posting. `CalendarDataSource.hasPermission()` is false under Robolectric, so calendar tools write the internal `calendar_events` table only.
+Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, a `FakeCalendarDataSource`, and a notifier that records instead of posting. Set `"settings": { "calendarEnabled": true }` (or seed `system_calendar`) to grant the fake device calendar. Otherwise tools write the internal `calendar_events` table only.
+
+Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`.
 
 ## Limitations
 
 - No time travel. The production clock is `System.currentTimeMillis()`, so a scenario cannot span simulated days.
-- No device calendar or Drive side effects under Robolectric.
+- No Drive side effects under Robolectric. The device calendar is a per-attempt fake, not CalendarContract.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.

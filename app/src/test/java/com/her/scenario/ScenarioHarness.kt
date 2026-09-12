@@ -6,9 +6,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
+import com.her.core.RelativeTimeParser
 import com.her.core.newId
 import com.her.core.nowMillis
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.FakeCalendarDataSource
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
@@ -22,6 +24,8 @@ import com.her.domain.MessageStatus
 import com.her.domain.ToolResult
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
@@ -85,7 +89,7 @@ class ScenarioHarness(
         .allowMainThreadQueries()
         .build()
     val repo = HerRepository(db, settings)
-    private val calendar = CalendarDataSource(context)
+    val calendar = FakeCalendarDataSource(context)
     private val ranker = HybridRanker(repo)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, WebSearchClient()) { text ->
         persistProactive(text)
@@ -140,7 +144,7 @@ class ScenarioHarness(
             messages = messages,
             lastReply = reply,
             systemBundle = bundle,
-            tableDump = Checks.dumpTables(repo),
+            tableDump = Checks.dumpTables(repo, extraTables()),
             inputTokens = usage?.inputTokens ?: 0L,
             outputTokens = usage?.outputTokens ?: 0L,
             error = error,
@@ -151,9 +155,17 @@ class ScenarioHarness(
         db.close()
     }
 
+    fun extraTables(): Map<String, List<Map<String, Any?>>> =
+        mapOf("system_calendar" to calendar.rows())
+
     private suspend fun seed() {
         spec.settings.chatToolCallLimit?.let { limit ->
             settings.update { it.copy(chatToolCallLimit = limit) }
+        }
+        val enableCalendar = spec.settings.calendarEnabled || spec.seed.systemCalendar.isNotEmpty()
+        if (enableCalendar) {
+            calendar.granted = true
+            settings.update { it.copy(calendarEnabled = true) }
         }
         if (spec.seed.profile.isNotEmpty()) {
             val current = repo.getProfile()
@@ -173,12 +185,26 @@ class ScenarioHarness(
                 ),
             )
         }
+        spec.seed.systemCalendar.forEach { event ->
+            val start = parseSeedWhen(event.whenPhrase)
+                ?: error("Could not parse system_calendar when '${event.whenPhrase}'")
+            calendar.seed(event.title, start, start + 60 * 60 * 1000, event.notes)
+        }
         spec.seed.tools.forEach { call ->
             val result = tools.execute(call.name, call.argumentsJson)
             if (!result.ok && !JSONObject(result.payloadJson).optBoolean("ok", false)) {
                 error("Seed tool ${call.name} failed: ${result.payloadJson}")
             }
         }
+    }
+
+    private suspend fun parseSeedWhen(raw: String): Long? {
+        raw.toLongOrNull()?.let { return it }
+        val profile = repo.getProfile()
+        val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }
+            .getOrDefault(ZoneId.systemDefault())
+        val now = Instant.ofEpochMilli(nowMillis()).atZone(zone)
+        return RelativeTimeParser.parse(raw, now)?.toInstant()?.toEpochMilli()
     }
 
     private suspend fun persistProactive(text: String) {

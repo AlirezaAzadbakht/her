@@ -19,11 +19,19 @@ data class ScenarioSpec(
 
 data class ScenarioSettings(
     val chatToolCallLimit: Int?,
+    val calendarEnabled: Boolean,
 )
 
 data class ScenarioSeed(
     val profile: Map<String, String>,
     val tools: List<SeedToolCall>,
+    val systemCalendar: List<SeedCalendarEvent>,
+)
+
+data class SeedCalendarEvent(
+    val title: String,
+    val whenPhrase: String,
+    val notes: String?,
 )
 
 data class SeedToolCall(
@@ -93,6 +101,7 @@ object ScenarioTables {
         "important_dates",
         "recurring_responsibilities",
         "calendar_events",
+        "system_calendar",
         "agent_queue",
         "agent_state",
         "memories_long",
@@ -105,8 +114,9 @@ object ScenarioLoader {
     private val topKeys = setOf(
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect",
     )
-    private val settingsKeys = setOf("chatToolCallLimit")
-    private val seedKeys = setOf("profile", "tools")
+    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled")
+    private val seedKeys = setOf("profile", "tools", "system_calendar")
+    private val seedCalendarKeys = setOf("title", "when", "notes")
     private val profileKeys = setOf(
         "userName", "assistantName", "timezone", "preferredLanguage", "country",
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
@@ -186,17 +196,17 @@ object ScenarioLoader {
     }
 
     private fun parseSettings(file: File, obj: JSONObject?, path: String): ScenarioSettings {
-        if (obj == null) return ScenarioSettings(null)
+        if (obj == null) return ScenarioSettings(null, false)
         rejectUnknown(obj, settingsKeys, path, file)
         val limit = if (obj.has("chatToolCallLimit")) obj.optInt("chatToolCallLimit") else null
         if (limit != null && limit < 1) {
             throw ScenarioParseException(file, "$path.chatToolCallLimit must be >= 1")
         }
-        return ScenarioSettings(limit)
+        return ScenarioSettings(limit, obj.optBoolean("calendarEnabled", false))
     }
 
     private fun parseSeed(file: File, obj: JSONObject?, path: String): ScenarioSeed {
-        if (obj == null) return ScenarioSeed(emptyMap(), emptyList())
+        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList())
         rejectUnknown(obj, seedKeys, path, file)
         val profileObj = obj.optJSONObject("profile")
         val profile = if (profileObj == null) {
@@ -223,7 +233,21 @@ object ScenarioLoader {
                 SeedToolCall(name, argumentsJson)
             }
         }
-        return ScenarioSeed(profile, tools)
+        val calendarArray = obj.optJSONArray("system_calendar")
+        val systemCalendar = if (calendarArray == null) {
+            emptyList()
+        } else {
+            (0 until calendarArray.length()).map { index ->
+                val event = calendarArray.requiredObject(index, "$path.system_calendar[$index]")
+                rejectUnknown(event, seedCalendarKeys, "$path.system_calendar[$index]", file)
+                SeedCalendarEvent(
+                    title = event.requiredString(file, "title", "$path.system_calendar[$index]"),
+                    whenPhrase = event.requiredString(file, "when", "$path.system_calendar[$index]"),
+                    notes = event.optString("notes").takeIf { event.has("notes") && it.isNotBlank() },
+                )
+            }
+        }
+        return ScenarioSeed(profile, tools, systemCalendar)
     }
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {

@@ -86,7 +86,7 @@ class ScenarioEngineTest {
             try {
                 val outcome = harness.run()
                 val checks = if (outcome.error == null) {
-                    Checks.evaluate(spec, harness.repo, outcome.toolCalls, outcome.lastReply)
+                    Checks.evaluate(spec, harness.repo, outcome.toolCalls, outcome.lastReply, harness.extraTables())
                 } else {
                     emptyList()
                 }

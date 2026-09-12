@@ -32,6 +32,7 @@ object Checks {
         repo: HerRepository,
         toolCalls: List<RecordedToolCall>,
         lastReply: String?,
+        extraTables: Map<String, List<Map<String, Any?>>> = emptyMap(),
     ): List<CheckResult> {
         val expect = spec.expect
         val results = mutableListOf<CheckResult>()
@@ -67,7 +68,7 @@ object Checks {
         val zone = profileZone(repo)
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone)
         expect.rows.forEachIndexed { index, row ->
-            val rows = tableRows(repo, row.table)
+            val rows = tableRows(repo, row.table, extraTables)
             val matched = rows.filter { matchesRow(it, row.where, now) }
             val passed = if (row.count == null) matched.isNotEmpty() else matched.size == row.count
             val wanted = row.count?.let { "count=$it" } ?: "at least 1"
@@ -94,9 +95,12 @@ object Checks {
         return results
     }
 
-    suspend fun dumpTables(repo: HerRepository): String = buildString {
-        ScenarioTables.ALL.sorted().forEach { table ->
-            val rows = tableRows(repo, table)
+    suspend fun dumpTables(
+        repo: HerRepository,
+        extraTables: Map<String, List<Map<String, Any?>>> = emptyMap(),
+    ): String = buildString {
+        (ScenarioTables.ALL + extraTables.keys).sorted().forEach { table ->
+            val rows = tableRows(repo, table, extraTables)
             appendLine("$table (${rows.size})")
             rows.take(20).forEach { row ->
                 appendLine("  " + row.entries.joinToString { "${it.key}=${it.value}" })
@@ -104,7 +108,12 @@ object Checks {
         }
     }
 
-    suspend fun tableRows(repo: HerRepository, table: String): List<Map<String, Any?>> {
+    suspend fun tableRows(
+        repo: HerRepository,
+        table: String,
+        extraTables: Map<String, List<Map<String, Any?>>> = emptyMap(),
+    ): List<Map<String, Any?>> {
+        extraTables[table]?.let { return it }
         val now = System.currentTimeMillis()
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000

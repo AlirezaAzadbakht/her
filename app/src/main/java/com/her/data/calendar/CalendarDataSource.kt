@@ -12,14 +12,14 @@ import com.her.core.nowMillis
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
 
-class CalendarDataSource(private val context: Context) {
-    fun hasPermission(): Boolean {
+open class CalendarDataSource(private val context: Context) {
+    open fun hasPermission(): Boolean {
         val read = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR)
         val write = ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR)
         return read == PackageManager.PERMISSION_GRANTED && write == PackageManager.PERMISSION_GRANTED
     }
 
-    fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
+    open fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
@@ -70,7 +70,7 @@ class CalendarDataSource(private val context: Context) {
         return Result.success(items)
     }
 
-    fun createEvent(title: String, startAt: Long, endAt: Long?, notes: String?): Result<String> {
+    open fun createEvent(title: String, startAt: Long, endAt: Long?, notes: String?): Result<String> {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
@@ -88,7 +88,30 @@ class CalendarDataSource(private val context: Context) {
         return Result.success(ContentUris.parseId(uri).toString())
     }
 
-    fun deleteEvent(externalId: String): Result<Unit> {
+    open fun updateEvent(
+        externalId: String,
+        title: String?,
+        startAt: Long?,
+        endAt: Long?,
+        notes: String?,
+    ): Result<Unit> {
+        if (!hasPermission()) {
+            return Result.failure(IllegalStateException("Calendar permission is not granted"))
+        }
+        val id = externalId.toLongOrNull() ?: return Result.failure(IllegalArgumentException("Invalid event id"))
+        val values = ContentValues().apply {
+            title?.let { put(CalendarContract.Events.TITLE, it) }
+            startAt?.let { put(CalendarContract.Events.DTSTART, it) }
+            endAt?.let { put(CalendarContract.Events.DTEND, it) }
+            notes?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+        }
+        if (values.size() == 0) return Result.success(Unit)
+        val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
+        val updated = context.contentResolver.update(uri, values, null, null)
+        return if (updated > 0) Result.success(Unit) else Result.failure(IllegalStateException("Event was not updated"))
+    }
+
+    open fun deleteEvent(externalId: String): Result<Unit> {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }

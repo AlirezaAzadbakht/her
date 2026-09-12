@@ -1,0 +1,44 @@
+{
+  "id": "system-calendar-create-event",
+  "title": "A new meeting is written to the device calendar, not only the internal list",
+  "tags": ["calendar", "system-calendar"],
+  "attempts": 2,
+  "pending": true,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }
+    ]
+  },
+  "turns": [
+    { "user": "Set a meeting with Sara next Tuesday at 10am about the roadmap." }
+  ],
+  "expect": {
+    "tools_called": ["create_calendar_event"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["sara", "roadmap", "meeting"] },
+          "startAt": { "date_is": "next tuesday", "time_is": "10:00" }
+        }
+      },
+      {
+        "table": "calendar_events",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["sara", "roadmap", "meeting"] },
+          "source": { "equals": "SYSTEM" },
+          "startAt": { "date_is": "next tuesday", "time_is": "10:00" }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["tuesday", "10"],
+      "judge": "She confirms the meeting is on the device calendar for next Tuesday at 10am."
+    }
+  }
+}

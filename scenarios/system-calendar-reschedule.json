@@ -1,0 +1,38 @@
+{
+  "id": "system-calendar-reschedule",
+  "title": "Moving an event updates the device calendar in place",
+  "tags": ["calendar", "system-calendar", "reschedule"],
+  "attempts": 2,
+  "pending": true,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Roadmap review", "when": "tomorrow at 10am" }
+    ]
+  },
+  "turns": [
+    { "user": "Move the roadmap review to 3pm tomorrow instead." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 1,
+        "where": {
+          "title": { "contains": "roadmap" },
+          "startAt": { "date_is": "tomorrow", "time_is": "15:00" }
+        }
+      },
+      {
+        "table": "system_calendar",
+        "count": 0,
+        "where": { "startAt": { "date_is": "tomorrow", "time_is": "10:00" } }
+      }
+    ],
+    "reply": {
+      "judge": "The device calendar now has one roadmap review at 3pm tomorrow, not a leftover 10am copy."
+    }
+  }
+}

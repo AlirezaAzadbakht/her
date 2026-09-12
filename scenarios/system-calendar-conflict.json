@@ -1,0 +1,36 @@
+{
+  "id": "system-calendar-conflict",
+  "title": "Refuse to double-book over a device-calendar event",
+  "tags": ["calendar", "system-calendar", "conflicts"],
+  "attempts": 2,
+  "pending": true,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Dentist", "when": "tomorrow at 10am" }
+    ]
+  },
+  "turns": [
+    { "user": "Book a call with Sara tomorrow at 10am." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 1,
+        "where": { "title": { "contains": "dentist" } }
+      },
+      {
+        "table": "system_calendar",
+        "count": 0,
+        "where": { "title": { "contains_any": ["sara", "call"] } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["dentist", "conflict", "clash", "already"],
+      "judge": "She notices the 10am dentist already on the device calendar and raises the clash instead of booking Sara on top of it."
+    }
+  }
+}

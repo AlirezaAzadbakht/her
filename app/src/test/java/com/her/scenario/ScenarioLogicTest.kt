@@ -64,6 +64,37 @@ class ScenarioLogicTest {
         assertTrue(spec.turns.single() is ScenarioTurn.User)
     }
 
+    @Test
+    fun parsesSystemCalendarSeed() {
+        val file = tmp.newFile("system-calendar-create-event.json")
+        file.writeText(
+            """
+            {
+              "id": "system-calendar-create-event",
+              "title": "Write to the device calendar",
+              "settings": { "calendarEnabled": true },
+              "seed": {
+                "profile": { "userName": "Alireza", "timezone": "Asia/Tehran" },
+                "system_calendar": [{ "title": "Dentist", "when": "tomorrow at 10am" }]
+              },
+              "turns": [{ "user": "What's tomorrow?" }],
+              "expect": {
+                "rows": [{
+                  "table": "system_calendar",
+                  "count": 1,
+                  "where": { "title": { "contains": "dentist" } }
+                }]
+              }
+            }
+            """.trimIndent(),
+        )
+        val spec = ScenarioLoader.parse(file)
+        assertTrue(spec.settings.calendarEnabled)
+        assertEquals("Dentist", spec.seed.systemCalendar.single().title)
+        assertEquals("tomorrow at 10am", spec.seed.systemCalendar.single().whenPhrase)
+        assertEquals("system_calendar", spec.expect.rows.single().table)
+    }
+
     @Test(expected = ScenarioParseException::class)
     fun rejectsUnknownKey() {
         val file = tmp.newFile("bad.json")
