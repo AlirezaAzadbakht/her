@@ -11,14 +11,12 @@ room = "2.8.4"
 work = "2.10.5"
 securityCrypto = "1.1.0-alpha06"
 okhttp = "4.12.0"
-serialization = "1.9.0"
 coroutines = "1.10.2"
 junit = "4.13.2"
 robolectric = "4.16.1"
 robolectricAndroidAll = "10-robolectric-5803371-i7"
 mockwebserver = "4.12.0"
 playServicesAuth = "21.4.0"
-credentials = "1.5.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -34,7 +32,6 @@ androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graph
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-androidx-compose-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
@@ -43,9 +40,7 @@ androidx-room-testing = { group = "androidx.room", name = "room-testing", versio
 androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
-okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "mockwebserver" }
-kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -53,11 +48,8 @@ robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "
 robolectric-android-all-instrumented = { group = "org.robolectric", name = "android-all-instrumented", version.ref = "robolectricAndroidAll" }
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.7.0" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
-androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
-androidx-credentials-play = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

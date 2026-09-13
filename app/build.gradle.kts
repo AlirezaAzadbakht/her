@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
 }
 
@@ -39,7 +38,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             if (releaseStoreFilePath != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -51,6 +51,13 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+                "proguard-debug.pro",
+            )
         }
     }
 
@@ -109,7 +116,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.compose.foundation)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
@@ -121,13 +127,9 @@ dependencies {
     implementation(libs.androidx.security.crypto)
 
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.play.services.auth)
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)
