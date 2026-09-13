@@ -50,6 +50,7 @@ Published so far:
 | [v0.1.0](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.0) | First product cut. Release APK job did not finish (CI tests failed). |
 | [v0.1.1](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.1) | CI fixes; signed `her-0.1.1.apk` attached |
 | [v0.1.2](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.2) | Single-utterance home, first-run names, RTL replies, Vazirmatn, setup ping fix |
+| [v0.1.3](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.3) | Smaller APKs (R8), device calendar writes, Jalali dates, scenario test pool |
 
 ## Release job
 
