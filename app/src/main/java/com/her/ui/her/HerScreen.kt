@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -44,6 +46,7 @@ import com.her.agent.runner.TurnState
 import com.her.ui.HerViewModel
 import com.her.ui.markdown.ConversationMarkdown
 import com.her.ui.theme.ConversationStyle
+import com.her.ui.theme.herResponseFontFamily
 
 @Composable
 fun HerScreen(vm: HerViewModel) {
@@ -55,6 +58,10 @@ fun HerScreen(vm: HerViewModel) {
     val online by vm.online.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
+    val resources = LocalContext.current.resources
+    val responseStyle = remember {
+        ConversationStyle.copy(fontFamily = herResponseFontFamily(resources))
+    }
 
     val streamingText = (turn as? TurnState.Streaming)?.text.orEmpty()
     val displayText = if (streamingText.isNotBlank()) streamingText else latest?.content.orEmpty()
@@ -97,7 +104,12 @@ fun HerScreen(vm: HerViewModel) {
                         ) {
                             ConversationMarkdown(
                                 content = displayText,
-                                color = MaterialTheme.colorScheme.onBackground,
+                                color = lerp(
+                                    MaterialTheme.colorScheme.onBackground,
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                    0.35f,
+                                ),
+                                style = responseStyle,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth(),
                             )

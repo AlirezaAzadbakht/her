@@ -1,5 +1,9 @@
 package com.her.ui.theme
 
+import android.content.res.Resources
+import android.graphics.Typeface
+import android.graphics.fonts.Font as PlatformFont
+import android.graphics.fonts.FontFamily as PlatformFontFamily
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -29,6 +33,22 @@ val HerFontFamily = FontFamily(
     Font(R.font.vazirmatn, FontWeight.SemiBold),
     Font(R.font.vazirmatn, FontWeight.Bold),
 )
+
+/** SuperChiby for Latin in her replies; Vazirmatn fills Arabic and Persian glyphs. */
+fun herResponseFontFamily(resources: Resources): FontFamily {
+    val latin = PlatformFontFamily.Builder(
+        PlatformFont.Builder(resources, R.font.superchiby).build(),
+    ).build()
+    val arabic = PlatformFontFamily.Builder(
+        PlatformFont.Builder(resources, R.font.vazirmatn).build(),
+    ).build()
+    return FontFamily(
+        Typeface.CustomFallbackBuilder(latin)
+            .addCustomFallback(arabic)
+            .setSystemFallback("sans-serif")
+            .build(),
+    )
+}
 
 private val DarkColors = darkColorScheme(
     primary = WarmAccent,
