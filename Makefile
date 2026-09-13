@@ -54,7 +54,7 @@ emulate:
 			sleep 2
 		done
 	fi
-	remote_path="$$(adb shell pm path "$(PKG)" 2>/dev/null | sed -n 's/^package://p' | tr -d '\r')"
+	remote_path="$$(adb shell pm path "$(PKG)" 2>/dev/null | sed -n 's/^package://p' | tr -d '\r' || true)"
 	if [[ -z "$$remote_path" ]]; then
 		adb install -t "$(APK)"
 	else
