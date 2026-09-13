@@ -53,7 +53,7 @@ Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 
 ## Settings
 
-LLM endpoint and key, quiet hours (including **Hourly during quiet hours**, default off, and **Allow background work** when the OS is still battery-optimizing the app), developer mode, web search (uses that same Base URL / key / model; optional custom search endpoint), Google client id, calendar / Drive toggles (Drive is labeled experimental: it syncs groceries and the conversation only), and manual “run hourly / nightly / sync now” when developer mode is on.
+LLM endpoint and key, quiet hours (including **Hourly during quiet hours**, default off, and **Allow background work** when the OS is still battery-optimizing the app), developer mode, web search (uses that same Base URL / key / model; optional custom search endpoint), Google client id, calendar / Drive toggles, and manual “run hourly / nightly / sync now” when developer mode is on.
 
 Advanced → Experimental: **Memory navigator (SQL)** (default on), **Show what she saved** (default on).
 

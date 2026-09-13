@@ -69,6 +69,11 @@ import com.her.core.TimeProvider
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import com.her.domain.CalendarSource
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -319,14 +324,20 @@ class HerRepository(
     suspend fun calendarInRange(from: Long, to: Long) = db.calendarDao().inRange(from, to).map { it.toDomain() }
     suspend fun getCalendarEvent(id: String) = db.calendarDao().get(id)?.toDomain()
     suspend fun getCalendarByExternalId(externalId: String) = db.calendarDao().getByExternalId(externalId)?.toDomain()
+    // Device and Google calendar rows are local mirrors, refreshed on every read; only internal events sync.
     suspend fun saveCalendarEvent(item: CalendarEvent) {
         db.calendarDao().upsert(item.toEntity())
-        enqueue("calendar_events", item.id, SyncOpType.UPSERT, item.toJson())
+        if (item.source == CalendarSource.INTERNAL) {
+            enqueue("calendar_events", item.id, SyncOpType.UPSERT, item.toJson())
+        }
     }
 
     suspend fun deleteCalendarEvent(id: String) {
+        val source = db.calendarDao().get(id)?.source
         db.calendarDao().softDelete(id, nowMillis())
-        enqueue("calendar_events", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        if (source == null || source == CalendarSource.INTERNAL) {
+            enqueue("calendar_events", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        }
     }
 
     suspend fun relationships() = db.relationshipDao().allActive().map { it.toDomain() }
@@ -415,7 +426,11 @@ class HerRepository(
 
     suspend fun lastSeq(): Long = db.syncDao().lastSeq(deviceId)
 
+    /** Applies changes that came from another device without queueing them to be uploaded again. */
+    suspend fun <T> applyingRemote(block: suspend () -> T): T = withContext(RemoteChanges()) { block() }
+
     private suspend fun enqueue(type: String, id: String, op: SyncOpType, payload: String) {
+        if (currentCoroutineContext()[RemoteChanges] != null) return
         val seq = db.syncDao().lastSeq(deviceId) + 1
         db.syncDao().upsertOp(
             SyncOpEntity(
@@ -431,6 +446,11 @@ class HerRepository(
             ),
         )
     }
+}
+
+/** Marks writes made while applying another device's changes, so they are not uploaded back. */
+private class RemoteChanges : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<RemoteChanges>
 }
 
 fun ChatMessageEntity.toDomain() = ChatMessage(id, role, content, createdAt, updatedAt, deviceId, version, deletedAt, status, metadataJson)

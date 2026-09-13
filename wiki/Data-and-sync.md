@@ -42,9 +42,15 @@ Important record kinds:
 
 `DriveSync` uploads pending `sync_ops` as NDJSON into Drive **appDataFolder** (`{deviceId}/{firstSeq}-{lastSeq}.ndjson`). It does **not** overwrite the whole database.
 
-Download + `MergeEngine`: last-write-wins on `updatedAt`, except **`PURCHASED` grocery status wins** over a concurrent add.
+Download + `MergeEngine`: last-write-wins per field on `updatedAt`, except **`PURCHASED` grocery status wins** over a concurrent add. A delete sets `deletedAt` and stays deleted.
 
-Today the merge path persists remote ops for **groceries** and **chat_messages**. Other types are logged more than fully applied — treat multi-device sync as incomplete outside those. Settings labels the toggle **Drive sync (experimental)** and says so.
+`SyncCodec` (`app/src/main/java/com/her/data/drive/SyncCodec.kt`) reads the local row and writes the merged row back for every synced table: chat messages, short- and long-term memories, profile, user understandings, people, projects, goals, tasks, commitments, open loops, routines, groceries, important dates, recurring responsibilities, internal calendar events, memory relationships, agent state, and agent queue.
+
+- Rows applied from another device are written inside `HerRepository.applyingRemote { }`, so they are not queued and uploaded back.
+- Device and Google calendar rows are local mirrors. They are never enqueued, and remote ones are ignored; each phone mirrors its own sources.
+- A remote `PENDING` chat row is stored as `SENT`, so another device's outbox never runs it here.
+- Files are listed across all Drive pages and read oldest first per device. The per-device cursor comes from the `{firstSeq}-{lastSeq}` file name, so a file already read is not downloaded again.
+- A row that cannot be applied (for example, a delete for a row this device never had) is skipped and logged, and the sync continues.
 
 Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
 

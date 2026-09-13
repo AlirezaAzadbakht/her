@@ -150,9 +150,9 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item {
-            Toggle("Drive sync (experimental)", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
+            Toggle("Drive sync", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
             Text(
-                "Syncs groceries and the conversation only.",
+                "Keeps her records in step across your devices through a private Google Drive app folder. API keys never sync.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp,
             )

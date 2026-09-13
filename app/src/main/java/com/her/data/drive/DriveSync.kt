@@ -2,12 +2,11 @@ package com.her.data.drive
 
 import com.her.core.newId
 import com.her.data.db.SyncCursorEntity
-import com.her.data.db.SyncOpEntity
 import com.her.data.repository.HerRepository
-import com.her.data.repository.toJson
 import com.her.domain.GroceryStatus
 import com.her.domain.SyncOp
 import com.her.domain.SyncOpType
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -81,32 +80,42 @@ object MergeEngine {
     }
 }
 
-class DriveClient(
+open class DriveClient(
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .build(),
 ) {
-    fun listAppData(token: String): List<DriveFile> {
-        val request = Request.Builder()
-            .url("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&pageSize=100")
-            .addHeader("Authorization", "Bearer $token")
-            .get()
-            .build()
-        http.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) error("Drive list failed (${response.code})")
-            val files = JSONObject(body).optJSONArray("files") ?: JSONArray()
-            return buildList {
-                for (i in 0 until files.length()) {
-                    val f = files.getJSONObject(i)
-                    add(DriveFile(f.getString("id"), f.getString("name")))
-                }
+    open fun listAppData(token: String): List<DriveFile> {
+        val files = mutableListOf<DriveFile>()
+        var pageToken: String? = null
+        do {
+            val url = buildString {
+                append("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder")
+                append("&fields=nextPageToken,files(id,name)&pageSize=1000")
+                pageToken?.let { append("&pageToken=").append(URLEncoder.encode(it, "UTF-8")) }
             }
-        }
+            val request = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .get()
+                .build()
+            pageToken = http.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) error("Drive list failed (${response.code})")
+                val root = JSONObject(body)
+                val page = root.optJSONArray("files") ?: JSONArray()
+                for (i in 0 until page.length()) {
+                    val f = page.getJSONObject(i)
+                    files += DriveFile(f.getString("id"), f.getString("name"))
+                }
+                root.optString("nextPageToken").ifBlank { null }
+            }
+        } while (pageToken != null)
+        return files
     }
 
-    fun download(token: String, fileId: String): String {
+    open fun download(token: String, fileId: String): String {
         val request = Request.Builder()
             .url("https://www.googleapis.com/drive/v3/files/$fileId?alt=media")
             .addHeader("Authorization", "Bearer $token")
@@ -119,7 +128,7 @@ class DriveClient(
         }
     }
 
-    fun uploadNdjson(token: String, name: String, content: String): String {
+    open fun uploadNdjson(token: String, name: String, content: String): String {
         val metadata = JSONObject()
             .put("name", name)
             .put("parents", JSONArray().put("appDataFolder"))
@@ -149,78 +158,67 @@ class DriveClient(
     data class DriveFile(val id: String, val name: String)
 }
 
+/** A change-log file name: `{deviceId}/{firstSeq}-{lastSeq}.ndjson`. */
+data class ChangeLogName(val deviceId: String, val firstSeq: Long, val lastSeq: Long) {
+    companion object {
+        private val PATTERN = Regex("""^(.+)/(\d+)-(\d+)\.ndjson$""")
+
+        fun parse(name: String): ChangeLogName? = PATTERN.matchEntire(name)?.let { m ->
+            ChangeLogName(m.groupValues[1], m.groupValues[2].toLong(), m.groupValues[3].toLong())
+        }
+    }
+}
+
+data class SyncSummary(val uploaded: Int, val applied: Int, val skipped: Int) {
+    override fun toString(): String = "Uploaded $uploaded, applied $applied" + if (skipped > 0) ", skipped $skipped." else "."
+}
+
 class SyncEngine(
     private val repo: HerRepository,
     private val drive: DriveClient = DriveClient(),
 ) {
-    suspend fun sync(token: String): String {
+    suspend fun sync(token: String): SyncSummary {
         val pending = repo.pendingSyncOps()
         if (pending.isNotEmpty()) {
-            val deviceId = repo.deviceId
             val first = pending.first().seq
             val last = pending.last().seq
-            val name = "$deviceId/$first-$last.ndjson"
             val payload = pending.joinToString("\n") { opToLine(it) }
-            drive.uploadNdjson(token, name, payload)
+            drive.uploadNdjson(token, "${repo.deviceId}/$first-$last.ndjson", payload)
             repo.markUploaded(pending.map { it.id })
         }
-        val files = drive.listAppData(token)
         var applied = 0
-        files.filter { it.name.contains("/") && it.name.endsWith(".ndjson") }.forEach { file ->
-            val remoteDevice = file.name.substringBefore("/")
-            if (remoteDevice == repo.deviceId) return@forEach
-            val text = drive.download(token, file.id)
-            val ops = parseLines(text)
-            if (ops.isEmpty()) return@forEach
-            val cursor = repo.db.syncDao().cursor(remoteDevice)?.lastSeq ?: 0L
-            val unseen = ops.filter { it.seq > cursor }
-            unseen.groupBy { it.entityType to it.entityId }.forEach { (_, group) ->
-                applyRemoteOps(group)
-                applied += group.size
-            }
-            unseen.maxOfOrNull { it.seq }?.let {
-                repo.db.syncDao().upsertCursor(SyncCursorEntity(remoteDevice, it))
-            }
-        }
-        repo.logActivity("sync", "Uploaded ${pending.size} ops, applied $applied remote ops.")
-        return "Uploaded ${pending.size}, applied $applied."
-    }
-
-    private suspend fun applyRemoteOps(ops: List<SyncOp>) {
-        val first = ops.first()
-        val existingJson = existingPayload(first.entityType, first.entityId)
-        val merged = MergeEngine.applyOps(existingJson, ops) ?: return
-        persistMerged(first.entityType, merged)
-    }
-
-    private suspend fun existingPayload(type: String, id: String): JSONObject? {
-        val raw = when (type) {
-            "groceries" -> repo.getGrocery(id)?.toJson()
-            "chat_messages" -> repo.getMessage(id)?.toJson()
-            else -> null
-        }
-        return raw?.let { JSONObject(it) }
-    }
-
-    private suspend fun persistMerged(type: String, json: JSONObject) {
-        when (type) {
-            "groceries" -> {
-                val item = repo.getGrocery(json.getString("id"))
-                if (item != null) {
-                    repo.saveGrocery(
-                        item.copy(
-                            name = json.optString("name", item.name),
-                            status = runCatching { GroceryStatus.valueOf(json.optString("status", item.status.name)) }.getOrDefault(item.status),
-                            quantity = json.optString("quantity").takeIf { it.isNotBlank() } ?: item.quantity,
-                            updatedAt = json.optLong("updatedAt", item.updatedAt),
-                            version = json.optLong("version", item.version),
-                            deletedAt = json.optLong("deletedAt").takeIf { it > 0 },
-                            deviceId = json.optString("deviceId", item.deviceId),
-                        ),
-                    )
+        var skipped = 0
+        // Oldest first per device, so the cursor never jumps past a file that has not been read yet.
+        drive.listAppData(token)
+            .mapNotNull { file -> ChangeLogName.parse(file.name)?.let { file to it } }
+            .filter { (_, log) -> log.deviceId != repo.deviceId }
+            .sortedWith(compareBy({ it.second.deviceId }, { it.second.firstSeq }))
+            .forEach { (file, log) ->
+                val cursor = repo.db.syncDao().cursor(log.deviceId)?.lastSeq ?: 0L
+                if (log.lastSeq <= cursor) return@forEach
+                val unseen = parseLines(drive.download(token, file.id)).filter { it.seq > cursor }.sortedBy { it.seq }
+                repo.applyingRemote {
+                    unseen.groupBy { it.entityType to it.entityId }.values.forEach { group ->
+                        if (applyRemoteOps(group)) applied += group.size else skipped += group.size
+                    }
                 }
+                val reached = maxOf(log.lastSeq, unseen.maxOfOrNull { it.seq } ?: 0L)
+                repo.db.syncDao().upsertCursor(SyncCursorEntity(log.deviceId, reached))
             }
-            else -> repo.logDebug("sync", "Merged $type ${json.optString("id")}")
+        val summary = SyncSummary(pending.size, applied, skipped)
+        repo.logActivity("sync", summary.toString())
+        return summary
+    }
+
+    private suspend fun applyRemoteOps(ops: List<SyncOp>): Boolean {
+        val first = ops.first()
+        return try {
+            val merged = MergeEngine.applyOps(SyncCodec.current(repo, first.entityType, first.entityId), ops) ?: return false
+            SyncCodec.persist(repo, first.entityType, merged)
+        } catch (e: Exception) {
+            // A delete for a row this device never had, or a malformed payload: nothing to apply.
+            repo.logDebug("sync", "Skipped ${first.entityType} ${first.entityId}: ${e.message}")
+            false
         }
     }
 
