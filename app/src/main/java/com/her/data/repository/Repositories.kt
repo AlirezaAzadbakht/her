@@ -1,5 +1,6 @@
 package com.her.data.repository
 
+import com.her.core.QuietHours
 import com.her.core.ftsQuery
 import com.her.core.lexicalOverlap
 import com.her.core.newId
@@ -98,6 +99,9 @@ class HerRepository(
     suspend fun now(): ZonedDateTime = Instant.ofEpochMilli(nowMillis()).atZone(profileZone())
 
     suspend fun today(): LocalDate = now().toLocalDate()
+
+    /** Quiet hours are read on the user's clock, not the device's. */
+    suspend fun inQuietHours(hours: QuietHours): Boolean = hours.contains(now().toLocalTime())
 
     fun newChatMessage(
         role: MessageRole,

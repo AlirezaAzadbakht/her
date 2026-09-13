@@ -44,7 +44,7 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                     llmConfigured = graph.secure.read().isConfigured,
                     lastSuccessAt = app.lastHourlyRunAt,
                     nowMs = nowMillis(),
-                    inQuietHours = app.quietHours.contains(graph.repo.now().toLocalTime()),
+                    inQuietHours = graph.repo.inQuietHours(app.quietHours),
                     hourlyDuringQuietHours = app.hourlyDuringQuietHours,
                     power = readDevicePower(applicationContext),
                 )
