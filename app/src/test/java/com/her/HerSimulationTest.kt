@@ -20,6 +20,7 @@ import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -123,6 +124,17 @@ class HerSimulationTest {
         println(transcript(messages))
         println("Simulation written to ${out.absolutePath}")
         println("TOOLS:\n${toolLog.joinToString("\n")}")
+    }
+
+    @Test
+    fun userUnderstandingUpsertsByFacet() = runBlocking {
+        call("update_user_understanding", """{"facet":"communication","content":"Prefers long essays","confidence":0.4}""")
+        call("update_user_understanding", """{"facet":"communication","content":"Wants brief replies, no essays","confidence":0.9}""")
+        call("update_user_understanding", """{"facet":"life_chapter","content":"In the middle of a job search"}""")
+        val rows = repo.activeUserUnderstandings()
+        assertEquals(2, rows.size)
+        assertEquals("Wants brief replies, no essays", rows.first { it.facet == "communication" }.content)
+        assertTrue(rows.any { it.facet == "life_chapter" && it.content.contains("job") })
     }
 
     private suspend fun user(text: String) {

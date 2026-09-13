@@ -1,0 +1,40 @@
+{
+  "id": "know-user-nightly-refine",
+  "title": "Revise a stale picture of them on the nightly pass",
+  "tags": ["memory", "user-understanding", "nightly"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      {
+        "name": "update_user_understanding",
+        "arguments": {
+          "facet": "communication",
+          "content": "Prefers long detailed essays and lots of encouragement",
+          "confidence": 0.4,
+          "importance": 0.6,
+          "source": "AGENT_INFERENCE"
+        }
+      }
+    ]
+  },
+  "turns": [
+    { "user": "Please stop writing me novels. Short answers. And skip the pep talks, I'm job hunting and it's draining." },
+    { "run": "nightly" }
+  ],
+  "expect": {
+    "tools_called": ["update_user_understanding"],
+    "tools_not_called": ["send_user_message"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "user_understandings",
+        "where": { "content": { "contains_any": ["short", "brief", "novel", "concise"] }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "user_understandings",
+        "where": { "content": { "contains_any": ["job", "search", "hunt", "draining"] }, "status": { "equals": "ACTIVE" } }
+      }
+    ]
+  }
+}

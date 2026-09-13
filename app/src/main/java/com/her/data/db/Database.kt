@@ -12,6 +12,8 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
@@ -117,6 +119,23 @@ data class UserProfileEntity(
     val updatedAt: Long,
     val deviceId: String,
     val version: Long,
+)
+
+@Entity(tableName = "user_understandings")
+data class UserUnderstandingEntity(
+    @PrimaryKey val id: String,
+    val facet: String,
+    val content: String,
+    val confidence: Double,
+    val importance: Double,
+    val source: MemorySource,
+    val sourceMessageId: String?,
+    val status: MemoryStatus,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
 )
 
 @Entity(tableName = "people")
@@ -542,6 +561,21 @@ interface ProfileDao {
 }
 
 @Dao
+interface UserUnderstandingDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: UserUnderstandingEntity)
+
+    @Query("SELECT * FROM user_understandings WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): UserUnderstandingEntity?
+
+    @Query("SELECT * FROM user_understandings WHERE deletedAt IS NULL AND status = :status ORDER BY importance DESC, updatedAt DESC")
+    suspend fun byStatus(status: MemoryStatus): List<UserUnderstandingEntity>
+
+    @Query("SELECT * FROM user_understandings WHERE deletedAt IS NULL AND status = :status AND facet = :facet LIMIT 1")
+    suspend fun byFacet(facet: String, status: MemoryStatus): UserUnderstandingEntity?
+}
+
+@Dao
 interface PersonDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: PersonEntity)
@@ -835,6 +869,7 @@ interface ConfirmationDao {
         LongTermMemoryEntity::class,
         LongTermMemoryFtsEntity::class,
         UserProfileEntity::class,
+        UserUnderstandingEntity::class,
         PersonEntity::class,
         ProjectEntity::class,
         GoalEntity::class,
@@ -857,7 +892,7 @@ interface ConfirmationDao {
         DebugEventEntity::class,
         PendingConfirmationEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -865,6 +900,7 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun memoryDao(): MemoryDao
     abstract fun profileDao(): ProfileDao
+    abstract fun userUnderstandingDao(): UserUnderstandingDao
     abstract fun personDao(): PersonDao
     abstract fun projectDao(): ProjectDao
     abstract fun goalDao(): GoalDao
@@ -881,4 +917,31 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun syncDao(): SyncDao
     abstract fun confirmationDao(): ConfirmationDao
+
+    companion object {
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `user_understandings` (
+                        `id` TEXT NOT NULL,
+                        `facet` TEXT NOT NULL,
+                        `content` TEXT NOT NULL,
+                        `confidence` REAL NOT NULL,
+                        `importance` REAL NOT NULL,
+                        `source` TEXT NOT NULL,
+                        `sourceMessageId` TEXT,
+                        `status` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `version` INTEGER NOT NULL,
+                        `deletedAt` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+    }
 }

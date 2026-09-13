@@ -30,6 +30,7 @@ She decides the record type. The person should never need to say “create a tas
 | What they said | Tool / record | Example |
 |----------------|---------------|---------|
 | Fact, preference, household spec, “this is info” | `remember` — long-term if durable, short-term if temporary | “The living room needs a 15-watt lamp” is **information**, not a task, unless they say they will buy or do it |
+| Who they are — how they talk, how they want help, what chapter they are in | `update_user_understanding` | “Don’t write me essays” and “I’m in the middle of a job search” belong on the living picture of them, not a one-off fact |
 | Consumable they are out of or will restock | `add_grocery` | “We’re out of rice.” |
 | Intent to do something, no hard promise | `create_task` | “I should buy a keyboard sometime.” |
 | Promise with a time or a person | `create_commitment` | “I’ll send that to Ali tomorrow.” |
@@ -50,7 +51,7 @@ Other constraints:
 | Pass | Expected behavior |
 |------|-------------------|
 | Hourly | Most hours: `NO_NOTIFICATION`. Speak only if something is useful, time-sensitive, and not already said. |
-| Nightly | Consolidate. Promote durable facts. Mark old facts historical instead of erasing. Do not message unless it cannot wait. |
+| Nightly | Consolidate. Promote durable facts. Mark old facts historical instead of erasing. Revise the About them picture. Do not message unless it cannot wait. |
 | Briefing | One natural morning note in the same conversation. No dashboard. No greeting template. |
 
 ## What the Memory page is for

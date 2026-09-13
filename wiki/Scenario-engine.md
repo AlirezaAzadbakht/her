@@ -133,6 +133,7 @@ Rows are flattened by an explicit mapper, not reflection.
 | `memories_long` | id, content, category, confidence, importance, status, source |
 | `memories_short` | id, content, type, confidence, importance, source |
 | `profile` | userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext |
+| `user_understandings` | id, facet, content, confidence, importance, status, source |
 
 ## What the harness does
 

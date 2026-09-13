@@ -44,6 +44,7 @@ class ContextBuilder(
         val query = latestUserText ?: recent.takeLast(3).joinToString(" ") { it.content }
         val relatedIds = repo.relationships().flatMap { listOf(it.sourceId, it.targetId) }.toSet()
         val memories = ranker.search(query, limit = 12, relatedIds = relatedIds)
+        val understandings = repo.activeUserUnderstandings().take(16)
         val people = repo.people().take(12)
         val projects = repo.projects().take(10)
         val goals = repo.goals().filter { it.status.name == "ACTIVE" }.take(10)
@@ -71,6 +72,15 @@ class ContextBuilder(
             appendLine("- language: ${profile.preferredLanguage ?: "unspecified"}")
             appendLine("- work/study: ${profile.occupationOrStudyContext ?: "unspecified"}")
             appendLine("- wake/sleep: ${profile.typicalWakeTime ?: "?"} / ${profile.typicalSleepTime ?: "?"}")
+            appendLine()
+            appendLine("About them:")
+            if (understandings.isEmpty()) {
+                appendLine("- none yet")
+            } else {
+                understandings.forEach {
+                    appendLine("- ${it.id} | ${it.facet} | ${it.content} (c=${"%.2f".format(it.confidence)})")
+                }
+            }
             appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })

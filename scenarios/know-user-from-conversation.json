@@ -1,0 +1,30 @@
+{
+  "id": "know-user-from-conversation",
+  "title": "Learn who they are from conversation and use it later",
+  "tags": ["memory", "user-understanding"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Don't write me essays. I just want the short version. Also I'm in the middle of a job search and I'm pretty fried, so skip the cheerleading." },
+    { "user": "What should I do with tomorrow morning?" }
+  ],
+  "expect": {
+    "tools_called": ["update_user_understanding"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "user_understandings",
+        "where": { "content": { "contains_any": ["short", "brief", "essay", "concise"] }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "user_understandings",
+        "where": { "content": { "contains_any": ["job", "search", "fried"] }, "status": { "equals": "ACTIVE" } }
+      }
+    ],
+    "reply": {
+      "judge": "The reply is short, not a long plan or pep talk. It uses what she learned: he wants brevity and is drained by a job search."
+    }
+  }
+}

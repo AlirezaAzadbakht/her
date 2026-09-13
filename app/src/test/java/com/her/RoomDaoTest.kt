@@ -6,7 +6,10 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.data.db.ChatMessageEntity
 import com.her.data.db.GroceryEntity
 import com.her.data.db.HerDatabase
+import com.her.data.db.UserUnderstandingEntity
 import com.her.domain.GroceryStatus
+import com.her.domain.MemorySource
+import com.her.domain.MemoryStatus
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import kotlinx.coroutines.runBlocking
@@ -114,5 +117,30 @@ class RoomDaoTest {
             ),
         )
         assertEquals(GroceryStatus.ACTIVE, db.groceryDao().get("g1")?.status)
+    }
+
+    @Test
+    fun userUnderstandingRoundTrip() = runBlocking {
+        db.userUnderstandingDao().upsert(
+            UserUnderstandingEntity(
+                id = "u1",
+                facet = "communication",
+                content = "Prefers short answers",
+                confidence = 0.8,
+                importance = 0.7,
+                source = MemorySource.USER_EXPLICIT,
+                sourceMessageId = null,
+                status = MemoryStatus.ACTIVE,
+                createdAt = 1,
+                updatedAt = 1,
+                deviceId = "dev",
+                version = 1,
+                deletedAt = null,
+            ),
+        )
+        val active = db.userUnderstandingDao().byStatus(MemoryStatus.ACTIVE)
+        assertEquals(1, active.size)
+        assertEquals("communication", active.single().facet)
+        assertEquals("Prefers short answers", db.userUnderstandingDao().byFacet("communication", MemoryStatus.ACTIVE)?.content)
     }
 }

@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 1 — in `app/src/main/java/com/her/data/db/Database.kt`.
+`HerDatabase` — file `her.db`, version 2 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`.
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -14,6 +14,7 @@ Important record kinds:
 | `ShortTermMemory` | Temporary context; can expire |
 | `LongTermMemory` | Durable facts; inspectable via the Memory SQL navigator |
 | `UserProfile` | Single row, id `user-profile` |
+| `UserUnderstanding` | Living picture of this person; always in context; one ACTIVE row per facet |
 | People, projects, goals, tasks, commitments, open loops | Structured life |
 | Groceries, routines, important dates, responsibilities | Household / repeating |
 | `AgentQueueItem`, `AgentStateEntry` | Private assistant todos and notes |

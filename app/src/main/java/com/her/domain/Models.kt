@@ -88,6 +88,39 @@ data class UserProfile(
     }
 }
 
+data class UserUnderstanding(
+    val id: String,
+    val facet: String,
+    val content: String,
+    val confidence: Double,
+    val importance: Double,
+    val source: MemorySource,
+    val sourceMessageId: String?,
+    val status: MemoryStatus,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+) {
+    companion object {
+        val FACETS = setOf(
+            "communication",
+            "help_style",
+            "life_chapter",
+            "values",
+            "patterns",
+            "relationship_to_her",
+            "other",
+        )
+
+        fun normalizeFacet(raw: String?): String {
+            val key = raw?.trim()?.lowercase()?.replace(' ', '_')?.replace('-', '_') ?: return "other"
+            return if (key in FACETS) key else "other"
+        }
+    }
+}
+
 data class Person(
     val id: String,
     val name: String,

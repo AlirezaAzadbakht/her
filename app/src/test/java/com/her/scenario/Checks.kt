@@ -272,6 +272,17 @@ object Checks {
                     "source" to it.source.name,
                 )
             }
+            "user_understandings" -> repo.activeUserUnderstandings().map {
+                mapOf(
+                    "id" to it.id,
+                    "facet" to it.facet,
+                    "content" to it.content,
+                    "confidence" to it.confidence,
+                    "importance" to it.importance,
+                    "status" to it.status.name,
+                    "source" to it.source.name,
+                )
+            }
             "profile" -> repo.getProfile().let {
                 listOf(
                     mapOf(

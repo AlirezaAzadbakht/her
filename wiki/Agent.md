@@ -20,7 +20,7 @@ The orchestrator logs prompts, retrieved memories, raw LLM JSON, and tool I/O to
 
 1. `Identity.SYSTEM_PROMPT`
 2. Optional extra system text (hourly / nightly / briefing)
-3. A bundle: now, profile, retrieved memories (cap 12), people, projects, goals, **tasks as `id \| title [status]`**, commitments, open loops, routines, groceries, dates, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
+3. A bundle: now, profile, **About them** (active `user_understandings`, always, cap 16), retrieved memories (cap 12), people, projects, goals, **tasks as `id \| title [status]`**, commitments, open loops, routines, groceries, dates, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
 4. Recent chat (default 24 messages)
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
@@ -43,7 +43,7 @@ Defined in `app/src/main/java/com/her/agent/tools/ToolRegistry.kt`. Groups:
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
 - Routines, groceries, important dates, recurring responsibilities
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
-- `update_user_profile`
+- `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal, system, and Google; Google rows are read-only)
 - `web_search`, `send_user_message`
 

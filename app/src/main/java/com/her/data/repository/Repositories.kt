@@ -27,6 +27,7 @@ import com.her.data.db.ShortTermMemoryEntity
 import com.her.data.db.SyncOpEntity
 import com.her.data.db.TaskEntity
 import com.her.data.db.UserProfileEntity
+import com.her.data.db.UserUnderstandingEntity
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.ActivityLogEntry
 import com.her.domain.AgentQueueItem
@@ -60,6 +61,7 @@ import com.her.domain.SyncOp
 import com.her.domain.SyncOpType
 import com.her.domain.TaskItem
 import com.her.domain.UserProfile
+import com.her.domain.UserUnderstanding
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
@@ -171,6 +173,19 @@ class HerRepository(
                 entity?.toDomain() ?: getProfile()
             },
         )
+    }
+
+    suspend fun activeUserUnderstandings(): List<UserUnderstanding> =
+        db.userUnderstandingDao().byStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
+
+    suspend fun getUserUnderstanding(id: String) = db.userUnderstandingDao().get(id)?.toDomain()
+
+    suspend fun activeUserUnderstandingByFacet(facet: String) =
+        db.userUnderstandingDao().byFacet(facet, MemoryStatus.ACTIVE)?.toDomain()
+
+    suspend fun saveUserUnderstanding(item: UserUnderstanding) {
+        db.userUnderstandingDao().upsert(item.toEntity())
+        enqueue("user_understandings", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }
@@ -409,6 +424,21 @@ fun UserProfile.toJson() = JSONObject()
     .put("preferredLanguage", preferredLanguage).put("country", country).put("typicalWakeTime", typicalWakeTime)
     .put("typicalSleepTime", typicalSleepTime).put("occupationOrStudyContext", occupationOrStudyContext)
     .put("firstUseDate", firstUseDate).put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version)
+    .toString()
+
+fun UserUnderstandingEntity.toDomain() = UserUnderstanding(
+    id, facet, content, confidence, importance, source, sourceMessageId, status,
+    createdAt, updatedAt, deviceId, version, deletedAt,
+)
+fun UserUnderstanding.toEntity() = UserUnderstandingEntity(
+    id, facet, content, confidence, importance, source, sourceMessageId, status,
+    createdAt, updatedAt, deviceId, version, deletedAt,
+)
+fun UserUnderstanding.toJson() = JSONObject()
+    .put("id", id).put("facet", facet).put("content", content).put("confidence", confidence)
+    .put("importance", importance).put("source", source.name).put("sourceMessageId", sourceMessageId)
+    .put("status", status.name).put("createdAt", createdAt).put("updatedAt", updatedAt)
+    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt)
     .toString()
 
 fun PersonEntity.toDomain() = Person(id, name, relationship, birthday, importantNotes, preferences, lastMentioned, confidence, createdAt, updatedAt, deviceId, version, deletedAt)

@@ -21,6 +21,7 @@ Hard rules:
 - Natural language in, structured records underneath. The person should never need to say "create a goal" or "add a grocery." You decide where something belongs.
 - Classify carefully before writing:
   - Fact / preference / household spec / "this is info" → remember (long_term if durable, short_term if temporary). Example: "the living room needs a 15-watt lamp" is information about the home, not a task, unless they say they will buy or do it.
+  - Who they are as a person — how they talk, how they want help, what chapter they are in, recurring patterns — → update_user_understanding. If they share more than one kind of thing, write separate facets (help_style or communication for how to talk to them, life_chapter for what they are going through). Do not fold a life chapter into a help-style note. Discrete facts still go to remember. Logistics they stated (name, timezone, job label) still go to update_user_profile. Upsert by facet so each facet has one ACTIVE row. Do not announce the save.
   - Consumable they are out of or will restock → grocery. Example: "we're out of rice."
   - Something they intend to do, without a hard promise → task. Example: "I should buy a keyboard sometime."
   - A promise with a time or a person → commitment. Example: "I'll send that to Ali tomorrow."
@@ -47,7 +48,7 @@ This is an autonomous hourly pass. Review the provided context. You may update a
 """.trimIndent()
 
     val NIGHTLY_PROMPT = """
-This is nightly consolidation. Review today. Promote durable facts to long-term memory, mark old facts historical instead of erasing them, merge duplicates, expire low-value short-term items, update people/projects/goals/tasks/commitments/routines/groceries/dates, detect possible routines only when a pattern actually repeats, review open loops and the agent queue, and prepare useful context for tomorrow. Do not message the user unless something cannot wait. Stay well under the call budget.
+This is nightly consolidation. Review today. Promote durable facts to long-term memory, mark old facts historical instead of erasing them, merge duplicates, expire low-value short-term items, update people/projects/goals/tasks/commitments/routines/groceries/dates, detect possible routines only when a pattern actually repeats, review open loops and the agent queue, and prepare useful context for tomorrow. Also review the About them section. If today's chat confirmed, contradicted, or added to who they are, call update_user_understanding. Rewrite a facet instead of adding a clone. Mark stale rows HISTORICAL. Keep the set small. Do not diagnose. Do not message the user unless something cannot wait. Stay well under the call budget.
 """.trimIndent()
 
     val BRIEFING_PROMPT = """

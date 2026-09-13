@@ -117,6 +117,7 @@ object ScenarioTables {
         "memories_long",
         "memories_short",
         "profile",
+        "user_understandings",
     )
 }
 

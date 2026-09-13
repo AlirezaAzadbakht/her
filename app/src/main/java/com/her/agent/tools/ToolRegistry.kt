@@ -55,6 +55,7 @@ import com.her.domain.ShortTermMemory
 import com.her.domain.TaskItem
 import com.her.domain.TaskStatus
 import com.her.domain.ToolResult
+import com.her.domain.UserUnderstanding
 import com.her.domain.ToolSpec
 import java.time.Instant
 import java.time.ZoneId
@@ -647,6 +648,55 @@ open class ToolRegistry(
             val existing = repo.getAgentQueue(args.requiredString("id")) ?: throw ToolValidationException("Queue item not found")
             repo.saveAgentQueue(existing.copy(status = QueueStatus.DONE, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
+        }
+        register(
+            "update_user_understanding",
+            "Create or revise what you know about who this person is. Use this for how they communicate, how they want help, what they are going through, and recurring patterns — not one-off facts (remember) or profile logistics (update_user_profile). If they share how they want help AND what they are going through, write help_style and life_chapter as separate calls. Upsert by id or by facet so each facet has one ACTIVE row. Mark stale rows HISTORICAL instead of deleting. Do not diagnose personality or mental health.",
+            objSchema(
+                "id" to str("Existing row id from the About them section"),
+                "facet" to str("communication, help_style, life_chapter, values, patterns, relationship_to_her, or other"),
+                "content" to str("What you understand about them"),
+                "confidence" to num("0-1"),
+                "importance" to num("0-1"),
+                "status" to str("ACTIVE, HISTORICAL, ARCHIVED"),
+                "source" to str("USER_EXPLICIT or AGENT_INFERENCE"),
+                "sourceMessageId" to str("Origin message id"),
+            ),
+        ) { args ->
+            val now = nowMillis()
+            val requestedId = args.optStringOrNull("id")
+            val facet = UserUnderstanding.normalizeFacet(args.optStringOrNull("facet"))
+            val existing = requestedId?.let { repo.getUserUnderstanding(it) }
+                ?: repo.activeUserUnderstandingByFacet(facet)
+            val content = args.optStringOrNull("content") ?: existing?.content
+                ?: throw ToolValidationException("Missing required field: content")
+            val item = (existing ?: UserUnderstanding(
+                id = newId(),
+                facet = facet,
+                content = content,
+                confidence = 0.7,
+                importance = 0.6,
+                source = MemorySource.AGENT_INFERENCE,
+                sourceMessageId = null,
+                status = MemoryStatus.ACTIVE,
+                createdAt = now,
+                updatedAt = now,
+                deviceId = repo.deviceId,
+                version = 1,
+                deletedAt = null,
+            )).copy(
+                facet = if (args.optStringOrNull("facet") != null) facet else existing?.facet ?: facet,
+                content = content,
+                confidence = clamp01(args.optDoubleOr("confidence", existing?.confidence ?: 0.7)),
+                importance = clamp01(args.optDoubleOr("importance", existing?.importance ?: 0.6)),
+                source = parseEnum<MemorySource>(args.optStringOrNull("source")) ?: existing?.source ?: MemorySource.AGENT_INFERENCE,
+                sourceMessageId = args.optStringOrNull("sourceMessageId") ?: existing?.sourceMessageId,
+                status = parseEnum<MemoryStatus>(args.optStringOrNull("status")) ?: existing?.status ?: MemoryStatus.ACTIVE,
+                updatedAt = now,
+                version = (existing?.version ?: 0) + 1,
+            )
+            repo.saveUserUnderstanding(item)
+            jsonObjectOf("ok" to true, "id" to item.id, "facet" to item.facet)
         }
         register("update_user_profile", "Update high-value profile fields when the person explicitly shares them.", objSchema("userName" to str(), "assistantName" to str(), "timezone" to str(), "preferredLanguage" to str(), "country" to str(), "typicalWakeTime" to str(), "typicalSleepTime" to str(), "occupationOrStudyContext" to str())) { args ->
             val current = repo.getProfile()
