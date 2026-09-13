@@ -40,7 +40,7 @@ Core principles:
 
 ## Features
 
-| | |
+| Feature | What she does |
 |---|---|
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
