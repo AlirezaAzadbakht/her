@@ -1,0 +1,26 @@
+{
+  "id": "calendar-todays-meetings",
+  "title": "See today's meetings on the phone and Google calendars",
+  "tags": ["calendar", "system-calendar", "google-calendar"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Team standup", "when": "today at 2pm" }
+    ],
+    "google_calendar": [
+      { "title": "Design review", "when": "today at 4pm" }
+    ]
+  },
+  "turns": [
+    { "user": "What's my meeting today?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["standup", "design"],
+      "judge": "She names both today's meetings: the 2pm Team standup on the phone calendar and the 4pm Design review on Google Calendar. Saying either calendar is empty or that she cannot see the phone or Google calendar is a failure."
+    }
+  }
+}

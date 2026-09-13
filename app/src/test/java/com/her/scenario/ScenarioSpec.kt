@@ -26,6 +26,7 @@ data class ScenarioSeed(
     val profile: Map<String, String>,
     val tools: List<SeedToolCall>,
     val systemCalendar: List<SeedCalendarEvent>,
+    val googleCalendar: List<SeedCalendarEvent>,
 )
 
 data class SeedCalendarEvent(
@@ -102,6 +103,7 @@ object ScenarioTables {
         "recurring_responsibilities",
         "calendar_events",
         "system_calendar",
+        "google_calendar",
         "agent_queue",
         "agent_state",
         "memories_long",
@@ -115,7 +117,7 @@ object ScenarioLoader {
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect",
     )
     private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled")
-    private val seedKeys = setOf("profile", "tools", "system_calendar")
+    private val seedKeys = setOf("profile", "tools", "system_calendar", "google_calendar")
     private val seedCalendarKeys = setOf("title", "when", "notes")
     private val profileKeys = setOf(
         "userName", "assistantName", "timezone", "preferredLanguage", "country",
@@ -206,7 +208,7 @@ object ScenarioLoader {
     }
 
     private fun parseSeed(file: File, obj: JSONObject?, path: String): ScenarioSeed {
-        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList())
+        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList(), emptyList())
         rejectUnknown(obj, seedKeys, path, file)
         val profileObj = obj.optJSONObject("profile")
         val profile = if (profileObj == null) {
@@ -233,21 +235,22 @@ object ScenarioLoader {
                 SeedToolCall(name, argumentsJson)
             }
         }
-        val calendarArray = obj.optJSONArray("system_calendar")
-        val systemCalendar = if (calendarArray == null) {
-            emptyList()
-        } else {
-            (0 until calendarArray.length()).map { index ->
-                val event = calendarArray.requiredObject(index, "$path.system_calendar[$index]")
-                rejectUnknown(event, seedCalendarKeys, "$path.system_calendar[$index]", file)
-                SeedCalendarEvent(
-                    title = event.requiredString(file, "title", "$path.system_calendar[$index]"),
-                    whenPhrase = event.requiredString(file, "when", "$path.system_calendar[$index]"),
-                    notes = event.optString("notes").takeIf { event.has("notes") && it.isNotBlank() },
-                )
-            }
+        val systemCalendar = parseSeedCalendar(file, obj.optJSONArray("system_calendar"), "$path.system_calendar")
+        val googleCalendar = parseSeedCalendar(file, obj.optJSONArray("google_calendar"), "$path.google_calendar")
+        return ScenarioSeed(profile, tools, systemCalendar, googleCalendar)
+    }
+
+    private fun parseSeedCalendar(file: File, array: JSONArray?, path: String): List<SeedCalendarEvent> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).map { index ->
+            val event = array.requiredObject(index, "$path[$index]")
+            rejectUnknown(event, seedCalendarKeys, "$path[$index]", file)
+            SeedCalendarEvent(
+                title = event.requiredString(file, "title", "$path[$index]"),
+                whenPhrase = event.requiredString(file, "when", "$path[$index]"),
+                notes = event.optString("notes").takeIf { event.has("notes") && it.isNotBlank() },
+            )
         }
-        return ScenarioSeed(profile, tools, systemCalendar)
     }
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {

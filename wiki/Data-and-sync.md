@@ -49,7 +49,11 @@ Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
 
 ## Calendar
 
-`CalendarDataSource` reads/writes the Android system calendar when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable ids. Google Calendar scope on the OAuth client is still **readonly** — a Google-synced device calendar is how events can appear in Google Calendar.
+`CalendarDataSource` reads the Android system calendar through `CalendarContract.Instances` (so recurring meetings in the window show up) when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable instance ids.
+
+After Settings → Connect Google completes consent, `GoogleCalendarClient` reads selected calendars from the Google Calendar API (`calendar.readonly`). Those events are mirrored as `GOOGLE` rows. The API is read-only — she will not update or delete Google events. If Google is connected, Google-synced copies on the device calendar are omitted so the same meeting is not listed twice. If Google is not connected, Google-synced device events still appear as system calendar.
+
+`get_calendar_events` can read any slice: `from` / `to` as natural phrases, ISO, epoch millis, or Jalali, or `days` from the start of `from` (or today). A date without a clock is that whole day. Named slices include `this morning`, `this afternoon`, and `this evening` / `tonight`. The window is capped at 400 days.
 
 ## Web search
 

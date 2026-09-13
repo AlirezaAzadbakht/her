@@ -1,6 +1,7 @@
 package com.her.ui
 
 import android.app.Application
+import android.app.PendingIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
@@ -37,6 +38,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val connectionMessage = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
+    val googleConsent = MutableStateFlow<PendingIntent?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
 
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -159,7 +161,17 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             val outcome = withContext(Dispatchers.IO) {
                 graph.googleAuth.authorize(drive = true, calendar = true)
             }
+            googleConsent.value = outcome.pendingIntent
             googleMessage.value = outcome.message
         }
+    }
+
+    fun clearGoogleConsent() {
+        googleConsent.value = null
+    }
+
+    fun finishGoogleConnect() {
+        googleConsent.value = null
+        connectGoogle()
     }
 }

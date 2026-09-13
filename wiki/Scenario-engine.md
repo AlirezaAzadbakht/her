@@ -127,6 +127,7 @@ Rows are flattened by an explicit mapper, not reflection.
 | `recurring_responsibilities` | id, title, cadence, nextDueAt, notes |
 | `calendar_events` | id, title, startAt, endAt, location, notes, source |
 | `system_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of the device calendar) |
+| `google_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of Google Calendar) |
 | `agent_queue` | id, description, status, priority, dueAt |
 | `agent_state` | id, kind, content, confidence |
 | `memories_long` | id, content, category, confidence, importance, status, source |
@@ -137,11 +138,11 @@ Rows are flattened by an explicit mapper, not reflection.
 
 Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, a `FakeCalendarDataSource`, and a notifier that records instead of posting. Set `"settings": { "calendarEnabled": true }` (or seed `system_calendar`) to grant the fake device calendar. Otherwise tools write the internal `calendar_events` table only.
 
-Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`.
+Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`. Seed Google Calendar events with `seed.google_calendar` using the same shape; that grants the fake Google client for the attempt. Check them with `rows` on table `google_calendar`.
 
 ## Limitations
 
 - No time travel. The production clock is `System.currentTimeMillis()`, so a scenario cannot span simulated days.
-- No Drive side effects under Robolectric. The device calendar is a per-attempt fake, not CalendarContract.
+- No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.

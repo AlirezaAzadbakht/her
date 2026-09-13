@@ -66,6 +66,15 @@ class RelativeTimeParserTest {
     }
 
     @Test
+    fun englishMonthDayYear() {
+        val tehran = ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(11, 0), ZoneId.of("Asia/Tehran"))
+        val parsed = RelativeTimeParser.parse("September 27, 2026", tehran)
+        assertNotNull(parsed)
+        assertEquals(LocalDate.of(2026, 9, 27), parsed!!.toLocalDate())
+        assertEquals(0, parsed.hour)
+    }
+
+    @Test
     fun nextTuesdayAtTen() {
         val tehran = ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(0, 6), ZoneId.of("Asia/Tehran"))
         val parsed = RelativeTimeParser.parse("next Tuesday at 10am", tehran)

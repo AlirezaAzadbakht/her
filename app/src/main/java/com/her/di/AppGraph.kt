@@ -9,6 +9,8 @@ import com.her.core.newId
 import com.her.core.nowMillis
 import com.her.core.ConnectivityObserver
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.GoogleCalendar
+import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.db.HerDatabase
 import com.her.data.db.SqlBrowser
 import com.her.data.drive.SyncEngine
@@ -44,17 +46,19 @@ class AppGraph(context: Context) {
     val llm = LlmClient()
     val webSearch = WebSearchClient()
     val googleAuth = GoogleAuthService(appContext, settings)
+    val googleCalendarClient = GoogleCalendarClient(googleAuth)
+    val googleCalendar = GoogleCalendar(repo, googleCalendarClient)
     val syncEngine = SyncEngine(repo)
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)
 
     private val contextBuilder: ContextBuilder by lazy {
-        ContextBuilder(repo, ranker, settings, calendar)
+        ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
     }
 
     val tools: ToolRegistry by lazy {
-        ToolRegistry(repo, ranker, settings, calendar, webSearch) { text ->
+        ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             val now = nowMillis()
             repo.saveMessage(
                 ChatMessage(
@@ -70,7 +74,7 @@ class AppGraph(context: Context) {
                     metadataJson = """{"proactive":true}""",
                 ),
             )
-        }
+        }, googleCalendar)
     }
 
     val orchestrator: AgentOrchestrator by lazy {

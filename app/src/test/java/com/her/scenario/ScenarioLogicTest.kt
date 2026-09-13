@@ -95,6 +95,38 @@ class ScenarioLogicTest {
         assertEquals("system_calendar", spec.expect.rows.single().table)
     }
 
+    @Test
+    fun parsesGoogleCalendarSeed() {
+        val file = tmp.newFile("calendar-todays-meetings.json")
+        file.writeText(
+            """
+            {
+              "id": "calendar-todays-meetings",
+              "title": "See today's meetings",
+              "settings": { "calendarEnabled": true },
+              "seed": {
+                "profile": { "userName": "Alireza", "timezone": "Asia/Tehran" },
+                "system_calendar": [{ "title": "Team standup", "when": "today at 2pm" }],
+                "google_calendar": [{ "title": "Design review", "when": "today at 4pm" }]
+              },
+              "turns": [{ "user": "What's my meeting today?" }],
+              "expect": {
+                "rows": [{
+                  "table": "google_calendar",
+                  "count": 1,
+                  "where": { "title": { "contains": "design" } }
+                }]
+              }
+            }
+            """.trimIndent(),
+        )
+        val spec = ScenarioLoader.parse(file)
+        assertEquals("Team standup", spec.seed.systemCalendar.single().title)
+        assertEquals("Design review", spec.seed.googleCalendar.single().title)
+        assertEquals("today at 4pm", spec.seed.googleCalendar.single().whenPhrase)
+        assertEquals("google_calendar", spec.expect.rows.single().table)
+    }
+
     @Test(expected = ScenarioParseException::class)
     fun rejectsUnknownKey() {
         val file = tmp.newFile("bad.json")

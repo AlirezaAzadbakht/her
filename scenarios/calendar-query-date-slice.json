@@ -1,0 +1,25 @@
+{
+  "id": "calendar-query-date-slice",
+  "title": "Look up a day outside the 7-day context window",
+  "tags": ["calendar", "system-calendar"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Team standup", "when": "today at 2pm" },
+      { "title": "Visa interview", "when": "in 14 days at 10am" }
+    ]
+  },
+  "turns": [
+    { "user": "What's on my calendar in two weeks?" }
+  ],
+  "expect": {
+    "tools_called": ["get_calendar_events"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["visa", "interview", "10"],
+      "judge": "She looks up that future day and mentions the 10am visa interview. Saying the calendar is empty, or only talking about today's standup, is a failure."
+    }
+  }
+}

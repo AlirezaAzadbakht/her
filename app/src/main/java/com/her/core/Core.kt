@@ -96,6 +96,15 @@ data class QuietHours(
 
 object RelativeTimeParser {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    private val englishDates = listOf(
+        "EEEE, MMMM d, yyyy",
+        "MMMM d, yyyy",
+        "MMM d, yyyy",
+        "d MMMM yyyy",
+        "d MMM yyyy",
+    ).map { pattern ->
+        DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(pattern).toFormatter(Locale.US)
+    }
     private val naturalDateTime: DateTimeFormatter = DateTimeFormatterBuilder()
         .parseCaseInsensitive()
         .appendPattern("EEEE, MMMM d, yyyy 'at' h:mm a")
@@ -193,7 +202,7 @@ object RelativeTimeParser {
             trimmed.startsWith("in ") -> parseIn(trimmed.removePrefix("in ").trim(), now)?.toLocalDate()
             trimmed.startsWith("next ") -> parseNextWeekday(trimmed.removePrefix("next ").trim(), now)
             trimmed.matches(Regex("""\d{4}-\d{2}-\d{2}""")) -> LocalDate.parse(trimmed, dateFormatter)
-            else -> JalaliDate.parse(trimmed, now)
+            else -> parseEnglishDate(trimmed) ?: JalaliDate.parse(trimmed, now)
         }
     }
 
@@ -221,6 +230,13 @@ object RelativeTimeParser {
             .replace("ساعت", "at")
             .replace(Regex("""\s+"""), " ")
             .trim()
+
+    private fun parseEnglishDate(text: String): LocalDate? {
+        englishDates.forEach { formatter ->
+            runCatching { return LocalDate.parse(text, formatter) }
+        }
+        return null
+    }
 
     private fun parseClock(raw: String): LocalTime? {
         val text = raw.trim().lowercase(Locale.US).replace(".", "")

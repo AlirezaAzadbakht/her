@@ -18,7 +18,7 @@ The Memory tab is an experimental read-only SQL navigator. It defaults on (`memo
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or Drive.
 
-Optional later, in Settings: Calendar access (requests permission if needed), Google OAuth client ID (Drive / Calendar), web search.
+Optional later, in Settings: Calendar access (requests permission if needed), Google OAuth client ID (Drive / Calendar), web search. **Connect Google** launches the Play Services consent `pendingIntent` when needed, then authorizes again so Drive and the Google Calendar API have a token.
 
 ## Her (single utterance)
 

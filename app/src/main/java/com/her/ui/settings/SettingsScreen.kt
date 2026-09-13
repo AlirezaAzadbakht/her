@@ -5,6 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +55,17 @@ fun SettingsScreen(vm: HerViewModel) {
     val runs by vm.runs.collectAsState()
     val connection by vm.connectionMessage.collectAsState()
     val google by vm.googleMessage.collectAsState()
+    val googleConsent by vm.googleConsent.collectAsState()
+    val googleConsentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) {
+        vm.finishGoogleConnect()
+    }
+    LaunchedEffect(googleConsent) {
+        val pending = googleConsent ?: return@LaunchedEffect
+        vm.clearGoogleConsent()
+        googleConsentLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+    }
     val llm = vm.llmSettings()
     var base by remember { mutableStateOf(llm.baseUrl) }
     var key by remember { mutableStateOf(llm.apiKey) }

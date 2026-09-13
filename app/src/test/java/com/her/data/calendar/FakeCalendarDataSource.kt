@@ -16,6 +16,7 @@ class FakeCalendarDataSource(
         val endAt: Long?,
         val notes: String?,
         val calendarId: String = "1",
+        val accountType: String = "LOCAL",
     )
 
     private val events = linkedMapOf<String, Stored>()
@@ -23,9 +24,15 @@ class FakeCalendarDataSource(
 
     fun all(): List<Stored> = events.values.toList()
 
-    fun seed(title: String, startAt: Long, endAt: Long? = startAt + 60 * 60 * 1000, notes: String? = null): String {
+    fun seed(
+        title: String,
+        startAt: Long,
+        endAt: Long? = startAt + 60 * 60 * 1000,
+        notes: String? = null,
+        accountType: String = "LOCAL",
+    ): String {
         val id = (nextId++).toString()
-        events[id] = Stored(id, title, startAt, endAt, notes)
+        events[id] = Stored(id, title, startAt, endAt, notes, accountType = accountType)
         return id
     }
 
@@ -43,11 +50,18 @@ class FakeCalendarDataSource(
 
     override fun hasPermission(): Boolean = granted
 
-    override fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
+    override fun eventsBetween(
+        from: Long,
+        to: Long,
+        excludeGoogleAccounts: Boolean,
+    ): Result<List<CalendarEvent>> {
         if (!granted) return Result.failure(IllegalStateException("Calendar permission is not granted"))
         val now = nowMillis()
         return Result.success(
-            events.values.filter { it.startAt in from..to }.map { it.toDomain(now) },
+            events.values
+                .filter { CalendarWindows.overlaps(it.startAt, it.endAt, from, to) }
+                .filter { !excludeGoogleAccounts || it.accountType != CalendarWindows.GOOGLE_ACCOUNT_TYPE }
+                .map { it.toDomain(now) },
         )
     }
 
@@ -64,9 +78,10 @@ class FakeCalendarDataSource(
         notes: String?,
     ): Result<Unit> {
         if (!granted) return Result.failure(IllegalStateException("Calendar permission is not granted"))
-        val existing = events[externalId]
+        val id = CalendarWindows.deviceEventId(externalId)
+        val existing = events[id] ?: events[externalId]
             ?: return Result.failure(IllegalStateException("Event was not updated"))
-        events[externalId] = existing.copy(
+        events[existing.id] = existing.copy(
             title = title ?: existing.title,
             startAt = startAt ?: existing.startAt,
             endAt = endAt ?: existing.endAt,
@@ -77,7 +92,8 @@ class FakeCalendarDataSource(
 
     override fun deleteEvent(externalId: String): Result<Unit> {
         if (!granted) return Result.failure(IllegalStateException("Calendar permission is not granted"))
-        return if (events.remove(externalId) != null) {
+        val id = CalendarWindows.deviceEventId(externalId)
+        return if (events.remove(id) != null || events.remove(externalId) != null) {
             Result.success(Unit)
         } else {
             Result.failure(IllegalStateException("Event was not deleted"))

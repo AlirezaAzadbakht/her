@@ -19,46 +19,59 @@ open class CalendarDataSource(private val context: Context) {
         return read == PackageManager.PERMISSION_GRANTED && write == PackageManager.PERMISSION_GRANTED
     }
 
-    open fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
+    open fun eventsBetween(
+        from: Long,
+        to: Long,
+        excludeGoogleAccounts: Boolean = false,
+    ): Result<List<CalendarEvent>> {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
+        val skipCalendars = if (excludeGoogleAccounts) googleCalendarIds() else emptySet()
         val projection = arrayOf(
-            CalendarContract.Events._ID,
-            CalendarContract.Events.TITLE,
-            CalendarContract.Events.DTSTART,
-            CalendarContract.Events.DTEND,
-            CalendarContract.Events.EVENT_LOCATION,
-            CalendarContract.Events.DESCRIPTION,
-            CalendarContract.Events.CALENDAR_ID,
+            CalendarContract.Instances.EVENT_ID,
+            CalendarContract.Instances.TITLE,
+            CalendarContract.Instances.BEGIN,
+            CalendarContract.Instances.END,
+            CalendarContract.Instances.EVENT_LOCATION,
+            CalendarContract.Instances.DESCRIPTION,
+            CalendarContract.Instances.CALENDAR_ID,
         )
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also { builder ->
+            ContentUris.appendId(builder, from)
+            ContentUris.appendId(builder, to)
+        }.build()
         val items = mutableListOf<CalendarEvent>()
         context.contentResolver.query(
-            CalendarContract.Events.CONTENT_URI,
+            uri,
             projection,
-            "${CalendarContract.Events.DTSTART} >= ? AND ${CalendarContract.Events.DTSTART} <= ? AND ${CalendarContract.Events.DELETED} != 1",
-            arrayOf(from.toString(), to.toString()),
-            "${CalendarContract.Events.DTSTART} ASC",
+            null,
+            null,
+            "${CalendarContract.Instances.BEGIN} ASC",
         )?.use { cursor ->
-            val idIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events._ID)
-            val titleIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.TITLE)
-            val startIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTSTART)
-            val endIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.DTEND)
-            val locIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.EVENT_LOCATION)
-            val descIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.DESCRIPTION)
-            val calIdx = cursor.getColumnIndexOrThrow(CalendarContract.Events.CALENDAR_ID)
+            val idIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID)
+            val titleIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.TITLE)
+            val startIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.BEGIN)
+            val endIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.END)
+            val locIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_LOCATION)
+            val descIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.DESCRIPTION)
+            val calIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.CALENDAR_ID)
+            val now = nowMillis()
             while (cursor.moveToNext()) {
-                val now = nowMillis()
+                val calendarId = cursor.getString(calIdx)
+                if (calendarId != null && calendarId in skipCalendars) continue
+                val eventId = cursor.getLong(idIdx)
+                val begin = cursor.getLong(startIdx)
                 items += CalendarEvent(
                     id = newId(),
                     title = cursor.getString(titleIdx) ?: "(untitled)",
-                    startAt = cursor.getLong(startIdx),
+                    startAt = begin,
                     endAt = cursor.getLong(endIdx).takeIf { it > 0 },
                     location = cursor.getString(locIdx),
                     notes = cursor.getString(descIdx),
-                    externalId = cursor.getLong(idIdx).toString(),
+                    externalId = CalendarWindows.instanceExternalId(eventId.toString(), begin),
                     source = CalendarSource.SYSTEM,
-                    calendarId = cursor.getString(calIdx),
+                    calendarId = calendarId,
                     createdAt = now,
                     updatedAt = now,
                     deviceId = "system",
@@ -85,7 +98,8 @@ open class CalendarDataSource(private val context: Context) {
         }
         val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: return Result.failure(IllegalStateException("Could not create calendar event"))
-        return Result.success(ContentUris.parseId(uri).toString())
+        val eventId = ContentUris.parseId(uri)
+        return Result.success(CalendarWindows.instanceExternalId(eventId.toString(), startAt))
     }
 
     open fun updateEvent(
@@ -98,7 +112,8 @@ open class CalendarDataSource(private val context: Context) {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
-        val id = externalId.toLongOrNull() ?: return Result.failure(IllegalArgumentException("Invalid event id"))
+        val id = CalendarWindows.parseDeviceEventId(externalId)
+            ?: return Result.failure(IllegalArgumentException("Invalid event id"))
         val values = ContentValues().apply {
             title?.let { put(CalendarContract.Events.TITLE, it) }
             startAt?.let { put(CalendarContract.Events.DTSTART, it) }
@@ -115,7 +130,8 @@ open class CalendarDataSource(private val context: Context) {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
-        val id = externalId.toLongOrNull() ?: return Result.failure(IllegalArgumentException("Invalid event id"))
+        val id = CalendarWindows.parseDeviceEventId(externalId)
+            ?: return Result.failure(IllegalArgumentException("Invalid event id"))
         val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
         val deleted = context.contentResolver.delete(uri, null, null)
         return if (deleted > 0) Result.success(Unit) else Result.failure(IllegalStateException("Event was not deleted"))
@@ -132,5 +148,22 @@ open class CalendarDataSource(private val context: Context) {
             if (cursor.moveToFirst()) return cursor.getLong(0)
         }
         return null
+    }
+
+    private fun googleCalendarIds(): Set<String> {
+        val ids = mutableSetOf<String>()
+        context.contentResolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.ACCOUNT_TYPE),
+            "${CalendarContract.Calendars.ACCOUNT_TYPE} = ?",
+            arrayOf(CalendarWindows.GOOGLE_ACCOUNT_TYPE),
+            null,
+        )?.use { cursor ->
+            val idIdx = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._ID)
+            while (cursor.moveToNext()) {
+                ids += cursor.getLong(idIdx).toString()
+            }
+        }
+        return ids
     }
 }

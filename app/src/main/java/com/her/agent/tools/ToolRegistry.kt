@@ -5,6 +5,7 @@ import com.her.core.COMMON_DROPPED
 import com.her.core.RelativeTimeParser
 import com.her.core.ToolValidationException
 import com.her.core.clamp01
+import com.her.core.formatNaturalDate
 import com.her.core.jsonObjectOf
 import com.her.core.newId
 import com.her.core.normalizeDateIso
@@ -16,6 +17,9 @@ import com.her.core.optStringOrNull
 import com.her.core.parseEnum
 import com.her.core.requiredString
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.CalendarWindows
+import com.her.data.calendar.GoogleCalendar
+import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.calendar.SystemCalendar
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -55,6 +59,8 @@ import com.her.domain.ToolSpec
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -69,9 +75,11 @@ open class ToolRegistry(
     private val calendar: CalendarDataSource,
     private val webSearch: WebSearchClient,
     private val onUserMessage: suspend (String) -> Unit = {},
+    googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     private val systemCalendar = SystemCalendar(repo, calendar, settings)
+    private val googleCalendar = googleCalendar
 
     init {
         registerAll()
@@ -652,19 +660,40 @@ open class ToolRegistry(
     private fun calendarTools() {
         register(
             "get_calendar_events",
-            "Read upcoming internal and device calendar events. Device events are mirrored with stable ids.",
-            objSchema("days" to num()),
+            "Read internal, device, and Google Calendar events for any date or time slice. Pass from/to for a day, week, month, hour range, or Jalali date. days is only a convenience from the start of from (or today). Context only has the next 7 days — call this for anything else.",
+            objSchema(
+                "from" to str("Start of the slice: ISO, epoch millis, Jalali, or a phrase such as 'next Tuesday', 'today at 2pm', 'this afternoon'"),
+                "to" to str("End of the slice, same formats. A date without a clock includes that whole day."),
+                "days" to num("Number of calendar days from from (or today) when to is omitted. Default 7 if from and to are also omitted."),
+            ),
         ) { args ->
-            val days = args.optInt("days", 7).toLong()
-            val (from, to) = calendarWindow(days)
-            val system = systemCalendar.mirror(from, to)
-            val internal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
+            val slice = try {
+                CalendarWindows.resolveSlice(
+                    now = nowZoned(),
+                    fromPhrase = args.optStringOrNull("from"),
+                    toPhrase = args.optStringOrNull("to"),
+                    days = args.optLongOrNull("days"),
+                )
+            } catch (e: IllegalArgumentException) {
+                throw ToolValidationException(e.message ?: "Could not understand the time slice")
+            }
+            val zone = nowZoned().zone
+            val googleConnected = googleCalendar.available()
+            val system = systemCalendar.mirror(slice.from, slice.to, excludeGoogleAccounts = googleConnected)
+            val google = googleCalendar.mirror(slice.from, slice.to)
+            val internal = repo.calendarInRange(slice.from, slice.to).filter { it.source == CalendarSource.INTERNAL }
             jsonObjectOf(
                 "ok" to true,
+                "from" to slice.from,
+                "to" to slice.to,
+                "fromWhen" to formatNaturalDate(Instant.ofEpochMilli(slice.from).atZone(zone)),
+                "toWhen" to formatNaturalDate(Instant.ofEpochMilli(slice.to).atZone(zone)),
                 "calendarPermission" to calendar.hasPermission(),
                 "calendarEnabled" to settings.read().calendarEnabled,
-                "internal" to JSONArray(internal.map { JSONObject(it.toJson()) }),
-                "system" to JSONArray(system.map { JSONObject(it.toJson()) }),
+                "googleConnected" to googleConnected,
+                "internal" to JSONArray(internal.map { calendarJson(it, zone) }),
+                "system" to JSONArray(system.map { calendarJson(it, zone) }),
+                "google" to JSONArray(google.map { calendarJson(it, zone) }),
             )
         }
         register(
@@ -705,6 +734,7 @@ open class ToolRegistry(
             ),
         ) { args ->
             val existing = requireCalendarEvent(args.requiredString("id"))
+            refuseGoogleWrite(existing)
             val title = args.optStringOrNull("title") ?: existing.title
             val start = args.optStringOrNull("when")?.let {
                 parseWhen(it) ?: throw ToolValidationException("Could not understand the time")
@@ -727,6 +757,7 @@ open class ToolRegistry(
             ),
         ) { args ->
             val existing = requireCalendarEvent(args.requiredString("id"))
+            refuseGoogleWrite(existing)
             if (existing.source != CalendarSource.INTERNAL && existing.externalId != null) {
                 val already = args.optBoolean("confirmed", false)
                 val confirmId = args.optStringOrNull("confirmId")
@@ -775,7 +806,9 @@ open class ToolRegistry(
         repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
         repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
         val (from, to) = calendarWindow(400)
-        systemCalendar.mirror(from, to)
+        val googleConnected = googleCalendar.available()
+        systemCalendar.mirror(from, to, excludeGoogleAccounts = googleConnected)
+        googleCalendar.mirror(from, to)
         repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
         repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
         val all = repo.calendarInRange(from, to)
@@ -788,6 +821,26 @@ open class ToolRegistry(
                 if (exact.isEmpty() && loose.isEmpty()) "Event not found: $idOrTitle"
                 else "Multiple events match '$idOrTitle'; pass the id from context",
             )
+    }
+
+    private fun calendarJson(event: CalendarEvent, zone: ZoneId): JSONObject {
+        val obj = JSONObject(event.toJson())
+        obj.put("when", formatNaturalDate(Instant.ofEpochMilli(event.startAt).atZone(zone)))
+        event.endAt?.let {
+            obj.put(
+                "until",
+                Instant.ofEpochMilli(it).atZone(zone).format(DateTimeFormatter.ofPattern("h:mm a", Locale.US)),
+            )
+        }
+        return obj
+    }
+
+    private fun refuseGoogleWrite(event: CalendarEvent) {
+        if (event.source == CalendarSource.GOOGLE) {
+            throw ToolValidationException(
+                "Google Calendar events are read-only. Change them in Google Calendar.",
+            )
+        }
     }
 
     private suspend fun parseWhen(raw: String?): Long? {

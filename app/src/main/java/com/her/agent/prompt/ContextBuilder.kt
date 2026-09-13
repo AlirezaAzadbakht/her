@@ -2,6 +2,8 @@ package com.her.agent.prompt
 
 import com.her.core.formatNaturalDate
 import com.her.data.calendar.CalendarDataSource
+import com.her.data.calendar.GoogleCalendar
+import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.calendar.SystemCalendar
 import com.her.domain.CalendarSource
 import com.her.data.repository.HerRepository
@@ -31,6 +33,7 @@ class ContextBuilder(
     private val calendar: CalendarDataSource,
     private val extraSystem: String? = null,
     private val systemCalendar: SystemCalendar = SystemCalendar(repo, calendar, settings),
+    private val googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
 ) {
     suspend fun build(latestUserText: String? = null, recentLimit: Int = 24): BuiltContext {
         val profile = repo.getProfile()
@@ -54,7 +57,9 @@ class ContextBuilder(
         val state = repo.agentState().take(12)
         val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
         val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
-        val systemCal = systemCalendar.mirror(from, to)
+        val googleLive = googleCalendar.available()
+        val systemCal = systemCalendar.mirror(from, to, excludeGoogleAccounts = googleLive)
+        val googleCal = googleCalendar.mirror(from, to)
         val internalCal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
 
         val bundle = buildString {
@@ -77,7 +82,16 @@ class ContextBuilder(
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
             appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" })
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
-            if (systemCal.isNotEmpty()) appendSection("System calendar", systemCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
+            appendCalendarSection(
+                "System calendar",
+                systemCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" },
+                live = systemCalendar.live(),
+            )
+            appendCalendarSection(
+                "Google calendar",
+                googleCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" },
+                live = googleLive,
+            )
             appendSection("Agent state", state.map { "${it.id} | ${it.kind}: ${it.content}" })
             appendSection("Agent queue", queue.map { "${it.id} | ${it.description} [${it.status}]${due(it.dueAt, now, zone)}" })
             extraSystem?.let {
@@ -121,5 +135,16 @@ class ContextBuilder(
         appendLine()
         appendLine("$title:")
         lines.take(16).forEach { appendLine("- $it") }
+    }
+
+    private fun StringBuilder.appendCalendarSection(title: String, lines: List<String>, live: Boolean) {
+        if (!live) return
+        appendLine()
+        appendLine("$title:")
+        if (lines.isEmpty()) {
+            appendLine("- none in the next 7 days")
+        } else {
+            lines.take(16).forEach { appendLine("- $it") }
+        }
     }
 }
