@@ -25,8 +25,8 @@ Optional later, in Settings: Calendar access (requests permission if needed), Go
 `HerScreen` is not a chat thread. The user never sees history and cannot scroll through past turns.
 
 - The stage shows **only her latest message**, or the text currently streaming in.
-- Replies are top-start aligned and grow downward. While tokens arrive, a blinking caret sits at the writing-direction end of the last line; the stage follows the bottom unless the user scrolls up.
-- While she thinks (no text yet), three quiet dots breathe at the top of the stage — the same origin as the first token.
+- Replies sit in the middle of the stage (centered lines, vertically centered while they fit). Incoming tokens are revealed one grapheme at a time at the caret so they land in place instead of arriving as a chunk; once the reply is taller than the stage, it scrolls and follows the bottom unless the user scrolls up.
+- While she thinks (no text yet), three quiet dots breathe in the middle of the stage.
 - Partial text stays on screen during tool rounds. Streamed text is held until Room’s latest assistant row catches up, so the reply does not flash back to the previous message.
 - The composer always enqueues. Send is never blocked by an in-flight turn.
 - Offline: messages are stored as `PENDING`. A status line reads `offline · N waiting`. When the network returns, `processOutbox()` sends the whole batch as **one** turn.

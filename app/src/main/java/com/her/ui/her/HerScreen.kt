@@ -1,10 +1,12 @@
 package com.her.ui.her
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -44,6 +46,7 @@ import com.her.ui.HerViewModel
 import com.her.ui.markdown.ConversationMarkdown
 import com.her.ui.theme.ConversationStyle
 import com.her.ui.theme.herResponseFontFamily
+import kotlinx.coroutines.delay
 
 private const val PinSlackPx = 80
 
@@ -83,10 +86,25 @@ fun HerScreen(vm: HerViewModel) {
         awaitingFirstToken -> ""
         else -> latest?.content.orEmpty()
     }
-    val thinking = displayText.isBlank() && awaitingFirstToken
     val showCaret = displayText.isNotBlank() &&
         (turn is TurnState.Streaming || nextHeld.isNotBlank())
     val follow = showCaret
+    var shown by remember { mutableStateOf(displayText) }
+    val thinking = shown.isBlank() && (awaitingFirstToken || showCaret)
+    LaunchedEffect(displayText, showCaret) {
+        if (!showCaret) {
+            shown = displayText
+            return@LaunchedEffect
+        }
+        if (!displayText.startsWith(shown)) {
+            shown = displayText.substring(0, StreamReveal.prefixLength(shown, displayText))
+        }
+        while (shown.length < displayText.length) {
+            val behind = displayText.length - shown.length
+            shown = StreamReveal.advance(shown, displayText, StreamReveal.catchUpUnits(behind))
+            delay(StreamReveal.catchUpDelayMs(behind))
+        }
+    }
 
     LaunchedEffect(turn) {
         if (turn !is TurnState.Idle) {
@@ -107,7 +125,7 @@ fun HerScreen(vm: HerViewModel) {
             }
         }
     }
-    LaunchedEffect(displayText, follow, scroll.maxValue, pinToBottom) {
+    LaunchedEffect(shown, follow, scroll.maxValue, pinToBottom) {
         if (follow && pinToBottom) scroll.scrollTo(scroll.maxValue)
     }
 
@@ -129,26 +147,27 @@ fun HerScreen(vm: HerViewModel) {
         ) {
             ThinkingAnimation(
                 visible = thinking,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxSize(),
             )
-            if (displayText.isNotBlank()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scroll)
-                        .padding(vertical = 20.dp),
-                    contentAlignment = Alignment.TopStart,
-                ) {
-                    ConversationMarkdown(
-                        content = displayText,
-                        color = ink,
-                        style = responseStyle,
-                        textAlign = TextAlign.Start,
-                        showCaret = showCaret,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+            if (shown.isNotBlank()) {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = maxHeight)
+                            .verticalScroll(scroll)
+                            .padding(vertical = 20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        ConversationMarkdown(
+                            content = shown,
+                            color = ink,
+                            style = responseStyle,
+                            textAlign = TextAlign.Center,
+                            showCaret = showCaret,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
