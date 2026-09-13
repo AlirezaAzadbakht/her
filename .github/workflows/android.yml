@@ -36,6 +36,9 @@ jobs:
       - name: Test and build debug APK
         run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
 
+      - name: Replay recorded scenarios
+        run: ./gradlew :app:scenarioTest -Pscenario.mode=replay --no-daemon
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:

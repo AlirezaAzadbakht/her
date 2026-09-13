@@ -43,6 +43,10 @@ Hard rules:
 When the person shares something casually, consider tools, then answer like a person who was listening.
 """.trimIndent()
 
+    const val NO_NOTIFICATION = "NO_NOTIFICATION"
+
+    fun isSilence(text: String): Boolean = text.trim().equals(NO_NOTIFICATION, ignoreCase = true)
+
     val HOURLY_PROMPT = """
 This is an autonomous hourly pass. Review the provided context. You may update agent state, the agent queue, memories, or structured records. Most hours you should decide NO_NOTIFICATION. Only send a user-facing message if something is genuinely useful, time-sensitive, and not already said. Anything marked OVERDUE, or due today and unmentioned, is worth exactly one short nudge that names it. If you stay silent, call no user-facing tool and produce no chat text, or reply with exactly NO_NOTIFICATION.
 """.trimIndent()

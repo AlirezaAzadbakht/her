@@ -6,16 +6,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
+import com.her.core.FakeClock
 import com.her.core.RelativeTimeParser
-import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.FakeCalendarDataSource
 import com.her.data.calendar.FakeGoogleCalendarClient
 import com.her.data.calendar.GoogleCalendar
 import com.her.data.db.HerDatabase
 import com.her.data.remote.FakeWebSearchClient
-import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -27,9 +25,6 @@ import com.her.domain.MessageStatus
 import com.her.domain.ToolResult
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
-import java.time.Instant
-import java.time.ZoneId
-import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
 data class RecordedNotification(
@@ -78,28 +73,31 @@ data class HarnessOutcome(
     val tableDump: String,
     val inputTokens: Long,
     val outputTokens: Long,
+    val llmCalls: Int,
     val error: String?,
 )
 
 class ScenarioHarness(
     private val spec: ScenarioSpec,
     private val llmSettings: LlmSettings,
-    private val llm: LlmClient,
+    private val llm: ScenarioLlmClient,
     attempt: Int,
+    startMillis: Long,
 ) {
     private val context = ApplicationProvider.getApplicationContext<Application>()
+    val clock = FakeClock(startMillis)
     private val settings = AppSettingsStore(context, "her_scenario_${spec.id}_${attempt}_${System.nanoTime()}")
     private val db: HerDatabase = Room.inMemoryDatabaseBuilder(context, HerDatabase::class.java)
         .allowMainThreadQueries()
         .build()
-    val repo = HerRepository(db, settings)
+    val repo = HerRepository(db, settings, clock)
     val calendar = FakeCalendarDataSource(context)
     val google = FakeGoogleCalendarClient()
     val webSearch = FakeWebSearchClient()
     private val ranker = HybridRanker(repo)
     private val googleCalendar = GoogleCalendar(repo, google)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
-        persistProactive(text)
+        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
     }, googleCalendar)
     private val notifier = RecordingNotifier(context)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
@@ -120,7 +118,7 @@ class ScenarioHarness(
         try {
             seed()
             tools.clear()
-            spec.turns.forEach { turn ->
+            for (turn in spec.turns) {
                 val result = when (turn) {
                     is ScenarioTurn.User -> {
                         orchestrator.enqueueUserMessage(turn.text)
@@ -130,6 +128,17 @@ class ScenarioHarness(
                         AutonomousRun.HOURLY -> orchestrator.runHourly()
                         AutonomousRun.NIGHTLY -> orchestrator.runNightly()
                         AutonomousRun.BRIEFING -> orchestrator.runBriefing()
+                    }
+                    is ScenarioTurn.Advance -> {
+                        clock.advance(turn.millis)
+                        null
+                    }
+                    is ScenarioTurn.At -> {
+                        val target = RelativeTimeParser.parse(turn.phrase, repo.now())?.toInstant()?.toEpochMilli()
+                            ?: error("Could not parse at '${turn.phrase}'")
+                        if (target < clock.peek()) error("at '${turn.phrase}' is in the past; the harness clock only moves forward")
+                        clock.set(target)
+                        null
                     }
                 }
                 if (result?.failed == true) {
@@ -143,7 +152,6 @@ class ScenarioHarness(
         val messages = repo.recentMessages(200)
         val reply = Checks.lastAssistantReply(messages, lastReply)
             ?: notifier.notifications.lastOrNull()?.text
-        val usage = repo.observeUsageToday().first()
         val bundle = runCatching { contextBuilder.build().systemBundle }.getOrDefault("")
         return HarnessOutcome(
             toolCalls = tools.calls,
@@ -152,8 +160,9 @@ class ScenarioHarness(
             lastReply = reply,
             systemBundle = bundle,
             tableDump = Checks.dumpTables(repo, extraTables()),
-            inputTokens = usage?.inputTokens ?: 0L,
-            outputTokens = usage?.outputTokens ?: 0L,
+            inputTokens = llm.inputTokens,
+            outputTokens = llm.outputTokens,
+            llmCalls = llm.calls,
             error = error,
         )
     }
@@ -199,7 +208,7 @@ class ScenarioHarness(
                     typicalWakeTime = fields["typicalWakeTime"] ?: current.typicalWakeTime,
                     typicalSleepTime = fields["typicalSleepTime"] ?: current.typicalSleepTime,
                     occupationOrStudyContext = fields["occupationOrStudyContext"] ?: current.occupationOrStudyContext,
-                    updatedAt = nowMillis(),
+                    updatedAt = clock.nowMillis(),
                     version = current.version + 1,
                 ),
             )
@@ -227,28 +236,6 @@ class ScenarioHarness(
 
     private suspend fun parseSeedWhen(raw: String): Long? {
         raw.toLongOrNull()?.let { return it }
-        val profile = repo.getProfile()
-        val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }
-            .getOrDefault(ZoneId.systemDefault())
-        val now = Instant.ofEpochMilli(nowMillis()).atZone(zone)
-        return RelativeTimeParser.parse(raw, now)?.toInstant()?.toEpochMilli()
-    }
-
-    private suspend fun persistProactive(text: String) {
-        val now = nowMillis()
-        repo.saveMessage(
-            ChatMessage(
-                id = newId(),
-                role = MessageRole.ASSISTANT,
-                content = text,
-                createdAt = now,
-                updatedAt = now,
-                deviceId = repo.deviceId,
-                version = 1,
-                deletedAt = null,
-                status = MessageStatus.SENT,
-                metadataJson = """{"proactive":true}""",
-            ),
-        )
+        return RelativeTimeParser.parse(raw, repo.now())?.toInstant()?.toEpochMilli()
     }
 }

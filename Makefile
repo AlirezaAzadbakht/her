@@ -9,14 +9,34 @@ AVD := her
 PKG := com.her.debug
 ACTIVITY := $(PKG)/com.her.MainActivity
 
-.PHONY: help emulate apk stop scenarios scenario
+.PHONY: help emulate apk stop test scenarios scenario scenarios-record scenario-record scenarios-replay
 
 help:
 	@echo "make emulate  - boot the her AVD, install the debug APK, launch the app"
 	@echo "make apk      - assemble the debug APK (always rebuilds)"
 	@echo "make stop     - stop the running emulator"
+	@echo "make test     - run the offline unit tests"
 	@echo "make scenarios - run the scenario pool against the live LLM from .env"
 	@echo "make scenario ID=calendar-set-meeting - run one scenario"
+	@echo "make scenarios-record - run live and save passing attempts as cassettes"
+	@echo "make scenario-record ID=calendar-set-meeting - record one scenario"
+	@echo "make scenarios-replay - replay cassettes offline (what CI runs)"
+
+test:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:testDebugUnitTest
+
+scenarios-record:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:scenarioTest -Pscenario.mode=record
+
+scenario-record:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:scenarioTest -Pscenario.mode=record -Pscenario.only="$(ID)"
+
+scenarios-replay:
+	source "$(ROOT)/scripts/env.sh"
+	gradle :app:scenarioTest -Pscenario.mode=replay
 
 apk:
 	source "$(ROOT)/scripts/env.sh"

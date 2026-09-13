@@ -51,6 +51,12 @@ data class SeedToolCall(
 sealed class ScenarioTurn {
     data class User(val text: String) : ScenarioTurn()
     data class Run(val kind: AutonomousRun) : ScenarioTurn()
+
+    /** Move the harness clock forward, e.g. `"3 days"`. */
+    data class Advance(val millis: Long, val label: String) : ScenarioTurn()
+
+    /** Jump the harness clock to a future moment, e.g. `"next monday at 8am"`. */
+    data class At(val phrase: String) : ScenarioTurn()
 }
 
 enum class AutonomousRun {
@@ -65,6 +71,22 @@ data class ScenarioExpect(
     val noToolErrors: Boolean,
     val rows: List<RowExpectation>,
     val reply: ReplyExpectation?,
+    val toolCallArgs: List<ToolCallExpectation> = emptyList(),
+    val toolOrder: List<String> = emptyList(),
+    val maxToolCalls: Int? = null,
+    val maxLlmCalls: Int? = null,
+    val maxInputTokens: Long? = null,
+    val notifications: NotificationExpectation? = null,
+)
+
+data class ToolCallExpectation(
+    val name: String,
+    val args: Map<String, List<FieldMatcher>>,
+)
+
+data class NotificationExpectation(
+    val count: Int?,
+    val containsAny: List<String>,
 )
 
 data class RowExpectation(
@@ -76,6 +98,8 @@ data class RowExpectation(
 data class ReplyExpectation(
     val mustMentionAny: List<String>,
     val judge: String?,
+    val mustNotMention: List<String> = emptyList(),
+    val language: String? = null,
 )
 
 sealed class FieldMatcher {
@@ -135,10 +159,17 @@ object ScenarioLoader {
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
     )
     private val seedToolKeys = setOf("name", "arguments")
-    private val turnKeys = setOf("user", "run")
-    private val expectKeys = setOf("tools_called", "tools_not_called", "no_tool_errors", "rows", "reply")
+    private val turnKeys = setOf("user", "run", "advance", "at")
+    private val expectKeys = setOf(
+        "tools_called", "tools_not_called", "no_tool_errors", "rows", "reply",
+        "tool_order", "max_tool_calls", "max_llm_calls", "max_input_tokens", "notifications",
+    )
+    private val toolCalledKeys = setOf("name", "args")
+    private val notificationKeys = setOf("count", "contains_any")
     private val rowKeys = setOf("table", "count", "where")
-    private val replyKeys = setOf("must_mention_any", "judge")
+    private val replyKeys = setOf("must_mention_any", "judge", "must_not_mention", "language")
+    val replyLanguages = setOf("english", "persian")
+    private val durationPattern = Regex("""^(\d+)\s*(minutes?|mins?|hours?|h|days?|d|weeks?|w)$""", RegexOption.IGNORE_CASE)
     private val matcherKeys = setOf(
         "equals", "equals_ignore_case", "contains", "contains_any", "contains_all",
         "matches", "one_of", "not_empty", "gt", "gte", "lt", "lte", "date_is", "time_is", "within_days",
@@ -290,22 +321,38 @@ object ScenarioLoader {
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {
         rejectUnknown(obj, turnKeys, path, file)
-        val hasUser = obj.has("user") && !obj.isNull("user")
-        val hasRun = obj.has("run") && !obj.isNull("run")
-        if (hasUser == hasRun) {
-            throw ScenarioParseException(file, "$path must have exactly one of user or run")
+        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) }
+        if (present.size != 1) {
+            throw ScenarioParseException(file, "$path must have exactly one of ${turnKeys.joinToString()}")
         }
-        return if (hasUser) {
-            val text = obj.requiredString(file, "user", path)
-            if (text.isBlank()) throw ScenarioParseException(file, "$path.user must not be blank")
-            ScenarioTurn.User(text)
-        } else {
-            val raw = obj.requiredString(file, "run", path).lowercase()
-            if (raw !in runKinds) {
-                throw ScenarioParseException(file, "$path.run must be one of ${runKinds.joinToString()}")
+        return when (present.single()) {
+            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path))
+            "run" -> {
+                val raw = obj.requiredString(file, "run", path).lowercase()
+                if (raw !in runKinds) {
+                    throw ScenarioParseException(file, "$path.run must be one of ${runKinds.joinToString()}")
+                }
+                ScenarioTurn.Run(AutonomousRun.valueOf(raw.uppercase()))
             }
-            ScenarioTurn.Run(AutonomousRun.valueOf(raw.uppercase()))
+            "advance" -> {
+                val raw = obj.requiredString(file, "advance", path)
+                ScenarioTurn.Advance(parseDuration(raw) ?: throw ScenarioParseException(file, "$path.advance '$raw' must look like '90 minutes', '3 hours', '2 days', or '1 week'"), raw)
+            }
+            else -> ScenarioTurn.At(obj.requiredString(file, "at", path))
         }
+    }
+
+    fun parseDuration(raw: String): Long? {
+        val match = durationPattern.matchEntire(raw.trim()) ?: return null
+        val amount = match.groupValues[1].toLong()
+        val minute = 60_000L
+        val unit = when (match.groupValues[2].lowercase().first()) {
+            'm' -> minute
+            'h' -> 60 * minute
+            'd' -> 24 * 60 * minute
+            else -> 7 * 24 * 60 * minute
+        }
+        return amount * unit
     }
 
     private fun parseExpect(file: File, obj: JSONObject, path: String): ScenarioExpect {
@@ -324,20 +371,79 @@ object ScenarioLoader {
         } else {
             rejectUnknown(replyObj, replyKeys, "$path.reply", file)
             val mentions = replyObj.optionalStringList("must_mention_any", "$path.reply.must_mention_any")
+            val mustNot = replyObj.optionalStringList("must_not_mention", "$path.reply.must_not_mention")
             val judge = replyObj.optString("judge").takeIf { replyObj.has("judge") && it.isNotBlank() }
-            if (mentions.isEmpty() && judge == null) {
-                throw ScenarioParseException(file, "$path.reply needs must_mention_any or judge")
+            val language = replyObj.optString("language").takeIf { replyObj.has("language") && it.isNotBlank() }?.lowercase()
+            if (language != null && language !in replyLanguages) {
+                throw ScenarioParseException(file, "$path.reply.language must be one of ${replyLanguages.joinToString()}")
             }
-            ReplyExpectation(mentions, judge)
+            if (mentions.isEmpty() && mustNot.isEmpty() && judge == null && language == null) {
+                throw ScenarioParseException(file, "$path.reply needs must_mention_any, must_not_mention, language, or judge")
+            }
+            ReplyExpectation(mentions, judge, mustNot, language)
+        }
+        val (toolsCalled, toolCallArgs) = parseToolsCalled(file, obj.opt("tools_called"), "$path.tools_called")
+        val notificationsObj = obj.optJSONObject("notifications")
+        val notifications = notificationsObj?.let { n ->
+            rejectUnknown(n, notificationKeys, "$path.notifications", file)
+            NotificationExpectation(
+                count = optNonNegativeInt(file, n, "count", "$path.notifications"),
+                containsAny = n.optionalStringList("contains_any", "$path.notifications.contains_any"),
+            )
         }
         return ScenarioExpect(
-            toolsCalled = obj.optionalStringList("tools_called", "$path.tools_called"),
+            toolsCalled = toolsCalled,
             toolsNotCalled = obj.optionalStringList("tools_not_called", "$path.tools_not_called"),
             noToolErrors = obj.optBoolean("no_tool_errors", false),
             rows = rows,
             reply = reply,
+            toolCallArgs = toolCallArgs,
+            toolOrder = obj.optionalStringList("tool_order", "$path.tool_order"),
+            maxToolCalls = optNonNegativeInt(file, obj, "max_tool_calls", path),
+            maxLlmCalls = optNonNegativeInt(file, obj, "max_llm_calls", path),
+            maxInputTokens = optNonNegativeInt(file, obj, "max_input_tokens", path)?.toLong(),
+            notifications = notifications,
         )
     }
+
+    /** `tools_called` entries are a tool name, or `{ "name": ..., "args": { field: matchers } }`. */
+    private fun parseToolsCalled(file: File, raw: Any?, path: String): Pair<List<String>, List<ToolCallExpectation>> {
+        if (raw == null || raw == JSONObject.NULL) return emptyList<String>() to emptyList()
+        val array = raw as? JSONArray ?: throw ScenarioParseException(file, "$path must be an array")
+        val names = mutableListOf<String>()
+        val withArgs = mutableListOf<ToolCallExpectation>()
+        for (index in 0 until array.length()) {
+            val here = "$path[$index]"
+            when (val item = array.opt(index)) {
+                is String -> {
+                    if (item.isBlank()) throw ScenarioParseException(file, "$here must be a non-empty string")
+                    names += item
+                }
+                is JSONObject -> {
+                    rejectUnknown(item, toolCalledKeys, here, file)
+                    val name = item.requiredString(file, "name", here)
+                    val args = item.optJSONObject("args")
+                        ?: throw ScenarioParseException(file, "$here.args must be an object of matchers")
+                    names += name
+                    withArgs += ToolCallExpectation(name, parseWhere(file, args, "$here.args"))
+                }
+                else -> throw ScenarioParseException(file, "$here must be a tool name or {name, args}")
+            }
+        }
+        return names to withArgs
+    }
+
+    private fun optNonNegativeInt(file: File, obj: JSONObject, key: String, path: String): Int? {
+        if (!obj.has(key) || obj.isNull(key)) return null
+        val value = obj.opt(key)
+        if (value !is Number || value.toDouble() < 0 || value.toDouble() % 1 != 0.0) {
+            throw ScenarioParseException(file, "$path.$key must be a non-negative integer")
+        }
+        return value.toInt()
+    }
+
+    private fun parseWhere(file: File, whereObj: JSONObject, path: String): Map<String, List<FieldMatcher>> =
+        whereObj.keysList().associateWith { field -> parseMatchers(file, whereObj.get(field), "$path.$field") }
 
     private fun parseRow(file: File, obj: JSONObject, path: String): RowExpectation {
         rejectUnknown(obj, rowKeys, path, file)
@@ -352,14 +458,7 @@ object ScenarioLoader {
         if (count != null && count < 0) {
             throw ScenarioParseException(file, "$path.count must be >= 0")
         }
-        val whereObj = obj.optJSONObject("where")
-        val where = if (whereObj == null) {
-            emptyMap()
-        } else {
-            whereObj.keysList().associateWith { field ->
-                parseMatchers(file, whereObj.get(field), "$path.where.$field")
-            }
-        }
+        val where = obj.optJSONObject("where")?.let { parseWhere(file, it, "$path.where") } ?: emptyMap()
         return RowExpectation(table, count, where)
     }
 

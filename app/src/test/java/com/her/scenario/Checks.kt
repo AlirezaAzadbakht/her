@@ -31,13 +31,16 @@ object Checks {
     suspend fun evaluate(
         spec: ScenarioSpec,
         repo: HerRepository,
-        toolCalls: List<RecordedToolCall>,
-        lastReply: String?,
+        outcome: HarnessOutcome,
         extraTables: Map<String, List<Map<String, Any?>>> = emptyMap(),
     ): List<CheckResult> {
         val expect = spec.expect
         val results = mutableListOf<CheckResult>()
+        val toolCalls = outcome.toolCalls
+        val lastReply = outcome.lastReply
         val called = toolCalls.map { it.name }
+        val zone = profileZone(repo)
+        val now = Instant.ofEpochMilli(repo.clock.nowMillis()).atZone(zone)
         expect.toolsCalled.forEach { name ->
             val hit = called.contains(name)
             results += CheckResult(
@@ -68,8 +71,54 @@ object Checks {
                 },
             )
         }
-        val zone = profileZone(repo)
-        val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone)
+        expect.toolCallArgs.forEachIndexed { index, wanted ->
+            val sameName = toolCalls.filter { it.name == wanted.name }
+            val hit = sameName.any { matchesRow(argumentFields(it.arguments), wanted.args, now) }
+            results += CheckResult(
+                name = "tools_called[$index]:${wanted.name}(args)",
+                passed = hit,
+                detail = when {
+                    hit -> "a ${wanted.name} call matched the args"
+                    sameName.isEmpty() -> "not called; saw ${called.ifEmpty { listOf("(none)") }.joinToString()}"
+                    else -> "no ${wanted.name} call matched; args were ${sameName.joinToString(" | ") { it.arguments }}"
+                },
+            )
+        }
+        if (expect.toolOrder.isNotEmpty()) {
+            val inOrder = isSubsequence(expect.toolOrder, called)
+            results += CheckResult(
+                name = "tool_order",
+                passed = inOrder,
+                detail = "wanted ${expect.toolOrder.joinToString(" → ")} in order; saw ${called.ifEmpty { listOf("(none)") }.joinToString(" → ")}",
+            )
+        }
+        expect.maxToolCalls?.let { max ->
+            results += CheckResult("max_tool_calls", toolCalls.size <= max, "${toolCalls.size} tool calls (max $max)")
+        }
+        expect.maxLlmCalls?.let { max ->
+            results += CheckResult("max_llm_calls", outcome.llmCalls <= max, "${outcome.llmCalls} LLM calls (max $max)")
+        }
+        expect.maxInputTokens?.let { max ->
+            results += CheckResult("max_input_tokens", outcome.inputTokens <= max, "${outcome.inputTokens} input tokens (max $max)")
+        }
+        expect.notifications?.let { wanted ->
+            val texts = outcome.notifications.map { it.text }
+            wanted.count?.let { count ->
+                results += CheckResult(
+                    name = "notifications.count",
+                    passed = texts.size == count,
+                    detail = "${texts.size} notification(s) (wanted $count)${if (texts.isEmpty()) "" else ": ${texts.joinToString(" | ")}"}",
+                )
+            }
+            if (wanted.containsAny.isNotEmpty()) {
+                val hit = texts.any { text -> wanted.containsAny.any { needle -> normalizeDigits(text).contains(normalizeDigits(needle), ignoreCase = true) } }
+                results += CheckResult(
+                    name = "notifications.contains_any",
+                    passed = hit,
+                    detail = if (hit) "a notification mentioned one of ${wanted.containsAny}" else "none mentioned ${wanted.containsAny}: ${texts.ifEmpty { listOf("(none)") }.joinToString(" | ")}",
+                )
+            }
+        }
         expect.rows.forEachIndexed { index, row ->
             val rows = tableRows(repo, row.table, extraTables)
             val matched = rows.filter { matchesRow(it, row.where, now) }
@@ -95,7 +144,43 @@ object Checks {
                 },
             )
         }
+        if (reply != null && reply.mustNotMention.isNotEmpty()) {
+            val text = normalizeDigits(lastReply.orEmpty())
+            val found = reply.mustNotMention.filter { text.contains(normalizeDigits(it), ignoreCase = true) }
+            results += CheckResult(
+                name = "reply.must_not_mention",
+                passed = found.isEmpty(),
+                detail = if (found.isEmpty()) "reply avoided ${reply.mustNotMention}" else "reply mentioned $found: $text",
+            )
+        }
+        reply?.language?.let { wanted ->
+            val actual = detectLanguage(lastReply.orEmpty())
+            results += CheckResult(
+                name = "reply.language",
+                passed = actual == wanted,
+                detail = "wanted $wanted; reply reads as ${actual ?: "(no letters)"}",
+            )
+        }
         return results
+    }
+
+    /** Persian when most letters are Arabic-script, English otherwise. */
+    fun detectLanguage(text: String): String? {
+        val letters = text.filter { it.isLetter() }
+        if (letters.isEmpty()) return null
+        val arabicScript = letters.count { it in '؀'..'ۿ' || it in 'ﭐ'..'﻿' }
+        return if (arabicScript * 2 > letters.length) "persian" else "english"
+    }
+
+    internal fun isSubsequence(wanted: List<String>, seen: List<String>): Boolean {
+        var next = 0
+        seen.forEach { name -> if (next < wanted.size && wanted[next] == name) next += 1 }
+        return next == wanted.size
+    }
+
+    internal fun argumentFields(arguments: String): Map<String, Any?> {
+        val obj = runCatching { JSONObject(arguments) }.getOrNull() ?: return emptyMap()
+        return obj.keys().asSequence().associateWith { key -> obj.opt(key).takeUnless { it == JSONObject.NULL } }
     }
 
     suspend fun dumpTables(
@@ -117,7 +202,7 @@ object Checks {
         extraTables: Map<String, List<Map<String, Any?>>> = emptyMap(),
     ): List<Map<String, Any?>> {
         extraTables[table]?.let { return it }
-        val now = System.currentTimeMillis()
+        val now = repo.clock.nowMillis()
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000
         return when (table) {

@@ -1,7 +1,6 @@
 package com.her.data.calendar
 
 import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.data.repository.HerRepository
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
@@ -29,7 +28,7 @@ class GoogleCalendar(
             repo.calendarInRange(from, to).filter { it.source == CalendarSource.GOOGLE }
         }
         if (!client.available()) return cachedRoom()
-        val now = nowMillis()
+        val now = repo.clock.nowMillis()
         val cached = lastResult
         if (cached != null && lastFrom == from && lastTo == to && now - lastFetchAt < CalendarWindows.GOOGLE_TTL_MS) {
             return cached

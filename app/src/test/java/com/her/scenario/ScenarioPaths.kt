@@ -21,6 +21,8 @@ object ScenarioPaths {
 
     fun scenariosDir(root: File = repoRoot()): File = File(root, "scenarios")
 
+    fun cassettesDir(root: File = repoRoot()): File = File(scenariosDir(root), "cassettes")
+
     fun envFile(root: File = repoRoot()): File = File(root, ".env")
 
     fun reportsDir(root: File = repoRoot()): File = File(root, "build/reports/scenarios")

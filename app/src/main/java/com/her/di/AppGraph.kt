@@ -5,8 +5,6 @@ import androidx.room.Room
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
-import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.core.ConnectivityObserver
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.GoogleCalendar
@@ -22,7 +20,6 @@ import com.her.data.retrieval.HybridRanker
 import com.her.data.retrieval.NoOpEmbeddingProvider
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.SecureSettingsStore
-import com.her.domain.ChatMessage
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.notify.NotificationPolicy
@@ -60,21 +57,7 @@ class AppGraph(context: Context) {
 
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
-            val now = nowMillis()
-            repo.saveMessage(
-                ChatMessage(
-                    id = newId(),
-                    role = MessageRole.ASSISTANT,
-                    content = text,
-                    createdAt = now,
-                    updatedAt = now,
-                    deviceId = repo.deviceId,
-                    version = 1,
-                    deletedAt = null,
-                    status = MessageStatus.SENT,
-                    metadataJson = """{"proactive":true}""",
-                ),
-            )
+            repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
         }, googleCalendar)
     }
 

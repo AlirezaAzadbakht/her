@@ -16,8 +16,9 @@ data class AttemptResult(
 data class ScenarioRunResult(
     val spec: ScenarioSpec,
     val attempts: List<AttemptResult>,
+    val skipped: String? = null,
 ) {
-    val passed: Boolean get() = attempts.any { it.passed }
+    val passed: Boolean get() = skipped == null && attempts.any { it.passed }
     val passCount: Int get() = attempts.count { it.passed }
     val inputTokens: Long get() = attempts.sumOf { it.outcome.inputTokens }
     val outputTokens: Long get() = attempts.sumOf { it.outcome.outputTokens }
@@ -41,17 +42,15 @@ object ScenarioReport {
         val passed = results.count { it.passed }
         appendLine("SCENARIOS $passed/${results.size} passed")
         results.forEach { result ->
-            val mark = when {
-                result.passed -> "PASS"
-                result.spec.pending -> "PENDING"
-                else -> "FAIL"
-            }
             appendLine(
-                "$mark ${result.spec.id} ${result.passCount}/${result.attempts.size} " +
-                    "tokens=${result.inputTokens}+${result.outputTokens} ${result.elapsedMs}ms",
+                "${mark(result)} ${result.spec.id} ${result.passCount}/${result.attempts.size} " +
+                    "tokens=${result.inputTokens}+${result.outputTokens} ${result.elapsedMs}ms" +
+                    (result.skipped?.let { " ($it)" } ?: ""),
             )
         }
     }
+
+    fun mark(result: ScenarioRunResult): String = statusLabel(result).uppercase()
 
     private fun indexPage(results: List<ScenarioRunResult>): String {
         val rows = results.joinToString("\n") { result ->
@@ -139,12 +138,14 @@ object ScenarioReport {
     }
 
     private fun statusLabel(result: ScenarioRunResult): String = when {
+        result.skipped != null -> "skip"
         result.passed -> "pass"
         result.spec.pending -> "pending"
         else -> "fail"
     }
 
     private fun statusClass(result: ScenarioRunResult): String = when {
+        result.skipped != null -> "muted"
         result.passed -> "ok"
         result.spec.pending -> "pending"
         else -> "bad"

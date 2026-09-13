@@ -1,7 +1,6 @@
 package com.her.data.calendar
 
 import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.CalendarEvent
@@ -17,7 +16,7 @@ class SystemCalendar(
     suspend fun mirror(from: Long, to: Long, excludeGoogleAccounts: Boolean = false): List<CalendarEvent> {
         if (!live()) return emptyList()
         val remote = device.eventsBetween(from, to, excludeGoogleAccounts).getOrDefault(emptyList())
-        val now = nowMillis()
+        val now = repo.clock.nowMillis()
         val kept = remote.mapNotNull { incoming ->
             val externalId = incoming.externalId ?: return@mapNotNull null
             val existing = repo.getCalendarByExternalId(externalId)

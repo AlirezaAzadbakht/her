@@ -37,9 +37,8 @@ class ContextBuilder(
 ) {
     suspend fun build(latestUserText: String? = null, recentLimit: Int = 24): BuiltContext {
         val profile = repo.getProfile()
-        val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }
-            .getOrDefault(ZoneId.systemDefault())
-        val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(zone)
+        val zone = repo.profileZone()
+        val now = Instant.ofEpochMilli(repo.clock.nowMillis()).atZone(zone)
         val recent = repo.recentMessages(recentLimit)
         val query = latestUserText ?: recent.takeLast(3).joinToString(" ") { it.content }
         val relatedIds = repo.relationships().flatMap { listOf(it.sourceId, it.targetId) }.toSet()

@@ -1,6 +1,6 @@
 # Scenario engine
 
-A capability suite, separate from unit tests, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator` against a live OpenAI-compatible LLM read from `.env`. That makes it slow and non-deterministic, so it never runs in CI.
+A capability suite, separate from unit tests, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator` against a live OpenAI-compatible LLM read from `.env`. Live runs are slow and non-deterministic, so CI only **replays** recorded cassettes (see [Record and replay](#record-and-replay)).
 
 Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). `ScenarioPoolValidationTest` is the only scenario-related test in that suite: it parses every file in the pool and reports unknown tool names without calling a model.
 
@@ -19,6 +19,8 @@ make scenarios
 make scenario ID=calendar-set-meeting
 gradle :app:scenarioTest -Pscenario.filter=calendar
 gradle :app:scenarioTest -Pscenario.attempts=3 -Pscenario.parallel=1
+make scenario-record ID=calendar-set-meeting
+make scenarios-replay
 ```
 
 LLM settings come from the repo-root `.env` (environment variables win):
@@ -37,6 +39,15 @@ Gradle properties (passed through as system properties):
 | `scenario.filter` | Substring match on id, title, or tags |
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |
+| `scenario.mode` | `live` (default), `record`, or `replay` |
+
+## Record and replay
+
+- `record` runs live and writes passing attempts to `scenarios/cassettes/<id>.json`: the attempt's start time plus every LLM response, including the judge's.
+- `replay` needs no `.env` and no network. It pins the harness clock to the recorded start and serves responses in order. Scenarios without a cassette are reported as `SKIP`.
+- Each call has a fingerprint over the tool schemas, the message roles, tool-call names, and user text. System text and tool payloads are left out because they carry the time and random ids. If a tool schema changes or the agent takes a different path, replay fails with "request drifted at call N". Re-record that scenario.
+- Prompt wording changes do **not** break replay, so rerun live after editing `Identity.kt`.
+- Commit cassettes together with the change that made them pass.
 
 The report is written to `build/reports/scenarios/index.html`, plus `summary.txt` and one HTML page per scenario. Secrets are redacted.
 
@@ -81,7 +92,8 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
 
 Unknown keys and unknown matchers are parse errors that name the file. The `id` must match the filename without `.json`.
 
-- `turns` are `{"user":"..."}` (enqueue + `processOutbox`) or `{"run":"hourly"|"nightly"|"briefing"}`.
+- `turns` are `{"user":"..."}` (enqueue + `processOutbox`), `{"run":"hourly"|"nightly"|"briefing"}`, `{"advance":"3 days"}` (minutes / hours / days / weeks), or `{"at":"next monday at 8am"}` (forward only).
+- Each attempt runs on its own fake clock that starts at the real time (or the cassette's start time in replay). Every repository, tool, context bundle, and check reads that clock, and "today" is taken in the profile timezone.
 - `attempts` (default 1): the scenario passes if any attempt passes. The report shows the pass rate.
 - `"pending": true`: run and report, but do not fail the suite.
 - Seed tool calls set up state and are not counted toward `tools_called`.
@@ -107,6 +119,18 @@ A `where` field may be a scalar (treated as `equals`) or an object of matchers. 
 | `within_days` | number | Local date is today … today+N |
 
 `count` on a row expectation is exact. Omit `count` to require at least one matching row.
+
+## Other expectations
+
+| Key | Value | Passes when |
+|-----|-------|-------------|
+| `tools_called` | names, or `{ "name", "args": { field: matchers } }` | Each tool ran; object entries need one call whose top-level arguments match |
+| `tool_order` | names | They ran in this order (other calls may sit between) |
+| `max_tool_calls` / `max_llm_calls` | integer | The attempt stayed within the limit (LLM calls include the final reply, not the judge) |
+| `max_input_tokens` | integer | Prompt tokens across the attempt stayed within the limit |
+| `notifications` | `{ "count"?, "contains_any"? }` | Recorded notifications match |
+| `reply.must_not_mention` | strings | None appear in the last reply |
+| `reply.language` | `english` / `persian` | Most letters in the last reply are in that script |
 
 ## Tables and fields
 
@@ -145,7 +169,7 @@ Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }
 
 ## Limitations
 
-- No time travel. The production clock is `System.currentTimeMillis()`, so a scenario cannot span simulated days.
+- Time moves only on `advance` / `at` turns (plus 1 ms per read to keep row order). WorkManager scheduling is not simulated, so call `run` turns explicitly.
 - No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.

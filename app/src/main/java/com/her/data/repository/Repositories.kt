@@ -1,7 +1,6 @@
 package com.her.data.repository
 
 import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.data.db.ActivityLogEntity
 import com.her.data.db.AgentQueueEntity
 import com.her.data.db.AgentRunEntity
@@ -63,7 +62,11 @@ import com.her.domain.TaskItem
 import com.her.domain.UserProfile
 import com.her.domain.UserUnderstanding
 import java.time.LocalDate
+import com.her.core.SystemTimeProvider
+import com.her.core.TimeProvider
+import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
@@ -73,10 +76,42 @@ import org.json.JSONObject
 class HerRepository(
     val db: HerDatabase,
     private val settings: AppSettingsStore,
+    val clock: TimeProvider = SystemTimeProvider(),
 ) {
     private val chatDao get() = db.chatDao()
     private val memoryDao get() = db.memoryDao()
     val deviceId: String get() = settings.read().deviceId
+
+    private fun nowMillis(): Long = clock.nowMillis()
+
+    /** The profile timezone, so "today" means the user's day, not the device's. */
+    suspend fun profileZone(): ZoneId =
+        runCatching { ZoneId.of(getProfile().timezone ?: clock.zoneId().id) }.getOrDefault(clock.zoneId())
+
+    suspend fun now(): ZonedDateTime = Instant.ofEpochMilli(nowMillis()).atZone(profileZone())
+
+    suspend fun today(): LocalDate = now().toLocalDate()
+
+    fun newChatMessage(
+        role: MessageRole,
+        content: String,
+        status: MessageStatus,
+        metadataJson: String? = null,
+    ): ChatMessage {
+        val now = nowMillis()
+        return ChatMessage(
+            id = newId(),
+            role = role,
+            content = content,
+            createdAt = now,
+            updatedAt = now,
+            deviceId = deviceId,
+            version = 1,
+            deletedAt = null,
+            status = status,
+            metadataJson = metadataJson,
+        )
+    }
 
     fun observeLatestAssistant(): Flow<ChatMessage?> =
         chatDao.observeLatestByRole(MessageRole.ASSISTANT).map { it?.toDomain() }
@@ -328,7 +363,7 @@ class HerRepository(
         latencyMs: Long,
         error: Boolean,
     ) {
-        val day = LocalDate.now().toString()
+        val day = today().toString()
         val current = db.logDao().usage(day) ?: ApiUsageEntity(day, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         val next = current.copy(
             requests = current.requests + 1,
@@ -344,7 +379,9 @@ class HerRepository(
         db.logDao().upsertUsage(next)
     }
 
-    fun observeUsageToday() = db.logDao().observeUsage(LocalDate.now().toString()).map { it?.toDomain() }
+    fun observeUsageToday(): Flow<ApiUsageDay?> = flow {
+        emitAll(db.logDao().observeUsage(today().toString()).map { it?.toDomain() })
+    }
 
     suspend fun saveConfirmation(item: PendingConfirmation) {
         db.confirmationDao().upsert(

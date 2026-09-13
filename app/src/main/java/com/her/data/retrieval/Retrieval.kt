@@ -36,7 +36,7 @@ class HybridRanker(
         val types = memoryTypes.map { it.lowercase() }.toSet()
         val wantShort = types.isEmpty() || types.any { it.contains("short") }
         val wantLong = types.isEmpty() || types.any { it.contains("long") }
-        val now = System.currentTimeMillis()
+        val now = repo.clock.nowMillis()
         val hits = mutableListOf<MemoryHit>()
 
         if (wantShort) {

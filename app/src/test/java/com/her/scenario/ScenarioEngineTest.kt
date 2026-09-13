@@ -21,8 +21,13 @@ import org.robolectric.annotation.Config
 class ScenarioEngineTest {
     @Test
     fun runScenarioPool() {
-        val settings = ScenarioEnv.load()
-        val llm = LlmClient()
+        val mode = ScenarioMode.parse(stringProp("scenario.mode"))
+        val settings = if (mode == ScenarioMode.REPLAY) {
+            LlmSettings(baseUrl = "replay", apiKey = "replay", model = "replay")
+        } else {
+            ScenarioEnv.load()
+        }
+        val live = if (mode == ScenarioMode.REPLAY) null else LlmClient()
         val requestedAttempts = intProp("scenario.attempts")
         val parallel = (intProp("scenario.parallel") ?: 4).coerceAtLeast(1)
         val only = stringProp("scenario.only")
@@ -52,7 +57,7 @@ class ScenarioEngineTest {
                 pool.map { spec ->
                     async(Dispatchers.IO) {
                         gate.withPermit {
-                            runScenario(spec, settings, llm, requestedAttempts)
+                            runScenario(spec, settings, live, mode, requestedAttempts)
                         }
                     }
                 }.awaitAll()
@@ -61,12 +66,13 @@ class ScenarioEngineTest {
 
         val report = ScenarioReport.write(results)
         val summary = results.joinToString("\n") { result ->
-            val mark = if (result.passed) "PASS" else if (result.spec.pending) "PENDING" else "FAIL"
-            "$mark ${result.spec.id} ${result.passCount}/${result.attempts.size}"
+            "${ScenarioReport.mark(result)} ${result.spec.id} ${result.passCount}/${result.attempts.size}" +
+                (result.skipped?.let { " ($it)" } ?: "")
         }
+        println("Scenario mode: ${mode.name.lowercase()}")
         println(summary)
         println("Scenario report: ${report.absolutePath}")
-        val failures = results.filter { !it.passed && !it.spec.pending }
+        val failures = results.filter { !it.passed && !it.spec.pending && it.skipped == null }
         assertTrue(
             "Failed scenarios:\n${failures.joinToString("\n") { it.spec.id }}\nSee ${report.absolutePath}",
             failures.isEmpty(),
@@ -76,27 +82,36 @@ class ScenarioEngineTest {
     private suspend fun runScenario(
         spec: ScenarioSpec,
         settings: LlmSettings,
-        llm: LlmClient,
+        live: LlmClient?,
+        mode: ScenarioMode,
         attemptsOverride: Int?,
     ): ScenarioRunResult {
-        val attempts = (attemptsOverride ?: spec.attempts).coerceAtLeast(1)
+        val replay = if (mode == ScenarioMode.REPLAY) Cassette.load(spec.id) else null
+        if (mode == ScenarioMode.REPLAY && (replay == null || replay.attempts.isEmpty())) {
+            return ScenarioRunResult(spec, emptyList(), skipped = "no cassette")
+        }
+        val attempts = replay?.attempts?.size ?: (attemptsOverride ?: spec.attempts).coerceAtLeast(1)
+        val kept = mutableListOf<CassetteAttempt>()
         val outcomes = (0 until attempts).map { index ->
             val started = System.currentTimeMillis()
-            val harness = ScenarioHarness(spec, settings, llm, index)
+            val tape = replay?.attempts?.get(index) ?: CassetteAttempt(startMillis = started)
+            val client = ScenarioLlmClient(mode, live, tape)
+            val harness = ScenarioHarness(spec, settings, client, index, tape.startMillis)
             try {
                 val outcome = harness.run()
                 val checks = if (outcome.error == null) {
-                    Checks.evaluate(spec, harness.repo, outcome.toolCalls, outcome.lastReply, harness.extraTables())
+                    Checks.evaluate(spec, harness.repo, outcome, harness.extraTables())
                 } else {
                     emptyList()
                 }
                 val checksPass = outcome.error == null && checks.all { it.passed }
                 val judge = if (checksPass && spec.expect.reply?.judge != null) {
-                    Judge.grade(spec.expect.reply.judge, outcome, llm, settings)
+                    Judge.grade(spec.expect.reply.judge, outcome, client, settings)
                 } else {
                     null
                 }
                 val passed = checksPass && (judge == null || judge.passed)
+                if (passed) kept += tape
                 AttemptResult(
                     index = index,
                     passed = passed,
@@ -108,6 +123,10 @@ class ScenarioEngineTest {
             } finally {
                 harness.close()
             }
+        }
+        // Only passing attempts become cassettes, so replay in CI checks known-good behavior.
+        if (mode == ScenarioMode.RECORD && kept.isNotEmpty()) {
+            Cassette(spec.id, settings.model, kept).save()
         }
         return ScenarioRunResult(spec, outcomes)
     }

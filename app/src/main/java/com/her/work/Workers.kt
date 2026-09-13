@@ -72,7 +72,7 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 val app = graph.settings.read()
                 val verdict = BackgroundRunPolicy.decideNightly(
                     llmConfigured = graph.secure.read().isConfigured,
-                    alreadyCompletedToday = app.lastNightlyDate == LocalDate.now().toString(),
+                    alreadyCompletedToday = app.lastNightlyDate == graph.repo.today().toString(),
                     power = readDevicePower(applicationContext),
                 )
                 when (verdict.decision) {
@@ -109,7 +109,7 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 val app = graph.settings.read()
                 val verdict = BackgroundRunPolicy.decideBriefing(
                     llmConfigured = graph.secure.read().isConfigured,
-                    alreadyCompletedToday = app.lastBriefingDate == LocalDate.now().toString(),
+                    alreadyCompletedToday = app.lastBriefingDate == graph.repo.today().toString(),
                     power = readDevicePower(applicationContext),
                 )
                 if (verdict.decision != RunDecision.RUN) {

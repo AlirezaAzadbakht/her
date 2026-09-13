@@ -3,24 +3,28 @@ package com.her.agent.runner
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.prompt.Identity
 import com.her.agent.tools.ToolRegistry
-import com.her.core.newId
-import com.her.core.nowMillis
 import com.her.core.redactSecrets
 import com.her.data.remote.LlmClient
 import com.her.data.remote.LlmException
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
+import com.her.domain.AgentQueueItem
 import com.her.domain.AgentRun
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
 import com.her.domain.ChatMessage
 import com.her.domain.LlmMessage
+import com.her.domain.LlmResponse
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
+import com.her.domain.QueueStatus
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +37,9 @@ class CallBudget(val maxCalls: Int) {
         private set
 
     fun canCall(): Boolean = used < maxCalls
+
+    /** The next call is the last one; it should produce a reply instead of more tool calls. */
+    fun isFinalCall(): Boolean = maxCalls > 1 && maxCalls - used == 1
 
     fun consume() {
         used += 1
@@ -62,13 +69,18 @@ class AgentOrchestrator(
     private val tools: ToolRegistry,
     private val notifier: Notifier,
     private val policy: NotificationPolicy,
+    private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
 ) {
     private val outboxMutex = Mutex()
     private val _turnState = MutableStateFlow<TurnState>(TurnState.Idle)
     val turnState: StateFlow<TurnState> = _turnState.asStateFlow()
 
+    private fun nowMillis(): Long = repo.clock.nowMillis()
+
     suspend fun enqueueUserMessage(text: String, metadataJson: String? = null): ChatMessage {
-        return persistUser(text, metadataJson)
+        val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
+        repo.saveMessage(message, enqueueSync = false)
+        return message
     }
 
     suspend fun processOutbox(): TurnResult? = outboxMutex.withLock {
@@ -108,14 +120,14 @@ class AgentOrchestrator(
         if (!result.failed) {
             settings.update { it.copy(lastHourlyRunAt = now) }
         }
-        if (result.assistantText.isNullOrBlank() || result.assistantText == "NO_NOTIFICATION") {
+        if (result.assistantText.isNullOrBlank()) {
             repo.logActivity("hourly", "No notification sent.")
         }
         return result
     }
 
     suspend fun runNightly(): TurnResult {
-        val today = java.time.LocalDate.now().toString()
+        val today = repo.today().toString()
         if (settings.read().lastNightlyDate == today) {
             repo.logActivity("nightly", "Already completed for $today")
             return TurnResult(null, false, null, 0, "skipped")
@@ -138,7 +150,7 @@ class AgentOrchestrator(
     }
 
     suspend fun runBriefing(): TurnResult {
-        val today = java.time.LocalDate.now().toString()
+        val today = repo.today().toString()
         if (settings.read().lastBriefingDate == today) {
             repo.logActivity("briefing", "Already generated for $today")
             return TurnResult(null, false, null, 0, "skipped")
@@ -157,42 +169,6 @@ class AgentOrchestrator(
         return result
     }
 
-    private suspend fun persistUser(text: String, metadataJson: String?): ChatMessage {
-        val now = nowMillis()
-        val message = ChatMessage(
-            id = newId(),
-            role = MessageRole.USER,
-            content = text,
-            createdAt = now,
-            updatedAt = now,
-            deviceId = repo.deviceId,
-            version = 1,
-            deletedAt = null,
-            status = MessageStatus.PENDING,
-            metadataJson = metadataJson,
-        )
-        repo.saveMessage(message, enqueueSync = false)
-        return message
-    }
-
-    private suspend fun persistAssistant(text: String): ChatMessage {
-        val now = nowMillis()
-        val message = ChatMessage(
-            id = newId(),
-            role = MessageRole.ASSISTANT,
-            content = text,
-            createdAt = now,
-            updatedAt = now,
-            deviceId = repo.deviceId,
-            version = 1,
-            deletedAt = null,
-            status = MessageStatus.SENT,
-            metadataJson = null,
-        )
-        repo.saveMessage(message)
-        return message
-    }
-
     private suspend fun runTurn(
         type: AgentRunType,
         budget: CallBudget,
@@ -202,7 +178,7 @@ class AgentOrchestrator(
         allowNotify: Boolean,
         streamToUi: Boolean = false,
     ): TurnResult = withContext(Dispatchers.IO) {
-        val runId = newId()
+        val runId = com.her.core.newId()
         val started = nowMillis()
         repo.saveRun(AgentRun(runId, type, started, null, 0, AgentRunStatus.RUNNING, null, null))
         val configured = llmSettings()
@@ -218,21 +194,21 @@ class AgentOrchestrator(
             var lastText: String? = null
             var preamble = ""
             while (budget.canCall()) {
+                // On the last call, withhold tools so the model has to answer instead of ending silently.
+                val roundTools = if (budget.isFinalCall()) emptyList() else tools.specs()
                 budget.consume()
                 val round = StringBuilder()
-                val response = try {
+                val response = callWithRetry(type) {
+                    round.clear()
                     if (streamToUi) {
-                        llm.stream(configured, messages, tools.specs()) { delta ->
+                        llm.stream(configured, messages, roundTools) { delta ->
                             round.append(delta)
                             val display = if (preamble.isNotEmpty()) "$preamble\n\n$round" else round.toString()
                             _turnState.value = TurnState.Streaming(display)
                         }
                     } else {
-                        llm.complete(configured, messages, tools.specs())
+                        llm.complete(configured, messages, roundTools)
                     }
-                } catch (e: LlmException) {
-                    repo.recordUsage(type, 0, 0, 0, error = true)
-                    throw e
                 }
                 repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
                 repo.logDebug("llm", redactSecrets(response.rawJson.take(8000)))
@@ -264,21 +240,24 @@ class AgentOrchestrator(
                     repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
                     messages += LlmMessage(
                         role = "tool",
-                        content = result.payloadJson,
+                        content = forModel(result.payloadJson),
                         toolCallId = call.id,
                         name = call.name,
                     )
                 }
             }
-            val cleaned = lastText?.takeIf { it.isNotBlank() && it != "NO_NOTIFICATION" }
+            if (lastText == null && preamble.isNotBlank()) {
+                lastText = preamble
+            }
+            val cleaned = lastText?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
             if (persistAssistant && cleaned != null) {
-                persistAssistant(cleaned)
+                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT))
             }
             if (allowNotify && cleaned != null) {
                 val decision = policy.shouldNotify(
                     key = "$type:${cleaned.take(40)}",
                     urgent = type == AgentRunType.BRIEFING,
-                    now = java.time.ZonedDateTime.now(),
+                    now = repo.now(),
                 )
                 if (decision.notify) {
                     notifier.show(cleaned, type == AgentRunType.BRIEFING)
@@ -289,30 +268,41 @@ class AgentOrchestrator(
             }
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.COMPLETED, null, null))
             TurnResult(cleaned, false, null, budget.used, runId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             val error = redactSecrets(e.message ?: "Unknown error")
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
             if (persistAssistant) {
-                val now = nowMillis()
                 repo.saveMessage(
-                    ChatMessage(
-                        id = newId(),
-                        role = MessageRole.ASSISTANT,
-                        content = "I couldn't reach the model just now. Your message is saved — try again in a moment.",
-                        createdAt = now,
-                        updatedAt = now,
-                        deviceId = repo.deviceId,
-                        version = 1,
-                        deletedAt = null,
-                        status = MessageStatus.FAILED,
-                        metadataJson = null,
+                    repo.newChatMessage(
+                        MessageRole.ASSISTANT,
+                        "I couldn't reach the model just now. Your message is saved — try again in a moment.",
+                        MessageStatus.FAILED,
                     ),
                 )
             }
             TurnResult(null, true, error, budget.used, runId)
         } finally {
             if (streamToUi) _turnState.value = TurnState.Idle
+        }
+    }
+
+    private suspend fun callWithRetry(type: AgentRunType, call: suspend () -> LlmResponse): LlmResponse {
+        var attempt = 0
+        while (true) {
+            try {
+                return call()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                repo.recordUsage(type, 0, 0, 0, error = true)
+                if (attempt >= MAX_RETRIES || !isRetryable(e)) throw e
+                repo.logActivity("llm", "Retrying after: ${redactSecrets(e.message ?: e::class.java.simpleName)}")
+                delay(retryDelayMs(attempt))
+                attempt += 1
+            }
         }
     }
 
@@ -325,26 +315,15 @@ class AgentOrchestrator(
         val profile = repo.getProfile()
         val user = profile.userName?.trim().orEmpty().ifBlank { "there" }
         val her = profile.assistantName?.trim().orEmpty().ifBlank { "Her" }
-        val now = nowMillis()
         repo.saveMessage(
-            ChatMessage(
-                id = newId(),
-                role = MessageRole.ASSISTANT,
-                content = "Hi, $user. I'm $her.",
-                createdAt = now,
-                updatedAt = now,
-                deviceId = repo.deviceId,
-                version = 1,
-                deletedAt = null,
-                status = MessageStatus.SENT,
-                metadataJson = """{"onboarding":true}""",
-            ),
+            repo.newChatMessage(MessageRole.ASSISTANT, "Hi, $user. I'm $her.", MessageStatus.SENT, """{"onboarding":true}"""),
         )
+        val now = nowMillis()
         repo.saveAgentQueue(
-            com.her.domain.AgentQueueItem(
-                id = newId(),
+            AgentQueueItem(
+                id = com.her.core.newId(),
                 description = "Learn timezone and what matters right now — slowly, not as an interview.",
-                status = com.her.domain.QueueStatus.OPEN,
+                status = QueueStatus.OPEN,
                 priority = 0.8,
                 dueAt = null,
                 relatedEntityType = "onboarding",
@@ -357,5 +336,23 @@ class AgentOrchestrator(
             ),
         )
         settings.update { it.copy(onboardingSeeded = true) }
+    }
+
+    companion object {
+        const val MAX_RETRIES = 2
+        const val MAX_TOOL_PAYLOAD_CHARS = 8_000
+
+        /** Rate limits, server errors, and plain network failures are worth another try. Config and parse errors are not. */
+        internal fun isRetryable(e: IOException): Boolean = when (e) {
+            is LlmException -> e.status == 429 || (e.status != null && e.status >= 500)
+            else -> true
+        }
+
+        internal fun forModel(payload: String): String =
+            if (payload.length <= MAX_TOOL_PAYLOAD_CHARS) {
+                payload
+            } else {
+                payload.take(MAX_TOOL_PAYLOAD_CHARS) + "\n…[truncated ${payload.length - MAX_TOOL_PAYLOAD_CHARS} chars]"
+            }
     }
 }

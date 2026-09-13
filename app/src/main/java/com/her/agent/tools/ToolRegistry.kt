@@ -9,7 +9,6 @@ import com.her.core.formatNaturalDate
 import com.her.core.jsonObjectOf
 import com.her.core.newId
 import com.her.core.normalizeDateIso
-import com.her.core.nowMillis
 import com.her.core.optDoubleOr
 import com.her.core.optLongOrNull
 import com.her.core.optStringList
@@ -62,7 +61,9 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.her.agent.prompt.Identity
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 fun interface ToolHandler {
@@ -82,6 +83,8 @@ open class ToolRegistry(
     private val systemCalendar = SystemCalendar(repo, calendar, settings)
     private val googleCalendar = googleCalendar
 
+    private fun nowMillis(): Long = repo.clock.nowMillis()
+
     init {
         registerAll()
     }
@@ -93,8 +96,13 @@ open class ToolRegistry(
 
     open suspend fun execute(name: String, arguments: String): ToolResult {
         val spec = handlers[name] ?: return ToolResult(name, false, jsonObjectOf("error" to "Unknown tool: $name").toString())
+        val args = try {
+            if (arguments.isBlank()) JSONObject() else JSONObject(arguments)
+        } catch (e: JSONException) {
+            val error = "Arguments were not a valid JSON object (${e.message}). Resend the call with a JSON object."
+            return ToolResult(name, false, jsonObjectOf("ok" to false, "error" to error).toString())
+        }
         return try {
-            val args = if (arguments.isBlank()) JSONObject() else JSONObject(arguments)
             validateRequired(spec.first, args)
             val payload = spec.second.invoke(args)
             repo.logActivity("tool", name, payload.toString().take(2000))
@@ -333,8 +341,8 @@ open class ToolRegistry(
         }
         register("send_user_message", "Deliver a proactive message into the conversation. Use rarely.", objSchema("content" to str(), required = listOf("content"))) { args ->
             val text = args.requiredString("content").trim()
-            if (text.equals("NO_NOTIFICATION", ignoreCase = true)) {
-                return@register jsonObjectOf("ok" to true, "decision" to "NO_NOTIFICATION")
+            if (Identity.isSilence(text)) {
+                return@register jsonObjectOf("ok" to true, "decision" to Identity.NO_NOTIFICATION)
             }
             onUserMessage(text)
             jsonObjectOf("ok" to true)

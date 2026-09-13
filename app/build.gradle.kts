@@ -176,7 +176,7 @@ afterEvaluate {
             layout.buildDirectory.dir("robolectric-jars").get().asFile.absolutePath,
         )
         systemProperty("her.repoRoot", rootProject.projectDir.absolutePath)
-        listOf("scenario.only", "scenario.filter", "scenario.attempts", "scenario.parallel").forEach { key ->
+        listOf("scenario.only", "scenario.filter", "scenario.attempts", "scenario.parallel", "scenario.mode").forEach { key ->
             val value = project.findProperty(key)?.toString().orEmpty()
             if (value.isNotEmpty()) {
                 systemProperty(key, value)
