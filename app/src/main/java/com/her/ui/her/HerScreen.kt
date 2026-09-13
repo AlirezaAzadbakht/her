@@ -1,16 +1,10 @@
 package com.her.ui.her
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
@@ -22,11 +16,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -48,6 +45,8 @@ import com.her.ui.markdown.ConversationMarkdown
 import com.her.ui.theme.ConversationStyle
 import com.her.ui.theme.herResponseFontFamily
 
+private const val PinSlackPx = 80
+
 @Composable
 fun HerScreen(vm: HerViewModel) {
     val latest by vm.latestAssistant.collectAsState()
@@ -62,15 +61,61 @@ fun HerScreen(vm: HerViewModel) {
     val responseStyle = remember {
         ConversationStyle.copy(fontFamily = herResponseFontFamily(resources))
     }
+    var heldStream by remember { mutableStateOf("") }
+    var pinToBottom by remember { mutableStateOf(true) }
 
     val streamingText = (turn as? TurnState.Streaming)?.text.orEmpty()
-    val displayText = if (streamingText.isNotBlank()) streamingText else latest?.content.orEmpty()
-    val thinking = turn is TurnState.Thinking || (turn is TurnState.Streaming && streamingText.isBlank())
-    val utteranceKey = when {
-        turn is TurnState.Streaming && streamingText.isNotBlank() -> "stream"
-        thinking -> "think"
-        else -> latest?.id ?: "empty"
+    val nextHeld = when {
+        streamingText.isNotBlank() -> streamingText
+        turn is TurnState.Thinking -> ""
+        latest?.content == heldStream -> ""
+        else -> heldStream
     }
+    SideEffect {
+        if (heldStream != nextHeld) heldStream = nextHeld
+    }
+
+    val awaitingFirstToken = turn is TurnState.Thinking ||
+        (turn is TurnState.Streaming && streamingText.isBlank())
+    val displayText = when {
+        streamingText.isNotBlank() -> streamingText
+        nextHeld.isNotBlank() -> nextHeld
+        awaitingFirstToken -> ""
+        else -> latest?.content.orEmpty()
+    }
+    val thinking = displayText.isBlank() && awaitingFirstToken
+    val showCaret = displayText.isNotBlank() &&
+        (turn is TurnState.Streaming || nextHeld.isNotBlank())
+    val follow = showCaret
+
+    LaunchedEffect(turn) {
+        if (turn !is TurnState.Idle) {
+            pinToBottom = true
+            scroll.scrollTo(0)
+        }
+    }
+    LaunchedEffect(scroll, turn) {
+        var lastMax = 0
+        snapshotFlow { scroll.value to scroll.maxValue }.collect { (value, max) ->
+            val grew = max > lastMax
+            lastMax = max
+            val nearBottom = max - value <= PinSlackPx
+            pinToBottom = when {
+                nearBottom -> true
+                grew -> pinToBottom
+                else -> false
+            }
+        }
+    }
+    LaunchedEffect(displayText, follow, scroll.maxValue, pinToBottom) {
+        if (follow && pinToBottom) scroll.scrollTo(scroll.maxValue)
+    }
+
+    val ink = lerp(
+        MaterialTheme.colorScheme.onBackground,
+        MaterialTheme.colorScheme.onSurfaceVariant,
+        0.35f,
+    )
 
     Column(
         modifier = Modifier
@@ -84,37 +129,26 @@ fun HerScreen(vm: HerViewModel) {
         ) {
             ThinkingAnimation(
                 visible = thinking,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 20.dp),
             )
-            AnimatedContent(
-                targetState = utteranceKey,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "utterance",
-                modifier = Modifier.fillMaxSize(),
-            ) { key ->
-                if (key != "think" && displayText.isNotBlank()) {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = maxHeight)
-                                .verticalScroll(scroll)
-                                .padding(vertical = 20.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            ConversationMarkdown(
-                                content = displayText,
-                                color = lerp(
-                                    MaterialTheme.colorScheme.onBackground,
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                    0.35f,
-                                ),
-                                style = responseStyle,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
+            if (displayText.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scroll)
+                        .padding(vertical = 20.dp),
+                    contentAlignment = Alignment.TopStart,
+                ) {
+                    ConversationMarkdown(
+                        content = displayText,
+                        color = ink,
+                        style = responseStyle,
+                        textAlign = TextAlign.Start,
+                        showCaret = showCaret,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

@@ -1,21 +1,28 @@
 package com.her.ui.markdown
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -29,7 +36,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.ui.her.StreamingCaret
 import com.her.ui.theme.ConversationStyle
+
+private const val CaretId = "stream-caret"
 
 @Composable
 fun ConversationMarkdown(
@@ -38,22 +48,27 @@ fun ConversationMarkdown(
     modifier: Modifier = Modifier,
     style: TextStyle = ConversationStyle,
     textAlign: TextAlign = TextAlign.Start,
+    showCaret: Boolean = false,
 ) {
     val blocks = remember(content) { MarkdownParser.parse(content) }
     val link = MaterialTheme.colorScheme.primary
     val fallbackDir = LocalLayoutDirection.current
     val aligned = style.copy(textAlign = textAlign, textDirection = TextDirection.Content)
+    val last = blocks.lastIndex
     Column(modifier.fillMaxWidth()) {
         blocks.forEachIndexed { index, block ->
             val top = if (index == 0) 0.dp else 8.dp
+            val caret = showCaret && index == last
             when (block) {
                 is MdBlock.Paragraph -> {
                     DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        Text(
+                        CaretText(
                             text = annotate(block.inlines, color, link),
                             style = aligned,
                             color = color,
                             textAlign = textAlign,
+                            showCaret = caret,
+                            caretColor = color,
                             modifier = Modifier.fillMaxWidth().padding(top = top),
                         )
                     }
@@ -65,22 +80,26 @@ fun ConversationMarkdown(
                         else -> 20.sp
                     }
                     DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        Text(
+                        CaretText(
                             text = annotate(block.inlines, color, link),
                             style = aligned.copy(fontSize = size, fontWeight = FontWeight.Medium, lineHeight = (size.value + 8).sp),
                             color = color,
                             textAlign = textAlign,
+                            showCaret = caret,
+                            caretColor = color,
                             modifier = Modifier.fillMaxWidth().padding(top = top),
                         )
                     }
                 }
                 is MdBlock.Quote -> {
                     DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        Text(
+                        CaretText(
                             text = annotate(block.inlines, color, link),
                             style = aligned.copy(fontStyle = FontStyle.Italic),
                             color = color.copy(alpha = 0.86f),
                             textAlign = textAlign,
+                            showCaret = caret,
+                            caretColor = color,
                             modifier = Modifier.fillMaxWidth().padding(top = top, start = 12.dp),
                         )
                     }
@@ -88,8 +107,8 @@ fun ConversationMarkdown(
                 is MdBlock.Code -> {
                     DirectionalBlock(forceLtr = true, fallback = fallbackDir) {
                         SelectionContainer {
-                            Text(
-                                text = block.text,
+                            CaretText(
+                                text = AnnotatedString(block.text),
                                 style = aligned.copy(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 15.sp,
@@ -98,6 +117,8 @@ fun ConversationMarkdown(
                                 ),
                                 color = color,
                                 textAlign = TextAlign.Start,
+                                showCaret = caret,
+                                caretColor = color,
                                 modifier = Modifier
                                     .padding(top = top)
                                     .fillMaxWidth()
@@ -109,6 +130,7 @@ fun ConversationMarkdown(
                 }
                 is MdBlock.ListBlock -> {
                     Column(Modifier.fillMaxWidth().padding(top = top)) {
+                        val lastItem = block.items.lastIndex
                         block.items.forEachIndexed { itemIndex, item ->
                             DirectionalBlock(item.plainText(), fallbackDir) {
                                 Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
@@ -117,11 +139,13 @@ fun ConversationMarkdown(
                                         style = aligned,
                                         color = color,
                                     )
-                                    Text(
+                                    CaretText(
                                         text = annotate(item, color, link),
                                         style = aligned,
                                         color = color,
                                         textAlign = textAlign,
+                                        showCaret = caret && itemIndex == lastItem,
+                                        caretColor = color,
                                         modifier = Modifier.weight(1f),
                                     )
                                 }
@@ -132,6 +156,50 @@ fun ConversationMarkdown(
             }
         }
     }
+}
+
+@Composable
+private fun CaretText(
+    text: AnnotatedString,
+    style: TextStyle,
+    color: Color,
+    textAlign: TextAlign,
+    showCaret: Boolean,
+    caretColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val height = style.fontSize
+    val inline = remember(showCaret, caretColor, height) {
+        if (!showCaret) {
+            emptyMap()
+        } else {
+            mapOf(
+                CaretId to InlineTextContent(
+                    Placeholder(8.sp, height, PlaceholderVerticalAlign.TextCenter),
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                        StreamingCaret(caretColor)
+                    }
+                },
+            )
+        }
+    }
+    val shown = if (showCaret) {
+        buildAnnotatedString {
+            append(text)
+            appendInlineContent(CaretId, "\u200B")
+        }
+    } else {
+        text
+    }
+    Text(
+        text = shown,
+        style = style,
+        color = color,
+        textAlign = textAlign,
+        inlineContent = inline,
+        modifier = modifier,
+    )
 }
 
 @Composable

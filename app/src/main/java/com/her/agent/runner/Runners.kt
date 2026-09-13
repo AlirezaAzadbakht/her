@@ -251,7 +251,13 @@ class AgentOrchestrator(
                 if (roundText.isNotBlank()) {
                     preamble = if (preamble.isEmpty()) roundText else "$preamble\n\n$roundText"
                 }
-                if (streamToUi) _turnState.value = TurnState.Thinking
+                if (streamToUi) {
+                    _turnState.value = if (preamble.isNotBlank()) {
+                        TurnState.Streaming(preamble)
+                    } else {
+                        TurnState.Thinking
+                    }
+                }
                 messages += msg
                 calls.forEach { call ->
                     val result = tools.execute(call.name, call.arguments)

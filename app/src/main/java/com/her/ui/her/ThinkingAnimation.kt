@@ -68,38 +68,40 @@ fun ThinkingAnimation(
 
     Box(
         modifier = modifier.graphicsLayer { this.alpha = alpha },
-        contentAlignment = Alignment.Center,
+        contentAlignment = Alignment.TopStart,
     ) {
         if (alpha <= 0.01f) return@Box
-        Canvas(Modifier.size(168.dp)) {
-            val radius = size.minDimension * (0.34f + 0.06f * breath)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        glow.copy(alpha = 0.16f + 0.08f * breath),
-                        glow.copy(alpha = 0.05f),
-                        glow.copy(alpha = 0f),
+        Box(contentAlignment = Alignment.Center) {
+            Canvas(Modifier.size(168.dp)) {
+                val radius = size.minDimension * (0.34f + 0.06f * breath)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            glow.copy(alpha = 0.16f + 0.08f * breath),
+                            glow.copy(alpha = 0.05f),
+                            glow.copy(alpha = 0f),
+                        ),
+                        center = Offset(size.width / 2f, size.height / 2f),
+                        radius = radius,
                     ),
-                    center = Offset(size.width / 2f, size.height / 2f),
                     radius = radius,
-                ),
-                radius = radius,
-            )
-        }
-        Row(
-            modifier = Modifier.offset(y = lift.dp),
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            repeat(3) { index ->
-                val phase = (sin((wave - index / 3f) * 2.0 * PI).toFloat() + 1f) / 2f
-                Box(
-                    modifier = Modifier
-                        .size((6.5f + 1.8f * phase).dp)
-                        .offset(y = (-4f * phase).dp)
-                        .graphicsLayer { this.alpha = 0.28f + 0.62f * phase }
-                        .background(ink.copy(alpha = 0.78f), CircleShape),
                 )
+            }
+            Row(
+                modifier = Modifier.offset(y = lift.dp),
+                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(3) { index ->
+                    val phase = (sin((wave - index / 3f) * 2.0 * PI).toFloat() + 1f) / 2f
+                    Box(
+                        modifier = Modifier
+                            .size((6.5f + 1.8f * phase).dp)
+                            .offset(y = (-4f * phase).dp)
+                            .graphicsLayer { this.alpha = 0.28f + 0.62f * phase }
+                            .background(ink.copy(alpha = 0.78f), CircleShape),
+                    )
+                }
             }
         }
     }
