@@ -32,6 +32,7 @@ class ScenarioPoolValidationTest {
             .allowMainThreadQueries()
             .build()
         val settings = AppSettingsStore(context, "her_scenario_validation")
+        settings.update { it.copy(webSearchEnabled = true) }
         val repo = HerRepository(db, settings)
         tools = ToolRegistry(repo, HybridRanker(repo), settings, CalendarDataSource(context), WebSearchClient())
     }

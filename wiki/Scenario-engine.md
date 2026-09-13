@@ -49,7 +49,7 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
   "tags": ["calendar"],
   "attempts": 2,
   "pending": false,
-  "settings": { "chatToolCallLimit": 12, "calendarEnabled": false },
+  "settings": { "chatToolCallLimit": 12, "calendarEnabled": false, "webSearchEnabled": false },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [{ "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }]
@@ -136,13 +136,15 @@ Rows are flattened by an explicit mapper, not reflection.
 
 ## What the harness does
 
-Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, a `FakeCalendarDataSource`, and a notifier that records instead of posting. Set `"settings": { "calendarEnabled": true }` (or seed `system_calendar`) to grant the fake device calendar. Otherwise tools write the internal `calendar_events` table only.
+Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, a `FakeCalendarDataSource`, a `FakeWebSearchClient`, and a notifier that records instead of posting. Set `"settings": { "calendarEnabled": true }` (or seed `system_calendar`) to grant the fake device calendar. Otherwise tools write the internal `calendar_events` table only. Set `"settings": { "webSearchEnabled": true }` (or seed `web_search`) to turn on the `web_search` tool.
 
 Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`. Seed Google Calendar events with `seed.google_calendar` using the same shape; that grants the fake Google client for the attempt. Check them with `rows` on table `google_calendar`.
+
+Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }, "title", "snippets" }`. The fake matches the tool query against those needles and returns the snippets. There is no live provider search during scenarios.
 
 ## Limitations
 
 - No time travel. The production clock is `System.currentTimeMillis()`, so a scenario cannot span simulated days.
-- No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API.
+- No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.

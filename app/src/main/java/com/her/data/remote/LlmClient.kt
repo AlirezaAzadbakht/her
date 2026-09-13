@@ -18,6 +18,11 @@ import org.json.JSONObject
 
 class LlmException(message: String, val status: Int? = null) : IOException(message)
 
+data class WebSearchRequest(
+    val country: String? = null,
+    val timezone: String? = null,
+)
+
 open class LlmClient(
     private val http: OkHttpClient = defaultClient(),
 ) {
@@ -26,11 +31,12 @@ open class LlmClient(
         messages: List<LlmMessage>,
         tools: List<ToolSpec> = emptyList(),
         client: OkHttpClient = http,
+        webSearch: WebSearchRequest? = null,
     ): LlmResponse {
         if (!settings.isConfigured) {
             throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
         }
-        val request = request(settings, messages, tools, stream = false)
+        val request = request(settings, messages, tools, stream = false, webSearch = webSearch)
         val started = System.currentTimeMillis()
         client.newCall(request).execute().use { response ->
             val raw = response.body?.string().orEmpty()
@@ -54,7 +60,7 @@ open class LlmClient(
         if (!settings.isConfigured) {
             throw LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")
         }
-        val request = request(settings, messages, tools, stream = true)
+        val request = request(settings, messages, tools, stream = true, webSearch = null)
         val started = System.currentTimeMillis()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
@@ -112,11 +118,15 @@ open class LlmClient(
         messages: List<LlmMessage>,
         tools: List<ToolSpec>,
         stream: Boolean,
+        webSearch: WebSearchRequest?,
     ): Request {
         val body = JSONObject()
             .put("model", settings.model)
             .put("messages", messages.toJsonArray())
             .apply {
+                if (webSearch != null) {
+                    put("web_search_options", webSearch.toJson())
+                }
                 if (tools.isNotEmpty()) {
                     put(
                         "tools",
@@ -208,6 +218,23 @@ open class LlmClient(
                 "disabled" in lower
         }
     }
+}
+
+private fun WebSearchRequest.toJson(): JSONObject {
+    val options = JSONObject()
+    val country = country?.trim().orEmpty()
+    val timezone = timezone?.trim().orEmpty()
+    if (country.isNotBlank() || timezone.isNotBlank()) {
+        options.put(
+            "user_location",
+            JSONObject().apply {
+                put("type", "approximate")
+                if (country.isNotBlank()) put("country", country)
+                if (timezone.isNotBlank()) put("timezone", timezone)
+            },
+        )
+    }
+    return options
 }
 
 private fun List<LlmMessage>.toJsonArray(): JSONArray {

@@ -57,4 +57,4 @@ After Settings → Connect Google completes consent, `GoogleCalendarClient` read
 
 ## Web search
 
-Off unless enabled in Settings. Default engine is DuckDuckGo Instant Answer. A custom endpoint + bearer key can be set.
+Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.

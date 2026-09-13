@@ -14,6 +14,7 @@ import com.her.data.calendar.FakeCalendarDataSource
 import com.her.data.calendar.FakeGoogleCalendarClient
 import com.her.data.calendar.GoogleCalendar
 import com.her.data.db.HerDatabase
+import com.her.data.remote.FakeWebSearchClient
 import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -94,9 +95,10 @@ class ScenarioHarness(
     val repo = HerRepository(db, settings)
     val calendar = FakeCalendarDataSource(context)
     val google = FakeGoogleCalendarClient()
+    val webSearch = FakeWebSearchClient()
     private val ranker = HybridRanker(repo)
     private val googleCalendar = GoogleCalendar(repo, google)
-    private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, WebSearchClient(), { text ->
+    private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         persistProactive(text)
     }, googleCalendar)
     private val notifier = RecordingNotifier(context)
@@ -175,6 +177,15 @@ class ScenarioHarness(
             calendar.granted = true
             settings.update { it.copy(calendarEnabled = true) }
         }
+        val enableSearch = spec.settings.webSearchEnabled || spec.seed.webSearch.isNotEmpty()
+        if (enableSearch) {
+            settings.update { it.copy(webSearchEnabled = true) }
+        }
+        webSearch.seed(
+            spec.seed.webSearch.map { hit ->
+                FakeWebSearchClient.Fixture(hit.queryContainsAny, hit.title, hit.snippets)
+            },
+        )
         if (spec.seed.profile.isNotEmpty()) {
             val current = repo.getProfile()
             val fields = spec.seed.profile

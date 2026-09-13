@@ -1,0 +1,19 @@
+{
+  "id": "web-search-disabled",
+  "title": "Do not search the web when the setting is off",
+  "tags": ["web-search"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Who won the 2026 Aurora Prize?" }
+  ],
+  "expect": {
+    "tools_not_called": ["web_search"],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She does not claim to have searched the web. She may say she cannot look it up, or answer from general knowledge, but she does not use web_search."
+    }
+  }
+}

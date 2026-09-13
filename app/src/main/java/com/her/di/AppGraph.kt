@@ -44,7 +44,7 @@ class AppGraph(context: Context) {
     val ranker = HybridRanker(repo, NoOpEmbeddingProvider())
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
-    val webSearch = WebSearchClient()
+    val webSearch = WebSearchClient(llm = llm, llmSettings = { secure.read() })
     val googleAuth = GoogleAuthService(appContext, settings)
     val googleCalendarClient = GoogleCalendarClient(googleAuth)
     val googleCalendar = GoogleCalendar(repo, googleCalendarClient)

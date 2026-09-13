@@ -1,0 +1,36 @@
+{
+  "id": "web-search-prefers-memory",
+  "title": "Answer a personal fact from memory, not the web",
+  "tags": ["web-search", "memory"],
+  "attempts": 2,
+  "settings": { "webSearchEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "web_search": [
+      {
+        "query": { "contains_any": ["coffee"] },
+        "title": "Coffee",
+        "snippets": "Most people take coffee with milk."
+      }
+    ]
+  },
+  "turns": [
+    { "user": "Remember that I take my coffee black." },
+    { "user": "How do I take my coffee?" }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "tools_not_called": ["web_search"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "where": { "content": { "contains_any": ["coffee", "black"] } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["black"],
+      "judge": "She answers that he takes coffee black from memory, without looking it up online."
+    }
+  }
+}

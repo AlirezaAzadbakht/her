@@ -71,6 +71,7 @@ class ContextBuilder(
             appendLine("- language: ${profile.preferredLanguage ?: "unspecified"}")
             appendLine("- work/study: ${profile.occupationOrStudyContext ?: "unspecified"}")
             appendLine("- wake/sleep: ${profile.typicalWakeTime ?: "?"} / ${profile.typicalSleepTime ?: "?"}")
+            appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })
             appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" })

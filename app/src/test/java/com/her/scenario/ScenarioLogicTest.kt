@@ -96,6 +96,37 @@ class ScenarioLogicTest {
     }
 
     @Test
+    fun parsesWebSearchSeed() {
+        val file = tmp.newFile("web-search-current-fact.json")
+        file.writeText(
+            """
+            {
+              "id": "web-search-current-fact",
+              "title": "Look up a current public fact",
+              "settings": { "webSearchEnabled": true },
+              "seed": {
+                "profile": { "userName": "Alireza", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+                "web_search": [{
+                  "query": { "contains_any": ["aurora", "prize"] },
+                  "title": "Aurora Prize 2026",
+                  "snippets": "The 2026 Aurora Prize was awarded to Lila Novak."
+                }]
+              },
+              "turns": [{ "user": "Who won the 2026 Aurora Prize?" }],
+              "expect": { "tools_called": ["web_search"] }
+            }
+            """.trimIndent(),
+        )
+        val spec = ScenarioLoader.parse(file)
+        assertTrue(spec.settings.webSearchEnabled)
+        val hit = spec.seed.webSearch.single()
+        assertEquals(listOf("aurora", "prize"), hit.queryContainsAny)
+        assertEquals("Aurora Prize 2026", hit.title)
+        assertTrue(hit.snippets.contains("Lila Novak"))
+        assertEquals(listOf("web_search"), spec.expect.toolsCalled)
+    }
+
+    @Test
     fun parsesGoogleCalendarSeed() {
         val file = tmp.newFile("calendar-todays-meetings.json")
         file.writeText(

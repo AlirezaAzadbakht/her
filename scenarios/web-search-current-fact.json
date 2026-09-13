@@ -1,0 +1,28 @@
+{
+  "id": "web-search-current-fact",
+  "title": "Look up a current public fact",
+  "tags": ["web-search"],
+  "attempts": 2,
+  "settings": { "webSearchEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "web_search": [
+      {
+        "query": { "contains_any": ["aurora", "prize"] },
+        "title": "Aurora Prize 2026",
+        "snippets": "The 2026 Aurora Prize was awarded to Lila Novak for her work on open water mapping."
+      }
+    ]
+  },
+  "turns": [
+    { "user": "Who won the 2026 Aurora Prize?" }
+  ],
+  "expect": {
+    "tools_called": ["web_search"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["Novak"],
+      "judge": "She answers that Lila Novak won the 2026 Aurora Prize, using the web search result."
+    }
+  }
+}

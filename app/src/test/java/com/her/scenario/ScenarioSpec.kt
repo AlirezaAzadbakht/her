@@ -20,6 +20,7 @@ data class ScenarioSpec(
 data class ScenarioSettings(
     val chatToolCallLimit: Int?,
     val calendarEnabled: Boolean,
+    val webSearchEnabled: Boolean,
 )
 
 data class ScenarioSeed(
@@ -27,6 +28,13 @@ data class ScenarioSeed(
     val tools: List<SeedToolCall>,
     val systemCalendar: List<SeedCalendarEvent>,
     val googleCalendar: List<SeedCalendarEvent>,
+    val webSearch: List<SeedWebSearch>,
+)
+
+data class SeedWebSearch(
+    val queryContainsAny: List<String>,
+    val title: String,
+    val snippets: String,
 )
 
 data class SeedCalendarEvent(
@@ -116,8 +124,10 @@ object ScenarioLoader {
     private val topKeys = setOf(
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect",
     )
-    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled")
-    private val seedKeys = setOf("profile", "tools", "system_calendar", "google_calendar")
+    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled")
+    private val seedKeys = setOf("profile", "tools", "system_calendar", "google_calendar", "web_search")
+    private val seedWebSearchKeys = setOf("query", "title", "snippets")
+    private val seedWebSearchQueryKeys = setOf("contains_any")
     private val seedCalendarKeys = setOf("title", "when", "notes")
     private val profileKeys = setOf(
         "userName", "assistantName", "timezone", "preferredLanguage", "country",
@@ -198,17 +208,21 @@ object ScenarioLoader {
     }
 
     private fun parseSettings(file: File, obj: JSONObject?, path: String): ScenarioSettings {
-        if (obj == null) return ScenarioSettings(null, false)
+        if (obj == null) return ScenarioSettings(null, false, false)
         rejectUnknown(obj, settingsKeys, path, file)
         val limit = if (obj.has("chatToolCallLimit")) obj.optInt("chatToolCallLimit") else null
         if (limit != null && limit < 1) {
             throw ScenarioParseException(file, "$path.chatToolCallLimit must be >= 1")
         }
-        return ScenarioSettings(limit, obj.optBoolean("calendarEnabled", false))
+        return ScenarioSettings(
+            limit,
+            obj.optBoolean("calendarEnabled", false),
+            obj.optBoolean("webSearchEnabled", false),
+        )
     }
 
     private fun parseSeed(file: File, obj: JSONObject?, path: String): ScenarioSeed {
-        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList(), emptyList())
+        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList(), emptyList(), emptyList())
         rejectUnknown(obj, seedKeys, path, file)
         val profileObj = obj.optJSONObject("profile")
         val profile = if (profileObj == null) {
@@ -237,7 +251,27 @@ object ScenarioLoader {
         }
         val systemCalendar = parseSeedCalendar(file, obj.optJSONArray("system_calendar"), "$path.system_calendar")
         val googleCalendar = parseSeedCalendar(file, obj.optJSONArray("google_calendar"), "$path.google_calendar")
-        return ScenarioSeed(profile, tools, systemCalendar, googleCalendar)
+        val webSearch = parseSeedWebSearch(file, obj.optJSONArray("web_search"), "$path.web_search")
+        return ScenarioSeed(profile, tools, systemCalendar, googleCalendar, webSearch)
+    }
+
+    private fun parseSeedWebSearch(file: File, array: JSONArray?, path: String): List<SeedWebSearch> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).map { index ->
+            val item = array.requiredObject(index, "$path[$index]")
+            rejectUnknown(item, seedWebSearchKeys, "$path[$index]", file)
+            val queryObj = item.optJSONObject("query")
+                ?: throw ScenarioParseException(file, "$path[$index].query must be an object")
+            rejectUnknown(queryObj, seedWebSearchQueryKeys, "$path[$index].query", file)
+            if (!queryObj.has("contains_any")) {
+                throw ScenarioParseException(file, "$path[$index].query.contains_any is required")
+            }
+            SeedWebSearch(
+                queryContainsAny = queryObj.optionalStringList("contains_any", "$path[$index].query.contains_any"),
+                title = item.optString("title").orEmpty(),
+                snippets = item.requiredString(file, "snippets", "$path[$index]"),
+            )
+        }
     }
 
     private fun parseSeedCalendar(file: File, array: JSONArray?, path: String): List<SeedCalendarEvent> {

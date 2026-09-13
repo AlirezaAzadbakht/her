@@ -74,6 +74,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var quietEnd by remember { mutableStateOf(formatMinutes(app.quietHours.endMinutes)) }
     var googleClient by remember { mutableStateOf(app.googleClientId) }
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
+    var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
     var advanced by remember { mutableStateOf(false) }
     val requestCalendar = rememberCalendarPermissionRequester {
         vm.updateSettings { it.copy(calendarEnabled = true) }
@@ -149,16 +150,27 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item { Toggle("Drive sync", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } } }
-        item { Toggle("Web search", app.webSearchEnabled) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } } }
+        item {
+            Toggle("Web search", app.webSearchEnabled) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } }
+            Text(
+                "Uses the same Base URL, API key, and model.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+            )
+        }
         item { Toggle("Embeddings (optional)", app.embeddingsEnabled) { vm.updateSettings { it.copy(embeddingsEnabled = !it.embeddingsEnabled) } } }
         item {
             QuietField("Google OAuth client ID", googleClient) {
                 googleClient = it
                 vm.updateSettings { s -> s.copy(googleClientId = it) }
             }
-            QuietField("Web search endpoint (optional)", searchUrl) {
+            QuietField("Web search endpoint (optional override)", searchUrl) {
                 searchUrl = it
                 vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
+            }
+            QuietField("Web search API key (optional)", searchKey, secret = true) {
+                searchKey = it
+                vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
             }
             TextButton(onClick = { vm.connectGoogle() }) { Text("Connect Google") }
             google?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }

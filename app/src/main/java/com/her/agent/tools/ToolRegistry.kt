@@ -85,7 +85,10 @@ open class ToolRegistry(
         registerAll()
     }
 
-    fun specs(): List<ToolSpec> = handlers.values.map { it.first }
+    fun specs(): List<ToolSpec> {
+        val all = handlers.values.map { it.first }
+        return if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" }
+    }
 
     open suspend fun execute(name: String, arguments: String): ToolResult {
         val spec = handlers[name] ?: return ToolResult(name, false, jsonObjectOf("error" to "Unknown tool: $name").toString())
@@ -317,7 +320,15 @@ open class ToolRegistry(
         agentTools()
         calendarTools()
         register("web_search", "Search the public web for current external facts. Do not use for personal memory.", objSchema("query" to str(), required = listOf("query"))) { args ->
-            JSONObject(webSearch.search(args.requiredString("query"), settings.read()))
+            val profile = repo.getProfile()
+            JSONObject(
+                webSearch.search(
+                    query = args.requiredString("query"),
+                    settings = settings.read(),
+                    country = profile.country,
+                    timezone = profile.timezone,
+                ),
+            )
         }
         register("send_user_message", "Deliver a proactive message into the conversation. Use rarely.", objSchema("content" to str(), required = listOf("content"))) { args ->
             val text = args.requiredString("content").trim()

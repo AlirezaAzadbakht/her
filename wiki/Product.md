@@ -42,7 +42,7 @@ Other constraints:
 
 - Uncertain observations stay low-confidence. Moods stay short-term.
 - No personality or mental-health diagnosis.
-- Internal tools first. Web search is only for current **external** facts.
+- Internal tools first. When web search is on, `web_search` is only for current **public** facts.
 - Bulk forget and destructive external calendar deletes need confirmation.
 
 ## Autonomous passes

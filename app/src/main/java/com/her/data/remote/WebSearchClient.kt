@@ -1,19 +1,29 @@
 package com.her.data.remote
 
 import com.her.data.secure.AppSettings
+import com.her.data.secure.LlmSettings
+import com.her.domain.LlmMessage
 import java.util.concurrent.TimeUnit
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 
-class WebSearchClient(
+open class WebSearchClient(
+    private val llm: LlmClient = LlmClient(),
+    private val llmSettings: () -> LlmSettings = { LlmSettings("", "", "") },
     private val http: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .build(),
 ) {
-    fun search(query: String, settings: AppSettings): String {
+    open suspend fun search(
+        query: String,
+        settings: AppSettings,
+        country: String? = null,
+        timezone: String? = null,
+    ): String {
         if (!settings.webSearchEnabled) {
             return JSONObject()
                 .put("ok", false)
@@ -22,10 +32,44 @@ class WebSearchClient(
         }
         val custom = settings.webSearchEndpoint.trim()
         return try {
-            if (custom.isNotBlank()) searchCustom(query, custom, settings.webSearchApiKey) else searchDuckDuckGo(query)
+            if (custom.isNotBlank()) {
+                searchCustom(query, custom, settings.webSearchApiKey)
+            } else {
+                searchWithProvider(query, country, timezone)
+            }
         } catch (e: Exception) {
-            JSONObject().put("ok", false).put("error", "I couldn't check that online right now.").put("detail", e.message).toString()
+            JSONObject()
+                .put("ok", false)
+                .put("error", "I couldn't check that online right now.")
+                .put("detail", e.message)
+                .toString()
         }
+    }
+
+    private suspend fun searchWithProvider(query: String, country: String?, timezone: String?): String {
+        val configured = llmSettings()
+        if (!configured.isConfigured) {
+            return JSONObject()
+                .put("ok", false)
+                .put("error", "LLM is not configured. Add a base URL, API key, and model in Settings.")
+                .toString()
+        }
+        val response = llm.complete(
+            settings = configured,
+            messages = listOf(
+                LlmMessage(role = "system", content = SEARCH_PROMPT),
+                LlmMessage(role = "user", content = query.trim()),
+            ),
+            webSearch = WebSearchRequest(country = country, timezone = timezone),
+        )
+        val snippets = response.message.content?.trim().orEmpty()
+        val citations = citationsFrom(response.rawJson)
+        return JSONObject()
+            .put("ok", snippets.isNotBlank())
+            .put("snippets", snippets)
+            .put("citations", citations)
+            .put("note", if (snippets.isBlank()) "No useful results. Personal questions should use memory first." else "")
+            .toString()
     }
 
     private fun searchCustom(query: String, endpoint: String, apiKey: String): String {
@@ -43,38 +87,24 @@ class WebSearchClient(
         }
     }
 
-    private fun searchDuckDuckGo(query: String): String {
-        val url = "https://api.duckduckgo.com/".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("q", query)
-            .addQueryParameter("format", "json")
-            .addQueryParameter("no_html", "1")
-            .addQueryParameter("skip_disambig", "1")
-            .build()
-        val request = Request.Builder().url(url).get().build()
-        http.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                return JSONObject().put("ok", false).put("error", "I couldn't check that online right now.").toString()
+    companion object {
+        internal const val SEARCH_PROMPT =
+            "Extract current public facts for this query. Do not invent personal details about the user. Prefer short factual snippets. If you cannot find anything, say so."
+
+        internal fun citationsFrom(raw: String): JSONArray {
+            val citations = JSONArray()
+            val root = runCatching { JSONObject(raw) }.getOrNull() ?: return citations
+            val message = root.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("message") ?: return citations
+            val annotations = message.optJSONArray("annotations") ?: return citations
+            for (i in 0 until annotations.length()) {
+                val item = annotations.optJSONObject(i) ?: continue
+                val citation = item.optJSONObject("url_citation") ?: item
+                val url = citation.optString("url").ifBlank { item.optString("url") }
+                val title = citation.optString("title").ifBlank { item.optString("title") }
+                if (url.isBlank()) continue
+                citations.put(JSONObject().put("url", url).put("title", title))
             }
-            val json = JSONObject(body)
-            val abstract = json.optString("AbstractText")
-            val heading = json.optString("Heading")
-            val related = json.optJSONArray("RelatedTopics")
-            val snippets = buildList {
-                if (abstract.isNotBlank()) add(abstract)
-                if (related != null) {
-                    for (i in 0 until minOf(4, related.length())) {
-                        val item = related.optJSONObject(i) ?: continue
-                        item.optString("Text").takeIf { it.isNotBlank() }?.let(::add)
-                    }
-                }
-            }
-            return JSONObject()
-                .put("ok", snippets.isNotEmpty())
-                .put("title", heading)
-                .put("snippets", snippets.joinToString("\n"))
-                .put("note", if (snippets.isEmpty()) "No instant answer. Personal questions should use memory first." else "")
-                .toString()
+            return citations
         }
     }
 }
