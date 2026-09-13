@@ -41,4 +41,4 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 - Package: `com.her` (debug: `com.her.debug`)
 - `minSdk` 29, `compileSdk` / `targetSdk` 36, JDK 17
 - Version tags: `vMAJOR.MINOR.PATCH` (CI sets `VERSION_NAME` / `VERSION_CODE` from the tag)
-- Latest published tag at the time this wiki was written: **v0.1.3** → [GitHub Release](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.3)
+- Latest published tag at the time this wiki was written: **v0.1.4** → [GitHub Release](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.4)
