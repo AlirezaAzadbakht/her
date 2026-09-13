@@ -50,7 +50,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 
 ## Tools
 
-Defined in `app/src/main/java/com/her/agent/tools/ToolRegistry.kt`. Groups:
+`ToolRegistry` (`app/src/main/java/com/her/agent/tools/ToolRegistry.kt`) validates and runs calls and owns undo. Each group registers itself from its own file in that package: `MemoryTools.kt`, `EntityTools.kt`, `AgentTools.kt`, `CalendarTools.kt`, `MessagingTools.kt`. Schema helpers (`objSchema`, `enumField`, `oneOf`) live in `ToolSchema.kt`. Groups:
 
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`

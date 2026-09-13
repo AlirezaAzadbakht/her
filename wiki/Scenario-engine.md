@@ -8,7 +8,7 @@ Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). `ScenarioPo
 
 1. Add `scenarios/<id>.json` describing the user turns and the expected outcome. Set `"pending": true` while the tools do not exist yet.
 2. Run `make scenarios` (or `make scenario ID=...` for one file). It fails or reports pending until the agent can satisfy the checks.
-3. Add or extend tools in `app/src/main/java/com/her/agent/tools/ToolRegistry.kt` and prompt guidance in `Identity.kt`.
+3. Add or extend tools in the matching group file under `app/src/main/java/com/her/agent/tools/` (for example `EntityTools.kt` or `CalendarTools.kt`) and prompt guidance in `Identity.kt`.
 4. Rerun until green, drop `"pending"`, commit.
 
 ## How to run
