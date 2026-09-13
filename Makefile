@@ -17,9 +17,9 @@ help:
 	@echo "make stop     - stop the running emulator"
 	@echo "make test     - run the offline unit tests"
 	@echo "make scenarios - run the scenario pool against the live LLM from .env"
-	@echo "make scenario ID=calendar-set-meeting - run one scenario"
+	@echo "make scenario ID=system-calendar-create-event - run one scenario"
 	@echo "make scenarios-record - run live and save passing attempts as cassettes"
-	@echo "make scenario-record ID=calendar-set-meeting - record one scenario"
+	@echo "make scenario-record ID=system-calendar-create-event - record one scenario"
 	@echo "make scenarios-replay - replay cassettes offline (what CI runs)"
 
 test:

@@ -1,0 +1,34 @@
+{
+  "id": "goal-progress-update",
+  "title": "Log progress on an existing goal",
+  "tags": ["goals", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_goal", "arguments": { "title": "Run a half marathon", "targetDate": "in 6 months" } }
+    ]
+  },
+  "turns": [
+    { "user": "Ran 12 km today, my longest yet." }
+  ],
+  "expect": {
+    "tools_called": ["update_goal"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "goals",
+        "count": 1,
+        "where": { "title": { "contains": "marathon" } }
+      },
+      {
+        "table": "goals",
+        "count": 1,
+        "where": { "progressSummary": { "contains": "12" } }
+      }
+    ],
+    "reply": {
+      "judge": "She connects the 12 km run to the half marathon goal, warmly and briefly."
+    }
+  }
+}

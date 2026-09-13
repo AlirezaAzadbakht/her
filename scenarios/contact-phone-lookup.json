@@ -1,0 +1,22 @@
+{
+  "id": "contact-phone-lookup",
+  "title": "Look up a phone number from device contacts",
+  "tags": ["people", "contacts"],
+  "attempts": 1,
+  "pending": true,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } }
+    ]
+  },
+  "turns": [
+    { "user": "What's Reza's phone number?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She reads Reza's number from the device contacts. Saying she has no access to contacts is a failure."
+    }
+  }
+}

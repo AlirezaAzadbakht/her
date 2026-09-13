@@ -1,0 +1,21 @@
+{
+  "id": "chat-history-recall-days-later",
+  "title": "Recall a passing mention days later",
+  "tags": ["memory", "time"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Reza recommended a Thai place called Baan Suan." },
+    { "advance": "3 days" },
+    { "user": "What was that Thai place Reza mentioned?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["Baan Suan"],
+      "judge": "She names Baan Suan as the place Reza recommended."
+    }
+  }
+}

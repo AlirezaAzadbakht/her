@@ -5,12 +5,7 @@
   "attempts": 2,
   "settings": { "calendarEnabled": true },
   "seed": {
-    "profile": {
-      "userName": "Alireza",
-      "assistantName": "Her",
-      "timezone": "Asia/Tehran",
-      "preferredLanguage": "Persian"
-    },
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
     "tools": [
       { "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }
     ]
@@ -26,10 +21,16 @@
         "table": "system_calendar",
         "count": 1,
         "where": { "startAt": { "date_is": "2027-09-23", "time_is": "10:00" } }
+      },
+      {
+        "table": "calendar_events",
+        "count": 1,
+        "where": { "source": { "equals": "SYSTEM" }, "startAt": { "date_is": "2027-09-23", "time_is": "10:00" } }
       }
     ],
     "reply": {
-      "judge": "The device calendar has the meeting on 23 September 2027 at 10:00, converted from 1406/07/01."
+      "judge": "The device calendar has the meeting on 23 September 2027 at 10:00, converted from 1406/07/01.",
+      "language": "persian"
     }
   }
 }

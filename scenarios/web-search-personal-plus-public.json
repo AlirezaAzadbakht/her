@@ -1,0 +1,33 @@
+{
+  "id": "web-search-personal-plus-public",
+  "title": "Combine a remembered trip with a public weather lookup",
+  "tags": ["web-search", "memory"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      {
+        "name": "remember",
+        "arguments": { "content": "Flying to Istanbul on Friday for a conference", "scope": "long_term", "source": "USER_EXPLICIT" }
+      }
+    ],
+    "web_search": [
+      {
+        "query": { "contains_any": ["istanbul", "weather"] },
+        "title": "Istanbul weather",
+        "snippets": "Rain expected in Istanbul Friday through Sunday, highs of 14°C."
+      }
+    ]
+  },
+  "turns": [
+    { "user": "Do I need an umbrella for my trip?" }
+  ],
+  "expect": {
+    "tools_called": ["web_search"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["rain"],
+      "judge": "She knows the trip is Istanbul on Friday without asking, looks up the weather, and says rain is expected."
+    }
+  }
+}

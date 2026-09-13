@@ -7,13 +7,19 @@
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
   },
   "turns": [
+    { "at": "tomorrow at 11am" },
     { "run": "hourly" }
   ],
   "expect": {
     "tools_not_called": ["send_user_message"],
     "no_tool_errors": true,
+    "notifications": { "count": 0 },
     "rows": [
-      { "table": "chat_messages", "count": 0, "where": { "role": { "equals": "ASSISTANT" } } }
+      {
+        "table": "chat_messages",
+        "count": 0,
+        "where": { "role": { "equals": "ASSISTANT" } }
+      }
     ]
   }
 }

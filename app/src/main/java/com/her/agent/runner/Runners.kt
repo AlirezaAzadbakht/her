@@ -193,6 +193,8 @@ class AgentOrchestrator(
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.content}" })
             var lastText: String? = null
             var preamble = ""
+            var silent = false
+            var proactive: String? = null
             while (budget.canCall()) {
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
                 val roundTools = if (budget.isFinalCall()) emptyList() else tools.specs()
@@ -216,6 +218,11 @@ class AgentOrchestrator(
                 val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
                 val calls = msg.toolCalls.orEmpty()
                 if (calls.isEmpty()) {
+                    // A silent final answer wins over any text written before tool calls.
+                    if (Identity.isSilence(roundText)) {
+                        silent = true
+                        break
+                    }
                     lastText = when {
                         preamble.isNotEmpty() && roundText.isNotBlank() -> "$preamble\n\n$roundText"
                         roundText.isNotBlank() -> roundText
@@ -237,6 +244,10 @@ class AgentOrchestrator(
                 messages += msg
                 calls.forEach { call ->
                     val result = tools.execute(call.name, call.arguments)
+                    if (call.name == "send_user_message" && result.ok) {
+                        val content = runCatching { org.json.JSONObject(call.arguments).optString("content").trim() }.getOrDefault("")
+                        if (content.isNotBlank() && !Identity.isSilence(content)) proactive = content
+                    }
                     repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
                     messages += LlmMessage(
                         role = "tool",
@@ -246,21 +257,23 @@ class AgentOrchestrator(
                     )
                 }
             }
-            if (lastText == null && preamble.isNotBlank()) {
+            if (lastText == null && preamble.isNotBlank() && !silent) {
                 lastText = preamble
             }
             val cleaned = lastText?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
             if (persistAssistant && cleaned != null) {
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT))
             }
-            if (allowNotify && cleaned != null) {
+            // A message delivered with send_user_message still needs to reach the phone.
+            val notifyText = cleaned ?: proactive
+            if (allowNotify && notifyText != null) {
                 val decision = policy.shouldNotify(
-                    key = "$type:${cleaned.take(40)}",
+                    key = "$type:${notifyText.take(40)}",
                     urgent = type == AgentRunType.BRIEFING,
                     now = repo.now(),
                 )
                 if (decision.notify) {
-                    notifier.show(cleaned, type == AgentRunType.BRIEFING)
+                    notifier.show(notifyText, type == AgentRunType.BRIEFING)
                     settings.update { it.copy(lastNotificationKey = decision.key, lastNotificationAt = nowMillis()) }
                 } else {
                     repo.logActivity("notify", "Suppressed: ${decision.reason}")

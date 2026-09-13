@@ -1,0 +1,34 @@
+{
+  "id": "nightly-promote-durable-fact",
+  "title": "Promote a durable short-term fact on the nightly pass",
+  "tags": ["memory", "nightly"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      {
+        "name": "remember",
+        "arguments": {
+          "content": "Allergic to penicillin",
+          "scope": "short_term",
+          "source": "USER_EXPLICIT",
+          "importance": 0.9,
+          "confidence": 0.9
+        }
+      }
+    ]
+  },
+  "turns": [
+    { "run": "nightly" }
+  ],
+  "expect": {
+    "tools_not_called": ["send_user_message"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "where": { "content": { "contains": "penicillin" } }
+      }
+    ]
+  }
+}

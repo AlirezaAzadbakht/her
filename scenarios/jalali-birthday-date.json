@@ -4,18 +4,14 @@
   "tags": ["jalali", "dates", "people"],
   "attempts": 2,
   "seed": {
-    "profile": {
-      "userName": "Alireza",
-      "assistantName": "Her",
-      "timezone": "Asia/Tehran",
-      "preferredLanguage": "Persian"
-    }
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
   },
   "turns": [
     { "user": "تولد خواهرم ندا ۱۲ اسفند است." }
   ],
   "expect": {
     "tools_called": ["update_person"],
+    "tools_not_called": ["create_important_date"],
     "no_tool_errors": true,
     "rows": [
       {
@@ -28,7 +24,8 @@
       }
     ],
     "reply": {
-      "judge": "12 Esfand is converted and stored as a real Gregorian date in late February or early March. Storing the raw Persian text instead of a converted date is a failure."
+      "judge": "12 Esfand is converted and stored as a real Gregorian date in late February or early March. Storing the raw Persian text instead of a converted date is a failure.",
+      "language": "persian"
     }
   }
 }

@@ -1,0 +1,24 @@
+{
+  "id": "hourly-event-starting-soon",
+  "title": "Nudge before an event that starts soon",
+  "tags": ["proactive", "calendar", "time"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Call with the bank", "when": "tomorrow at 11am" }
+    ]
+  },
+  "turns": [
+    { "at": "tomorrow at 10:20am" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["bank"] },
+    "reply": {
+      "judge": "One short heads-up that the bank call starts at 11."
+    }
+  }
+}

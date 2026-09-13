@@ -14,6 +14,7 @@
     { "user": "Book a call with Sara tomorrow at 10am." }
   ],
   "expect": {
+    "tools_not_called": ["create_calendar_event"],
     "no_tool_errors": true,
     "rows": [
       {

@@ -1,0 +1,22 @@
+{
+  "id": "reminder-in-two-hours",
+  "title": "A reminder asked for in two hours fires then",
+  "tags": ["reminders", "proactive", "time"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "user": "Remind me to call mom in 2 hours." },
+    { "advance": "2 hours" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "contains_any": ["mom"] },
+    "reply": {
+      "judge": "She confirms she will remind him around noon to call his mom."
+    }
+  }
+}

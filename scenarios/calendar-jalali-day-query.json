@@ -1,0 +1,24 @@
+{
+  "id": "calendar-jalali-day-query",
+  "title": "Answer a Jalali-dated calendar question in Persian",
+  "tags": ["calendar", "system-calendar", "jalali", "persian"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "system_calendar": [
+      { "title": "Tax appointment", "when": "2027-10-02 09:00" }
+    ]
+  },
+  "turns": [
+    { "user": "۱۰ مهر ۱۴۰۶ چه برنامه‌ای دارم؟" }
+  ],
+  "expect": {
+    "tools_called": ["get_calendar_events"],
+    "no_tool_errors": true,
+    "reply": {
+      "language": "persian",
+      "judge": "She looks up 10 Mehr 1406 (2 October 2027) and mentions the 9am tax appointment, in Persian."
+    }
+  }
+}

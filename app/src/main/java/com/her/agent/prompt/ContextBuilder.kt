@@ -64,6 +64,9 @@ class ContextBuilder(
 
         val bundle = buildString {
             appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
+            recent.lastOrNull { it.role.name == "USER" }?.let {
+                appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
+            }
             appendLine("User profile:")
             appendLine("- name: ${profile.userName ?: "unknown"}")
             appendLine("- they call you: ${profile.assistantName ?: "Her"}")

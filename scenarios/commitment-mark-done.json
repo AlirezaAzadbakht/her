@@ -1,0 +1,29 @@
+{
+  "id": "commitment-mark-done",
+  "title": "Close a commitment when it is fulfilled",
+  "tags": ["commitments", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_commitment", "arguments": { "title": "Send the invoice to Mina", "dueAt": "today", "promisedTo": "Mina" } }
+    ]
+  },
+  "turns": [
+    { "user": "Just sent Mina the invoice." }
+  ],
+  "expect": {
+    "tools_called": ["update_commitment"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "commitments",
+        "count": 1,
+        "where": { "title": { "contains": "invoice" }, "status": { "equals": "DONE" } }
+      }
+    ],
+    "reply": {
+      "judge": "She marks the invoice promise to Mina as done."
+    }
+  }
+}

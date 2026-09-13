@@ -1,0 +1,25 @@
+{
+  "id": "briefing-skips-finished-work",
+  "title": "Morning briefing leaves out work already done",
+  "tags": ["briefing", "tasks"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Renew the domain", "dueAt": "yesterday" } },
+      { "name": "update_task", "arguments": { "id": "Renew the domain", "status": "DONE" } },
+      { "name": "create_task", "arguments": { "title": "Pay the electricity bill", "dueAt": "today" } }
+    ]
+  },
+  "turns": [
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["electricity"],
+      "must_not_mention": ["domain"],
+      "judge": "The note mentions paying the electricity bill today and does not bring up the finished domain renewal."
+    }
+  }
+}

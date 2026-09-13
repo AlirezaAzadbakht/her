@@ -1,0 +1,22 @@
+{
+  "id": "memory-household-spec-recall",
+  "title": "Recall a household spec when it is needed",
+  "tags": ["memory"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "The living room lamp takes a 15-watt E14 bulb." },
+    { "user": "I'm at the store, what bulb do I need for the living room?" }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "tools_not_called": ["create_task", "add_grocery"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["E14"],
+      "judge": "She answers with the 15-watt E14 bulb from what he told her."
+    }
+  }
+}

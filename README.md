@@ -25,7 +25,7 @@ Scenarios (live LLM, not part of CI) read `LLM_API_BASE_URL`, `LLM_MODEL_IDENTIF
 
 ```bash
 make scenarios
-make scenario ID=calendar-set-meeting
+make scenario ID=system-calendar-create-event
 ```
 
 See [wiki/Scenario-engine.md](wiki/Scenario-engine.md).

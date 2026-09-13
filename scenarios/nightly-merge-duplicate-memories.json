@@ -1,0 +1,30 @@
+{
+  "id": "nightly-merge-duplicate-memories",
+  "title": "Merge duplicate memories on the nightly pass",
+  "tags": ["memory", "nightly"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "remember", "arguments": { "content": "Takes coffee black", "scope": "long_term", "source": "USER_EXPLICIT" } },
+      {
+        "name": "remember",
+        "arguments": { "content": "Prefers black coffee, no sugar", "scope": "long_term", "source": "USER_EXPLICIT" }
+      }
+    ]
+  },
+  "turns": [
+    { "run": "nightly" }
+  ],
+  "expect": {
+    "tools_not_called": ["send_user_message"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "count": 1,
+        "where": { "content": { "contains": "coffee" } }
+      }
+    ]
+  }
+}

@@ -16,10 +16,10 @@ Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). `ScenarioPo
 ```bash
 source scripts/env.sh
 make scenarios
-make scenario ID=calendar-set-meeting
+make scenario ID=system-calendar-create-event
 gradle :app:scenarioTest -Pscenario.filter=calendar
 gradle :app:scenarioTest -Pscenario.attempts=3 -Pscenario.parallel=1
-make scenario-record ID=calendar-set-meeting
+make scenario-record ID=system-calendar-create-event
 make scenarios-replay
 ```
 
@@ -55,8 +55,8 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
 
 ```json
 {
-  "id": "calendar-set-meeting",
-  "title": "Set a meeting in the calendar",
+  "id": "system-calendar-create-event",
+  "title": "A new meeting is written to the device calendar, not only the internal list",
   "tags": ["calendar"],
   "attempts": 2,
   "pending": false,

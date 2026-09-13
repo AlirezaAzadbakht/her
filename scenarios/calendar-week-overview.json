@@ -1,0 +1,25 @@
+{
+  "id": "calendar-week-overview",
+  "title": "Summarize the week in a short paragraph",
+  "tags": ["calendar", "system-calendar", "voice"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Dentist", "when": "tomorrow at 10am" },
+      { "title": "Team offsite", "when": "in 3 days at 9am" },
+      { "title": "Dinner with Reza", "when": "in 5 days at 8pm" }
+    ]
+  },
+  "turns": [
+    { "user": "How does my week look?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["offsite"],
+      "judge": "She mentions the dentist, the team offsite, and dinner with Reza in a short conversational paragraph, not a dashboard."
+    }
+  }
+}

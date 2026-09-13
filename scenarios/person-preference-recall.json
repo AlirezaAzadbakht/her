@@ -8,6 +8,7 @@
   },
   "turns": [
     { "user": "My cousin Reza is vegetarian and he hates loud restaurants." },
+    { "advance": "2 days" },
     { "user": "I'm taking Reza out to eat on Friday. Any thoughts?" }
   ],
   "expect": {
@@ -17,10 +18,7 @@
       {
         "table": "people",
         "count": 1,
-        "where": {
-          "name": { "contains": "Reza" },
-          "relationship": { "contains": "cousin" }
-        }
+        "where": { "name": { "contains": "Reza" }, "relationship": { "contains": "cousin" } }
       }
     ],
     "reply": {

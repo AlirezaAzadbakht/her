@@ -1,0 +1,26 @@
+{
+  "id": "commitment-overdue-nudge-later",
+  "title": "Nudge once a commitment slips past its date",
+  "tags": ["commitments", "proactive", "time"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      {
+        "name": "create_commitment",
+        "arguments": { "title": "Send Reza the signed contract", "dueAt": "tomorrow", "promisedTo": "Reza" }
+      }
+    ]
+  },
+  "turns": [
+    { "at": "in 2 days at 10am" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["Reza", "contract"] },
+    "reply": {
+      "judge": "One short nudge that the signed contract for Reza is now overdue."
+    }
+  }
+}

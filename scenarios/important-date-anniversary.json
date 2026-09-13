@@ -1,0 +1,27 @@
+{
+  "id": "important-date-anniversary",
+  "title": "Record an anniversary as an important date",
+  "tags": ["dates"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Our wedding anniversary is June 21." }
+  ],
+  "expect": {
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "important_dates",
+        "count": 1,
+        "where": { "title": { "contains": "anniversary" }, "dateIso": { "contains": "-06-21" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["June", "21"],
+      "judge": "She keeps June 21 as the wedding anniversary."
+    }
+  }
+}

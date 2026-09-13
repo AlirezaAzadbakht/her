@@ -1,0 +1,35 @@
+{
+  "id": "commitment-renegotiate-deadline",
+  "title": "Move a missed commitment to a new date instead of cloning it",
+  "tags": ["commitments", "deadlines", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_commitment", "arguments": { "title": "Send the report to Sara", "dueAt": "yesterday", "promisedTo": "Sara" } }
+    ]
+  },
+  "turns": [
+    { "at": "next wednesday at 10am" },
+    { "user": "Missed the report for Sara. I told her Saturday instead." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "commitments",
+        "count": 1,
+        "where": { "title": { "contains": "report" }, "status": { "equals": "OPEN" } }
+      },
+      {
+        "table": "commitments",
+        "count": 1,
+        "where": { "title": { "contains": "report" }, "status": { "equals": "OPEN" }, "dueAt": { "date_is": "next saturday" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["Saturday"],
+      "judge": "The single open promise to Sara now points at Saturday, with no duplicate report commitment left open."
+    }
+  }
+}

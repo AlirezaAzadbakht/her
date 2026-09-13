@@ -13,14 +13,12 @@
     { "user": "I still need to ask Mina about the missing payment. It's been hanging for two weeks." }
   ],
   "expect": {
+    "tools_called": ["create_open_loop"],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "open_loops",
-        "where": {
-          "description": { "contains_any": ["payment", "Mina"] },
-          "status": { "equals": "OPEN" }
-        }
+        "where": { "description": { "contains_any": ["payment", "Mina"] }, "status": { "equals": "OPEN" } }
       }
     ],
     "reply": {

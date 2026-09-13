@@ -1,0 +1,28 @@
+{
+  "id": "grocery-no-duplicate",
+  "title": "Do not add the same grocery twice",
+  "tags": ["groceries"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "add_grocery", "arguments": { "name": "milk" } }
+    ]
+  },
+  "turns": [
+    { "user": "We're out of milk again." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "contains": "milk" }, "status": { "equals": "ACTIVE" } }
+      }
+    ],
+    "reply": {
+      "judge": "Milk is on the list once."
+    }
+  }
+}

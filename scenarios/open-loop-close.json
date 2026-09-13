@@ -1,0 +1,29 @@
+{
+  "id": "open-loop-close",
+  "title": "Close an open loop when the answer arrives",
+  "tags": ["open-loops", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Mina", "relationship": "accountant" } },
+      { "name": "create_open_loop", "arguments": { "description": "Waiting on Mina about the missing payment" } }
+    ]
+  },
+  "turns": [
+    { "user": "Mina got back to me, the payment went through." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "open_loops",
+        "count": 0,
+        "where": { "description": { "contains": "payment" }, "status": { "equals": "OPEN" } }
+      }
+    ],
+    "reply": {
+      "judge": "She treats the payment question with Mina as resolved."
+    }
+  }
+}

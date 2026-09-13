@@ -1,0 +1,32 @@
+{
+  "id": "grocery-persian-capture",
+  "title": "Capture groceries from a Persian message",
+  "tags": ["groceries", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "user": "شیر و نان تمام شده." }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "contains_any": ["شیر", "milk"] }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "contains_any": ["نان", "bread"] }, "status": { "equals": "ACTIVE" } }
+      }
+    ],
+    "reply": {
+      "language": "persian",
+      "judge": "Milk and bread are on the list, and she replies in Persian."
+    }
+  }
+}

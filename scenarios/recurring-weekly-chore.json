@@ -1,0 +1,27 @@
+{
+  "id": "recurring-weekly-chore",
+  "title": "Record a weekly chore as a recurring responsibility",
+  "tags": ["tasks", "recurring"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Trash goes out every Tuesday night." }
+  ],
+  "expect": {
+    "tools_called": ["create_recurring_responsibility"],
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "recurring_responsibilities",
+        "count": 1,
+        "where": { "title": { "contains": "trash" }, "cadence": { "contains_any": ["week", "tues"] } }
+      }
+    ],
+    "reply": {
+      "judge": "She keeps taking the trash out as a weekly Tuesday-night responsibility."
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "multi-intent-one-message",
+  "title": "Split one message into a task, a grocery, and a birthday",
+  "tags": ["tasks", "groceries", "people", "classification"],
+  "attempts": 2,
+  "settings": { "chatToolCallLimit": 12 },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Tomorrow I need to call the bank, we're out of milk, and Mina's birthday is June 4." }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery", "update_person"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "where": { "title": { "contains": "bank" }, "dueAt": { "date_is": "tomorrow" } }
+      },
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "contains": "milk" }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "important_dates",
+        "count": 1,
+        "where": { "title": { "contains": "Mina" }, "dateIso": { "contains": "-06-04" } }
+      }
+    ],
+    "reply": {
+      "judge": "All three land: a bank call for tomorrow, milk on the list, and Mina's June 4 birthday. The reply is short, not a checklist dump."
+    }
+  }
+}

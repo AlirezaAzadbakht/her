@@ -14,7 +14,9 @@
     { "user": "Cancel the dentist tomorrow. Yes, delete it." }
   ],
   "expect": {
-    "tools_called": ["delete_calendar_event"],
+    "tools_called": [
+      { "name": "delete_calendar_event", "args": { "confirmed": { "equals": true } } }
+    ],
     "no_tool_errors": true,
     "rows": [
       {

@@ -36,7 +36,7 @@ make apk       # always rebuild debug APK
 make emulate   # boot AVD her, install if needed, launch
 make stop      # adb emu kill
 make scenarios # live-LLM scenario pool (needs repo-root .env)
-make scenario ID=calendar-set-meeting
+make scenario ID=system-calendar-create-event
 ```
 
 `emulate` behavior (easy to misread as a crash):

@@ -1,0 +1,25 @@
+{
+  "id": "grocery-list-query",
+  "title": "Read back the shopping list without changing it",
+  "tags": ["groceries"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "add_grocery", "arguments": { "name": "coffee" } },
+      { "name": "add_grocery", "arguments": { "name": "rice" } },
+      { "name": "add_grocery", "arguments": { "name": "eggs" } }
+    ]
+  },
+  "turns": [
+    { "user": "What's on the shopping list?" }
+  ],
+  "expect": {
+    "tools_not_called": ["add_grocery", "remove_grocery", "clear_purchased_groceries"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["coffee"],
+      "judge": "She names coffee, rice, and eggs."
+    }
+  }
+}

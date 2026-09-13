@@ -1,0 +1,32 @@
+{
+  "id": "grocery-quantity-then-remove",
+  "title": "Keep quantities and remove an item on request",
+  "tags": ["groceries", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Add 2 kg of rice and a dozen eggs." },
+    { "user": "Actually skip the eggs, Neda is bringing some." }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": { "name": { "contains": "rice" }, "status": { "equals": "ACTIVE" }, "quantity": { "contains": "2" } }
+      },
+      {
+        "table": "groceries",
+        "count": 0,
+        "where": { "name": { "contains": "egg" }, "status": { "equals": "ACTIVE" } }
+      }
+    ],
+    "reply": {
+      "judge": "Rice (2 kg) stays on the list and the eggs are off it."
+    }
+  }
+}

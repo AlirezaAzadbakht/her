@@ -245,7 +245,7 @@ open class ToolRegistry(
 
         register(
             "update_memory",
-            "Update an existing short-term or long-term memory. Use status=HISTORICAL instead of deleting old facts.",
+            "Update an existing short-term or long-term memory. Use status=HISTORICAL instead of deleting old facts. scope=long_term on a short-term memory promotes it to long-term.",
             objSchema(
                 "id" to str("Memory id"),
                 "scope" to str("short_term or long_term"),
@@ -261,6 +261,33 @@ open class ToolRegistry(
             val short = repo.getShort(id)
             val long = repo.getLong(id)
             when {
+                short != null && args.optString("scope") == "long_term" -> {
+                    val longId = newId()
+                    repo.upsertLong(
+                        LongTermMemory(
+                            id = longId,
+                            content = args.optStringOrNull("content") ?: short.content,
+                            category = short.type,
+                            confidence = clamp01(args.optDoubleOr("confidence", short.confidence)),
+                            importance = clamp01(args.optDoubleOr("importance", short.importance)),
+                            createdAt = short.createdAt,
+                            updatedAt = now,
+                            lastConfirmedAt = if (short.source == MemorySource.USER_EXPLICIT) now else null,
+                            source = short.source,
+                            sourceMessageId = short.sourceMessageId,
+                            derivedFromJson = null,
+                            validFrom = now,
+                            validUntil = null,
+                            status = MemoryStatus.ACTIVE,
+                            metadataJson = null,
+                            deviceId = repo.deviceId,
+                            version = 1,
+                            deletedAt = null,
+                        ),
+                    )
+                    repo.deleteShort(short.id)
+                    return@register jsonObjectOf("ok" to true, "id" to longId, "promotedFrom" to short.id)
+                }
                 short != null -> {
                     repo.upsertShort(
                         short.copy(
@@ -418,7 +445,7 @@ open class ToolRegistry(
                 name = args.optStringOrNull("name") ?: existing?.name ?: args.requiredString("name"),
                 description = args.optStringOrNull("description") ?: existing?.description,
                 summary = args.optStringOrNull("summary") ?: existing?.summary,
-                status = parseEnum<ProjectStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED + mapOf("PAUSED" to "PAUSED")) ?: existing?.status ?: ProjectStatus.ACTIVE,
+                status = parseEnum<ProjectStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED + mapOf("PAUSED" to "PAUSED", "PAUSE" to "PAUSED", "ON_HOLD" to "PAUSED", "HOLD" to "PAUSED")) ?: existing?.status ?: ProjectStatus.ACTIVE,
                 importance = args.optDoubleOr("importance", existing?.importance ?: 0.5),
                 updatedAt = now,
                 version = (existing?.version ?: 0) + 1,

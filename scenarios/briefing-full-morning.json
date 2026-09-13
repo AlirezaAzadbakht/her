@@ -16,7 +16,9 @@
   ],
   "expect": {
     "no_tool_errors": true,
+    "notifications": { "count": 1 },
     "reply": {
+      "must_mention_any": ["domain", "invoice", "Mina"],
       "judge": "One short morning note that covers the 11am design review, the overdue domain renewal, and the invoice promised to Mina. Not a dashboard, not a reply to a user message."
     }
   }

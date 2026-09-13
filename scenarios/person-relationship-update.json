@@ -1,0 +1,34 @@
+{
+  "id": "person-relationship-update",
+  "title": "Update how they know someone without duplicating the person",
+  "tags": ["people", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }
+    ]
+  },
+  "turns": [
+    { "user": "Sara left the company; she's more of a friend now." }
+  ],
+  "expect": {
+    "tools_called": ["update_person"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "people",
+        "count": 1,
+        "where": { "name": { "contains": "Sara" } }
+      },
+      {
+        "table": "people",
+        "count": 1,
+        "where": { "name": { "contains": "Sara" }, "relationship": { "contains": "friend" } }
+      }
+    ],
+    "reply": {
+      "judge": "She updates Sara to a friend and keeps one Sara, not two."
+    }
+  }
+}

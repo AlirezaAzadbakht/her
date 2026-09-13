@@ -1,0 +1,26 @@
+{
+  "id": "person-new-contact-context",
+  "title": "Remember a new person and what they do",
+  "tags": ["people"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Met Kaveh at the meetup, he runs a small design studio." }
+  ],
+  "expect": {
+    "tools_called": ["update_person"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "people",
+        "count": 1,
+        "where": { "name": { "contains": "Kaveh" } }
+      }
+    ],
+    "reply": {
+      "judge": "She keeps Kaveh as a new contact who runs a design studio."
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "commitment-not-own-promise",
+  "title": "Someone else's maybe is not their commitment",
+  "tags": ["commitments", "classification"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Sara said she might send me the deck at some point." }
+  ],
+  "expect": {
+    "tools_not_called": ["create_commitment"],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She does not record a promise on his side. At most she keeps it as something he is waiting on from Sara."
+    }
+  }
+}

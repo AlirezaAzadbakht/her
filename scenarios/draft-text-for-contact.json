@@ -1,0 +1,23 @@
+{
+  "id": "draft-text-for-contact",
+  "title": "Draft a message for them to send themselves",
+  "tags": ["messages", "voice"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } }
+    ]
+  },
+  "turns": [
+    { "user": "Write me a quick text to Reza saying I'll be 10 minutes late." }
+  ],
+  "expect": {
+    "tools_not_called": ["send_user_message", "create_task"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["10"],
+      "judge": "She gives a short, ready-to-send text to Reza about being 10 minutes late, without a long preamble."
+    }
+  }
+}

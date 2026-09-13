@@ -1,0 +1,29 @@
+{
+  "id": "memory-forget-everything-confirms",
+  "title": "Ask before forgetting everything",
+  "tags": ["memory", "privacy", "confirmation"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "remember", "arguments": { "content": "Takes coffee black", "scope": "long_term", "source": "USER_EXPLICIT" } },
+      { "name": "remember", "arguments": { "content": "Works as a backend engineer", "scope": "long_term", "source": "USER_EXPLICIT" } }
+    ]
+  },
+  "turns": [
+    { "user": "Forget everything you know about me." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "count": 2,
+        "where": { "content": { "not_empty": true } }
+      }
+    ],
+    "reply": {
+      "judge": "She asks him to confirm before wiping everything, and nothing has been erased yet."
+    }
+  }
+}

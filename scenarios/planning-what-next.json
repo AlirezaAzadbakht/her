@@ -16,6 +16,7 @@
     { "user": "I have about three hours this morning. What should I work on?" }
   ],
   "expect": {
+    "tools_not_called": ["update_task"],
     "no_tool_errors": true,
     "reply": {
       "must_mention_any": ["quarterly", "report"],

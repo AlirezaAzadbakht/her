@@ -1,0 +1,27 @@
+{
+  "id": "routine-gym-schedule",
+  "title": "Record a stated weekly routine",
+  "tags": ["routines"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I go to the gym Monday, Wednesday and Friday at 7am." }
+  ],
+  "expect": {
+    "tools_called": ["create_routine"],
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "routines",
+        "count": 1,
+        "where": { "title": { "contains": "gym" }, "schedule": { "contains": "mon" } }
+      }
+    ],
+    "reply": {
+      "judge": "She keeps the Monday/Wednesday/Friday 7am gym routine."
+    }
+  }
+}

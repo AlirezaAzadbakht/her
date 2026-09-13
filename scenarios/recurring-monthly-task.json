@@ -11,15 +11,13 @@
   ],
   "expect": {
     "tools_called": ["create_recurring_responsibility"],
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "recurring_responsibilities",
         "count": 1,
-        "where": {
-          "title": { "contains_any": ["budget", "review"] },
-          "cadence": { "contains_any": ["month", "monthly"] }
-        }
+        "where": { "title": { "contains_any": ["budget", "review"] }, "cadence": { "contains_any": ["month", "monthly"] } }
       }
     ],
     "reply": {

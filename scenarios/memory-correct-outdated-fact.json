@@ -1,0 +1,32 @@
+{
+  "id": "memory-correct-outdated-fact",
+  "title": "Replace an outdated fact instead of keeping both",
+  "tags": ["memory", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "remember", "arguments": { "content": "Lives in Tehran", "scope": "long_term", "source": "USER_EXPLICIT" } }
+    ]
+  },
+  "turns": [
+    { "user": "I moved to Isfahan last month." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "where": { "content": { "contains": "isfahan" } }
+      },
+      {
+        "table": "memories_long",
+        "count": 0,
+        "where": { "content": { "matches": "^(?!.*isfahan).*tehran" } }
+      }
+    ],
+    "reply": {
+      "judge": "She updates where he lives to Isfahan and does not keep Tehran as a current fact."
+    }
+  }
+}

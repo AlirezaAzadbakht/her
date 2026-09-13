@@ -1,0 +1,29 @@
+{
+  "id": "project-pause",
+  "title": "Pause a project on request",
+  "tags": ["projects", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_project", "arguments": { "name": "Pantry", "description": "App that tracks food expiry dates" } }
+    ]
+  },
+  "turns": [
+    { "user": "Putting Pantry on hold until after the move." }
+  ],
+  "expect": {
+    "tools_called": ["update_project"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "projects",
+        "count": 1,
+        "where": { "name": { "contains": "Pantry" }, "status": { "equals": "PAUSED" } }
+      }
+    ],
+    "reply": {
+      "judge": "She marks Pantry as paused, not dropped."
+    }
+  }
+}

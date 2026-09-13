@@ -1,0 +1,22 @@
+{
+  "id": "briefing-persian",
+  "title": "Morning briefing in Persian for a Persian speaker",
+  "tags": ["briefing", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "تمدید بیمه ماشین", "dueAt": "today" } }
+    ]
+  },
+  "turns": [
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "language": "persian",
+      "judge": "A short Persian morning note that mentions renewing the car insurance today."
+    }
+  }
+}

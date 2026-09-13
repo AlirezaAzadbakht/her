@@ -11,6 +11,7 @@
   ],
   "expect": {
     "tools_called": ["create_task"],
+    "tools_not_called": ["create_commitment"],
     "no_tool_errors": true,
     "rows": [
       {

@@ -24,6 +24,7 @@
     { "user": "What do I need for my meeting with Sara?" }
   ],
   "expect": {
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
     "reply": {
       "must_mention_any": ["pricing", "numbers"],

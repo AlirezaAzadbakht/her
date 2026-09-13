@@ -1,0 +1,29 @@
+{
+  "id": "task-correction-to-fact",
+  "title": "Turn a misfiled task into a remembered fact",
+  "tags": ["tasks", "memory", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Living room lamp needs 15 watts" } }
+    ]
+  },
+  "turns": [
+    { "user": "That lamp thing isn't a to-do, it's just info about the house." }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 0,
+        "where": { "title": { "contains": "lamp" }, "status": { "equals": "OPEN" } }
+      }
+    ],
+    "reply": {
+      "judge": "She drops the lamp task and keeps the 15-watt detail as information about the house."
+    }
+  }
+}

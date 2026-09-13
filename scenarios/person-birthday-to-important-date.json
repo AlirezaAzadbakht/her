@@ -11,6 +11,7 @@
   ],
   "expect": {
     "tools_called": ["update_person"],
+    "tools_not_called": ["create_important_date"],
     "no_tool_errors": true,
     "rows": [
       {
@@ -18,7 +19,8 @@
         "count": 1,
         "where": {
           "name": { "contains": "Neda" },
-          "birthday": { "contains_any": ["March", "Mar", "03-12", "3/12", "12"] }
+          "birthday": { "contains_any": ["March", "Mar", "03-12", "3/12", "12"] },
+          "relationship": { "contains": "sister" }
         }
       },
       {

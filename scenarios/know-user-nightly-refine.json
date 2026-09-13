@@ -34,6 +34,11 @@
       {
         "table": "user_understandings",
         "where": { "content": { "contains_any": ["job", "search", "hunt", "draining"] }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "user_understandings",
+        "count": 0,
+        "where": { "content": { "contains_any": ["long detailed essays", "lots of encouragement"] }, "status": { "equals": "ACTIVE" } }
       }
     ]
   }

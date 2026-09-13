@@ -1,0 +1,35 @@
+{
+  "id": "calendar-google-read-only",
+  "title": "Explain that Google Calendar events must be moved in Google",
+  "tags": ["calendar", "google-calendar"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "google_calendar": [
+      { "title": "Design review", "when": "tomorrow at 4pm" }
+    ]
+  },
+  "turns": [
+    { "user": "Push tomorrow's design review to 5pm." }
+  ],
+  "expect": {
+    "tools_not_called": ["create_calendar_event", "delete_calendar_event"],
+    "rows": [
+      {
+        "table": "google_calendar",
+        "count": 1,
+        "where": { "title": { "contains": "design" }, "startAt": { "time_is": "16:00" } }
+      },
+      {
+        "table": "system_calendar",
+        "count": 0,
+        "where": { "title": { "contains": "design" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["Google"],
+      "judge": "She says the design review lives in Google Calendar and needs to be moved there. She does not fake the move or copy it to the phone calendar."
+    }
+  }
+}

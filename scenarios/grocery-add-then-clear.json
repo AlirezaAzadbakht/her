@@ -23,6 +23,11 @@
         "table": "groceries",
         "count": 0,
         "where": { "name": { "equals_ignore_case": "coffee" }, "status": { "equals": "ACTIVE" } }
+      },
+      {
+        "table": "groceries",
+        "count": 0,
+        "where": { "name": { "equals_ignore_case": "rice" }, "status": { "equals": "ACTIVE" } }
       }
     ],
     "reply": {

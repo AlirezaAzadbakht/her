@@ -1,0 +1,29 @@
+{
+  "id": "task-cancel-drops",
+  "title": "Drop a task when its reason disappears",
+  "tags": ["tasks", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Book flights for the conference", "dueAt": "in three days" } }
+    ]
+  },
+  "turns": [
+    { "user": "The conference got cancelled, so no flights." }
+  ],
+  "expect": {
+    "tools_not_called": ["forget_memory"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 0,
+        "where": { "title": { "contains": "flight" }, "status": { "equals": "OPEN" } }
+      }
+    ],
+    "reply": {
+      "judge": "The flight booking task is no longer open. She does not keep nagging about flights."
+    }
+  }
+}

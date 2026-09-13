@@ -14,7 +14,15 @@
     { "user": "I need a free hour tomorrow for deep work. When am I open?" }
   ],
   "expect": {
+    "tools_not_called": ["create_calendar_event"],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "calendar_events",
+        "count": 2,
+        "where": { "title": { "not_empty": true } }
+      }
+    ],
     "reply": {
       "judge": "She proposes at least one concrete free window tomorrow that does not overlap the 9am standup or the 2pm client call."
     }

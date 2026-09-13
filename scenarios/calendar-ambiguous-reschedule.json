@@ -1,0 +1,31 @@
+{
+  "id": "calendar-ambiguous-reschedule",
+  "title": "Ask which event when a reschedule is ambiguous",
+  "tags": ["calendar", "system-calendar", "ambiguity"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Meeting with Sara", "when": "tomorrow at 10am" },
+      { "title": "Sync with Sara", "when": "in 3 days at 3pm" }
+    ]
+  },
+  "turns": [
+    { "user": "Move my meeting with Sara to 4pm." }
+  ],
+  "expect": {
+    "tools_not_called": ["update_calendar_event", "delete_calendar_event"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 0,
+        "where": { "startAt": { "time_is": "16:00" } }
+      }
+    ],
+    "reply": {
+      "judge": "She sees two Sara events and asks which one to move instead of guessing."
+    }
+  }
+}

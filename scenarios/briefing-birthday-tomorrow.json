@@ -1,0 +1,23 @@
+{
+  "id": "briefing-birthday-tomorrow",
+  "title": "Morning briefing flags a birthday the next day",
+  "tags": ["briefing", "people", "dates", "time"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Neda", "relationship": "sister", "birthday": "2027-03-12" } }
+    ]
+  },
+  "turns": [
+    { "at": "2027-03-11 07:00" },
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["Neda"],
+      "judge": "The morning note mentions that Neda's birthday is tomorrow."
+    }
+  }
+}

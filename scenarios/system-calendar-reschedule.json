@@ -14,20 +14,24 @@
     { "user": "Move the roadmap review to 3pm tomorrow instead." }
   ],
   "expect": {
+    "tools_called": ["update_calendar_event"],
+    "tools_not_called": ["delete_calendar_event"],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "system_calendar",
         "count": 1,
-        "where": {
-          "title": { "contains": "roadmap" },
-          "startAt": { "date_is": "tomorrow", "time_is": "15:00" }
-        }
+        "where": { "title": { "contains": "roadmap" }, "startAt": { "date_is": "tomorrow", "time_is": "15:00" } }
       },
       {
         "table": "system_calendar",
         "count": 0,
         "where": { "startAt": { "date_is": "tomorrow", "time_is": "10:00" } }
+      },
+      {
+        "table": "calendar_events",
+        "count": 1,
+        "where": { "title": { "contains": "roadmap" }, "startAt": { "date_is": "tomorrow", "time_is": "15:00" } }
       }
     ],
     "reply": {

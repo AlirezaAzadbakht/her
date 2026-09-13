@@ -1,0 +1,25 @@
+{
+  "id": "memory-uncertain-low-confidence",
+  "title": "Keep a rumor uncertain instead of stating it as fact",
+  "tags": ["memory", "confidence"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I think Sara might be moving to Berlin, not sure yet." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long",
+        "count": 0,
+        "where": { "content": { "contains": "berlin" }, "confidence": { "gte": 0.8 } }
+      }
+    ],
+    "reply": {
+      "judge": "She treats Sara's move as a maybe, not a settled fact."
+    }
+  }
+}

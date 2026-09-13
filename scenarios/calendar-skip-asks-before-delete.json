@@ -1,0 +1,29 @@
+{
+  "id": "calendar-skip-asks-before-delete",
+  "title": "Ask before deleting when they only hint at skipping",
+  "tags": ["calendar", "system-calendar", "confirmation"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Dentist", "when": "tomorrow at 10am" }
+    ]
+  },
+  "turns": [
+    { "user": "I think I'll skip the dentist tomorrow." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 1,
+        "where": { "title": { "contains": "dentist" } }
+      }
+    ],
+    "reply": {
+      "judge": "She does not delete the dentist on a hint. She leaves it in place and checks whether he wants it removed (offering to reschedule is fine but not required)."
+    }
+  }
+}

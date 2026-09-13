@@ -1,0 +1,20 @@
+{
+  "id": "fact-not-a-task",
+  "title": "Store a household spec as a fact, not a task",
+  "tags": ["memory", "classification"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "The boiler filter size is 16x25." }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "tools_not_called": ["create_task", "add_grocery"],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She keeps the 16x25 boiler filter size as information without turning it into a to-do or shopping item."
+    }
+  }
+}

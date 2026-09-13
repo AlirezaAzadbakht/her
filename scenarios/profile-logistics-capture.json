@@ -1,0 +1,30 @@
+{
+  "id": "profile-logistics-capture",
+  "title": "Save stated wake, sleep, and job details to the profile",
+  "tags": ["profile"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I'm usually up at 6:30 and asleep by 11. I just started as a product manager at a fintech." }
+  ],
+  "expect": {
+    "tools_called": ["update_user_profile"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "profile",
+        "count": 1,
+        "where": {
+          "typicalWakeTime": { "contains": "6:30" },
+          "typicalSleepTime": { "contains_any": ["11", "23"] },
+          "occupationOrStudyContext": { "contains": "product" }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "A short, natural acknowledgement, not a recap of every field."
+    }
+  }
+}

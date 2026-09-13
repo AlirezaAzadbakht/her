@@ -1,0 +1,22 @@
+{
+  "id": "hourly-future-items-stay-quiet",
+  "title": "Stay quiet about work that is not due yet",
+  "tags": ["proactive", "notifications"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Refactor the settings screen", "dueAt": "next month" } },
+      { "name": "create_commitment", "arguments": { "title": "Send Sara the Q3 notes", "dueAt": "in 8 days", "promisedTo": "Sara" } }
+    ]
+  },
+  "turns": [
+    { "at": "tomorrow at 11am" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "tools_not_called": ["send_user_message"],
+    "no_tool_errors": true,
+    "notifications": { "count": 0 }
+  }
+}

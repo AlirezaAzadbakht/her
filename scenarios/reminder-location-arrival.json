@@ -1,0 +1,19 @@
+{
+  "id": "reminder-location-arrival",
+  "title": "Reminder that fires on arriving somewhere",
+  "tags": ["reminders", "location"],
+  "attempts": 1,
+  "pending": true,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "When I get to the office, remind me to print the contract." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "The reminder is tied to arriving at the office, not to an invented time."
+    }
+  }
+}

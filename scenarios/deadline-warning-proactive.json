@@ -10,10 +10,13 @@
     ]
   },
   "turns": [
+    { "at": "tomorrow at 10am" },
     { "run": "hourly" }
   ],
   "expect": {
+    "tools_not_called": ["update_task"],
     "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["contract", "landlord"] },
     "reply": {
       "must_mention_any": ["contract", "landlord"],
       "judge": "The autonomous pass speaks up about the overdue signed contract instead of staying silent."

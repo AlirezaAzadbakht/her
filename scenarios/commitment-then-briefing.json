@@ -8,6 +8,7 @@
   },
   "turns": [
     { "user": "I promised to send the report to Sara tomorrow." },
+    { "at": "tomorrow at 7am" },
     { "run": "briefing" }
   ],
   "expect": {
@@ -17,10 +18,7 @@
       {
         "table": "commitments",
         "count": 1,
-        "where": {
-          "title": { "contains_any": ["report", "Sara"] },
-          "status": { "equals": "OPEN" }
-        }
+        "where": { "title": { "contains_any": ["report", "Sara"] }, "status": { "equals": "OPEN" }, "dueAt": { "date_is": "today" } }
       }
     ],
     "reply": {

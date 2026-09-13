@@ -1,0 +1,29 @@
+{
+  "id": "task-mark-done",
+  "title": "Mark a task done when they say they finished it",
+  "tags": ["tasks", "lifecycle"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "File the tax form", "dueAt": "next thursday" } }
+    ]
+  },
+  "turns": [
+    { "user": "Filed the tax form this morning." }
+  ],
+  "expect": {
+    "tools_called": ["update_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 1,
+        "where": { "title": { "contains": "tax" }, "status": { "equals": "DONE" } }
+      }
+    ],
+    "reply": {
+      "judge": "She acknowledges the tax form is done and the task is closed, without creating a new task."
+    }
+  }
+}

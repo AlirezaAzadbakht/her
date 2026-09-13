@@ -3,7 +3,7 @@
   "title": "A new meeting is written to the device calendar, not only the internal list",
   "tags": ["calendar", "system-calendar"],
   "attempts": 2,
-  "settings": { "calendarEnabled": true },
+  "settings": { "calendarEnabled": true, "chatToolCallLimit": 12 },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [
@@ -15,6 +15,7 @@
   ],
   "expect": {
     "tools_called": ["create_calendar_event"],
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
     "rows": [
       {

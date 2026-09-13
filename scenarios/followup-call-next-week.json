@@ -10,7 +10,14 @@
     { "user": "I told Reza I'd call him next week about the contract." }
   ],
   "expect": {
+    "tools_called": ["create_commitment"],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "commitments",
+        "where": { "title": { "contains_any": ["Reza", "call"] }, "status": { "equals": "OPEN" }, "dueAt": { "within_days": 14 } }
+      }
+    ],
     "reply": {
       "must_mention_any": ["Reza", "call"],
       "judge": "The promise to call Reza next week about the contract is stored as a commitment or task with a time next week, not left only in chat."

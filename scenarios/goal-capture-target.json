@@ -1,0 +1,26 @@
+{
+  "id": "goal-capture-target",
+  "title": "Capture a goal with its target date",
+  "tags": ["goals"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I want to run a half marathon by next March." }
+  ],
+  "expect": {
+    "tools_called": ["create_goal"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "goals",
+        "count": 1,
+        "where": { "title": { "contains": "marathon" }, "status": { "equals": "ACTIVE" }, "targetDate": { "not_empty": true } }
+      }
+    ],
+    "reply": {
+      "judge": "She records the half marathon as a goal with a March target."
+    }
+  }
+}
