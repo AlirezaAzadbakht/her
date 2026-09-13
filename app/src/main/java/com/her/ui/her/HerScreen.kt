@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnState
 import com.her.ui.HerViewModel
 import com.her.ui.markdown.ConversationMarkdown
@@ -58,6 +59,7 @@ fun HerScreen(vm: HerViewModel) {
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
+    val appSettings by vm.settings.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
     val resources = LocalContext.current.resources
@@ -170,6 +172,13 @@ fun HerScreen(vm: HerViewModel) {
                     }
                 }
             }
+        }
+        val message = latest
+        val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
+        if (message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
+            turn is TurnState.Idle && nextHeld.isBlank()
+        ) {
+            ReceiptLine(receipts, onUndo = { vm.undoReceipts(message.id, it) })
         }
         val sharedText = share
         if (!online && pendingCount > 0) {

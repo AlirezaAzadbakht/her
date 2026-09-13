@@ -5,7 +5,6 @@ import com.her.data.secure.LlmSettings
 import com.her.domain.LlmMessage
 import com.her.domain.LlmResponse
 import com.her.domain.LlmToolCall
-import com.her.domain.LlmUsage
 import com.her.domain.ToolSpec
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -191,11 +190,7 @@ open class LlmClient(
                 content = if (message.isNull("content")) null else message.optString("content").takeIf { it.isNotBlank() },
                 toolCalls = parsedCalls,
             ),
-            usage = LlmUsage(
-                inputTokens = usage?.optInt("prompt_tokens") ?: 0,
-                outputTokens = usage?.optInt("completion_tokens") ?: 0,
-                latencyMs = latency,
-            ),
+            usage = parseUsage(usage, latency),
             rawJson = raw,
         )
     }

@@ -406,6 +406,8 @@ data class LlmUsage(
     val inputTokens: Int,
     val outputTokens: Int,
     val latencyMs: Long,
+    /** Prompt tokens the provider served from its prefix cache; 0 when it does not report them. */
+    val cachedInputTokens: Int = 0,
 )
 
 data class LlmMessage(

@@ -1,5 +1,7 @@
 package com.her.data.repository
 
+import com.her.core.ftsQuery
+import com.her.core.lexicalOverlap
 import com.her.core.newId
 import com.her.data.db.ActivityLogEntity
 import com.her.data.db.AgentQueueEntity
@@ -136,8 +138,14 @@ class HerRepository(
 
     suspend fun getMessage(id: String): ChatMessage? = chatDao.get(id)?.toDomain()
 
-    suspend fun searchChat(query: String, limit: Int): List<ChatMessage> =
-        runCatching { chatDao.search(sanitizeFts(query), limit) }.getOrDefault(emptyList()).map { it.toDomain() }
+    suspend fun searchChat(query: String, limit: Int): List<ChatMessage> {
+        val match = ftsQuery(query) ?: return emptyList()
+        val hits = runCatching { chatDao.search(match, limit * 4) }.getOrDefault(emptyList()).map { it.toDomain() }
+        // Any word may match, so messages sharing more of the query come first; recency breaks ties.
+        return hits
+            .sortedWith(compareByDescending<ChatMessage> { lexicalOverlap(query, it.content) }.thenByDescending { it.createdAt })
+            .take(limit)
+    }
 
     suspend fun saveMessage(message: ChatMessage, enqueueSync: Boolean = true) {
         chatDao.upsert(message.toEntity())
@@ -159,11 +167,15 @@ class HerRepository(
     suspend fun activeShort(): List<ShortTermMemory> = memoryDao.activeShort(nowMillis()).map { it.toDomain() }
     suspend fun activeLong(): List<LongTermMemory> = memoryDao.longByStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
 
-    suspend fun searchShort(query: String, limit: Int) =
-        runCatching { memoryDao.searchShort(sanitizeFts(query), limit) }.getOrDefault(emptyList()).map { it.toDomain() }
+    suspend fun searchShort(query: String, limit: Int): List<ShortTermMemory> {
+        val match = ftsQuery(query) ?: return emptyList()
+        return runCatching { memoryDao.searchShort(match, nowMillis(), limit) }.getOrDefault(emptyList()).map { it.toDomain() }
+    }
 
-    suspend fun searchLong(query: String, limit: Int) =
-        runCatching { memoryDao.searchLong(sanitizeFts(query), limit) }.getOrDefault(emptyList()).map { it.toDomain() }
+    suspend fun searchLong(query: String, limit: Int): List<LongTermMemory> {
+        val match = ftsQuery(query) ?: return emptyList()
+        return runCatching { memoryDao.searchLong(match, limit) }.getOrDefault(emptyList()).map { it.toDomain() }
+    }
 
     suspend fun deleteShort(id: String) {
         memoryDao.deleteShort(id, nowMillis())
@@ -418,13 +430,6 @@ class HerRepository(
                 uploaded = false,
             ),
         )
-    }
-
-    private fun sanitizeFts(query: String): String {
-        val tokens = query.split(Regex("\\s+")).mapNotNull { token ->
-            token.replace(Regex("[^A-Za-z0-9]"), "").takeIf { it.isNotBlank() }
-        }
-        return if (tokens.isEmpty()) "\"$query\"" else tokens.joinToString(" ") { "$it*" }
     }
 }
 

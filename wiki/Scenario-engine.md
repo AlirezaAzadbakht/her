@@ -1,6 +1,6 @@
 # Scenario engine
 
-A capability suite, separate from unit tests, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator` against a live OpenAI-compatible LLM read from `.env`. Live runs are slow and non-deterministic, so CI only **replays** recorded cassettes (see [Record and replay](#record-and-replay)).
+A capability suite, separate from unit tests, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator` against a live OpenAI-compatible LLM read from `.env`. Live runs are slow, cost tokens, and are non-deterministic, so scenarios are **not part of CI**. Run them locally; recorded cassettes can be replayed offline (see [Record and replay](#record-and-replay)).
 
 Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). `ScenarioPoolValidationTest` is the only scenario-related test in that suite: it parses every file in the pool and reports unknown tool names without calling a model.
 

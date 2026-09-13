@@ -28,6 +28,7 @@ Optional later, in Settings: Calendar access (requests permission if needed), Go
 - Replies sit in the middle of the stage (centered lines, vertically centered while they fit). Incoming tokens are revealed one grapheme at a time at the caret so they land in place instead of arriving as a chunk; once the reply is taller than the stage, it scrolls and follows the bottom unless the user scrolls up.
 - While she thinks (no text yet), three quiet dots breathe in the middle of the stage.
 - Partial text stays on screen during tool rounds. Streamed text is held until Room’s latest assistant row catches up, so the reply does not flash back to the previous message.
+- Under her reply, a quiet line (`ReceiptLine`) lists what she saved that turn, such as `added rice to groceries · undo`. Undo reverses records she just created and marks the receipt `undone`. The line hides while she is thinking or streaming. Settings → Advanced → Experimental → **Show what she saved** turns it off.
 - The composer always enqueues. Send is never blocked by an in-flight turn.
 - Offline: messages are stored as `PENDING`. A status line reads `offline · N waiting`. When the network returns, `processOutbox()` sends the whole batch as **one** turn.
 - History still lives in Room and still feeds `ContextBuilder`. It is simply not displayed.
@@ -52,8 +53,8 @@ Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 
 ## Settings
 
-LLM endpoint and key, quiet hours (including **Hourly during quiet hours**, default off, and **Allow background work** when the OS is still battery-optimizing the app), developer mode, web search (uses that same Base URL / key / model; optional custom search endpoint), Google client id, calendar / Drive toggles, and manual “run hourly / nightly / sync now” when developer mode is on.
+LLM endpoint and key, quiet hours (including **Hourly during quiet hours**, default off, and **Allow background work** when the OS is still battery-optimizing the app), developer mode, web search (uses that same Base URL / key / model; optional custom search endpoint), Google client id, calendar / Drive toggles (Drive is labeled experimental: it syncs groceries and the conversation only), and manual “run hourly / nightly / sync now” when developer mode is on.
 
-Advanced → Experimental: **Memory navigator (SQL)** (default on).
+Advanced → Experimental: **Memory navigator (SQL)** (default on), **Show what she saved** (default on).
 
 Each device configures API and Google credentials independently.

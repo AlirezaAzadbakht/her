@@ -195,6 +195,7 @@ class AgentOrchestrator(
             var preamble = ""
             var silent = false
             var proactive: String? = null
+            val receipts = mutableListOf<Receipt>()
             while (budget.canCall()) {
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
                 val roundTools = if (budget.isFinalCall()) emptyList() else tools.specs()
@@ -213,6 +214,10 @@ class AgentOrchestrator(
                     }
                 }
                 repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
+                repo.logDebug(
+                    "usage",
+                    "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens}",
+                )
                 repo.logDebug("llm", redactSecrets(response.rawJson.take(8000)))
                 val msg = response.message
                 val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
@@ -244,6 +249,7 @@ class AgentOrchestrator(
                 messages += msg
                 calls.forEach { call ->
                     val result = tools.execute(call.name, call.arguments)
+                    if (result.ok) Receipts.describe(call.name, call.arguments, result.payloadJson)?.let { receipts += it }
                     if (call.name == "send_user_message" && result.ok) {
                         val content = runCatching { org.json.JSONObject(call.arguments).optString("content").trim() }.getOrDefault("")
                         if (content.isNotBlank() && !Identity.isSilence(content)) proactive = content
@@ -262,7 +268,7 @@ class AgentOrchestrator(
             }
             val cleaned = lastText?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
             if (persistAssistant && cleaned != null) {
-                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT))
+                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }
             // A message delivered with send_user_message still needs to reach the phone.
             val notifyText = cleaned ?: proactive
@@ -288,12 +294,9 @@ class AgentOrchestrator(
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
             if (persistAssistant) {
+                val language = runCatching { repo.getProfile().preferredLanguage }.getOrNull()
                 repo.saveMessage(
-                    repo.newChatMessage(
-                        MessageRole.ASSISTANT,
-                        "I couldn't reach the model just now. Your message is saved — try again in a moment.",
-                        MessageStatus.FAILED,
-                    ),
+                    repo.newChatMessage(MessageRole.ASSISTANT, failureReply(language), MessageStatus.FAILED),
                 )
             }
             TurnResult(null, true, error, budget.used, runId)
@@ -359,6 +362,16 @@ class AgentOrchestrator(
         internal fun isRetryable(e: IOException): Boolean = when (e) {
             is LlmException -> e.status == 429 || (e.status != null && e.status >= 500)
             else -> true
+        }
+
+        internal fun failureReply(preferredLanguage: String?): String {
+            val language = preferredLanguage?.trim()?.lowercase().orEmpty()
+            val persian = language == "fa" || "persian" in language || "farsi" in language || "فارسی" in language
+            return if (persian) {
+                "الان نتوانستم به مدل وصل شوم. پیامت ذخیره شده — کمی بعد دوباره امتحان کن."
+            } else {
+                "I couldn't reach the model just now. Your message is saved — try again in a moment."
+            }
         }
 
         internal fun forModel(payload: String): String =

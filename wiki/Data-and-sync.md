@@ -44,7 +44,7 @@ Important record kinds:
 
 Download + `MergeEngine`: last-write-wins on `updatedAt`, except **`PURCHASED` grocery status wins** over a concurrent add.
 
-Today the merge path persists remote ops for **groceries** and **chat_messages**. Other types are logged more than fully applied — treat multi-device sync as incomplete outside those.
+Today the merge path persists remote ops for **groceries** and **chat_messages**. Other types are logged more than fully applied — treat multi-device sync as incomplete outside those. Settings labels the toggle **Drive sync (experimental)** and says so.
 
 Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
 

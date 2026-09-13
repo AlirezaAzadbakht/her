@@ -183,11 +183,11 @@ open class ToolRegistry(
             "Store a fact, preference, or household spec. Use short_term for temporary/uncertain context; long_term for durable facts. Do not use this for todos — that is create_task or add_grocery.",
             objSchema(
                 "content" to str("Memory text"),
-                "scope" to str("short_term or long_term"),
+                "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
                 "type" to str("Optional type/category"),
                 "confidence" to num("0-1"),
                 "importance" to num("0-1"),
-                "source" to str("USER_EXPLICIT or AGENT_INFERENCE"),
+                "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you inferred it", "USER_EXPLICIT", "AGENT_INFERENCE"),
                 "sourceMessageId" to str("Origin message id"),
                 "expiresAt" to num("Optional expiry epoch millis"),
                 required = listOf("content"),
@@ -248,11 +248,11 @@ open class ToolRegistry(
             "Update an existing short-term or long-term memory. Use status=HISTORICAL instead of deleting old facts. scope=long_term on a short-term memory promotes it to long-term.",
             objSchema(
                 "id" to str("Memory id"),
-                "scope" to str("short_term or long_term"),
+                "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
                 "content" to str("Replacement text"),
                 "confidence" to num(),
                 "importance" to num(),
-                "status" to str("ACTIVE, HISTORICAL, ARCHIVED"),
+                "status" to enumField<MemoryStatus>(),
                 required = listOf("id"),
             ),
         ) { args ->
@@ -329,7 +329,7 @@ open class ToolRegistry(
             if (args.optBoolean("everything")) {
                 val confirmId = args.optStringOrNull("confirmId")
                 if (confirmId == null) {
-                    val pending = PendingConfirmation(newId(), ConfirmationKind.BULK_FORGET, "Forget everything Her knows about you", "{}", nowMillis())
+                    val pending = PendingConfirmation(newId(), ConfirmationKind.BULK_FORGET, "Forget all memories and what Her understands about you", "{}", nowMillis())
                     repo.saveConfirmation(pending)
                     return@register jsonObjectOf("ok" to false, "needsConfirmation" to true, "confirmId" to pending.id, "summary" to pending.summary)
                 }
@@ -337,6 +337,9 @@ open class ToolRegistry(
                 repo.deleteConfirmation(confirmId)
                 repo.activeLong().forEach { repo.deleteLong(it.id) }
                 repo.activeShort().forEach { repo.deleteShort(it.id) }
+                repo.activeUserUnderstandings().forEach {
+                    repo.saveUserUnderstanding(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = nowMillis(), version = it.version + 1))
+                }
                 repo.logActivity("memory", "Bulk forget confirmed ${pending.id}")
                 return@register jsonObjectOf("ok" to true, "forgotten" to "all")
             }
@@ -437,7 +440,7 @@ open class ToolRegistry(
         register("search_projects", "Search projects.", objSchema("query" to str(), required = listOf("query"))) { args ->
             jsonObjectOf("ok" to true, "projects" to JSONArray(repo.searchProjects(args.requiredString("query")).map { JSONObject(it.toJson()) }))
         }
-        register("update_project", "Create or update a project. Ideas can live in description/summary or related memories.", objSchema("id" to str(), "name" to str(), "description" to str(), "summary" to str(), "status" to str(), "importance" to num())) { args ->
+        register("update_project", "Create or update a project. Ideas can live in description/summary or related memories.", objSchema("id" to str(), "name" to str(), "description" to str(), "summary" to str(), "status" to enumField<ProjectStatus>(), "importance" to num())) { args ->
             val now = nowMillis()
             val existing = args.optStringOrNull("id")?.let { repo.getProject(it) }
                 ?: args.optStringOrNull("name")?.let { n -> repo.projects().firstOrNull { it.name.equals(n, true) } }
@@ -463,7 +466,7 @@ open class ToolRegistry(
             )
             jsonObjectOf("ok" to true, "id" to id)
         }
-        register("update_goal", "Update a goal.", objSchema("id" to str(), "title" to str(), "status" to str(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
+        register("update_goal", "Update a goal.", objSchema("id" to str(), "title" to str(), "status" to enumField<GoalStatus>(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
             val existing = repo.getGoal(args.requiredString("id")) ?: throw ToolValidationException("Goal not found")
             repo.saveGoal(existing.copy(
                 title = args.optStringOrNull("title") ?: existing.title,
@@ -477,7 +480,7 @@ open class ToolRegistry(
         }
 
         register("get_tasks", "List tasks.", objSchema()) { jsonObjectOf("ok" to true, "tasks" to JSONArray(repo.tasks().map { JSONObject(it.toJson()) })) }
-        register("create_task", "Create a task only when they intend to do something. Household facts and specs belong in remember, not here.", objSchema("title" to str(), "description" to str(), "dueAt" to str(), required = listOf("title"))) { args ->
+        register("create_task", "Create a task only when they intend to do something. Household facts and specs belong in remember, not here.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "relatedProjectId" to str(), "relatedGoalId" to str(), required = listOf("title"))) { args ->
             val now = nowMillis()
             val id = newId()
             repo.saveTask(TaskItem(id, args.requiredString("title"), args.optStringOrNull("description"), TaskStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedProjectId"), args.optStringOrNull("relatedGoalId"), now, now, repo.deviceId, 1, null))
@@ -485,8 +488,8 @@ open class ToolRegistry(
         }
         register(
             "update_task",
-            "Update a task. id may be the task id from context or the exact title. status: OPEN, DONE, DROPPED. cancelled/canceled maps to DROPPED.",
-            objSchema("id" to str("Task id or title"), "status" to str("OPEN, DONE, DROPPED"), "title" to str(), required = listOf("id")),
+            "Update a task. id may be the task id from context or the exact title. status: OPEN, DONE, DROPPED. cancelled/canceled maps to DROPPED. Pass dueAt to move its deadline instead of dropping and recreating it.",
+            objSchema("id" to str("Task id or title"), "status" to enumField<TaskStatus>(), "title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), required = listOf("id")),
         ) { args ->
             val existing = requireTask(args.requiredString("id"))
             val status = parseEnum<TaskStatus>(
@@ -496,6 +499,8 @@ open class ToolRegistry(
             repo.saveTask(
                 existing.copy(
                     title = args.optStringOrNull("title") ?: existing.title,
+                    description = args.optStringOrNull("description") ?: existing.description,
+                    dueAt = requiredWhen(args.optStringOrNull("dueAt")) ?: existing.dueAt,
                     status = status,
                     updatedAt = nowMillis(),
                     version = existing.version + 1,
@@ -506,26 +511,49 @@ open class ToolRegistry(
         }
 
         register("get_commitments", "List commitments.", objSchema()) { jsonObjectOf("ok" to true, "commitments" to JSONArray(repo.commitments().map { JSONObject(it.toJson()) })) }
-        register("create_commitment", "Create a commitment the person actually promised.", objSchema("title" to str(), "dueAt" to str(), "promisedTo" to str(), required = listOf("title"))) { args ->
+        register("create_commitment", "Create a commitment the person actually promised.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "promisedTo" to str(), required = listOf("title"))) { args ->
             val now = nowMillis()
             val id = newId()
             repo.saveCommitment(Commitment(id, args.requiredString("title"), args.optStringOrNull("description"), CommitmentStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("promisedTo"), null, now, now, repo.deviceId, 1, null))
             jsonObjectOf("ok" to true, "id" to id)
         }
-        register("update_commitment", "Update a commitment.", objSchema("id" to str(), "status" to str(), "title" to str(), required = listOf("id"))) { args ->
-            val existing = repo.getCommitment(args.requiredString("id")) ?: throw ToolValidationException("Commitment not found")
-            repo.saveCommitment(existing.copy(title = args.optStringOrNull("title") ?: existing.title, status = parseEnum<CommitmentStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED + mapOf("MISSED" to "MISSED")) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
-            jsonObjectOf("ok" to true)
+        register(
+            "update_commitment",
+            "Update a commitment. id may be the commitment id from context or the exact title. Pass dueAt to renegotiate the deadline instead of dropping and recreating it.",
+            objSchema(
+                "id" to str("Commitment id or title"),
+                "status" to enumField<CommitmentStatus>(),
+                "title" to str(),
+                "description" to str(),
+                "dueAt" to str(WHEN_HINT),
+                "promisedTo" to str(),
+                required = listOf("id"),
+            ),
+        ) { args ->
+            val existing = requireCommitment(args.requiredString("id"))
+            val status = parseEnum<CommitmentStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED) ?: existing.status
+            repo.saveCommitment(
+                existing.copy(
+                    title = args.optStringOrNull("title") ?: existing.title,
+                    description = args.optStringOrNull("description") ?: existing.description,
+                    dueAt = requiredWhen(args.optStringOrNull("dueAt")) ?: existing.dueAt,
+                    promisedTo = args.optStringOrNull("promisedTo") ?: existing.promisedTo,
+                    status = status,
+                    updatedAt = nowMillis(),
+                    version = existing.version + 1,
+                ),
+            )
+            jsonObjectOf("ok" to true, "id" to existing.id, "status" to status.name)
         }
 
         register("get_open_loops", "List unfinished threads.", objSchema()) { jsonObjectOf("ok" to true, "openLoops" to JSONArray(repo.openLoops().map { JSONObject(it.toJson()) })) }
-        register("create_open_loop", "Record an unfinished thread. Use importance and confidence; skip trivial unfinished sentences.", objSchema("description" to str(), "importance" to num(), "confidence" to num(), required = listOf("description"))) { args ->
+        register("create_open_loop", "Record an unfinished thread. Use importance and confidence; skip trivial unfinished sentences.", objSchema("description" to str(), "importance" to num(), "confidence" to num(), "relatedEntityType" to str("Optional: person, project, task, commitment"), "relatedEntityId" to str(), required = listOf("description"))) { args ->
             val now = nowMillis()
             val id = newId()
             repo.saveOpenLoop(OpenLoop(id, args.requiredString("description"), OpenLoopStatus.OPEN, args.optDoubleOr("importance", 0.5), args.optDoubleOr("confidence", 0.6), args.optStringOrNull("relatedEntityType"), args.optStringOrNull("relatedEntityId"), now, now, repo.deviceId, 1, null))
             jsonObjectOf("ok" to true, "id" to id)
         }
-        register("update_open_loop", "Update an open loop.", objSchema("id" to str(), "status" to str(), "description" to str(), required = listOf("id"))) { args ->
+        register("update_open_loop", "Update an open loop.", objSchema("id" to str(), "status" to enumField<OpenLoopStatus>(), "description" to str(), required = listOf("id"))) { args ->
             val existing = repo.getOpenLoop(args.requiredString("id")) ?: throw ToolValidationException("Open loop not found")
             repo.saveOpenLoop(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = parseEnum<OpenLoopStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("CLOSED" to "CLOSED", "DONE" to "CLOSED")) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
@@ -537,10 +565,11 @@ open class ToolRegistry(
         }
 
         register("get_routines", "List routines.", objSchema()) { jsonObjectOf("ok" to true, "routines" to JSONArray(repo.routines().map { JSONObject(it.toJson()) })) }
-        register("create_routine", "Create a routine. Inferred routines should have lower confidence.", objSchema("title" to str(), "schedule" to str(), "confidence" to num(), required = listOf("title"))) { args ->
+        register("create_routine", "Create a routine. Inferred routines should have lower confidence.", objSchema("title" to str(), "description" to str(), "schedule" to str(), "confidence" to num(), "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you noticed a pattern", "USER_EXPLICIT", "AGENT_INFERENCE"), required = listOf("title"))) { args ->
             val now = nowMillis()
             val id = newId()
-            repo.saveRoutine(Routine(id, args.requiredString("title"), args.optStringOrNull("description"), args.optStringOrNull("schedule"), args.optDoubleOr("confidence", 0.55), MemorySource.valueOf(args.optString("source", "AGENT_INFERENCE")), now, now, repo.deviceId, 1, null))
+            val source = parseEnum<MemorySource>(args.optStringOrNull("source")) ?: MemorySource.AGENT_INFERENCE
+            repo.saveRoutine(Routine(id, args.requiredString("title"), args.optStringOrNull("description"), args.optStringOrNull("schedule"), args.optDoubleOr("confidence", 0.55), source, now, now, repo.deviceId, 1, null))
             jsonObjectOf("ok" to true, "id" to id)
         }
         register("update_routine", "Update a routine.", objSchema("id" to str(), "confidence" to num(), "schedule" to str(), "title" to str(), required = listOf("id"))) { args ->
@@ -563,9 +592,9 @@ open class ToolRegistry(
                 version = (existing?.version ?: 0) + 1,
             )
             repo.saveGrocery(item)
-            jsonObjectOf("ok" to true, "id" to item.id)
+            jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null))
         }
-        register("update_grocery", "Update a grocery item.", objSchema("id" to str(), "status" to str(), "quantity" to str(), required = listOf("id"))) { args ->
+        register("update_grocery", "Update a grocery item.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), required = listOf("id"))) { args ->
             val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
             repo.saveGrocery(existing.copy(status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
@@ -588,6 +617,9 @@ open class ToolRegistry(
                 "title" to str(),
                 "dateIso" to str("Gregorian or Jalali date; it is normalized to ISO before storage"),
                 "relatedPersonId" to str(),
+                "recurrence" to str("yearly, monthly, or omit for a one-off date"),
+                "notes" to str(),
+                "importance" to num("0-1"),
                 required = listOf("title", "dateIso"),
             ),
         ) { args ->
@@ -623,7 +655,7 @@ open class ToolRegistry(
                 version = (existing?.version ?: 0) + 1,
             )
             repo.saveImportantDate(item)
-            jsonObjectOf("ok" to true, "id" to item.id)
+            jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null))
         }
         register("update_important_date", "Update an important date.", objSchema("id" to str(), "title" to str(), "dateIso" to str(), required = listOf("id"))) { args ->
             val existing = repo.getImportantDate(args.requiredString("id")) ?: throw ToolValidationException("Date not found")
@@ -632,7 +664,7 @@ open class ToolRegistry(
         }
 
         register("get_recurring_responsibilities", "List recurring responsibilities.", objSchema()) { jsonObjectOf("ok" to true, "items" to JSONArray(repo.responsibilities().map { JSONObject(it.toJson()) })) }
-        register("create_recurring_responsibility", "Create a recurring responsibility.", objSchema("title" to str(), "cadence" to str(), required = listOf("title", "cadence"))) { args ->
+        register("create_recurring_responsibility", "Create a recurring responsibility.", objSchema("title" to str(), "cadence" to str(), "nextDueAt" to str(WHEN_HINT), "notes" to str(), required = listOf("title", "cadence"))) { args ->
             val now = nowMillis()
             val id = newId()
             repo.saveResponsibility(RecurringResponsibility(id, args.requiredString("title"), args.requiredString("cadence"), parseWhen(args.optStringOrNull("nextDueAt")), null, args.optStringOrNull("notes"), now, now, repo.deviceId, 1, null))
@@ -654,9 +686,12 @@ open class ToolRegistry(
 
     private fun agentTools() {
         register("get_agent_state", "Read private working notes.", objSchema()) { jsonObjectOf("ok" to true, "state" to JSONArray(repo.agentState().map { JSONObject(it.toJson()) })) }
-        register("update_agent_state", "Write a private working note. Fluid and temporary.", objSchema("id" to str(), "kind" to str(), "content" to str(), "confidence" to num(), required = listOf("kind", "content"))) { args ->
+        register("update_agent_state", "Write a private working note. Fluid and temporary. kind=digest is the one rolling note about recent days; writing it replaces the previous digest.", objSchema("id" to str(), "kind" to str("note, digest, or another short label"), "content" to str(), "confidence" to num(), required = listOf("kind", "content"))) { args ->
             val now = nowMillis()
             val existing = args.optStringOrNull("id")?.let { repo.getAgentState(it) }
+                ?: args.optStringOrNull("kind")?.takeIf { it == Identity.DIGEST_KIND }?.let { kind ->
+                    repo.agentState().firstOrNull { it.kind == kind }
+                }
             val item = (existing ?: AgentStateEntry(newId(), args.requiredString("kind"), args.requiredString("content"), 0.5, now, now, repo.deviceId, 1, null)).copy(
                 kind = args.optStringOrNull("kind") ?: existing?.kind ?: "note",
                 content = args.optStringOrNull("content") ?: existing?.content.orEmpty(),
@@ -674,7 +709,7 @@ open class ToolRegistry(
             repo.saveAgentQueue(AgentQueueItem(id, args.requiredString("description"), QueueStatus.OPEN, args.optDoubleOr("priority", 0.5), parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedEntityType"), args.optStringOrNull("relatedEntityId"), now, now, repo.deviceId, 1, null))
             jsonObjectOf("ok" to true, "id" to id)
         }
-        register("update_agent_queue_item", "Update a queue item.", objSchema("id" to str(), "status" to str(), "description" to str(), required = listOf("id"))) { args ->
+        register("update_agent_queue_item", "Update a queue item.", objSchema("id" to str(), "status" to enumField<QueueStatus>(), "description" to str(), required = listOf("id"))) { args ->
             val existing = repo.getAgentQueue(args.requiredString("id")) ?: throw ToolValidationException("Queue item not found")
             repo.saveAgentQueue(existing.copy(description = args.optStringOrNull("description") ?: existing.description, status = parseEnum<QueueStatus>(args.optStringOrNull("status"), COMMON_DONE + COMMON_DROPPED) ?: existing.status, updatedAt = nowMillis(), version = existing.version + 1))
             jsonObjectOf("ok" to true)
@@ -689,12 +724,12 @@ open class ToolRegistry(
             "Create or revise what you know about who this person is. Use this for how they communicate, how they want help, what they are going through, and recurring patterns — not one-off facts (remember) or profile logistics (update_user_profile). If they share how they want help AND what they are going through, write help_style and life_chapter as separate calls. Upsert by id or by facet so each facet has one ACTIVE row. Mark stale rows HISTORICAL instead of deleting. Do not diagnose personality or mental health.",
             objSchema(
                 "id" to str("Existing row id from the About them section"),
-                "facet" to str("communication, help_style, life_chapter, values, patterns, relationship_to_her, or other"),
+                "facet" to oneOf("Which part of them this describes", "communication", "help_style", "life_chapter", "values", "patterns", "relationship_to_her", "other"),
                 "content" to str("What you understand about them"),
                 "confidence" to num("0-1"),
                 "importance" to num("0-1"),
-                "status" to str("ACTIVE, HISTORICAL, ARCHIVED"),
-                "source" to str("USER_EXPLICIT or AGENT_INFERENCE"),
+                "status" to enumField<MemoryStatus>(),
+                "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you inferred it", "USER_EXPLICIT", "AGENT_INFERENCE"),
                 "sourceMessageId" to str("Origin message id"),
             ),
         ) { args ->
@@ -885,6 +920,62 @@ open class ToolRegistry(
         }
     }
 
+    /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */
+    suspend fun undo(entityType: String, id: String): Boolean {
+        val now = nowMillis()
+        when (entityType) {
+            "long_term_memories" -> {
+                repo.getLong(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.deleteLong(id)
+            }
+            "short_term_memories" -> {
+                repo.getShort(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.deleteShort(id)
+            }
+            "tasks" -> {
+                val item = repo.getTask(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveTask(item.copy(status = TaskStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "commitments" -> {
+                val item = repo.getCommitment(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveCommitment(item.copy(status = CommitmentStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "groceries" -> {
+                val item = repo.getGrocery(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveGrocery(item.copy(status = GroceryStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "goals" -> {
+                val item = repo.getGoal(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveGoal(item.copy(status = GoalStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "open_loops" -> {
+                val item = repo.getOpenLoop(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveOpenLoop(item.copy(status = OpenLoopStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "routines" -> {
+                val item = repo.getRoutine(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveRoutine(item.copy(deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "important_dates" -> {
+                val item = repo.getImportantDate(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveImportantDate(item.copy(deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "recurring_responsibilities" -> {
+                val item = repo.getResponsibility(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveResponsibility(item.copy(deletedAt = now, updatedAt = now, version = item.version + 1))
+            }
+            "calendar_events" -> {
+                val event = repo.getCalendarEvent(id)?.takeIf { it.deletedAt == null } ?: return false
+                if (event.source == CalendarSource.GOOGLE) return false
+                if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
+                repo.deleteCalendarEvent(id)
+            }
+            else -> return false
+        }
+        repo.logActivity("undo", "$entityType $id")
+        return true
+    }
+
     private suspend fun nowZoned(): ZonedDateTime {
         val profile = repo.getProfile()
         val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
@@ -958,21 +1049,47 @@ open class ToolRegistry(
                 else "Multiple tasks match '$idOrTitle'; pass the id from context",
             )
     }
+
+    private suspend fun requireCommitment(idOrTitle: String): Commitment {
+        repo.getCommitment(idOrTitle)?.let { return it }
+        val all = repo.commitments()
+        val exact = all.filter { it.title.equals(idOrTitle, ignoreCase = true) }
+        if (exact.size == 1) return exact.first()
+        val loose = all.filter { it.title.contains(idOrTitle, ignoreCase = true) }
+        return loose.singleOrNull()
+            ?: throw ToolValidationException(
+                if (exact.isEmpty() && loose.isEmpty()) "Commitment not found: $idOrTitle"
+                else "Multiple commitments match '$idOrTitle'; pass the id from context",
+            )
+    }
+
+    /** A time the model explicitly sent must parse; silently keeping the old value would hide the failure. */
+    private suspend fun requiredWhen(raw: String?): Long? {
+        if (raw.isNullOrBlank()) return null
+        return parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
+    }
 }
 
 private const val HOUR_MS = 60 * 60 * 1000L
 
-private fun str(desc: String = "") = "string" to desc
-private fun num(desc: String = "") = "number" to desc
-private fun bool(desc: String = "") = "boolean" to desc
-private fun arr(desc: String = "") = "array" to desc
+private class Field(val type: String, val description: String, val values: List<String> = emptyList())
 
-private fun objSchema(vararg fields: Pair<String, Pair<String, String>>, required: List<String> = emptyList()): String {
+private fun str(desc: String = "") = Field("string", desc)
+private fun num(desc: String = "") = Field("number", desc)
+private fun bool(desc: String = "") = Field("boolean", desc)
+private fun arr(desc: String = "") = Field("array", desc)
+private fun oneOf(desc: String, vararg values: String) = Field("string", desc, values.toList())
+private inline fun <reified T : Enum<T>> enumField(desc: String = "") = Field("string", desc, enumValues<T>().map { it.name })
+
+private const val WHEN_HINT = "ISO-8601, epoch millis, Jalali, or a natural phrase such as 'Friday at 5pm'"
+
+private fun objSchema(vararg fields: Pair<String, Field>, required: List<String> = emptyList()): String {
     val props = JSONObject()
-    fields.forEach { (name, typeDesc) ->
-        val schema = JSONObject().put("type", typeDesc.first)
-        if (typeDesc.second.isNotBlank()) schema.put("description", typeDesc.second)
-        if (typeDesc.first == "array") schema.put("items", JSONObject().put("type", "string"))
+    fields.forEach { (name, field) ->
+        val schema = JSONObject().put("type", field.type)
+        if (field.description.isNotBlank()) schema.put("description", field.description)
+        if (field.type == "array") schema.put("items", JSONObject().put("type", "string"))
+        if (field.values.isNotEmpty()) schema.put("enum", JSONArray(field.values))
         props.put(name, schema)
     }
     return JSONObject().put("type", "object").put("properties", props).put("required", JSONArray(required)).toString()

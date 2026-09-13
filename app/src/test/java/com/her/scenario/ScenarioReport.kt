@@ -22,6 +22,7 @@ data class ScenarioRunResult(
     val passCount: Int get() = attempts.count { it.passed }
     val inputTokens: Long get() = attempts.sumOf { it.outcome.inputTokens }
     val outputTokens: Long get() = attempts.sumOf { it.outcome.outputTokens }
+    val cachedInputTokens: Long get() = attempts.sumOf { it.outcome.cachedInputTokens }
     val elapsedMs: Long get() = attempts.sumOf { it.elapsedMs }
 }
 
@@ -44,7 +45,7 @@ object ScenarioReport {
         results.forEach { result ->
             appendLine(
                 "${mark(result)} ${result.spec.id} ${result.passCount}/${result.attempts.size} " +
-                    "tokens=${result.inputTokens}+${result.outputTokens} ${result.elapsedMs}ms" +
+                    "tokens=${result.inputTokens}+${result.outputTokens} cached=${result.cachedInputTokens} ${result.elapsedMs}ms" +
                     (result.skipped?.let { " ($it)" } ?: ""),
             )
         }
@@ -62,7 +63,7 @@ object ScenarioReport {
               <td>${esc(result.spec.title)}</td>
               <td>$status</td>
               <td>${result.passCount}/${result.attempts.size}</td>
-              <td>${result.inputTokens + result.outputTokens}</td>
+              <td>${result.inputTokens + result.outputTokens} <span class="muted">(${result.cachedInputTokens} cached)</span></td>
               <td>${result.elapsedMs}</td>
             </tr>
             """.trimIndent()

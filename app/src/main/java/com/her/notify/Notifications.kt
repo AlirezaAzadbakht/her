@@ -9,13 +9,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.RemoteInput
 import com.her.MainActivity
 import com.her.R
 import com.her.core.QuietHours
 import com.her.data.secure.AppSettingsStore
-import com.her.domain.CommitmentStatus
 import com.her.domain.QueueStatus
-import com.her.domain.TaskStatus
 import java.time.ZonedDateTime
 
 data class NotifyDecision(
@@ -68,26 +67,31 @@ open class Notifier(private val context: Context) {
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        val done = PendingIntent.getBroadcast(
+        // RemoteInput fills the reply into this intent, so it has to stay mutable.
+        val reply = PendingIntent.getBroadcast(
             context,
             2,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_DONE),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_REPLY),
+            PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag(),
         )
         val later = PendingIntent.getBroadcast(
             context,
             3,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER),
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val replyAction = NotificationCompat.Action.Builder(0, "Reply", reply)
+            .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
+            .setAllowGeneratedReplies(false)
+            .build()
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher)
-            .setContentTitle(if (briefing) "Her" else "Her")
+            .setContentTitle("Her")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .setAutoCancel(true)
-            .addAction(0, "Done", done)
+            .addAction(replyAction)
             .addAction(0, "Later", later)
             .addAction(0, "Open", open)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -98,11 +102,38 @@ open class Notifier(private val context: Context) {
         }
     }
 
+    private fun mutableFlag(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+
     companion object {
         const val CHANNEL = "her"
         const val NOTIFICATION_ID = 17
-        const val ACTION_DONE = "com.her.NOTIFY_DONE"
+        const val ACTION_REPLY = "com.her.NOTIFY_REPLY"
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
+        const val KEY_REPLY = "reply"
+        const val EXTRA_TEXT = "text"
+    }
+}
+
+/** What a notification action asks for, decided without Android or the database. */
+sealed class NotificationAction {
+    data class Reply(val text: String) : NotificationAction()
+    data class Later(val description: String) : NotificationAction()
+    data object Ignore : NotificationAction()
+}
+
+object NotificationActions {
+    fun decide(action: String?, replyText: CharSequence?, notificationText: String?): NotificationAction = when (action) {
+        Notifier.ACTION_REPLY ->
+            replyText?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { NotificationAction.Reply(it) }
+                ?: NotificationAction.Ignore
+        Notifier.ACTION_LATER -> NotificationAction.Later(laterDescription(notificationText))
+        else -> NotificationAction.Ignore
+    }
+
+    fun laterDescription(notificationText: String?): String {
+        val text = notificationText?.trim().orEmpty()
+        return if (text.isEmpty()) "Follow up later on the last notification." else "Follow up later: ${text.take(280)}"
     }
 }
 
@@ -110,46 +141,48 @@ class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as? com.her.HerApplication ?: return
         val graph = app.graph
-        val pending = goAsync()
-        graph.io.execute {
-            try {
-                when (intent.action) {
-                    Notifier.ACTION_DONE -> {
-                        kotlinx.coroutines.runBlocking {
-                            graph.repo.commitments().firstOrNull { it.status == CommitmentStatus.OPEN }?.let {
-                                graph.repo.saveCommitment(it.copy(status = CommitmentStatus.DONE, updatedAt = System.currentTimeMillis(), version = it.version + 1))
-                                graph.repo.logActivity("notify", "Marked commitment done from notification: ${it.title}")
-                            } ?: graph.repo.tasks().firstOrNull { it.status == TaskStatus.OPEN }?.let {
-                                graph.repo.saveTask(it.copy(status = TaskStatus.DONE, updatedAt = System.currentTimeMillis(), version = it.version + 1))
-                                graph.repo.logActivity("notify", "Marked task done from notification: ${it.title}")
+        val decision = NotificationActions.decide(
+            action = intent.action,
+            replyText = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifier.KEY_REPLY),
+            notificationText = intent.getStringExtra(Notifier.EXTRA_TEXT),
+        )
+        if (decision != NotificationAction.Ignore) {
+            val pending = goAsync()
+            graph.io.execute {
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        when (decision) {
+                            is NotificationAction.Reply -> {
+                                graph.orchestrator.enqueueUserMessage(decision.text)
+                                graph.scheduler.enqueueOutbox()
+                                graph.repo.logActivity("notify", "Reply from notification queued.")
                             }
+                            is NotificationAction.Later -> {
+                                val now = graph.repo.clock.nowMillis()
+                                graph.repo.saveAgentQueue(
+                                    com.her.domain.AgentQueueItem(
+                                        id = com.her.core.newId(),
+                                        description = decision.description,
+                                        status = QueueStatus.OPEN,
+                                        priority = 0.4,
+                                        dueAt = now + 24 * 60 * 60 * 1000,
+                                        relatedEntityType = null,
+                                        relatedEntityId = null,
+                                        createdAt = now,
+                                        updatedAt = now,
+                                        deviceId = graph.repo.deviceId,
+                                        version = 1,
+                                        deletedAt = null,
+                                    ),
+                                )
+                                graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
+                            }
+                            NotificationAction.Ignore -> Unit
                         }
                     }
-                    Notifier.ACTION_LATER -> {
-                        kotlinx.coroutines.runBlocking {
-                            val now = System.currentTimeMillis()
-                            graph.repo.saveAgentQueue(
-                                com.her.domain.AgentQueueItem(
-                                    id = com.her.core.newId(),
-                                    description = "Follow up later on the last notification.",
-                                    status = QueueStatus.OPEN,
-                                    priority = 0.4,
-                                    dueAt = now + 24 * 60 * 60 * 1000,
-                                    relatedEntityType = null,
-                                    relatedEntityId = null,
-                                    createdAt = now,
-                                    updatedAt = now,
-                                    deviceId = graph.repo.deviceId,
-                                    version = 1,
-                                    deletedAt = null,
-                                ),
-                            )
-                            graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
-                        }
-                    }
+                } finally {
+                    pending.finish()
                 }
-            } finally {
-                pending.finish()
             }
         }
         NotificationManagerCompat.from(context).cancel(Notifier.NOTIFICATION_ID)

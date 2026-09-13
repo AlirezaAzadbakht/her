@@ -12,7 +12,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted.
 
-The orchestrator logs prompts, retrieved memories, raw LLM JSON, and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
+The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
 
 ## Context
 
@@ -20,10 +20,22 @@ The orchestrator logs prompts, retrieved memories, raw LLM JSON, and tool I/O to
 
 1. `Identity.SYSTEM_PROMPT`
 2. Optional extra system text (hourly / nightly / briefing)
-3. A bundle: now, profile, **About them** (active `user_understandings`, always, cap 16), retrieved memories (cap 12), people, projects, goals, **tasks as `id \| title [status]`**, commitments, open loops, routines, groceries, dates, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
+3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
+   - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
+   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
 4. Recent chat (default 24 messages)
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
+
+The nightly pass rewrites one `update_agent_state(kind="digest")` note about the last several days: decisions, what she did, threads to pick up. `update_agent_state` upserts by kind for `digest`, and the bundle always shows it, so a decision survives after it scrolls out of the 24-message window.
+
+## Retrieval
+
+`HybridRanker` runs FTS4 first. `ftsQuery` in `Core.kt` turns a sentence into `word* OR word* …` (up to 8 words, stopwords dropped, English and Persian), so any shared word can match. Tokens are Unicode-aware and normalized: Arabic ي/ك fold to Persian ی/ک, diacritics and tatweel are dropped, ZWNJ splits words, and Persian/Arabic digits become ASCII. The same `tokenize` feeds the lexical-overlap score. Expired short-term memories are excluded from FTS hits.
+
+## Write receipts
+
+Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/java/com/her/agent/runner/Receipts.kt`), stored in the assistant message's `metadataJson`. Private bookkeeping (agent state, queue, `update_user_understanding`) is not announced. Records she just created are undoable through `ToolRegistry.undo(entityType, id)`. Updates and upserts of existing rows (`add_grocery` on an item already listed, `update_person`) are shown but not undoable.
 
 ## Call budgets
 
@@ -47,9 +59,9 @@ Defined in `app/src/main/java/com/her/agent/tools/ToolRegistry.kt`. Groups:
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal, system, and Google; Google rows are read-only)
 - `web_search`, `send_user_message`
 
-`requireTask` resolves by **id or title**. Status strings go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
+`requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A `dueAt` that does not parse is an error, not a silent no-op. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
 
-Destructive actions that need confirmation: `forget_memory(everything=true)`, `delete_calendar_event` on an external event.
+Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event.
 
 ## LLM settings
 

@@ -1,0 +1,38 @@
+{
+  "id": "digest-recall-last-week",
+  "title": "A decision from last week is still recalled after it scrolls out of the recent chat window",
+  "tags": ["memory", "digest", "nightly"],
+  "attempts": 2,
+  "settings": { "chatToolCallLimit": 12 },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "After a lot of back and forth we decided Lily goes to the Montessori school on Park Street this fall, not the public one." },
+    { "run": "nightly" },
+    { "advance": "5 days" },
+    { "user": "Morning." },
+    { "user": "Coffee first, then work." },
+    { "user": "The weather is nice today." },
+    { "user": "I had a long call with a client." },
+    { "user": "It went fine, nothing to note." },
+    { "user": "Lunch was a sandwich." },
+    { "user": "Back at my desk." },
+    { "user": "Just reading some articles." },
+    { "user": "Nothing much happening." },
+    { "user": "Taking a short break." },
+    { "user": "Okay, back to it." },
+    { "user": "Almost done for the day." },
+    { "user": "Remind me, which school did we pick for Lily?" }
+  ],
+  "expect": {
+    "tools_called": [
+      { "name": "update_agent_state", "args": { "kind": { "equals": "digest" } } }
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["montessori", "park street"],
+      "language": "english"
+    }
+  }
+}

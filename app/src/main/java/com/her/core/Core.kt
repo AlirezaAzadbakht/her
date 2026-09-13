@@ -308,10 +308,52 @@ fun recencyScore(updatedAt: Long, now: Long, halfLifeMs: Long = 14L * 24 * 60 * 
     return 1.0 / (1.0 + age / halfLifeMs.toDouble())
 }
 
+private val SEARCH_LETTER_VARIANTS = mapOf(
+    'ي' to 'ی', 'ى' to 'ی', 'ك' to 'ک', 'ة' to 'ه', 'ۀ' to 'ه', 'أ' to 'ا', 'إ' to 'ا', 'آ' to 'ا',
+)
+
+private val SEARCH_STOPWORDS = setOf(
+    // English
+    "a", "an", "the", "and", "or", "but", "not", "no", "to", "of", "in", "on", "at", "by", "for", "with", "from",
+    "about", "into", "is", "am", "are", "was", "were", "be", "been", "do", "does", "did", "have", "has", "had",
+    "will", "would", "can", "could", "should", "it", "its", "this", "that", "these", "those", "there", "here",
+    "what", "when", "where", "who", "why", "how", "which", "me", "my", "we", "our", "us", "you", "your", "they",
+    "them", "their", "he", "she", "his", "her", "him", "so", "just", "any", "some", "all", "if", "then", "than",
+    "re", "ll", "ve", "don", "im", "up", "out", "get", "got",
+    // Persian
+    "و", "در", "به", "از", "که", "را", "با", "این", "ان", "است", "هست", "برای", "من", "تو", "او", "ما", "شما",
+    "یک", "هم", "چه", "چی", "کی", "رو", "می", "ها", "تا", "اما", "یا", "هر", "بود", "شد", "کن", "کرد", "بر", "دیگه",
+)
+
+/** Folds Arabic letter forms to Persian, drops diacritics, and maps Persian/Arabic digits to ASCII. */
+fun normalizeForSearch(text: String): String {
+    val out = StringBuilder(text.length)
+    for (ch in text) {
+        when {
+            ch in 'ً'..'ٟ' || ch == 'ٰ' || ch == 'ـ' -> Unit
+            ch in '۰'..'۹' -> out.append('0' + (ch - '۰'))
+            ch in '٠'..'٩' -> out.append('0' + (ch - '٠'))
+            ch == '‌' || ch == '‍' -> out.append(' ')
+            else -> out.append(SEARCH_LETTER_VARIANTS[ch] ?: ch)
+        }
+    }
+    return out.toString().lowercase(Locale.ROOT)
+}
+
+/** Searchable words in any script, without stopwords. */
 fun tokenize(query: String): List<String> =
-    query.lowercase(Locale.US)
-        .split(Regex("[^a-z0-9]+"))
-        .filter { it.length >= 2 }
+    normalizeForSearch(query)
+        .split(Regex("[^\\p{L}\\p{N}]+"))
+        .filter { it.length >= 2 && it !in SEARCH_STOPWORDS }
+
+/**
+ * FTS4 MATCH text for a natural-language query: any word may match, as a prefix.
+ * Null when nothing searchable is left, so callers skip the query instead of matching the raw sentence.
+ */
+fun ftsQuery(query: String, maxTokens: Int = 8): String? {
+    val tokens = tokenize(query).distinct().take(maxTokens)
+    return if (tokens.isEmpty()) null else tokens.joinToString(" OR ") { "$it*" }
+}
 
 fun lexicalOverlap(query: String, content: String): Double {
     val q = tokenize(query).toSet()

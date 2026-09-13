@@ -20,7 +20,7 @@ help:
 	@echo "make scenario ID=system-calendar-create-event - run one scenario"
 	@echo "make scenarios-record - run live and save passing attempts as cassettes"
 	@echo "make scenario-record ID=system-calendar-create-event - record one scenario"
-	@echo "make scenarios-replay - replay cassettes offline (what CI runs)"
+	@echo "make scenarios-replay - replay cassettes offline"
 
 test:
 	source "$(ROOT)/scripts/env.sh"

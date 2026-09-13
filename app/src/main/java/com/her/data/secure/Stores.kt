@@ -79,6 +79,7 @@ data class AppSettings(
     val memoryTabEnabled: Boolean,
     val runtimePermissionsAsked: Boolean,
     val hourlyDuringQuietHours: Boolean = false,
+    val showReceipts: Boolean = true,
 )
 
 class AppSettingsStore(context: Context, prefsName: String = "her_app_settings") {
@@ -115,6 +116,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             memoryTabEnabled = prefs.getBoolean(KEY_MEMORY_TAB, true),
             runtimePermissionsAsked = prefs.getBoolean(KEY_PERM_ASKED, false),
             hourlyDuringQuietHours = prefs.getBoolean(KEY_HOURLY_QUIET, false),
+            showReceipts = prefs.getBoolean(KEY_RECEIPTS, true),
         )
     }
 
@@ -143,6 +145,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_MEMORY_TAB, next.memoryTabEnabled)
             putBoolean(KEY_PERM_ASKED, next.runtimePermissionsAsked)
             putBoolean(KEY_HOURLY_QUIET, next.hourlyDuringQuietHours)
+            putBoolean(KEY_RECEIPTS, next.showReceipts)
         }
         _state.value = next
     }
@@ -176,6 +179,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_MEMORY_TAB = "memory_tab_enabled"
         private const val KEY_PERM_ASKED = "runtime_permissions_asked"
         private const val KEY_HOURLY_QUIET = "hourly_during_quiet_hours"
+        private const val KEY_RECEIPTS = "show_receipts"
         private const val KEY_SCHEDULE = "schedule_fingerprint"
     }
 }

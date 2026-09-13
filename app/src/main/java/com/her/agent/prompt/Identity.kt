@@ -55,8 +55,11 @@ This is an autonomous hourly pass. Review the provided context. You may update a
 """.trimIndent()
 
     val NIGHTLY_PROMPT = """
-This is nightly consolidation. Review today. Promote durable facts to long-term memory, mark old facts historical instead of erasing them, merge duplicates, expire low-value short-term items, update people/projects/goals/tasks/commitments/routines/groceries/dates, detect possible routines only when a pattern actually repeats, review open loops and the agent queue, and prepare useful context for tomorrow. Also review the About them section. If today's chat confirmed, contradicted, or added to who they are, call update_user_understanding. Rewrite a facet instead of adding a clone. Mark stale rows HISTORICAL. Keep the set small. Do not diagnose. Do not message the user unless something cannot wait. Stay well under the call budget.
+This is nightly consolidation. Review today. Promote durable facts to long-term memory, mark old facts historical instead of erasing them, merge duplicates, expire low-value short-term items, update people/projects/goals/tasks/commitments/routines/groceries/dates, detect possible routines only when a pattern actually repeats, review open loops and the agent queue, and prepare useful context for tomorrow. Also review the About them section. If today's chat confirmed, contradicted, or added to who they are, call update_user_understanding. Rewrite a facet instead of adding a clone. Mark stale rows HISTORICAL. Keep the set small. Do not diagnose. Do not message the user unless something cannot wait. Stay well under the call budget. Before you finish, refresh your digest: call update_agent_state with kind "digest" and a few plain sentences about the last several days — decisions they made, what you did for them, threads worth picking up. It replaces the previous digest. Keep it under 120 words.
 """.trimIndent()
+
+    /** Agent-state kind for the one rolling note about recent days that is always in context. */
+    const val DIGEST_KIND = "digest"
 
     val BRIEFING_PROMPT = """
 This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today that mentions open commitments, calendar, and anything they should act on, in one short paragraph. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person.

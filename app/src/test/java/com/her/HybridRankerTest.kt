@@ -2,6 +2,7 @@ package com.her
 
 import com.her.core.lexicalOverlap
 import com.her.core.recencyScore
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -12,6 +13,16 @@ class HybridRankerTest {
         val better = lexicalOverlap(query, "User usually shops for groceries on Friday evenings")
         val worse = lexicalOverlap(query, "User likes orange juice")
         assertTrue(better > worse)
+    }
+
+    @Test
+    fun persianOverlapCounts() {
+        assertTrue(lexicalOverlap("برنج تمام شده", "برنج خانه تمام شده است") > 0.0)
+    }
+
+    @Test
+    fun arabicLetterFormsMatchPersian() {
+        assertEquals(1.0, lexicalOverlap("كيك", "کیک شکلاتی"), 0.0)
     }
 
     @Test

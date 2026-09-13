@@ -149,7 +149,14 @@ fun SettingsScreen(vm: HerViewModel) {
                 }
             }
         }
-        item { Toggle("Drive sync", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } } }
+        item {
+            Toggle("Drive sync (experimental)", app.driveEnabled) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
+            Text(
+                "Syncs groceries and the conversation only.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 13.sp,
+            )
+        }
         item {
             Toggle("Web search", app.webSearchEnabled) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } }
             Text(
@@ -198,6 +205,9 @@ fun SettingsScreen(vm: HerViewModel) {
                 Text("Experimental", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, letterSpacing = 1.2.sp)
                 Toggle("Memory navigator (SQL)", app.memoryTabEnabled) {
                     vm.updateSettings { it.copy(memoryTabEnabled = !it.memoryTabEnabled) }
+                }
+                Toggle("Show what she saved", app.showReceipts) {
+                    vm.updateSettings { it.copy(showReceipts = !it.showReceipts) }
                 }
             }
             item {

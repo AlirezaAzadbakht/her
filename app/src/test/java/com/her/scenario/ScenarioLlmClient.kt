@@ -153,6 +153,8 @@ class ScenarioLlmClient(
         private set
     var outputTokens: Long = 0
         private set
+    var cachedInputTokens: Long = 0
+        private set
 
     override suspend fun complete(
         settings: LlmSettings,
@@ -203,6 +205,7 @@ class ScenarioLlmClient(
         }
         inputTokens += response.usage.inputTokens
         outputTokens += response.usage.outputTokens
+        cachedInputTokens += response.usage.cachedInputTokens
         return response
     }
 

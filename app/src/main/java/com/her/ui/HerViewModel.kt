@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
+import com.her.agent.runner.Receipt
+import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
 import com.her.core.nowMillis
@@ -132,6 +134,24 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     graph.scheduler.enqueueOutbox()
                 }
+            }
+        }
+    }
+
+    fun undoReceipts(messageId: String, receipts: List<Receipt>) {
+        val targets = receipts.filter { it.undoable && !it.undone }
+        if (targets.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val reversed = targets.filter { runCatching { graph.tools.undo(it.entityType, it.entityId) }.getOrDefault(false) }
+            if (reversed.isEmpty()) return@launch
+            graph.repo.getMessage(messageId)?.let { message ->
+                graph.repo.saveMessage(
+                    message.copy(
+                        metadataJson = Receipts.markUndone(message.metadataJson, reversed),
+                        updatedAt = nowMillis(),
+                        version = message.version + 1,
+                    ),
+                )
             }
         }
     }

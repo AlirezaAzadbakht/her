@@ -28,11 +28,7 @@ class StreamAccumulator {
         }
         val usageObj = root.optJSONObject("usage")
         if (usageObj != null) {
-            usage = LlmUsage(
-                inputTokens = usageObj.optInt("prompt_tokens"),
-                outputTokens = usageObj.optInt("completion_tokens"),
-                latencyMs = 0,
-            )
+            usage = parseUsage(usageObj, latencyMs = 0)
         }
         val choice = root.optJSONArray("choices")?.optJSONObject(0)
             ?: return AcceptResult(true, null)
@@ -100,6 +96,14 @@ class StreamAccumulator {
         val arguments = StringBuilder()
     }
 }
+
+/** Token counts from an OpenAI-style usage object. Cached prompt tokens appear only when the provider reports them. */
+fun parseUsage(usage: JSONObject?, latencyMs: Long): LlmUsage = LlmUsage(
+    inputTokens = usage?.optInt("prompt_tokens") ?: 0,
+    outputTokens = usage?.optInt("completion_tokens") ?: 0,
+    latencyMs = latencyMs,
+    cachedInputTokens = usage?.optJSONObject("prompt_tokens_details")?.optInt("cached_tokens") ?: 0,
+)
 
 fun sseData(line: String): String? {
     val trimmed = line.trim()

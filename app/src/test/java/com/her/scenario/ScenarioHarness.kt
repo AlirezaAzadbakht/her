@@ -75,6 +75,7 @@ data class HarnessOutcome(
     val outputTokens: Long,
     val llmCalls: Int,
     val error: String?,
+    val cachedInputTokens: Long = 0,
 )
 
 class ScenarioHarness(
@@ -164,6 +165,7 @@ class ScenarioHarness(
             outputTokens = llm.outputTokens,
             llmCalls = llm.calls,
             error = error,
+            cachedInputTokens = llm.cachedInputTokens,
         )
     }
 

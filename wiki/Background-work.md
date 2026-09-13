@@ -58,3 +58,11 @@ See [Agent](Agent.md). Hourly ≤ 10 LLM calls, nightly ≤ 50, briefing ≤ 8. 
 ## Notifications
 
 `app/src/main/java/com/her/notify/Notifications.kt`. Hourly’s default is silence. A user-facing message from an autonomous pass is the exception, not the loop.
+
+Actions on a notification:
+
+- **Reply**: inline text. The reply is enqueued as a user message and the outbox worker runs it as a normal chat turn.
+- **Later**: queues an agent follow-up for tomorrow that quotes the notification text.
+- **Open**: opens the app.
+
+`NotificationActions.decide` holds that logic so it is unit-tested without Android. The hourly quiet-hours check uses the profile timezone, like the rest of the agent.

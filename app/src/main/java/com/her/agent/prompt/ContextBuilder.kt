@@ -54,7 +54,9 @@ class ContextBuilder(
         val groceries = repo.groceries().filter { it.status.name == "ACTIVE" }.take(20)
         val dates = repo.importantDates().take(12)
         val queue = repo.agentQueue().filter { it.status.name == "OPEN" }.take(12)
-        val state = repo.agentState().take(12)
+        val allState = repo.agentState()
+        val digest = allState.firstOrNull { it.kind == Identity.DIGEST_KIND }
+        val state = allState.filter { it.kind != Identity.DIGEST_KIND }.take(12)
         val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
         val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
         val googleLive = googleCalendar.available()
@@ -62,11 +64,9 @@ class ContextBuilder(
         val googleCal = googleCalendar.mirror(from, to)
         val internalCal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
 
+        // Slow-changing sections come first so providers can reuse the cached prompt prefix across calls.
+        // The clock, retrieval, and live lists change every turn, so they come after.
         val bundle = buildString {
-            appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
-            recent.lastOrNull { it.role.name == "USER" }?.let {
-                appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
-            }
             appendLine("User profile:")
             appendLine("- name: ${profile.userName ?: "unknown"}")
             appendLine("- they call you: ${profile.assistantName ?: "Her"}")
@@ -84,16 +84,22 @@ class ContextBuilder(
                 }
             }
             appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
-            appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })
             appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" })
             appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" })
+            appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" })
+            appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" })
+            digest?.let { appendSection("Recent days (your notes)", listOf("${it.id} | ${it.content}")) }
+            appendLine()
+            appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
+            recent.lastOrNull { it.role.name == "USER" }?.let {
+                appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
+            }
+            appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
-            appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" })
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
-            appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" })
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
             appendCalendarSection(
                 "System calendar",

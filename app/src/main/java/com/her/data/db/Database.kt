@@ -526,10 +526,11 @@ interface MemoryDao {
         SELECT short_term_memories.* FROM short_term_memories
         JOIN short_term_memories_fts ON short_term_memories.rowid = short_term_memories_fts.rowid
         WHERE short_term_memories_fts MATCH :query AND short_term_memories.deletedAt IS NULL
+          AND (short_term_memories.expiresAt IS NULL OR short_term_memories.expiresAt > :now)
         LIMIT :limit
         """,
     )
-    suspend fun searchShort(query: String, limit: Int): List<ShortTermMemoryEntity>
+    suspend fun searchShort(query: String, now: Long, limit: Int): List<ShortTermMemoryEntity>
 
     @Query(
         """
