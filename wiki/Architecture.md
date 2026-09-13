@@ -44,7 +44,7 @@ WorkManager’s default initializer is disabled in the manifest. The Application
 | `com.her.data.drive` | Drive NDJSON sync + `MergeEngine` |
 | `com.her.data.google` | OAuth (Drive appdata + calendar readonly) |
 | `com.her.data.calendar` | Device calendar via `CalendarContract.Instances`; Google Calendar API after Connect Google |
-| `com.her.data.retrieval` | `HybridRanker` (FTS + lexical/recency; embeddings are a no-op today) |
+| `com.her.data.retrieval` | `HybridRanker` (FTS + lexical/recency, plus cosine similarity from `/embeddings` when enabled) |
 | `com.her.core` | IDs, quiet hours, relative time, JSON helpers, secret redaction, enum aliases |
 | `com.her.work` | Workers, scheduler, boot receiver |
 | `com.her.notify` | Notification policy and actions |

@@ -80,7 +80,10 @@ data class AppSettings(
     val runtimePermissionsAsked: Boolean,
     val hourlyDuringQuietHours: Boolean = false,
     val showReceipts: Boolean = true,
+    val embeddingModel: String = DEFAULT_EMBEDDING_MODEL,
 )
+
+const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
 
 class AppSettingsStore(context: Context, prefsName: String = "her_app_settings") {
     private val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
@@ -117,6 +120,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             runtimePermissionsAsked = prefs.getBoolean(KEY_PERM_ASKED, false),
             hourlyDuringQuietHours = prefs.getBoolean(KEY_HOURLY_QUIET, false),
             showReceipts = prefs.getBoolean(KEY_RECEIPTS, true),
+            embeddingModel = prefs.getString(KEY_EMBED_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL,
         )
     }
 
@@ -146,6 +150,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_PERM_ASKED, next.runtimePermissionsAsked)
             putBoolean(KEY_HOURLY_QUIET, next.hourlyDuringQuietHours)
             putBoolean(KEY_RECEIPTS, next.showReceipts)
+            putString(KEY_EMBED_MODEL, next.embeddingModel)
         }
         _state.value = next
     }
@@ -180,6 +185,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_PERM_ASKED = "runtime_permissions_asked"
         private const val KEY_HOURLY_QUIET = "hourly_during_quiet_hours"
         private const val KEY_RECEIPTS = "show_receipts"
+        private const val KEY_EMBED_MODEL = "embedding_model"
         private const val KEY_SCHEDULE = "schedule_fingerprint"
     }
 }

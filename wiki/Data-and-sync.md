@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 2 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`.
+`HerDatabase` — file `her.db`, version 3 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache.
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -36,7 +36,7 @@ Important record kinds:
 
 ## Retrieval
 
-`HybridRanker` combines FTS with lexical overlap and recency. Embeddings are wired as `NoOpEmbeddingProvider` unless that flag is turned on later.
+`HybridRanker` combines FTS with lexical overlap, importance, confidence, and recency. With Settings → Embeddings on, it also blends in cosine similarity from the configured `/embeddings` model; see [Agent](Agent.md#retrieval). The `memory_embeddings` vector cache is device-local and never synced.
 
 ## Drive sync
 

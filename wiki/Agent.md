@@ -33,6 +33,8 @@ The nightly pass rewrites one `update_agent_state(kind="digest")` note about the
 
 `HybridRanker` runs FTS4 first. `ftsQuery` in `Core.kt` turns a sentence into `word* OR word* …` (up to 8 words, stopwords dropped, English and Persian), so any shared word can match. Tokens are Unicode-aware and normalized: Arabic ي/ك fold to Persian ی/ک, diacritics and tatweel are dropped, ZWNJ splits words, and Persian/Arabic digits become ASCII. The same `tokenize` feeds the lexical-overlap score. Expired short-term memories are excluded from FTS hits.
 
+When Settings → **Embeddings** is on, `OpenAiEmbeddingProvider` calls `{baseUrl}/embeddings` with the configured embedding model (default `text-embedding-3-small`), using the same key as chat. The ranker then scores a wider pool: FTS hits plus up to 200 active memories of each type. For those it blends cosine similarity into the semantic part of the score (35% lexical, 65% cosine). Vectors are cached in the device-local `memory_embeddings` table, keyed by memory id, model, and a content hash. Up to 64 missing ones are embedded per search, in the same request as the query. Any embeddings failure is logged and the search falls back to lexical ranking.
+
 ## Write receipts
 
 Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/java/com/her/agent/runner/Receipts.kt`), stored in the assistant message's `metadataJson`. Private bookkeeping (agent state, queue, `update_user_understanding`) is not announced. Records she just created are undoable through `ToolRegistry.undo(entityType, id)`. Updates and upserts of existing rows (`add_grocery` on an item already listed, `update_person`) are shown but not undoable.

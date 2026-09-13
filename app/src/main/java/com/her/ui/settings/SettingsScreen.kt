@@ -75,6 +75,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var googleClient by remember { mutableStateOf(app.googleClientId) }
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
+    var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
     var advanced by remember { mutableStateOf(false) }
     val requestCalendar = rememberCalendarPermissionRequester {
         vm.updateSettings { it.copy(calendarEnabled = true) }
@@ -165,7 +166,20 @@ fun SettingsScreen(vm: HerViewModel) {
                 fontSize = 13.sp,
             )
         }
-        item { Toggle("Embeddings (optional)", app.embeddingsEnabled) { vm.updateSettings { it.copy(embeddingsEnabled = !it.embeddingsEnabled) } } }
+        item {
+            Toggle("Embeddings (optional)", app.embeddingsEnabled) { vm.updateSettings { it.copy(embeddingsEnabled = !it.embeddingsEnabled) } }
+            if (app.embeddingsEnabled) {
+                QuietField("Embedding model", embeddingModel) {
+                    embeddingModel = it
+                    vm.updateSettings { s -> s.copy(embeddingModel = it) }
+                }
+                Text(
+                    "Finds memories by meaning, not only shared words. Uses the same Base URL and API key; memories are embedded as she searches them.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+            }
+        }
         item {
             QuietField("Google OAuth client ID", googleClient) {
                 googleClient = it

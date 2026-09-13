@@ -17,7 +17,7 @@ import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
-import com.her.data.retrieval.NoOpEmbeddingProvider
+import com.her.data.retrieval.OpenAiEmbeddingProvider
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.SecureSettingsStore
 import com.her.domain.MessageRole
@@ -35,11 +35,17 @@ class AppGraph(context: Context) {
     val secure = SecureSettingsStore(appContext)
     val connectivity = ConnectivityObserver(appContext)
     val db: HerDatabase = Room.databaseBuilder(appContext, HerDatabase::class.java, "her.db")
-        .addMigrations(HerDatabase.MIGRATION_1_2)
+        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3)
         .build()
     val repo = HerRepository(db, settings)
     val sqlBrowser = SqlBrowser(db)
-    val ranker = HybridRanker(repo, NoOpEmbeddingProvider())
+    val ranker = HybridRanker(
+        repo,
+        OpenAiEmbeddingProvider(
+            llmSettings = { secure.read() },
+            enabledModel = { settings.read().takeIf { it.embeddingsEnabled }?.embeddingModel },
+        ),
+    )
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
     val webSearch = WebSearchClient(llm = llm, llmSettings = { secure.read() })

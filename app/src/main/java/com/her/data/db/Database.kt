@@ -432,6 +432,17 @@ data class PendingConfirmationEntity(
     val createdAt: Long,
 )
 
+/** Device-local vector cache for memory retrieval. Not synced; rebuilt when a memory's content or the model changes. */
+@Entity(tableName = "memory_embeddings")
+data class MemoryEmbeddingEntity(
+    @PrimaryKey val memoryId: String,
+    val model: String,
+    val contentHash: String,
+    val dimensions: Int,
+    val vector: ByteArray,
+    val updatedAt: Long,
+)
+
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
     @TypeConverter fun toMessageRole(v: String?): MessageRole? = v?.let { MessageRole.valueOf(it) }
@@ -861,6 +872,18 @@ interface ConfirmationDao {
     suspend fun delete(id: String)
 }
 
+@Dao
+interface EmbeddingDao {
+    @Query("SELECT * FROM memory_embeddings WHERE model = :model AND memoryId IN (:ids)")
+    suspend fun forIds(ids: List<String>, model: String): List<MemoryEmbeddingEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(items: List<MemoryEmbeddingEntity>)
+
+    @Query("SELECT COUNT(*) FROM memory_embeddings")
+    suspend fun count(): Int
+}
+
 @Database(
     entities = [
         ChatMessageEntity::class,
@@ -892,8 +915,9 @@ interface ConfirmationDao {
         ApiUsageEntity::class,
         DebugEventEntity::class,
         PendingConfirmationEntity::class,
+        MemoryEmbeddingEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -918,6 +942,7 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun logDao(): LogDao
     abstract fun syncDao(): SyncDao
     abstract fun confirmationDao(): ConfirmationDao
+    abstract fun embeddingDao(): EmbeddingDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -939,6 +964,24 @@ abstract class HerDatabase : RoomDatabase() {
                         `version` INTEGER NOT NULL,
                         `deletedAt` INTEGER,
                         PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `memory_embeddings` (
+                        `memoryId` TEXT NOT NULL,
+                        `model` TEXT NOT NULL,
+                        `contentHash` TEXT NOT NULL,
+                        `dimensions` INTEGER NOT NULL,
+                        `vector` BLOB NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        PRIMARY KEY(`memoryId`)
                     )
                     """.trimIndent(),
                 )
