@@ -143,7 +143,11 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateSettings(transform: (com.her.data.secure.AppSettings) -> com.her.data.secure.AppSettings) {
+        val before = graph.settings.read().quietHours
         graph.settings.update(transform)
+        if (before != graph.settings.read().quietHours) {
+            viewModelScope.launch(Dispatchers.IO) { graph.scheduler.enqueueAll() }
+        }
     }
 
     fun runHourly() = graph.scheduler.runHourlyNow()

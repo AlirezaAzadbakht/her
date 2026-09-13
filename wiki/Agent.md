@@ -30,7 +30,7 @@ Task lines include ids so `update_task` can target a row. Titles alone used to f
 | Run | Max LLM calls | Extra rules |
 |-----|---------------|-------------|
 | Chat | `chatToolCallLimit` (default 12, min 1) | User-driven |
-| Hourly / catch-up | 10 | Skip if last hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours |
+| Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. |
 | Nightly | 50 | Once per calendar day |
 | Briefing | 8 | Once per calendar day |
 

@@ -1,8 +1,12 @@
 package com.her.ui.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +18,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,10 +26,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.her.core.QuietHours
 import com.her.data.secure.LlmSettings
 import com.her.ui.HerViewModel
@@ -54,6 +63,20 @@ fun SettingsScreen(vm: HerViewModel) {
     val requestCalendar = rememberCalendarPermissionRequester {
         vm.updateSettings { it.copy(calendarEnabled = true) }
     }
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var unrestrictedBattery by remember {
+        mutableStateOf(isIgnoringBatteryOptimizations(context))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                unrestrictedBattery = isIgnoringBatteryOptimizations(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 22.dp),
@@ -79,6 +102,27 @@ fun SettingsScreen(vm: HerViewModel) {
                 val end = parseMinutes(quietEnd) ?: return@TextButton
                 vm.updateSettings { it.copy(quietHours = QuietHours(start, end)) }
             }) { Text("Save quiet hours") }
+            Toggle("Hourly during quiet hours", app.hourlyDuringQuietHours) {
+                vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
+            }
+            if (unrestrictedBattery) {
+                Text(
+                    "Background work is unrestricted.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+            } else {
+                Text(
+                    "Hourly and nightly need to run when the app is closed.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+                TextButton(onClick = {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(Uri.parse("package:${context.packageName}"))
+                    runCatching { context.startActivity(intent) }
+                }) { Text("Allow background work") }
+            }
         }
         item {
             Toggle("Calendar access", app.calendarEnabled) {
@@ -197,6 +241,11 @@ private fun Toggle(label: String, checked: Boolean, onClick: () -> Unit) {
 
 private fun formatMinutes(minutes: Int): String =
     LocalTime.of(minutes / 60, minutes % 60).format(DateTimeFormatter.ofPattern("HH:mm"))
+
+private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+    val pm = context.getSystemService(PowerManager::class.java) ?: return false
+    return pm.isIgnoringBatteryOptimizations(context.packageName)
+}
 
 private fun parseMinutes(value: String): Int? {
     val parts = value.trim().split(":")

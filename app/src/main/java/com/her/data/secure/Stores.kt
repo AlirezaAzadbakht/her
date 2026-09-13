@@ -78,6 +78,7 @@ data class AppSettings(
     val lastNotificationAt: Long,
     val memoryTabEnabled: Boolean,
     val runtimePermissionsAsked: Boolean,
+    val hourlyDuringQuietHours: Boolean = false,
 )
 
 class AppSettingsStore(context: Context, prefsName: String = "her_app_settings") {
@@ -113,6 +114,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             lastNotificationAt = prefs.getLong(KEY_NOTIF_AT, 0L),
             memoryTabEnabled = prefs.getBoolean(KEY_MEMORY_TAB, true),
             runtimePermissionsAsked = prefs.getBoolean(KEY_PERM_ASKED, false),
+            hourlyDuringQuietHours = prefs.getBoolean(KEY_HOURLY_QUIET, false),
         )
     }
 
@@ -140,8 +142,15 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putLong(KEY_NOTIF_AT, next.lastNotificationAt)
             putBoolean(KEY_MEMORY_TAB, next.memoryTabEnabled)
             putBoolean(KEY_PERM_ASKED, next.runtimePermissionsAsked)
+            putBoolean(KEY_HOURLY_QUIET, next.hourlyDuringQuietHours)
         }
         _state.value = next
+    }
+
+    fun readScheduleFingerprint(): String = prefs.getString(KEY_SCHEDULE, "") ?: ""
+
+    fun writeScheduleFingerprint(value: String) {
+        prefs.edit { putString(KEY_SCHEDULE, value) }
     }
 
     companion object {
@@ -166,5 +175,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_NOTIF_AT = "last_notif_at"
         private const val KEY_MEMORY_TAB = "memory_tab_enabled"
         private const val KEY_PERM_ASKED = "runtime_permissions_asked"
+        private const val KEY_HOURLY_QUIET = "hourly_during_quiet_hours"
+        private const val KEY_SCHEDULE = "schedule_fingerprint"
     }
 }

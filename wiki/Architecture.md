@@ -67,7 +67,7 @@ Dropped tasks also set `deletedAt` so they leave the live lists.
 
 `app/src/main/AndroidManifest.xml`:
 
-- Permissions: internet, network state, notifications, boot, read/write calendar
+- Permissions: internet, network state, notifications, boot, read/write calendar, foreground data-sync, request ignore battery optimizations
 - `allowBackup="false"`
 - `usesCleartextTraffic="true"` (local / custom LLM endpoints)
 - Debug application id: `com.her.debug`

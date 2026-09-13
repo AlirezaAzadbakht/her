@@ -5,5 +5,7 @@
     <string name="nav_memory">Memory</string>
     <string name="nav_settings">Settings</string>
     <string name="channel_her">Her</string>
+    <string name="channel_her_work">Background work</string>
+    <string name="work_running">Her is working</string>
     <string name="share_label">Her</string>
 </resources>

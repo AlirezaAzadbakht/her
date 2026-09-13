@@ -105,7 +105,9 @@ class AgentOrchestrator(
             persistAssistant = false,
             allowNotify = true,
         )
-        settings.update { it.copy(lastHourlyRunAt = now) }
+        if (!result.failed) {
+            settings.update { it.copy(lastHourlyRunAt = now) }
+        }
         if (result.assistantText.isNullOrBlank() || result.assistantText == "NO_NOTIFICATION") {
             repo.logActivity("hourly", "No notification sent.")
         }
