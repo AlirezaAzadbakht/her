@@ -1,5 +1,6 @@
 package com.her.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.core.QuietHours
@@ -113,6 +116,7 @@ fun SettingsScreen(vm: HerViewModel) {
                 )
             }
         }
+        item { AboutLine() }
         item {
             TextButton(onClick = { advanced = !advanced }) {
                 Text(if (advanced) "Hide advanced" else "Advanced")
@@ -149,6 +153,33 @@ fun SettingsScreen(vm: HerViewModel) {
                 Text("${event.kind}\n${event.payload.take(500)}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
         }
+    }
+}
+
+private const val GITHUB_URL = "https://github.com/AlirezaAzadbakht/her"
+
+@Composable
+private fun AboutLine() {
+    val uriHandler = LocalUriHandler.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Built for everyone 🌱 · Open on ",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp,
+        )
+        Text(
+            "GitHub",
+            color = MaterialTheme.colorScheme.primary,
+            fontSize = 12.sp,
+            textDecoration = TextDecoration.Underline,
+            modifier = Modifier.clickable { uriHandler.openUri(GITHUB_URL) },
+        )
     }
 }
 
