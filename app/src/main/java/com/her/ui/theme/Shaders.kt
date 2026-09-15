@@ -47,8 +47,8 @@ float fbm(float2 p) {
 half4 main(float2 fragCoord) {
     float2 p = (fragCoord - uSize * 0.5) / (min(uSize.x, uSize.y) * 0.5);
     float r = length(p);
-    float2 dir = p / max(r, 0.001);
-    float n = fbm(dir * (1.6 + 0.4 * uEnergy) + float2(uTime * 0.11, -uTime * 0.07) + r * 1.3);
+    // Sample noise by position, not direction: normalizing p left a visible seam through the centre.
+    float n = fbm(p * (1.6 + 0.4 * uEnergy) + float2(uTime * 0.11, -uTime * 0.07));
     float breath = 0.5 + 0.5 * sin(uTime * (0.8 + 1.2 * uEnergy));
     float reach = 0.52 + 0.2 * uEnergy + 0.06 * breath;
     float d = r + (n - 0.5) * (0.18 + 0.22 * uEnergy);
