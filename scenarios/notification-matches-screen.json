@@ -1,0 +1,27 @@
+{
+  "id": "notification-matches-screen",
+  "title": "A proactive nudge is also her latest message on screen",
+  "tags": ["proactive", "notifications", "regression"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Renew the passport", "dueAt": "yesterday" } }
+    ]
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["passport"] },
+    "rows": [
+      {
+        "table": "chat_messages",
+        "count": 1,
+        "where": { "role": "ASSISTANT", "content": { "contains": "passport" }, "metadataJson": { "contains": "proactive" } }
+      }
+    ]
+  }
+}

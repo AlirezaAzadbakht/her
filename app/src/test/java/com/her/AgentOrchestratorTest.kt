@@ -7,6 +7,7 @@ import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
 import com.her.core.FakeClock
+import com.her.core.QuietHours
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
@@ -21,6 +22,7 @@ import com.her.domain.LlmMessage
 import com.her.domain.LlmResponse
 import com.her.domain.LlmToolCall
 import com.her.domain.LlmUsage
+import com.her.domain.MessageRole
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
@@ -134,6 +136,29 @@ class AgentOrchestratorTest {
         val result = orchestrator.runHourly()
 
         assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertTrue(repo.recentMessages(10).isEmpty())
+    }
+
+    @Test
+    fun hourlyNudgeIsSavedSoTheScreenMatchesTheNotification() = runBlocking {
+        // 22:30 UTC is outside the default quiet hours; the device zone might not be.
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val orchestrator = orchestrator(ScriptedLlm({ reply("The passport renewal is overdue.") }))
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+        val latest = repo.recentMessages(10).last { it.role == MessageRole.ASSISTANT }
+        assertEquals("The passport renewal is overdue.", latest.content)
+    }
+
+    @Test
+    fun hourlyNudgeSuppressedByQuietHoursIsNotSaved() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        settings.update { it.copy(quietHours = QuietHours(22 * 60, 23 * 60)) }
+        val orchestrator = orchestrator(ScriptedLlm({ reply("The passport renewal is overdue.") }))
+        orchestrator.runHourly()
+
         assertTrue(shown.isEmpty())
         assertTrue(repo.recentMessages(10).isEmpty())
     }

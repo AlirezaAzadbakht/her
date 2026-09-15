@@ -279,6 +279,11 @@ class AgentOrchestrator(
                     now = repo.now(),
                 )
                 if (decision.notify) {
+                    // Opening the app from the notification has to show the same words, so an autonomous
+                    // reply that was not already saved (briefing, send_user_message) is saved first.
+                    if (!persistAssistant && notifyText != proactive) {
+                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, notifyText, MessageStatus.SENT, """{"proactive":true}"""))
+                    }
                     notifier.show(notifyText, type == AgentRunType.BRIEFING)
                     settings.update { it.copy(lastNotificationKey = decision.key, lastNotificationAt = nowMillis()) }
                 } else {
