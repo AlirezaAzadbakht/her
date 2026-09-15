@@ -47,6 +47,7 @@ Core principles:
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
+| ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |

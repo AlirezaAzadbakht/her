@@ -60,6 +60,25 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal, system, and Google; Google rows are read-only)
 - `web_search`, `send_user_message`
+- Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
+
+## Reminders and alarms
+
+`set_reminder` takes exactly one trigger:
+
+| Trigger | Argument | How it fires |
+|---------|----------|--------------|
+| `TIME` | `when` (must include a time of day, must be in the future) | `AndroidReminderAlarms` arms an exact `AlarmManager` alarm (a 10-minute window when exact alarms are not allowed). `ReminderReceiver` calls `ReminderDelivery.fireDue()`, which saves the message as her latest assistant message and then posts a high-importance notification that ignores quiet hours. No LLM call. |
+| `PERSON` | `personName` (found or created in `people`) | Waits in the context bundle's **Reminders** section. When that person is in a calendar event in the next 24 hours, the line says so, so an hourly pass can nudge. When they mention being with the person, she brings it up and calls `complete_reminder`. |
+| `PLACE` | `place` | Waits in context until they say they arrived. There is no geofencing. |
+
+- `onlyIfOpen`: a task or commitment. A due reminder is marked `SKIPPED` without ringing when that record is no longer open.
+- `repeat`: `DAILY` / `WEEKLY` / `MONTHLY`, for clock reminders only. A repeating reminder moves to its next time after it rings.
+- Only the device that set a reminder arms its alarm. Other devices get the row through sync. Alarms are re-armed on app start, boot, app update, time or timezone change, exact-alarm permission change, and after sync. `HourlyWorker` also calls `fireDue()` as a safety net.
+- `set_alarm` sends `AlarmClock.ACTION_SET_ALARM` to the phone's clock app. A one-off alarm must ring within 24 hours. `days` makes it repeat weekly.
+- `set_reminder` is undoable from its receipt, which cancels and disarms it.
+
+An autonomous pass that notifies with plain text (not `send_user_message`) saves that text as an assistant message first. Opening the app from the notification then shows the same words.
 
 `requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A `dueAt` that does not parse is an error, not a silent no-op. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
 

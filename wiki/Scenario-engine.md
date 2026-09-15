@@ -158,6 +158,8 @@ Rows are flattened by an explicit mapper, not reflection.
 | `memories_short` | id, content, type, confidence, importance, source |
 | `profile` | userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext |
 | `user_understandings` | id, facet, content, confidence, importance, status, source |
+| `reminders` | id, message, trigger (`TIME` / `PERSON` / `PLACE`), fireAt, repeat, person (name), place, onlyIfEntityType, onlyIfEntityId, status (`SCHEDULED` / `FIRED` / `SKIPPED` / `CANCELLED`) |
+| `alarms` | hour, minute, label, days (harness fake of the phone's clock app) |
 
 ## What the harness does
 
@@ -165,11 +167,14 @@ Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` pr
 
 Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`. Seed Google Calendar events with `seed.google_calendar` using the same shape; that grants the fake Google client for the attempt. Check them with `rows` on table `google_calendar`.
 
+Reminders use a fake alarm manager and the real `ReminderDelivery`. Every `advance` and `at` turn fires clock reminders that are due, the way AlarmManager would, so a reminder's notification and its saved assistant message exist before the next turn. `set_alarm` writes to a fake clock app; check it with `rows` on table `alarms`. Seed a reminder with a `set_reminder` seed tool call.
+
 Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }, "title", "snippets" }`. The fake matches the tool query against those needles and returns the snippets. There is no live provider search during scenarios.
 
 ## Limitations
 
-- Time moves only on `advance` / `at` turns (plus 1 ms per read to keep row order). WorkManager scheduling is not simulated, so call `run` turns explicitly.
+- Time moves only on `advance` / `at` turns (plus 1 ms per read to keep row order). WorkManager scheduling is not simulated, so call `run` turns explicitly. Clock reminders are the exception: they fire on `advance` / `at`.
+- A `reply` check reads her last assistant message. A reminder that fires is saved as an assistant message, so put reply checks before a turn that makes one ring, or check `notifications` instead.
 - No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.
