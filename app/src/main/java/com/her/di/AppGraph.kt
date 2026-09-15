@@ -24,6 +24,9 @@ import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import com.her.reminders.AndroidReminderAlarms
+import com.her.reminders.ReminderDelivery
+import com.her.reminders.SystemAlarmClock
 import com.her.work.Scheduler
 import java.util.concurrent.Executors
 
@@ -35,7 +38,7 @@ class AppGraph(context: Context) {
     val secure = SecureSettingsStore(appContext)
     val connectivity = ConnectivityObserver(appContext)
     val db: HerDatabase = Room.databaseBuilder(appContext, HerDatabase::class.java, "her.db")
-        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3)
+        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
         .build()
     val repo = HerRepository(db, settings)
     val sqlBrowser = SqlBrowser(db)
@@ -56,6 +59,8 @@ class AppGraph(context: Context) {
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)
+    val reminderAlarms = AndroidReminderAlarms(appContext)
+    val reminderDelivery = ReminderDelivery(repo, notifier)
 
     private val contextBuilder: ContextBuilder by lazy {
         ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
@@ -64,7 +69,7 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, googleCalendar)
+        }, googleCalendar, reminderAlarms, SystemAlarmClock(appContext))
     }
 
     val orchestrator: AgentOrchestrator by lazy {

@@ -368,6 +368,20 @@ object Checks {
                     "source" to it.source.name,
                 )
             }
+            "reminders" -> repo.reminders().map {
+                mapOf(
+                    "id" to it.id,
+                    "message" to it.message,
+                    "trigger" to it.trigger.name,
+                    "fireAt" to it.fireAt,
+                    "repeat" to it.repeat.name,
+                    "person" to it.personId?.let { id -> repo.getPerson(id)?.name },
+                    "place" to it.place,
+                    "onlyIfEntityType" to it.onlyIfEntityType,
+                    "onlyIfEntityId" to it.onlyIfEntityId,
+                    "status" to it.status.name,
+                )
+            }
             "profile" -> repo.getProfile().let {
                 listOf(
                     mapOf(

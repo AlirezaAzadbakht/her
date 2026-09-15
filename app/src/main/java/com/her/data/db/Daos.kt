@@ -293,6 +293,21 @@ interface CalendarDao {
 }
 
 @Dao
+interface ReminderDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: ReminderEntity)
+
+    @Query("SELECT * FROM reminders WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): ReminderEntity?
+
+    @Query("SELECT * FROM reminders WHERE deletedAt IS NULL ORDER BY fireAt IS NULL, fireAt ASC, createdAt ASC")
+    suspend fun allActive(): List<ReminderEntity>
+
+    @Query("SELECT * FROM reminders WHERE deletedAt IS NULL AND status = 'SCHEDULED' AND `trigger` = 'TIME' AND fireAt <= :now AND deviceId = :deviceId ORDER BY fireAt ASC")
+    suspend fun dueTime(now: Long, deviceId: String): List<ReminderEntity>
+}
+
+@Dao
 interface RelationshipDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: MemoryRelationshipEntity)

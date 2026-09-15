@@ -27,6 +27,10 @@ import com.her.domain.Project
 import com.her.domain.ProjectStatus
 import com.her.domain.QueueStatus
 import com.her.domain.RecurringResponsibility
+import com.her.domain.Reminder
+import com.her.domain.ReminderRepeat
+import com.her.domain.ReminderStatus
+import com.her.domain.ReminderTrigger
 import com.her.domain.Routine
 import com.her.domain.ShortTermMemory
 import com.her.domain.TaskItem
@@ -61,6 +65,7 @@ internal object SyncCodec {
             "memory_relationships" -> repo.relationships().firstOrNull { it.id == id }?.toJson()
             "agent_state" -> repo.getAgentState(id)?.toJson()
             "agent_queue" -> repo.getAgentQueue(id)?.toJson()
+            "reminders" -> repo.getReminder(id)?.toJson()
             else -> null
         }
         return raw?.let(::JSONObject)
@@ -93,6 +98,8 @@ internal object SyncCodec {
             "memory_relationships" -> repo.saveRelationship(relationship(json))
             "agent_state" -> repo.saveAgentState(agentState(json))
             "agent_queue" -> repo.saveAgentQueue(agentQueue(json))
+            // Only the device that set a reminder arms its alarm; the others keep the row so they can show or cancel it.
+            "reminders" -> repo.saveReminder(reminder(json))
             else -> return false
         }
         return true
@@ -447,6 +454,29 @@ internal object SyncCodec {
             dueAt = json.longOrNull("dueAt"),
             relatedEntityType = json.stringOrNull("relatedEntityType"),
             relatedEntityId = json.stringOrNull("relatedEntityId"),
+            createdAt = m.createdAt,
+            updatedAt = m.updatedAt,
+            deviceId = m.deviceId,
+            version = m.version,
+            deletedAt = m.deletedAt,
+        )
+    }
+
+    private fun reminder(json: JSONObject): Reminder {
+        val m = Meta(json)
+        return Reminder(
+            id = m.id,
+            message = json.getString("message"),
+            trigger = json.enumOr("trigger", ReminderTrigger.TIME),
+            fireAt = json.longOrNull("fireAt"),
+            repeat = json.enumOr("repeat", ReminderRepeat.NONE),
+            personId = json.stringOrNull("personId"),
+            place = json.stringOrNull("place"),
+            onlyIfEntityType = json.stringOrNull("onlyIfEntityType"),
+            onlyIfEntityId = json.stringOrNull("onlyIfEntityId"),
+            status = json.enumOr("status", ReminderStatus.SCHEDULED),
+            firedAt = json.longOrNull("firedAt"),
+            sourceMessageId = json.stringOrNull("sourceMessageId"),
             createdAt = m.createdAt,
             updatedAt = m.updatedAt,
             deviceId = m.deviceId,

@@ -142,6 +142,8 @@ object ScenarioTables {
         "memories_short",
         "profile",
         "user_understandings",
+        "reminders",
+        "alarms",
     )
 }
 

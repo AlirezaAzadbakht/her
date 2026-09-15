@@ -20,6 +20,9 @@ import com.her.domain.MessageStatus
 import com.her.domain.OpenLoopStatus
 import com.her.domain.ProjectStatus
 import com.her.domain.QueueStatus
+import com.her.domain.ReminderRepeat
+import com.her.domain.ReminderStatus
+import com.her.domain.ReminderTrigger
 import com.her.domain.SyncOpType
 import com.her.domain.TaskStatus
 
@@ -56,6 +59,12 @@ class HerConverters {
     @TypeConverter fun toSyncOpType(v: String?): SyncOpType? = v?.let { SyncOpType.valueOf(it) }
     @TypeConverter fun confirmationKind(v: ConfirmationKind?): String? = v?.name
     @TypeConverter fun toConfirmationKind(v: String?): ConfirmationKind? = v?.let { ConfirmationKind.valueOf(it) }
+    @TypeConverter fun reminderTrigger(v: ReminderTrigger?): String? = v?.name
+    @TypeConverter fun toReminderTrigger(v: String?): ReminderTrigger? = v?.let { ReminderTrigger.valueOf(it) }
+    @TypeConverter fun reminderStatus(v: ReminderStatus?): String? = v?.name
+    @TypeConverter fun toReminderStatus(v: String?): ReminderStatus? = v?.let { ReminderStatus.valueOf(it) }
+    @TypeConverter fun reminderRepeat(v: ReminderRepeat?): String? = v?.name
+    @TypeConverter fun toReminderRepeat(v: String?): ReminderRepeat? = v?.let { ReminderRepeat.valueOf(it) }
 }
 
 @Database(
@@ -90,8 +99,9 @@ class HerConverters {
         DebugEventEntity::class,
         PendingConfirmationEntity::class,
         MemoryEmbeddingEntity::class,
+        ReminderEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -117,6 +127,7 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun syncDao(): SyncDao
     abstract fun confirmationDao(): ConfirmationDao
     abstract fun embeddingDao(): EmbeddingDao
+    abstract fun reminderDao(): ReminderDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -156,6 +167,35 @@ abstract class HerDatabase : RoomDatabase() {
                         `vector` BLOB NOT NULL,
                         `updatedAt` INTEGER NOT NULL,
                         PRIMARY KEY(`memoryId`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `reminders` (
+                        `id` TEXT NOT NULL,
+                        `message` TEXT NOT NULL,
+                        `trigger` TEXT NOT NULL,
+                        `fireAt` INTEGER,
+                        `repeat` TEXT NOT NULL,
+                        `personId` TEXT,
+                        `place` TEXT,
+                        `onlyIfEntityType` TEXT,
+                        `onlyIfEntityId` TEXT,
+                        `status` TEXT NOT NULL,
+                        `firedAt` INTEGER,
+                        `sourceMessageId` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `version` INTEGER NOT NULL,
+                        `deletedAt` INTEGER,
+                        PRIMARY KEY(`id`)
                     )
                     """.trimIndent(),
                 )

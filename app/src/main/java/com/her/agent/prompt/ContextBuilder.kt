@@ -5,7 +5,12 @@ import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.GoogleCalendar
 import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.calendar.SystemCalendar
+import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
+import com.her.domain.Reminder
+import com.her.domain.ReminderRepeat
+import com.her.domain.ReminderStatus
+import com.her.domain.ReminderTrigger
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.MemoryRanker
 import com.her.data.secure.AppSettingsStore
@@ -25,6 +30,7 @@ data class BuiltContext(
 )
 
 private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private const val DAY_MS = 24 * 60 * 60 * 1000L
 
 class ContextBuilder(
     private val repo: HerRepository,
@@ -63,6 +69,10 @@ class ContextBuilder(
         val systemCal = systemCalendar.mirror(from, to, excludeGoogleAccounts = googleLive)
         val googleCal = googleCalendar.mirror(from, to)
         val internalCal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
+        val nowMs = now.toInstant().toEpochMilli()
+        val nextDay = (internalCal + systemCal + googleCal).filter { it.startAt in nowMs..(nowMs + DAY_MS) }
+        val reminders = repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.take(12)
+            .map { reminderLine(it, nextDay, zone) }
 
         // Slow-changing sections come first so providers can reuse the cached prompt prefix across calls.
         // The clock, retrieval, and live lists change every turn, so they come after.
@@ -98,6 +108,7 @@ class ContextBuilder(
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
+            appendSection("Reminders", reminders)
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
@@ -127,6 +138,33 @@ class ContextBuilder(
             }
         }
         return BuiltContext(messages, memories, bundle)
+    }
+
+    /** A PERSON reminder names a calendar event in the next day with that person, so a pass can bring it up in time. */
+    private suspend fun reminderLine(reminder: Reminder, nextDay: List<CalendarEvent>, zone: ZoneId): String {
+        val body = when (reminder.trigger) {
+            ReminderTrigger.TIME -> buildString {
+                append(reminder.fireAt?.let { stamp(it, zone) } ?: "?")
+                if (reminder.repeat != ReminderRepeat.NONE) append(", repeats ${reminder.repeat.name.lowercase()}")
+                append(": \"${reminder.message}\"")
+            }
+            ReminderTrigger.PERSON -> {
+                val name = reminder.personId?.let { repo.getPerson(it)?.name } ?: "someone"
+                val first = name.substringBefore(' ')
+                val meeting = nextDay.firstOrNull {
+                    it.title.contains(name, ignoreCase = true) || (first.length >= 3 && it.title.contains(first, ignoreCase = true))
+                }
+                "next time with $name: \"${reminder.message}\"" +
+                    (meeting?.let { " — $name is on the calendar: ${it.title} ${stamp(it.startAt, zone)}" } ?: "")
+            }
+            ReminderTrigger.PLACE -> "on arriving at ${reminder.place ?: "?"}: \"${reminder.message}\""
+        }
+        val condition = when (reminder.onlyIfEntityType) {
+            "tasks" -> reminder.onlyIfEntityId?.let { repo.getTask(it) }?.let { " (only if task \"${it.title}\" is still open)" }
+            "commitments" -> reminder.onlyIfEntityId?.let { repo.getCommitment(it) }?.let { " (only if \"${it.title}\" is still open)" }
+            else -> null
+        }.orEmpty()
+        return "${reminder.id} | $body$condition"
     }
 
     private fun stamp(millis: Long, zone: ZoneId): String =

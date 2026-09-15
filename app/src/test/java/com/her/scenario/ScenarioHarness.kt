@@ -25,6 +25,11 @@ import com.her.domain.MessageStatus
 import com.her.domain.ToolResult
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import com.her.reminders.AlarmClockPort
+import com.her.reminders.FakeAlarmClock
+import com.her.reminders.FakeReminderAlarms
+import com.her.reminders.ReminderAlarms
+import com.her.reminders.ReminderDelivery
 import org.json.JSONObject
 
 data class RecordedNotification(
@@ -40,7 +45,9 @@ class RecordingToolRegistry(
     webSearch: WebSearchClient,
     onUserMessage: suspend (String) -> Unit,
     googleCalendar: GoogleCalendar,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, googleCalendar) {
+    reminderAlarms: ReminderAlarms,
+    alarmClock: AlarmClockPort,
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, googleCalendar, reminderAlarms, alarmClock) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -61,6 +68,10 @@ class RecordingNotifier(context: android.content.Context) : Notifier(context) {
 
     override fun show(text: String, briefing: Boolean) {
         recorded += RecordedNotification(text, briefing)
+    }
+
+    override fun showReminder(id: String, text: String) {
+        recorded += RecordedNotification(text, briefing = false)
     }
 }
 
@@ -97,10 +108,13 @@ class ScenarioHarness(
     val webSearch = FakeWebSearchClient()
     private val ranker = HybridRanker(repo)
     private val googleCalendar = GoogleCalendar(repo, google)
+    val reminderAlarms = FakeReminderAlarms()
+    val alarmClock = FakeAlarmClock()
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, googleCalendar)
+    }, googleCalendar, reminderAlarms, alarmClock)
     private val notifier = RecordingNotifier(context)
+    private val reminders = ReminderDelivery(repo, notifier)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
     private val orchestrator = AgentOrchestrator(
         repo = repo,
@@ -130,8 +144,10 @@ class ScenarioHarness(
                         AutonomousRun.NIGHTLY -> orchestrator.runNightly()
                         AutonomousRun.BRIEFING -> orchestrator.runBriefing()
                     }
+                    // Moving the clock stands in for AlarmManager: anything due rings before the next turn.
                     is ScenarioTurn.Advance -> {
                         clock.advance(turn.millis)
+                        reminders.fireDue()
                         null
                     }
                     is ScenarioTurn.At -> {
@@ -139,6 +155,7 @@ class ScenarioHarness(
                             ?: error("Could not parse at '${turn.phrase}'")
                         if (target < clock.peek()) error("at '${turn.phrase}' is in the past; the harness clock only moves forward")
                         clock.set(target)
+                        reminders.fireDue()
                         null
                     }
                 }
@@ -177,6 +194,7 @@ class ScenarioHarness(
         mapOf(
             "system_calendar" to calendar.rows(),
             "google_calendar" to google.rows(),
+            "alarms" to alarmClock.rows(),
         )
 
     private suspend fun seed() {

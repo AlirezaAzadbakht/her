@@ -57,6 +57,33 @@ open class Notifier(private val context: Context) {
                     setShowBadge(false)
                 },
             )
+            manager.createNotificationChannel(
+                NotificationChannel(REMINDER_CHANNEL, context.getString(R.string.channel_her_reminders), NotificationManager.IMPORTANCE_HIGH),
+            )
+        }
+    }
+
+    /** A reminder they asked for rings even in quiet hours, and each one keeps its own notification. */
+    open fun showReminder(id: String, text: String) {
+        val open = PendingIntent.getActivity(
+            context,
+            1,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, REMINDER_CHANNEL)
+            .setSmallIcon(R.drawable.ic_launcher)
+            .setContentTitle("Her")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(REMINDER_NOTIFICATION_BASE + (id.hashCode() and 0xFFFF), notification)
+        } catch (_: SecurityException) {
         }
     }
 
@@ -107,7 +134,9 @@ open class Notifier(private val context: Context) {
 
     companion object {
         const val CHANNEL = "her"
+        const val REMINDER_CHANNEL = "her-reminders"
         const val NOTIFICATION_ID = 17
+        const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val KEY_REPLY = "reply"

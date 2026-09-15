@@ -16,6 +16,9 @@ enum class AgentRunType { CHAT, HOURLY, NIGHTLY, BRIEFING, CATCH_UP }
 enum class AgentRunStatus { RUNNING, COMPLETED, FAILED, CANCELLED }
 enum class SyncOpType { UPSERT, DELETE }
 enum class ConfirmationKind { CALENDAR_DELETE, BULK_FORGET, EXTERNAL_DESTRUCTIVE }
+enum class ReminderTrigger { TIME, PERSON, PLACE }
+enum class ReminderStatus { SCHEDULED, FIRED, SKIPPED, CANCELLED }
+enum class ReminderRepeat { NONE, DAILY, WEEKLY, MONTHLY }
 
 data class ChatMessage(
     val id: String,
@@ -282,6 +285,30 @@ data class CalendarEvent(
     val externalId: String?,
     val source: CalendarSource,
     val calendarId: String?,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
+/**
+ * Something she was asked to bring up later. TIME reminders fire from an alarm without the model;
+ * PERSON and PLACE reminders wait in context until the conversation shows the moment has come.
+ */
+data class Reminder(
+    val id: String,
+    val message: String,
+    val trigger: ReminderTrigger,
+    val fireAt: Long?,
+    val repeat: ReminderRepeat,
+    val personId: String?,
+    val place: String?,
+    val onlyIfEntityType: String?,
+    val onlyIfEntityId: String?,
+    val status: ReminderStatus,
+    val firedAt: Long?,
+    val sourceMessageId: String?,
     val createdAt: Long,
     val updatedAt: Long,
     val deviceId: String,

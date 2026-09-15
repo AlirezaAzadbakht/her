@@ -18,6 +18,9 @@ import com.her.domain.MessageStatus
 import com.her.domain.OpenLoopStatus
 import com.her.domain.ProjectStatus
 import com.her.domain.QueueStatus
+import com.her.domain.ReminderRepeat
+import com.her.domain.ReminderStatus
+import com.her.domain.ReminderTrigger
 import com.her.domain.SyncOpType
 import com.her.domain.TaskStatus
 
@@ -299,6 +302,27 @@ data class CalendarEventEntity(
     val externalId: String?,
     val source: CalendarSource,
     val calendarId: String?,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
+@Entity(tableName = "reminders")
+data class ReminderEntity(
+    @PrimaryKey val id: String,
+    val message: String,
+    val trigger: ReminderTrigger,
+    val fireAt: Long?,
+    val repeat: ReminderRepeat,
+    val personId: String?,
+    val place: String?,
+    val onlyIfEntityType: String?,
+    val onlyIfEntityId: String?,
+    val status: ReminderStatus,
+    val firedAt: Long?,
+    val sourceMessageId: String?,
     val createdAt: Long,
     val updatedAt: Long,
     val deviceId: String,

@@ -1,8 +1,10 @@
 package com.her.ui.settings
 
+import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -85,10 +87,12 @@ fun SettingsScreen(vm: HerViewModel) {
     var unrestrictedBattery by remember {
         mutableStateOf(isIgnoringBatteryOptimizations(context))
     }
+    var exactReminders by remember { mutableStateOf(canScheduleExactAlarms(context)) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 unrestrictedBattery = isIgnoringBatteryOptimizations(context)
+                exactReminders = canScheduleExactAlarms(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -139,6 +143,18 @@ fun SettingsScreen(vm: HerViewModel) {
                         .setData(Uri.parse("package:${context.packageName}"))
                     runCatching { context.startActivity(intent) }
                 }) { Text("Allow background work") }
+            }
+            if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                Text(
+                    "Reminders can arrive a few minutes late until exact alarms are allowed.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 13.sp,
+                )
+                TextButton(onClick = {
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                        .setData(Uri.parse("package:${context.packageName}"))
+                    runCatching { context.startActivity(intent) }
+                }) { Text("Allow exact reminders") }
             }
         }
         item {
@@ -297,6 +313,10 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
     val pm = context.getSystemService(PowerManager::class.java) ?: return false
     return pm.isIgnoringBatteryOptimizations(context.packageName)
 }
+
+private fun canScheduleExactAlarms(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+        context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
 
 private fun parseMinutes(value: String): Int? {
     val parts = value.trim().split(":")

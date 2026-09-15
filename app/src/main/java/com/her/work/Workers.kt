@@ -1,5 +1,6 @@
 package com.her.work
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -26,17 +27,24 @@ import com.her.HerApplication
 import com.her.R
 import com.her.core.nowMillis
 import com.her.di.AppGraph
+import com.her.reminders.rearmAll
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.runBlocking
 
 class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val graph = graph() ?: return Result.retry()
         val manual = inputData.getBoolean(KEY_MANUAL, false)
         runCatching { becomeForeground(NOTIF_HOURLY) }
+        // A safety net for alarms the system delayed or dropped; runs even when the LLM pass is skipped.
+        runCatching {
+            graph.reminderDelivery.fireDue()
+            graph.reminderAlarms.rearmAll(graph.repo)
+        }
         return try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -151,6 +159,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val token = auth.accessToken ?: return Result.success()
         return try {
             graph.syncEngine.sync(token)
+            // Another device may have moved or cancelled a reminder this one armed.
+            graph.reminderAlarms.rearmAll(graph.repo)
             Result.success()
         } catch (_: Exception) {
             Result.success()
@@ -350,9 +360,28 @@ class Scheduler(private val context: Context, private val settings: com.her.data
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        if (intent.action !in REARM_ACTIONS) return
         val app = context.applicationContext as? HerApplication ?: return
-        app.graph.scheduler.enqueueAll()
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) app.graph.scheduler.enqueueAll()
+        // Alarms do not survive a reboot or an update, and a clock or timezone change moves when they should ring.
+        val pending = goAsync()
+        app.graph.io.execute {
+            try {
+                runBlocking { runCatching { app.graph.reminderAlarms.rearmAll(app.graph.repo) } }
+            } finally {
+                pending.finish()
+            }
+        }
+    }
+
+    private companion object {
+        val REARM_ACTIONS = setOf(
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED,
+        )
     }
 }
 

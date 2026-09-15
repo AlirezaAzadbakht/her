@@ -132,9 +132,30 @@ class EmbeddingRetrievalTest {
             it.version = 2
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
             .build()
         assertEquals(0, migrated.embeddingDao().count())
+        migrated.close()
+        context.deleteDatabase(name)
+        Unit
+    }
+
+    @Test
+    fun migrationFromVersionThreeAddsTheReminderTable() = runBlocking {
+        val name = "migration_${System.nanoTime()}.db"
+        Room.databaseBuilder(context, HerDatabase::class.java, name).build().apply {
+            openHelper.writableDatabase
+            close()
+        }
+        // Roll the file back to version 3, before reminders existed; Room checks the migrated schema on open.
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            it.execSQL("DROP TABLE reminders")
+            it.version = 3
+        }
+        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
+            .build()
+        assertEquals(0, migrated.reminderDao().allActive().size)
         migrated.close()
         context.deleteDatabase(name)
         Unit

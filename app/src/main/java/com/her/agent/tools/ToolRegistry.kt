@@ -17,7 +17,10 @@ import com.her.domain.CommitmentStatus
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryStatus
 import com.her.domain.OpenLoopStatus
+import com.her.domain.ReminderStatus
 import com.her.domain.TaskItem
+import com.her.reminders.AlarmClockPort
+import com.her.reminders.ReminderAlarms
 import com.her.domain.TaskStatus
 import com.her.domain.ToolResult
 import com.her.domain.ToolSpec
@@ -39,6 +42,8 @@ open class ToolRegistry(
     internal val webSearch: WebSearchClient,
     internal val onUserMessage: suspend (String) -> Unit = {},
     googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
+    internal val reminderAlarms: ReminderAlarms = ReminderAlarms.NONE,
+    internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
@@ -95,6 +100,7 @@ open class ToolRegistry(
         registerAgentTools()
         registerCalendarTools()
         registerMessagingTools()
+        registerReminderTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */
@@ -146,6 +152,11 @@ open class ToolRegistry(
                 if (event.source == CalendarSource.GOOGLE) return false
                 if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
                 repo.deleteCalendarEvent(id)
+            }
+            "reminders" -> {
+                val item = repo.getReminder(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveReminder(item.copy(status = ReminderStatus.CANCELLED, deletedAt = now, updatedAt = now, version = item.version + 1))
+                reminderAlarms.disarm(id)
             }
             else -> return false
         }

@@ -48,6 +48,10 @@ object Receipts {
             "delete_calendar_event" -> Triple("calendar_events", "removed an event", false)
             "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)
             "update_user_profile" -> Triple("user_profile", "updated your profile", false)
+            "set_reminder" -> Triple("reminders", "reminder: ${text("message")}", true)
+            "update_reminder" -> Triple("reminders", "moved a reminder", false)
+            "cancel_reminder" -> Triple("reminders", "cancelled a reminder", false)
+            "set_alarm" -> Triple("alarms", "alarm: ${payload.optString("clock")}", false)
             else -> return null
         }
         return Receipt(tool, label, entityType, id, undoable = undoable && id.isNotBlank())

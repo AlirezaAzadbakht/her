@@ -24,6 +24,7 @@ import com.her.data.db.PendingConfirmationEntity
 import com.her.data.db.PersonEntity
 import com.her.data.db.ProjectEntity
 import com.her.data.db.RecurringResponsibilityEntity
+import com.her.data.db.ReminderEntity
 import com.her.data.db.RoutineEntity
 import com.her.data.db.ShortTermMemoryEntity
 import com.her.data.db.SyncOpEntity
@@ -57,6 +58,7 @@ import com.her.domain.PendingConfirmation
 import com.her.domain.Person
 import com.her.domain.Project
 import com.her.domain.RecurringResponsibility
+import com.her.domain.Reminder
 import com.her.domain.Routine
 import com.her.domain.ShortTermMemory
 import com.her.domain.SyncOp
@@ -344,6 +346,17 @@ class HerRepository(
         }
     }
 
+    suspend fun reminders() = db.reminderDao().allActive().map { it.toDomain() }
+    suspend fun getReminder(id: String) = db.reminderDao().get(id)?.toDomain()
+
+    /** Clock reminders this device armed that are due by now; other devices fire their own. */
+    suspend fun dueTimeReminders(): List<Reminder> = db.reminderDao().dueTime(nowMillis(), deviceId).map { it.toDomain() }
+
+    suspend fun saveReminder(item: Reminder) {
+        db.reminderDao().upsert(item.toEntity())
+        enqueue("reminders", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
     suspend fun relationships() = db.relationshipDao().allActive().map { it.toDomain() }
     suspend fun relationshipsFor(type: String, id: String) = db.relationshipDao().forEntity(type, id).map { it.toDomain() }
     suspend fun saveRelationship(item: MemoryRelationship) {
@@ -592,6 +605,16 @@ fun CalendarEvent.toEntity() = CalendarEventEntity(id, title, startAt, endAt, lo
 fun CalendarEvent.toJson() = JSONObject()
     .put("id", id).put("title", title).put("startAt", startAt).put("endAt", endAt).put("location", location)
     .put("notes", notes).put("externalId", externalId).put("source", source.name).put("calendarId", calendarId)
+    .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
+    .put("version", version).put("deletedAt", deletedAt).toString()
+
+fun ReminderEntity.toDomain() = Reminder(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun Reminder.toEntity() = ReminderEntity(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun Reminder.toJson() = JSONObject()
+    .put("id", id).put("message", message).put("trigger", trigger.name).put("fireAt", fireAt)
+    .put("repeat", repeat.name).put("personId", personId).put("place", place)
+    .put("onlyIfEntityType", onlyIfEntityType).put("onlyIfEntityId", onlyIfEntityId)
+    .put("status", status.name).put("firedAt", firedAt).put("sourceMessageId", sourceMessageId)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
     .put("version", version).put("deletedAt", deletedAt).toString()
 
