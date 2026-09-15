@@ -45,6 +45,13 @@ class RelativeTimeParserTest {
     }
 
     @Test
+    fun persianRelativeDays() {
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 12), LocalTime.of(9, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("فردا ساعت ۹ صبح", now))
+        assertEquals(LocalDate.of(2026, 9, 13), RelativeTimeParser.parse("پس‌فردا", now)?.toLocalDate())
+        assertEquals(LocalDate.of(2026, 9, 11), RelativeTimeParser.parse("امروز", now)?.toLocalDate())
+    }
+
+    @Test
     fun lastWeekAndNextMonth() {
         assertEquals(LocalDate.of(2026, 9, 4), RelativeTimeParser.parse("last week", now)?.toLocalDate())
         assertEquals(LocalDate.of(2026, 10, 11), RelativeTimeParser.parse("next month", now)?.toLocalDate())

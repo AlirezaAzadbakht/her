@@ -1,7 +1,7 @@
 {
   "id": "language-mirrors-persian-when-unset",
   "title": "Reply in Persian when no language is set and they write Persian",
-  "tags": ["language", "persian", "tasks"],
+  "tags": ["language", "persian", "reminders"],
   "attempts": 2,
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
@@ -13,8 +13,13 @@
     "no_tool_errors": true,
     "rows": [
       {
-        "table": "tasks",
-        "where": { "title": { "contains_any": ["bank", "بانک"] }, "dueAt": { "date_is": "tomorrow" } }
+        "table": "reminders",
+        "count": 1,
+        "where": {
+          "message": { "contains_any": ["bank", "بانک"] },
+          "fireAt": { "date_is": "tomorrow", "time_is": "9:00" },
+          "status": "SCHEDULED"
+        }
       }
     ],
     "reply": {

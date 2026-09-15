@@ -133,6 +133,7 @@ object RelativeTimeParser {
         "evening" to LocalTime.of(18, 0),
         "night" to LocalTime.of(20, 0),
     )
+    private val PERSIAN_DAYS = mapOf("امروز" to 0L, "فردا" to 1L, "پسفردا" to 2L, "دیروز" to -1L)
     private val WEEKDAY_WORDS = setOf(
         "monday", "mon", "tuesday", "tue", "tues", "wednesday", "wed", "thursday", "thu", "thur", "thurs",
         "friday", "fri", "saturday", "sat", "sunday", "sun",
@@ -175,6 +176,10 @@ object RelativeTimeParser {
             .trim().removeSuffix("s")
         return if (word in WEEKDAY_WORDS) weekday(word) else null
     }
+
+    /** امروز / فردا / پس‌فردا / دیروز as a day offset, with or without the zero-width joiner. */
+    private fun persianDayOffset(text: String): Long? =
+        PERSIAN_DAYS[text.replace("‌", "").replace(" ", "")]
 
     private fun upcomingWeekday(target: java.time.DayOfWeek, now: ZonedDateTime): LocalDate {
         var date = now.toLocalDate()
@@ -233,6 +238,7 @@ object RelativeTimeParser {
             trimmed == "today" || trimmed == "now" -> now.toLocalDate()
             trimmed == "tomorrow" -> now.toLocalDate().plusDays(1)
             trimmed == "yesterday" -> now.toLocalDate().minusDays(1)
+            persianDayOffset(trimmed) != null -> now.toLocalDate().plusDays(persianDayOffset(trimmed)!!)
             trimmed == "this evening" || trimmed == "tonight" ||
                 trimmed == "this morning" || trimmed == "this afternoon" -> now.toLocalDate()
             trimmed == "next week" -> now.toLocalDate().plusWeeks(1)
