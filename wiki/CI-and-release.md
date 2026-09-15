@@ -23,6 +23,8 @@ CI uses the **wrapper**. That is fine on GitHub runners (`services.gradle.org` w
 
 Unit tests must stay offline for Robolectric (prefetch task in `app/build.gradle.kts`). Simulation reports must not use a machine-specific path (`user.dir` + `build/reports`). Both of those failed the first `main` builds and are why **v0.1.1** exists.
 
+`android-actions/setup-android@v4` defaults to installing `tools platform-tools`. `sdkmanager` no longer has `tools`, so CI passes `packages: ''` (licenses and cmdline-tools only). That is why **v0.1.6** exists.
+
 ## Version tags
 
 ```bash
@@ -52,7 +54,8 @@ Published so far:
 | [v0.1.2](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.2) | Single-utterance home, first-run names, RTL replies, Vazirmatn, setup ping fix |
 | [v0.1.3](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.3) | Smaller APKs (R8), device calendar writes, Jalali dates, scenario test pool |
 | [v0.1.4](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.4) | Persian and full-sentence memory search, save receipts with undo, notification Reply, nightly digest, full Drive sync, optional embeddings, scenarios out of CI |
-| [v0.1.5](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.5) | Real reminders and alarms, natural and Persian times, warm-glow UI with presence orbs, and a matching website |
+| [v0.1.5](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.5) | Real reminders and alarms, natural and Persian times, warm-glow UI with presence orbs, and a matching website. Release APK job did not finish (`sdkmanager` no longer has `tools`) |
+| [v0.1.6](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.6) | CI SDK setup skips the removed `tools` package so the signed 0.1.5 product cut can publish |
 
 ## Release job
 
