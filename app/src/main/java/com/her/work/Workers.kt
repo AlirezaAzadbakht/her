@@ -177,7 +177,8 @@ private suspend fun CoroutineWorker.becomeForeground(notificationId: Int) {
         )
     }
     val notification = NotificationCompat.Builder(context, WORK_CHANNEL)
-        .setSmallIcon(R.drawable.ic_launcher)
+        .setSmallIcon(R.drawable.ic_notification)
+        .setColor(context.getColor(R.color.her_accent))
         .setContentTitle(context.getString(R.string.work_running))
         .setOngoing(true)
         .setSilent(true)

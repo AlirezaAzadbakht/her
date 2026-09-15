@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher ring gathers in: the halo swells while the dots turn and settle into place. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <group
+                android:name="halo"
+                android:pivotX="54"
+                android:pivotY="54">
+                <path
+                    android:name="halo_glow"
+                    android:pathData="M22,54a32,32 0,1 0,64 0a32,32 0,1 0,-64 0">
+                    <aapt:attr name="android:fillColor">
+                        <gradient
+                            android:centerX="54"
+                            android:centerY="54"
+                            android:gradientRadius="32"
+                            android:type="radial">
+                            <item android:color="#55FF9E6E" android:offset="0" />
+                            <item android:color="#1FE57A8A" android:offset="0.6" />
+                            <item android:color="#00E57A8A" android:offset="1" />
+                        </gradient>
+                    </aapt:attr>
+                </path>
+            </group>
+            <group
+                android:name="ring"
+                android:pivotX="54"
+                android:pivotY="54">
+                <path android:fillAlpha="0.45" android:fillColor="#F6B26B" android:pathData="M52.5,35a1.5,1.5 0,1 0,3 0a1.5,1.5 0,1 0,-3 0" />
+                <path android:fillAlpha="0.47" android:fillColor="#F9A96A" android:pathData="M59.71,36.45a1.56,1.56 0,1 0,3.12 0a1.56,1.56 0,1 0,-3.12 0" />
+                <path android:fillAlpha="0.53" android:fillColor="#FC9F68" android:pathData="M65.72,40.56a1.72,1.72 0,1 0,3.44 0a1.72,1.72 0,1 0,-3.44 0" />
+                <path android:fillAlpha="0.62" android:fillColor="#FE9466" android:pathData="M69.54,46.73a2.01,2.01 0,1 0,4.02 0a2.01,2.01 0,1 0,-4.02 0" />
+                <path android:fillAlpha="0.73" android:fillColor="#FF8A65" android:pathData="M70.75,54a2.25,2.25 0,1 0,4.5 0a2.25,2.25 0,1 0,-4.5 0" />
+                <path android:fillAlpha="0.83" android:fillColor="#F98574" android:pathData="M69.01,61.27a2.54,2.54 0,1 0,5.08 0a2.54,2.54 0,1 0,-5.08 0" />
+                <path android:fillAlpha="0.92" android:fillColor="#F28079" android:pathData="M64.66,67.44a2.78,2.78 0,1 0,5.56 0a2.78,2.78 0,1 0,-5.56 0" />
+                <path android:fillAlpha="0.98" android:fillColor="#EC7C80" android:pathData="M58.33,71.55a2.94,2.94 0,1 0,5.88 0a2.94,2.94 0,1 0,-5.88 0" />
+                <path android:fillAlpha="1" android:fillColor="#E57A8A" android:pathData="M51,73a3,3 0,1 0,6 0a3,3 0,1 0,-6 0" />
+                <path android:fillAlpha="0.98" android:fillColor="#EC7C80" android:pathData="M43.79,71.55a2.94,2.94 0,1 0,5.88 0a2.94,2.94 0,1 0,-5.88 0" />
+                <path android:fillAlpha="0.92" android:fillColor="#F28079" android:pathData="M37.78,67.44a2.78,2.78 0,1 0,5.56 0a2.78,2.78 0,1 0,-5.56 0" />
+                <path android:fillAlpha="0.83" android:fillColor="#F98574" android:pathData="M33.91,61.27a2.54,2.54 0,1 0,5.08 0a2.54,2.54 0,1 0,-5.08 0" />
+                <path android:fillAlpha="0.73" android:fillColor="#FF8A65" android:pathData="M32.75,54a2.25,2.25 0,1 0,4.5 0a2.25,2.25 0,1 0,-4.5 0" />
+                <path android:fillAlpha="0.62" android:fillColor="#FE9466" android:pathData="M34.44,46.73a2.01,2.01 0,1 0,4.02 0a2.01,2.01 0,1 0,-4.02 0" />
+                <path android:fillAlpha="0.53" android:fillColor="#FC9F68" android:pathData="M38.84,40.56a1.72,1.72 0,1 0,3.44 0a1.72,1.72 0,1 0,-3.44 0" />
+                <path android:fillAlpha="0.47" android:fillColor="#F9A96A" android:pathData="M45.17,36.45a1.56,1.56 0,1 0,3.12 0a1.56,1.56 0,1 0,-3.12 0" />
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="halo">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:duration="760"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.4"
+                    android:valueTo="1"
+                    android:valueType="floatType" />
+                <objectAnimator
+                    android:duration="760"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.4"
+                    android:valueTo="1"
+                    android:valueType="floatType" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="halo_glow">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="600"
+                android:interpolator="@android:interpolator/decelerate_quad"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:valueType="floatType" />
+        </aapt:attr>
+    </target>
+    <target android:name="ring">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:duration="700"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0.6"
+                    android:valueTo="1"
+                    android:valueType="floatType" />
+                <objectAnimator
+                    android:duration="700"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0.6"
+                    android:valueTo="1"
+                    android:valueType="floatType" />
+                <objectAnimator
+                    android:duration="900"
+                    android:interpolator="@android:interpolator/decelerate_cubic"
+                    android:propertyName="rotation"
+                    android:valueFrom="-60"
+                    android:valueTo="0"
+                    android:valueType="floatType" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

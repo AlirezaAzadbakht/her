@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Her" parent="android:Theme.Material.NoActionBar">
-        <item name="android:statusBarColor">#1A1410</item>
-        <item name="android:navigationBarColor">#1A1410</item>
-        <item name="android:windowBackground">#1A1410</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <!-- Follows the system theme; Compose paints everything, so the window only needs the right ground. -->
+    <style name="Theme.Her" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/her_bg</item>
+    </style>
+
+    <style name="Theme.Her.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/her_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_orb</item>
+        <item name="windowSplashScreenAnimationDuration">900</item>
+        <item name="postSplashScreenTheme">@style/Theme.Her</item>
     </style>
 </resources>
