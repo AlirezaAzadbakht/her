@@ -22,6 +22,12 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 [**Architecture**](wiki/Architecture.md) ·
 [**Scenarios**](wiki/Scenario-engine.md)
 
+<br/>
+
+<img src="docs/images/her-reveal.gif" alt="Her thinking as a breathing orb, then her reply inking in" width="240"/>&nbsp;
+<img src="docs/images/onboarding.jpg" alt="First run: she asks what to call you" width="240"/>&nbsp;
+<img src="docs/images/settings.jpg" alt="Settings grouped into warm glass cards" width="240"/>
+
 </div>
 
 ---
@@ -174,6 +180,10 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Local development](wiki/Local-development.md) | Toolchain, Make, emulator, tests |
 | [Scenario engine](wiki/Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](wiki/CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
+
+## Credits
+
+The loading orbs are [thinking-orbs](https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/thinking-orbs) by Jakub Antalik (MIT), ported to Kotlin and checked against its golden vectors. See [`third_party/thinking-orbs`](third_party/thinking-orbs/README.md).
 
 ## License
 
