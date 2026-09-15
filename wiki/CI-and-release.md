@@ -52,6 +52,7 @@ Published so far:
 | [v0.1.2](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.2) | Single-utterance home, first-run names, RTL replies, Vazirmatn, setup ping fix |
 | [v0.1.3](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.3) | Smaller APKs (R8), device calendar writes, Jalali dates, scenario test pool |
 | [v0.1.4](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.4) | Persian and full-sentence memory search, save receipts with undo, notification Reply, nightly digest, full Drive sync, optional embeddings, scenarios out of CI |
+| [v0.1.5](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.5) | Real reminders and alarms, natural and Persian times, warm-glow UI with presence orbs, and a matching website |
 
 ## Release job
 
