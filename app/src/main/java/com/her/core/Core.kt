@@ -127,6 +127,12 @@ object RelativeTimeParser {
         RegexOption.IGNORE_CASE,
     )
     private val dayPart = Regex("""^(.+?)\s+(morning|afternoon|evening|night)$""")
+
+    /** "10 to 11 am" / "۱۰ تا ۱۱ صبح" keeps the start of the range, and the am/pm that follows it. */
+    private val clockRange = Regex("""(\d{1,2}(?::\d{2})?)\s*(?:تا|to|until|–|—)\s*\d{1,2}(?::\d{2})?(\s*(?:am|pm))?$""")
+
+    /** "before next Thursday", "by Friday": a deadline phrase still names the day. */
+    private val deadlineWords = listOf("before ", "by ", "until ", "on ")
     private val DAY_PARTS = mapOf(
         "morning" to LocalTime.of(9, 0),
         "afternoon" to LocalTime.of(14, 0),
@@ -148,7 +154,16 @@ object RelativeTimeParser {
         }
         parseIso(raw, now)?.let { return it }
         parseNatural(raw, now)?.let { return it }
+        // A trailing zone id ("2026-09-22 10:00 Asia/Tehran") names the clock the rest of the phrase is on.
+        zoneSuffix.find(raw)?.let { match ->
+            val zone = runCatching { ZoneId.of(match.groupValues[1]) }.getOrNull() ?: return@let
+            val rest = raw.substring(0, match.range.first).trim()
+            return parse(rest, now.withZoneSameInstant(zone))?.withZoneSameInstant(now.zone)
+        }
         val text = rewritePersianClock(raw.lowercase(Locale.US))
+            .replace(clockRange, "$1$2")
+            .let { phrase -> deadlineWords.fold(phrase) { acc, word -> acc.removePrefix(word) } }
+            .trim()
         splitClock(text)?.let { (datePhrase, clockPhrase) ->
             val date = parseBareDate(datePhrase, now) ?: return null
             val clock = parseClock(clockPhrase) ?: return null

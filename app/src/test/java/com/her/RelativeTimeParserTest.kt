@@ -52,6 +52,30 @@ class RelativeTimeParserTest {
     }
 
     @Test
+    fun trailingZoneNamesTheClock() {
+        assertEquals(
+            ZonedDateTime.of(LocalDate.of(2026, 9, 22), LocalTime.of(10, 0), ZoneId.of("Asia/Tehran")).toInstant(),
+            RelativeTimeParser.parse("2026-09-22 10:00 Asia/Tehran", now)?.toInstant(),
+        )
+        assertEquals(
+            ZonedDateTime.of(LocalDate.of(2027, 3, 20), LocalTime.of(19, 10), ZoneId.of("Europe/Istanbul")).toInstant(),
+            RelativeTimeParser.parse("2027-03-20 19:10 Europe/Istanbul", now)?.toInstant(),
+        )
+    }
+
+    @Test
+    fun aClockRangeKeepsItsStart() {
+        assertEquals(ZonedDateTime.of(LocalDate.of(2027, 9, 23), LocalTime.of(10, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("۱۴۰۶/۰۷/۰۱ ساعت ۱۰ تا ۱۱ صبح", now))
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 12), LocalTime.of(14, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("tomorrow at 2 to 3 pm", now))
+    }
+
+    @Test
+    fun deadlineWordsStillNameTheDay() {
+        assertEquals(LocalDate.of(2026, 9, 17), RelativeTimeParser.parse("before next Thursday", now)?.toLocalDate())
+        assertEquals(LocalDate.of(2026, 9, 12), RelativeTimeParser.parse("by tomorrow", now)?.toLocalDate())
+    }
+
+    @Test
     fun lastWeekAndNextMonth() {
         assertEquals(LocalDate.of(2026, 9, 4), RelativeTimeParser.parse("last week", now)?.toLocalDate())
         assertEquals(LocalDate.of(2026, 10, 11), RelativeTimeParser.parse("next month", now)?.toLocalDate())
