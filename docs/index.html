@@ -5,80 +5,104 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Her — a personal AI assistant for Android</title>
   <meta name="description" content="A persistent, text-only personal AI assistant for Android. One conversation for the life of the app. You talk; she remembers, organizes, and follows up.">
-  <meta name="theme-color" content="#140E0B">
+  <meta name="theme-color" content="#140E0B" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FBF3EA" media="(prefers-color-scheme: light)">
   <meta property="og:title" content="Her">
   <meta property="og:description" content="A persistent, text-only personal AI assistant for Android.">
   <meta property="og:url" content="https://alirezaazadbakht.github.io/her/">
+  <meta property="og:image" content="https://alirezaazadbakht.github.io/her/images/her-dark.jpg">
   <meta property="og:type" content="website">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script type="module" src="orb.js"></script>
 </head>
 <body>
+  <div class="ambient" aria-hidden="true"><span></span><span></span></div>
   <div class="grain" aria-hidden="true"></div>
+
   <header class="bar">
     <a class="mark" href="#top">
-      <svg class="mark-icon" viewBox="0 0 108 108" aria-hidden="true">
-        <circle cx="54" cy="54" r="26" fill="currentColor"/>
-        <circle cx="54" cy="54" r="12" fill="#140E0B"/>
-      </svg>
+      <canvas class="orb" data-state="breathing" data-size="20" data-display="24" data-still aria-hidden="true"></canvas>
       Her
     </a>
     <nav>
       <a href="https://github.com/AlirezaAzadbakht/her">GitHub</a>
       <a href="https://github.com/AlirezaAzadbakht/her/blob/main/wiki/Home.md">Wiki</a>
-      <a class="btn btn-quiet" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download</a>
+      <a class="btn btn-ghost btn-small" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download</a>
     </nav>
   </header>
 
   <main id="top">
     <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Android 10+</p>
-        <h1>A persistent, text-only personal assistant.</h1>
-        <p class="lede">One conversation for the life of the app. You talk; she remembers, organizes, and follows up. The screen shows only her latest message.</p>
-        <div class="actions">
-          <a class="btn btn-primary" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download the APK</a>
-          <a class="btn btn-ghost" href="https://github.com/AlirezaAzadbakht/her">View the source</a>
-        </div>
+      <div class="presence">
+        <div class="halo" aria-hidden="true"></div>
+        <canvas class="orb" data-state="breathing" data-size="64" data-display="168" role="img" aria-label="Her's presence, breathing while she thinks"></canvas>
       </div>
-      <div class="hero-stage" aria-hidden="true">
-        <div class="halo"></div>
-        <div class="phone">
-          <div class="phone-screen">
-            <div class="status">
-              <span>9:41</span>
-              <span class="status-pill"></span>
-            </div>
-            <div class="stage">
-              <p class="reply">I've put rice on the list. Quiet evening otherwise — just dinner with Reza Friday at 8.</p>
-            </div>
-            <p class="receipt">added rice to groceries</p>
-            <div class="composer">
-              <span>Write something</span>
-              <span class="send">Send</span>
-            </div>
-          </div>
-        </div>
+      <p class="eyebrow rise" style="--i:0">Android 10+ · Open source</p>
+      <h1>
+        <span class="word" style="--i:1">A</span>
+        <span class="word" style="--i:2">persistent,</span>
+        <span class="word" style="--i:3">text-only</span>
+        <span class="word" style="--i:4">personal</span>
+        <span class="word" style="--i:5">assistant.</span>
+      </h1>
+      <p class="lede rise" style="--i:7">One conversation for the life of the app. You talk; she remembers, organizes, and follows up. The screen shows only her latest message.</p>
+      <div class="actions rise" style="--i:8">
+        <a class="btn btn-primary" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download the APK</a>
+        <a class="btn btn-ghost" href="https://github.com/AlirezaAzadbakht/her">View the source</a>
       </div>
     </section>
 
+    <section class="screens" aria-label="Screens from the app">
+      <figure class="reveal" style="--i:1">
+        <div class="phone side">
+          <img src="images/onboarding.jpg" alt="First run: she asks what to call you, beside a shaping orb" loading="lazy">
+        </div>
+      </figure>
+      <figure class="reveal" style="--i:0">
+        <div class="phone center">
+          <img src="images/her-reveal.gif" alt="Her thinking as a breathing orb, then her reply inking in word by word">
+        </div>
+      </figure>
+      <figure class="reveal" style="--i:2">
+        <div class="phone side">
+          <img src="images/settings.jpg" alt="Settings grouped into warm glass cards" loading="lazy">
+        </div>
+      </figure>
+    </section>
+
+    <section class="states">
+      <h2 class="reveal">Every wait has a shape.</h2>
+      <p class="section-lede reveal" style="--i:1">She never pretends to be busy. When she is working, you can see what kind of work it is.</p>
+      <ul class="state-list">
+        <li class="reveal" style="--i:1"><canvas class="orb" data-state="breathing" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Thinking</span></li>
+        <li class="reveal" style="--i:2"><canvas class="orb" data-state="composing" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Writing</span></li>
+        <li class="reveal" style="--i:3"><canvas class="orb" data-state="listening" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Listening</span></li>
+        <li class="reveal" style="--i:4"><canvas class="orb" data-state="connecting" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Connecting</span></li>
+        <li class="reveal" style="--i:5"><canvas class="orb" data-state="searching" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Searching memory</span></li>
+        <li class="reveal" style="--i:6"><canvas class="orb" data-state="weaving" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Waiting offline</span></li>
+        <li class="reveal" style="--i:7"><canvas class="orb" data-state="shaping" data-size="64" data-display="64" aria-hidden="true"></canvas><span>Meeting you</span></li>
+      </ul>
+      <p class="credit reveal">Orbs from <a href="https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/thinking-orbs">thinking-orbs</a> by Jakub Antalik.</p>
+    </section>
+
     <section class="notes">
-      <article>
+      <article class="card reveal" style="--i:0">
         <h2>One conversation, forever</h2>
         <p>Her is not a chat app. There is a single continuous conversation, but you never scroll a thread. She answers in place. History still lives underneath and still feeds her memory; it simply is not on the screen.</p>
       </article>
-      <article>
+      <article class="card reveal" style="--i:1">
         <h2>She decides where things go</h2>
         <p>Talk naturally. A fact becomes a memory, a promise becomes a commitment, rice becomes a grocery. You never need to learn tool vocabulary. She classifies, then answers like someone who was listening.</p>
       </article>
-      <article>
+      <article class="card reveal" style="--i:2">
         <h2>She follows up</h2>
         <p>Reminders, alarms, calendar, and quiet hourly and nightly passes. A morning briefing when the day starts. She stays silent unless something actually matters, and she respects quiet hours on your clock.</p>
       </article>
-      <article>
+      <article class="card reveal" style="--i:3">
         <h2>Yours</h2>
         <p>You bring your own OpenAI-compatible model. Credentials never leave the device Keystore, never enter the database, never sync. Notes written offline wait locally and are handled together when the network returns. Records can sync through your Google Drive app data.</p>
       </article>
