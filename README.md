@@ -16,6 +16,7 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 ![JDK](https://img.shields.io/badge/JDK-17-orange?logo=openjdk&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-OpenAI--compatible-412991?logo=openai&logoColor=white)
 
+[**Site**](https://alirezaazadbakht.github.io/her/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
