@@ -36,11 +36,19 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.ui.her.RevealTail
 import com.her.ui.her.StreamingCaret
 import com.her.ui.theme.ConversationStyle
+import com.her.ui.theme.HerMotion
+import com.her.ui.theme.rememberEntrance
+import com.her.ui.theme.rise
 
 private const val CaretId = "stream-caret"
 
+/**
+ * Renders her markdown. [tailStrength] (0..1) inks the newest graphemes of the last block
+ * in gradually; blocks that appear mid-stream rise into place.
+ */
 @Composable
 fun ConversationMarkdown(
     content: String,
@@ -49,6 +57,7 @@ fun ConversationMarkdown(
     style: TextStyle = ConversationStyle,
     textAlign: TextAlign = TextAlign.Start,
     showCaret: Boolean = false,
+    tailStrength: Float = 0f,
 ) {
     val blocks = remember(content) { MarkdownParser.parse(content) }
     val link = MaterialTheme.colorScheme.primary
@@ -59,95 +68,104 @@ fun ConversationMarkdown(
         blocks.forEachIndexed { index, block ->
             val top = if (index == 0) 0.dp else 8.dp
             val caret = showCaret && index == last
-            when (block) {
-                is MdBlock.Paragraph -> {
-                    DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        CaretText(
-                            text = annotate(block.inlines, color, link),
-                            style = aligned,
-                            color = color,
-                            textAlign = textAlign,
-                            showCaret = caret,
-                            caretColor = color,
-                            modifier = Modifier.fillMaxWidth().padding(top = top),
-                        )
-                    }
-                }
-                is MdBlock.Heading -> {
-                    val size = when (block.level) {
-                        1 -> 24.sp
-                        2 -> 22.sp
-                        else -> 20.sp
-                    }
-                    DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        CaretText(
-                            text = annotate(block.inlines, color, link),
-                            style = aligned.copy(fontSize = size, fontWeight = FontWeight.Medium, lineHeight = (size.value + 8).sp),
-                            color = color,
-                            textAlign = textAlign,
-                            showCaret = caret,
-                            caretColor = color,
-                            modifier = Modifier.fillMaxWidth().padding(top = top),
-                        )
-                    }
-                }
-                is MdBlock.Quote -> {
-                    DirectionalBlock(block.inlines.plainText(), fallbackDir) {
-                        CaretText(
-                            text = annotate(block.inlines, color, link),
-                            style = aligned.copy(fontStyle = FontStyle.Italic),
-                            color = color.copy(alpha = 0.86f),
-                            textAlign = textAlign,
-                            showCaret = caret,
-                            caretColor = color,
-                            modifier = Modifier.fillMaxWidth().padding(top = top, start = 12.dp),
-                        )
-                    }
-                }
-                is MdBlock.Code -> {
-                    DirectionalBlock(forceLtr = true, fallback = fallbackDir) {
-                        SelectionContainer {
+            val tail = if (index == last) tailStrength else 0f
+            val entrance = rememberEntrance(durationMillis = HerMotion.Standard)
+            Box(Modifier.fillMaxWidth().rise(entrance, 8.dp)) {
+                when (block) {
+                    is MdBlock.Paragraph -> {
+                        DirectionalBlock(block.inlines.plainText(), fallbackDir) {
                             CaretText(
-                                text = AnnotatedString(block.text),
-                                style = aligned.copy(
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 15.sp,
-                                    lineHeight = 22.sp,
-                                    textDirection = TextDirection.Ltr,
-                                ),
+                                text = annotate(block.inlines, color, link),
+                                style = aligned,
                                 color = color,
-                                textAlign = TextAlign.Start,
+                                textAlign = textAlign,
                                 showCaret = caret,
                                 caretColor = color,
-                                modifier = Modifier
-                                    .padding(top = top)
-                                    .fillMaxWidth()
-                                    .background(color.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                tail = tail,
+                                modifier = Modifier.fillMaxWidth().padding(top = top),
                             )
                         }
                     }
-                }
-                is MdBlock.ListBlock -> {
-                    Column(Modifier.fillMaxWidth().padding(top = top)) {
-                        val lastItem = block.items.lastIndex
-                        block.items.forEachIndexed { itemIndex, item ->
-                            DirectionalBlock(item.plainText(), fallbackDir) {
-                                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                                    Text(
-                                        text = if (block.ordered) "${itemIndex + 1}.  " else "•  ",
-                                        style = aligned,
-                                        color = color,
-                                    )
-                                    CaretText(
-                                        text = annotate(item, color, link),
-                                        style = aligned,
-                                        color = color,
-                                        textAlign = textAlign,
-                                        showCaret = caret && itemIndex == lastItem,
-                                        caretColor = color,
-                                        modifier = Modifier.weight(1f),
-                                    )
+                    is MdBlock.Heading -> {
+                        val size = when (block.level) {
+                            1 -> 24.sp
+                            2 -> 22.sp
+                            else -> 20.sp
+                        }
+                        DirectionalBlock(block.inlines.plainText(), fallbackDir) {
+                            CaretText(
+                                text = annotate(block.inlines, color, link),
+                                style = aligned.copy(fontSize = size, fontWeight = FontWeight.Medium, lineHeight = (size.value + 8).sp),
+                                color = color,
+                                textAlign = textAlign,
+                                showCaret = caret,
+                                caretColor = color,
+                                tail = tail,
+                                modifier = Modifier.fillMaxWidth().padding(top = top),
+                            )
+                        }
+                    }
+                    is MdBlock.Quote -> {
+                        DirectionalBlock(block.inlines.plainText(), fallbackDir) {
+                            CaretText(
+                                text = annotate(block.inlines, color, link),
+                                style = aligned.copy(fontStyle = FontStyle.Italic),
+                                color = color.copy(alpha = 0.86f),
+                                textAlign = textAlign,
+                                showCaret = caret,
+                                caretColor = color,
+                                tail = tail,
+                                modifier = Modifier.fillMaxWidth().padding(top = top, start = 12.dp),
+                            )
+                        }
+                    }
+                    is MdBlock.Code -> {
+                        DirectionalBlock(forceLtr = true, fallback = fallbackDir) {
+                            SelectionContainer {
+                                CaretText(
+                                    text = AnnotatedString(block.text),
+                                    style = aligned.copy(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 15.sp,
+                                        lineHeight = 22.sp,
+                                        textDirection = TextDirection.Ltr,
+                                    ),
+                                    color = color,
+                                    textAlign = TextAlign.Start,
+                                    showCaret = caret,
+                                    caretColor = color,
+                                    tail = tail,
+                                    modifier = Modifier
+                                        .padding(top = top)
+                                        .fillMaxWidth()
+                                        .background(color.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                )
+                            }
+                        }
+                    }
+                    is MdBlock.ListBlock -> {
+                        Column(Modifier.fillMaxWidth().padding(top = top)) {
+                            val lastItem = block.items.lastIndex
+                            block.items.forEachIndexed { itemIndex, item ->
+                                DirectionalBlock(item.plainText(), fallbackDir) {
+                                    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                                        Text(
+                                            text = if (block.ordered) "${itemIndex + 1}.  " else "•  ",
+                                            style = aligned,
+                                            color = color,
+                                        )
+                                        CaretText(
+                                            text = annotate(item, color, link),
+                                            style = aligned,
+                                            color = color,
+                                            textAlign = textAlign,
+                                            showCaret = caret && itemIndex == lastItem,
+                                            caretColor = color,
+                                            tail = if (itemIndex == lastItem) tail else 0f,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -167,6 +185,7 @@ private fun CaretText(
     showCaret: Boolean,
     caretColor: Color,
     modifier: Modifier = Modifier,
+    tail: Float = 0f,
 ) {
     val height = style.fontSize
     val inline = remember(showCaret, caretColor, height) {
@@ -175,22 +194,23 @@ private fun CaretText(
         } else {
             mapOf(
                 CaretId to InlineTextContent(
-                    Placeholder(8.sp, height, PlaceholderVerticalAlign.TextCenter),
+                    Placeholder(10.sp, height, PlaceholderVerticalAlign.TextCenter),
                 ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         StreamingCaret(caretColor)
                     }
                 },
             )
         }
     }
+    val inked = if (tail > 0f) withRevealTail(text, color, tail) else text
     val shown = if (showCaret) {
         buildAnnotatedString {
-            append(text)
-            appendInlineContent(CaretId, "\u200B")
+            append(inked)
+            appendInlineContent(CaretId, "​")
         }
     } else {
-        text
+        inked
     }
     Text(
         text = shown,
@@ -200,6 +220,18 @@ private fun CaretText(
         inlineContent = inline,
         modifier = modifier,
     )
+}
+
+private fun withRevealTail(text: AnnotatedString, color: Color, strength: Float): AnnotatedString {
+    val segments = RevealTail.segments(text.text)
+    if (segments.isEmpty()) return text
+    return buildAnnotatedString {
+        append(text)
+        for (segment in segments) {
+            val alpha = 1f - (1f - segment.alpha) * strength
+            addStyle(SpanStyle(color = color.copy(alpha = color.alpha * alpha)), segment.start, segment.end)
+        }
+    }
 }
 
 @Composable

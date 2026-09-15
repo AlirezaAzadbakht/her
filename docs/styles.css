@@ -1,15 +1,45 @@
+/* Same tokens as the app's Theme.kt: warm night by default, dawn when the system is light. */
 :root {
-  --night: #140e0b;
+  color-scheme: dark light;
+  --ground: #140e0b;
   --surface: #1e1611;
-  --surface-high: #2a1f18;
   --ink: #f4ede4;
   --mute: #b9a99a;
   --glow: #f6a77a;
   --coral: #ff8a65;
+  --amber: #f6b26b;
+  --rose: #e57a8a;
   --halo: #ff9e6e;
   --glass: rgba(255, 230, 208, 0.07);
   --glass-stroke: rgba(255, 210, 174, 0.15);
-  --outline: rgba(246, 178, 107, 0.25);
+  --orb-far: #5a3f31;
+  --orb-near: #ffe9d2;
+  --ambient: 0.16;
+  --grain: 0.05;
+  --shadow: rgba(0, 0, 0, 0.55);
+  --ease-out: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-in: cubic-bezier(0.3, 0, 0.8, 0.15);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --ground: #fbf3ea;
+    --surface: #fff9f3;
+    --ink: #2a1e17;
+    --mute: #7a6a5d;
+    --glow: #c0643a;
+    --coral: #e2724a;
+    --amber: #d48a3a;
+    --rose: #c45a70;
+    --halo: #f0a07a;
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-stroke: rgba(138, 75, 40, 0.14);
+    --orb-far: #e3cdb9;
+    --orb-near: #6e3219;
+    --ambient: 0.22;
+    --grain: 0.035;
+    --shadow: rgba(110, 50, 25, 0.22);
+  }
 }
 
 * {
@@ -23,21 +53,70 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--night);
+  padding-inline: max(16px, 1.5rem);
+  background: var(--ground);
   color: var(--ink);
-  font-family: "Source Sans 3", "Segoe UI", sans-serif;
+  font-family: "Vazirmatn", "Segoe UI", system-ui, sans-serif;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.65;
   -webkit-font-smoothing: antialiased;
 }
 
 a {
   color: var(--glow);
   text-decoration: none;
+  transition: color 0.3s var(--ease-out);
 }
 
 a:hover {
   color: var(--ink);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Two slow warm lights drifting behind everything, and a whisper of film grain. */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ambient span {
+  position: absolute;
+  width: 75vmax;
+  height: 75vmax;
+  border-radius: 50%;
+  opacity: var(--ambient);
+}
+
+.ambient span:first-child {
+  top: -30vmax;
+  left: -25vmax;
+  background: radial-gradient(circle, var(--coral), transparent 62%);
+  animation: drift-a 28s ease-in-out infinite alternate;
+}
+
+.ambient span:last-child {
+  right: -30vmax;
+  bottom: -35vmax;
+  background: radial-gradient(circle, var(--rose), transparent 62%);
+  animation: drift-b 34s ease-in-out infinite alternate;
+}
+
+@keyframes drift-a {
+  to {
+    transform: translate(14vmax, 10vmax) scale(1.08);
+  }
+}
+
+@keyframes drift-b {
+  to {
+    transform: translate(-12vmax, -9vmax) scale(0.94);
+  }
 }
 
 .grain {
@@ -45,10 +124,11 @@ a:hover {
   position: fixed;
   inset: 0;
   z-index: 2;
-  opacity: 0.05;
+  opacity: var(--grain);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* Header and footer */
 .bar {
   display: flex;
   align-items: center;
@@ -56,22 +136,16 @@ a:hover {
   gap: 1.5rem;
   max-width: 72rem;
   margin: 0 auto;
-  padding: 1.25rem 1.5rem;
+  padding-block: 1.25rem;
 }
 
 .mark {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   color: var(--ink);
   font-weight: 500;
   letter-spacing: 0.02em;
-}
-
-.mark-icon {
-  width: 1.35rem;
-  height: 1.35rem;
-  color: #e8a87c;
 }
 
 nav {
@@ -85,193 +159,299 @@ nav a {
   color: var(--mute);
 }
 
+/* Buttons: a warm gradient pill, and a glass one whose edge turns into the glow on hover. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.55rem 1.05rem;
+  padding: 0.7rem 1.35rem;
   border-radius: 999px;
-  border: 1px solid var(--glass-stroke);
-  background: var(--glass);
-  color: var(--ink);
+  border: 1px solid transparent;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
+  font-weight: 500;
+  transition: transform 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out), color 0.3s var(--ease-out);
 }
 
-.btn:hover {
-  color: var(--night);
-  background: var(--glow);
-  border-color: var(--glow);
+.btn:active {
+  transform: scale(0.97);
 }
 
 .btn-primary {
-  background: var(--glow);
-  border-color: var(--glow);
-  color: var(--night);
+  color: var(--ground);
+  background: linear-gradient(135deg, var(--coral), var(--amber));
+  box-shadow: 0 10px 30px -14px var(--coral);
 }
 
 .btn-primary:hover {
-  background: var(--coral);
-  border-color: var(--coral);
-  color: var(--night);
+  color: var(--ground);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px -14px var(--coral);
 }
 
 .btn-ghost {
   color: var(--ink);
+  background: linear-gradient(var(--glass), var(--glass)) padding-box, linear-gradient(var(--glass-stroke), var(--glass-stroke)) border-box;
 }
 
-.btn-quiet {
-  padding: 0.35rem 0.85rem;
+.btn-ghost:hover {
+  color: var(--ink);
+  background: linear-gradient(var(--ground), var(--ground)) padding-box, linear-gradient(135deg, var(--coral), var(--amber), var(--rose)) border-box;
 }
 
+.btn-small {
+  padding: 0.4rem 0.95rem;
+  font-size: 0.9rem;
+}
+
+/* Hero: her presence first, then the words ink in one after another. */
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
-  gap: 3.5rem;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  max-width: 72rem;
+  max-width: 48rem;
   margin: 0 auto;
-  padding: 3rem 1.5rem 4.5rem;
+  padding-block: 2rem 5rem;
+  text-align: center;
 }
 
-.eyebrow {
-  margin: 0 0 0.85rem;
-  color: var(--mute);
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 0 0 1rem;
-  font-size: clamp(2rem, 5vw, 3.15rem);
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-}
-
-.lede {
-  margin: 0 0 1.75rem;
-  max-width: 34rem;
-  color: var(--mute);
-  font-size: 1.15rem;
-  line-height: 1.7;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.hero-stage {
+.presence {
   position: relative;
-  display: flex;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  width: 16rem;
+  max-width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 1rem;
+}
+
+.presence canvas {
+  position: relative;
 }
 
 .halo {
   position: absolute;
-  inset: 8% 12%;
-  background: radial-gradient(circle, rgba(255, 158, 110, 0.28), transparent 70%);
-  filter: blur(28px);
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--halo) 0%, color-mix(in srgb, var(--rose) 45%, transparent) 34%, transparent 68%);
+  filter: blur(10px);
+  animation: breathe 5.2s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.86);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.55;
+  }
+}
+
+.eyebrow {
+  margin: 0 0 0.9rem;
+  color: var(--mute);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 1.1rem;
+  font-size: clamp(2.1rem, 5.6vw, 3.7rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.word,
+.rise {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.45em);
+  filter: blur(6px);
+  animation: ink-in 1s var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 80ms + 250ms);
+}
+
+.rise {
+  display: block;
+}
+
+.actions.rise {
+  display: flex;
+}
+
+@keyframes ink-in {
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.lede {
+  margin: 0 auto 2rem;
+  max-width: 34rem;
+  color: var(--mute);
+  font-size: 1.15rem;
+  line-height: 1.75;
+}
+
+.actions {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+/* Screens: three phones, the middle one showing the reply inking in. */
+.screens {
+  display: grid;
+  grid-template-columns: 1fr 1.18fr 1fr;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 2.5rem);
+  max-width: 60rem;
+  margin: 0 auto 7rem;
+}
+
+.screens figure {
+  margin: 0;
 }
 
 .phone {
   position: relative;
-  width: min(100%, 20.5rem);
-  padding: 0.55rem;
-  border-radius: 2rem;
-  background: var(--surface);
-  border: 1px solid var(--outline);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-}
-
-.phone-screen {
-  display: flex;
-  flex-direction: column;
-  min-height: 30rem;
-  padding: 0.7rem 1.15rem 0.85rem;
-  border-radius: 1.55rem;
-  background: linear-gradient(180deg, #1a130f 0%, var(--night) 55%, #100b08 100%);
-}
-
-.status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--mute);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-}
-
-.status-pill {
-  width: 3.4rem;
-  height: 0.7rem;
-  border-radius: 999px;
-  background: #100b08;
-  border: 1px solid var(--outline);
-}
-
-.stage {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.reply {
-  margin: 0;
-  text-align: center;
-  color: color-mix(in srgb, var(--ink) 65%, var(--mute));
-  font-size: 1.05rem;
-  line-height: 1.65;
-}
-
-.receipt {
-  margin: 0 0 0.7rem;
-  color: var(--mute);
-  font-size: 0.78rem;
-  opacity: 0.8;
-}
-
-.composer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--outline);
-  color: var(--mute);
-  font-size: 0.95rem;
-}
-
-.send {
-  color: var(--glow);
-}
-
-.notes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem 1.5rem;
-  max-width: 72rem;
-  margin: 0 auto 4rem;
-  padding: 0 1.5rem;
-}
-
-.notes article {
-  padding: 1.4rem 1.45rem 1.5rem;
-  border-radius: 1.15rem;
+  padding: 0.45rem;
+  border-radius: 2.3rem;
   background: var(--surface);
   border: 1px solid var(--glass-stroke);
+  box-shadow: 0 40px 90px -40px var(--shadow);
+  transition: transform 0.8s var(--ease-out);
+}
+
+.phone img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 20;
+  object-fit: cover;
+  border-radius: 1.9rem;
+  background: var(--ground);
+}
+
+.phone.center::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--halo), transparent 62%);
+  opacity: 0.28;
+  filter: blur(30px);
+}
+
+.phone.side {
+  transform: translateY(2.5rem) scale(0.94);
+}
+
+.phone.side:hover {
+  transform: translateY(1.5rem) scale(0.96);
+}
+
+.phone.center:hover {
+  transform: translateY(-0.5rem);
+}
+
+/* States: every loader she uses, live. */
+.states {
+  max-width: 60rem;
+  margin: 0 auto 7rem;
+  text-align: center;
 }
 
 h2 {
-  margin: 0 0 0.55rem;
-  font-size: 1.15rem;
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.6rem, 3.6vw, 2.35rem);
   font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-.notes p {
+.section-lede {
+  margin: 0 auto;
+  max-width: 32rem;
+  color: var(--mute);
+  font-size: 1.05rem;
+}
+
+.state-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 1rem;
+  margin: 2.5rem 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.state-list li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.2rem 0.6rem 1rem;
+  border-radius: 1.3rem;
+  background: var(--glass);
+  border: 1px solid var(--glass-stroke);
+  color: var(--mute);
+  font-size: 0.9rem;
+}
+
+.credit {
+  margin: 0;
+  color: var(--mute);
+  font-size: 0.9rem;
+}
+
+/* Notes: glass cards whose hairline warms into the gradient on hover. */
+.notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 72rem;
+  margin: 0 auto 5rem;
+}
+
+.card {
+  position: relative;
+  padding: 1.5rem 1.55rem 1.6rem;
+  border-radius: 1.4rem;
+  background: var(--glass);
+  border: 1px solid var(--glass-stroke);
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--coral), var(--amber), var(--rose));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease-out);
+}
+
+.card:hover::after {
+  opacity: 0.85;
+}
+
+.card h2 {
+  font-size: 1.15rem;
+}
+
+.card p {
   margin: 0;
   color: var(--mute);
 }
@@ -286,10 +466,44 @@ h2 {
   margin: 0;
 }
 
-@media (max-width: 840px) {
-  .hero {
-    grid-template-columns: 1fr;
-    padding-top: 1.5rem;
+/* Scroll reveal, only once the script has taken charge, so the page reads fine without it. */
+.reveal-ready .reveal {
+  opacity: 0;
+  translate: 0 28px;
+  filter: blur(4px);
+  transition: opacity 0.9s var(--ease-out), translate 0.9s var(--ease-out), filter 0.9s var(--ease-out);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+
+.reveal-ready .reveal.in {
+  opacity: 1;
+  translate: 0 0;
+  filter: none;
+}
+
+@media (max-width: 760px) {
+  .screens {
+    display: flex;
+    gap: 1rem;
+    margin-inline: calc(-1 * max(16px, 1.5rem));
+    padding: 1rem max(16px, 1.5rem) 3rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .screens figure {
+    flex: 0 0 70%;
+    scroll-snap-align: center;
+  }
+
+  .screens figure:nth-child(2) {
+    order: -1;
+  }
+
+  .phone.side,
+  .phone.side:hover {
+    transform: none;
   }
 
   .notes {
@@ -313,7 +527,28 @@ h2 {
     scroll-behavior: auto;
   }
 
+  .ambient span,
   .halo {
+    animation: none;
+  }
+
+  .word,
+  .rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
     filter: none;
+  }
+
+  .reveal-ready .reveal {
+    transition: none;
+    opacity: 1;
+    translate: 0 0;
+    filter: none;
+  }
+
+  .phone,
+  .btn {
+    transition: none;
   }
 }

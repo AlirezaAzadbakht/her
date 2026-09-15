@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar icon: the dotted ring in solid white, as notifications require. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10.8,4a1.2,1.2 0,1 0,2.4 0a1.2,1.2 0,1 0,-2.4 0M14.75,5.07a1.25,1.25 0,1 0,2.5 0a1.25,1.25 0,1 0,-2.5 0M17.53,8a1.4,1.4 0,1 0,2.8 0a1.4,1.4 0,1 0,-2.8 0M18.4,12a1.6,1.6 0,1 0,3.2 0a1.6,1.6 0,1 0,-3.2 0M17.13,16a1.8,1.8 0,1 0,3.6 0a1.8,1.8 0,1 0,-3.6 0M14.05,18.93a1.95,1.95 0,1 0,3.9 0a1.95,1.95 0,1 0,-3.9 0M10,20a2,2 0,1 0,4 0a2,2 0,1 0,-4 0M6.05,18.93a1.95,1.95 0,1 0,3.9 0a1.95,1.95 0,1 0,-3.9 0M3.27,16a1.8,1.8 0,1 0,3.6 0a1.8,1.8 0,1 0,-3.6 0M2.4,12a1.6,1.6 0,1 0,3.2 0a1.6,1.6 0,1 0,-3.2 0M3.67,8a1.4,1.4 0,1 0,2.8 0a1.4,1.4 0,1 0,-2.8 0M6.75,5.07a1.25,1.25 0,1 0,2.5 0a1.25,1.25 0,1 0,-2.5 0" />
+</vector>
