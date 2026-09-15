@@ -1,0 +1,24 @@
+{
+  "id": "reminder-person-on-calendar-hourly",
+  "title": "Nudge about a person reminder before a meeting with that person",
+  "tags": ["reminders", "conditional", "people", "calendar", "proactive"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } },
+      { "name": "set_reminder", "arguments": { "message": "Ask Reza about the apartment keys.", "personName": "Reza" } }
+    ],
+    "system_calendar": [
+      { "title": "Lunch with Reza", "when": "tomorrow at 1pm" }
+    ]
+  },
+  "turns": [
+    { "at": "tomorrow at 12pm" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["key"] }
+  }
+}

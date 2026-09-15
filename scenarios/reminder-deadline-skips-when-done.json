@@ -1,0 +1,24 @@
+{
+  "id": "reminder-deadline-skips-when-done",
+  "title": "A conditional reminder stays silent once the work is done",
+  "tags": ["reminders", "conditional", "deadlines", "proactive"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "next monday at 10am" },
+    { "user": "Remind me about the invoice on Thursday at 9am, but only if I haven't sent it by then." },
+    { "at": "next tuesday at 4pm" },
+    { "user": "Just sent the invoice to the client." },
+    { "at": "next thursday at 9:30am" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 0 },
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "status": { "one_of": ["SKIPPED", "CANCELLED", "FIRED"] } } },
+      { "table": "reminders", "count": 0, "where": { "status": "SCHEDULED" } }
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "reminder-reschedule",
+  "title": "Move a reminder to a new time instead of adding a second one",
+  "tags": ["reminders", "lifecycle", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "user": "Remind me to call the bank at 3pm." },
+    { "user": "Push that bank reminder to 5pm instead." }
+  ],
+  "expect": {
+    "tools_called": ["update_reminder"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "reminders", "count": 1 },
+      { "table": "reminders", "count": 1, "where": { "status": "SCHEDULED", "fireAt": { "date_is": "today", "time_is": "17:00" } } }
+    ],
+    "reply": {
+      "must_mention_any": ["5"]
+    }
+  }
+}

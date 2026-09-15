@@ -1,0 +1,28 @@
+{
+  "id": "reminder-weekly-repeat",
+  "title": "A weekly reminder rings and stays scheduled for the next week",
+  "tags": ["reminders", "recurring"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "next monday at 10am" },
+    { "user": "Every Sunday at 8pm remind me to take out the trash." },
+    { "at": "next sunday at 8:05pm" }
+  ],
+  "expect": {
+    "tools_called": [
+      { "name": "set_reminder", "args": { "repeat": { "equals_ignore_case": "WEEKLY" } } }
+    ],
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["trash"] },
+    "rows": [
+      {
+        "table": "reminders",
+        "count": 1,
+        "where": { "repeat": "WEEKLY", "status": "SCHEDULED", "fireAt": { "date_is": "next sunday", "time_is": "20:00" } }
+      }
+    ]
+  }
+}

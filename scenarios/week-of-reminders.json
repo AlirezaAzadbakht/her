@@ -1,0 +1,33 @@
+{
+  "id": "week-of-reminders",
+  "title": "A week with a clock reminder, a person reminder, a nightly pass, and a briefing",
+  "tags": ["reminders", "multi-day", "briefing", "nightly", "people"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "next monday at 9am" },
+    { "user": "Two things for this week. Remind me Wednesday at 6pm to pick up the dry cleaning. And next time I see Sara, remind me to give her charger back." },
+    { "at": "today at 11pm" },
+    { "run": "nightly" },
+    { "at": "next wednesday at 8:30am" },
+    { "run": "briefing" },
+    { "at": "today at 6:05pm" },
+    { "user": "Heading into a meeting with Sara now." }
+  ],
+  "expect": {
+    "tools_called": ["set_reminder", "complete_reminder"],
+    "no_tool_errors": true,
+    "notifications": { "contains_any": ["dry cleaning"] },
+    "rows": [
+      { "table": "reminders", "count": 2 },
+      { "table": "reminders", "count": 1, "where": { "message": { "contains": "dry clean" }, "status": "FIRED" } },
+      { "table": "reminders", "count": 1, "where": { "trigger": "PERSON", "person": { "contains": "sara" }, "status": "FIRED" } }
+    ],
+    "reply": {
+      "must_mention_any": ["charger"],
+      "judge": "Her last reply reminds him to give Sara her charger back, briefly and naturally."
+    }
+  }
+}

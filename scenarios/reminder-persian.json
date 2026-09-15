@@ -1,0 +1,25 @@
+{
+  "id": "reminder-persian",
+  "title": "A Persian reminder rings in Persian",
+  "tags": ["reminders", "persian", "time"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "user": "دو ساعت دیگه یادم بنداز به مامانم زنگ بزنم." },
+    { "advance": "2 hours" }
+  ],
+  "expect": {
+    "tools_called": ["set_reminder"],
+    "no_tool_errors": true,
+    "notifications": { "count": 1, "contains_any": ["مامان", "مادر"] },
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "status": "FIRED", "fireAt": { "time_is": "12:00" } } }
+    ],
+    "reply": {
+      "language": "persian"
+    }
+  }
+}

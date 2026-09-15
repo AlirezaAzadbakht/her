@@ -2,18 +2,24 @@
   "id": "alarm-wake-up",
   "title": "Set a real wake-up alarm",
   "tags": ["alarms"],
-  "attempts": 1,
-  "pending": true,
+  "attempts": 2,
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
   },
   "turns": [
+    { "at": "tomorrow at 9pm" },
     { "user": "Wake me up at 6 tomorrow." }
   ],
   "expect": {
+    "tools_called": ["set_alarm"],
+    "tools_not_called": ["create_task", "set_reminder"],
     "no_tool_errors": true,
+    "rows": [
+      { "table": "alarms", "count": 1, "where": { "hour": 6, "minute": 0 } }
+    ],
     "reply": {
-      "judge": "A device alarm is actually set for 6am tomorrow, not just a task or note."
+      "must_mention_any": ["6"],
+      "judge": "She confirms an alarm is set for 6am, without turning it into a task or note."
     }
   }
 }

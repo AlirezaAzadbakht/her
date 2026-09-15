@@ -11,10 +11,10 @@
   },
   "turns": [
     { "user": "The dentist is 30 minutes away. Make sure I leave in time tomorrow." },
-    { "at": "tomorrow at 9:20am" },
-    { "run": "hourly" }
+    { "at": "tomorrow at 9:35am" }
   ],
   "expect": {
+    "tools_called": ["set_reminder"],
     "no_tool_errors": true,
     "notifications": { "contains_any": ["dentist", "leave"] },
     "rows": [
@@ -22,11 +22,12 @@
         "table": "calendar_events",
         "count": 1,
         "where": { "title": { "contains": "dentist" }, "startAt": { "date_is": "today", "time_is": "10:00" } }
+      },
+      {
+        "table": "reminders",
+        "count": 1,
+        "where": { "status": "FIRED", "fireAt": { "date_is": "today" }, "message": { "contains_any": ["dentist", "leave"] } }
       }
-    ],
-    "reply": {
-      "must_mention_any": ["9:30", "half an hour", "30 minutes", "9.30"],
-      "judge": "She records something that will get him moving by about 9:30am and says so, rather than only acknowledging the travel time."
-    }
+    ]
   }
 }

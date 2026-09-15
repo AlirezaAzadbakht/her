@@ -1,0 +1,27 @@
+{
+  "id": "reminder-person-surfaces-in-chat",
+  "title": "Bring up a person reminder when they say they are with that person",
+  "tags": ["reminders", "conditional", "people"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } },
+      { "name": "set_reminder", "arguments": { "message": "Ask Reza about the apartment keys.", "personName": "Reza" } }
+    ]
+  },
+  "turns": [
+    { "user": "Grabbing lunch with Reza right now." }
+  ],
+  "expect": {
+    "tools_called": ["complete_reminder"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "trigger": "PERSON", "status": "FIRED" } }
+    ],
+    "reply": {
+      "must_mention_any": ["key"],
+      "judge": "She reminds him to ask Reza about the apartment keys, briefly and naturally."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "reminder-cancel",
+  "title": "Cancel a reminder they no longer need so it never rings",
+  "tags": ["reminders", "lifecycle", "corrections"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "user": "Remind me to water the plants at 6pm." },
+    { "user": "Actually never mind the plants reminder, my roommate already did it." },
+    { "at": "today at 6:30pm" }
+  ],
+  "expect": {
+    "tools_called": ["cancel_reminder"],
+    "no_tool_errors": true,
+    "notifications": { "count": 0 },
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "status": "CANCELLED" } }
+    ]
+  }
+}

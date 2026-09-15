@@ -1,6 +1,6 @@
 {
   "id": "reminder-in-two-hours",
-  "title": "A reminder asked for in two hours fires then",
+  "title": "A reminder asked for in two hours rings then and is what the screen shows",
   "tags": ["reminders", "proactive", "time"],
   "attempts": 2,
   "seed": {
@@ -9,14 +9,19 @@
   "turns": [
     { "at": "tomorrow at 10am" },
     { "user": "Remind me to call mom in 2 hours." },
-    { "advance": "2 hours" },
-    { "run": "hourly" }
+    { "advance": "2 hours" }
   ],
   "expect": {
+    "tools_called": ["set_reminder"],
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
-    "notifications": { "contains_any": ["mom"] },
-    "reply": {
-      "judge": "She confirms she will remind him around noon to call his mom."
-    }
+    "notifications": { "count": 1, "contains_any": ["mom"] },
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "status": "FIRED", "fireAt": { "time_is": "12:00" } } },
+      {
+        "table": "chat_messages",
+        "where": { "role": "ASSISTANT", "content": { "contains": "mom" }, "metadataJson": { "contains": "reminder" } }
+      }
+    ]
   }
 }

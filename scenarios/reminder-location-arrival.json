@@ -2,8 +2,7 @@
   "id": "reminder-location-arrival",
   "title": "Reminder that fires on arriving somewhere",
   "tags": ["reminders", "location"],
-  "attempts": 1,
-  "pending": true,
+  "attempts": 2,
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
   },
@@ -11,7 +10,16 @@
     { "user": "When I get to the office, remind me to print the contract." }
   ],
   "expect": {
+    "tools_called": ["set_reminder"],
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "reminders",
+        "count": 1,
+        "where": { "trigger": "PLACE", "place": { "contains": "office" }, "message": { "contains": "contract" } }
+      }
+    ],
     "reply": {
       "judge": "The reminder is tied to arriving at the office, not to an invented time."
     }

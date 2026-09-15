@@ -1,9 +1,8 @@
 {
   "id": "reminder-conditional-trigger",
   "title": "Reminder that fires on meeting a person, not on a clock",
-  "tags": ["reminders", "conditional"],
-  "attempts": 1,
-  "pending": true,
+  "tags": ["reminders", "conditional", "people"],
+  "attempts": 2,
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [
@@ -14,7 +13,17 @@
     { "user": "Next time I see Reza, remind me to ask him about the apartment keys." }
   ],
   "expect": {
+    "tools_called": ["set_reminder"],
+    "tools_not_called": ["create_task"],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "reminders",
+        "count": 1,
+        "where": { "trigger": "PERSON", "person": { "contains": "reza" }, "message": { "contains": "key" }, "status": "SCHEDULED" }
+      },
+      { "table": "people", "count": 1 }
+    ],
     "reply": {
       "judge": "The reminder is stored so it can fire when Reza is next around, tied to Reza rather than to an arbitrary date she invented."
     }
