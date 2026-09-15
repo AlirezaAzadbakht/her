@@ -126,6 +126,17 @@ object RelativeTimeParser {
         """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?)$""",
         RegexOption.IGNORE_CASE,
     )
+    private val dayPart = Regex("""^(.+?)\s+(morning|afternoon|evening|night)$""")
+    private val DAY_PARTS = mapOf(
+        "morning" to LocalTime.of(9, 0),
+        "afternoon" to LocalTime.of(14, 0),
+        "evening" to LocalTime.of(18, 0),
+        "night" to LocalTime.of(20, 0),
+    )
+    private val WEEKDAY_WORDS = setOf(
+        "monday", "mon", "tuesday", "tue", "tues", "wednesday", "wed", "thursday", "thu", "thur", "thurs",
+        "friday", "fri", "saturday", "sat", "sunday", "sun",
+    )
 
     fun parse(phrase: String, now: ZonedDateTime): ZonedDateTime? {
         val raw = normalizeDigits(phrase).trim()
@@ -140,9 +151,37 @@ object RelativeTimeParser {
         splitClock(text)?.let { (datePhrase, clockPhrase) ->
             val date = parseBareDate(datePhrase, now) ?: return null
             val clock = parseClock(clockPhrase) ?: return null
-            return date.atTime(clock).atZone(now.zone)
+            return rollPastWeekday(datePhrase, date.atTime(clock).atZone(now.zone), now)
+        }
+        dayPart.matchEntire(text)?.let { match ->
+            val datePhrase = match.groupValues[1].trim()
+            val date = parseBareDate(datePhrase, now)
+            val time = DAY_PARTS[match.groupValues[2]]
+            if (date != null && time != null) {
+                return rollPastWeekday(datePhrase, date.atTime(time).atZone(now.zone), now)
+            }
         }
         return parseBareDateTime(text, now)
+    }
+
+    /** "Thursday at 9am" said on Thursday afternoon means next week's Thursday, not a time already gone. */
+    private fun rollPastWeekday(datePhrase: String, at: ZonedDateTime, now: ZonedDateTime): ZonedDateTime =
+        if (bareWeekday(datePhrase) != null && at.isBefore(now)) at.plusWeeks(1) else at
+
+    /** "thursday", "on thursday", "this thursday", "every thursday": the day of the week, or null for anything else. */
+    private fun bareWeekday(text: String): java.time.DayOfWeek? {
+        val word = text.trim()
+            .removePrefix("on ").removePrefix("this ").removePrefix("every ")
+            .trim().removeSuffix("s")
+        return if (word in WEEKDAY_WORDS) weekday(word) else null
+    }
+
+    private fun upcomingWeekday(target: java.time.DayOfWeek, now: ZonedDateTime): LocalDate {
+        var date = now.toLocalDate()
+        while (date.dayOfWeek != target) {
+            date = date.plusDays(1)
+        }
+        return date
     }
 
     private fun parseIso(raw: String, now: ZonedDateTime): ZonedDateTime? {
@@ -201,6 +240,7 @@ object RelativeTimeParser {
             trimmed == "next month" -> now.toLocalDate().plusMonths(1)
             trimmed.startsWith("in ") -> parseIn(trimmed.removePrefix("in ").trim(), now)?.toLocalDate()
             trimmed.startsWith("next ") -> parseNextWeekday(trimmed.removePrefix("next ").trim(), now)
+            bareWeekday(trimmed) != null -> upcomingWeekday(bareWeekday(trimmed)!!, now)
             trimmed.matches(Regex("""\d{4}-\d{2}-\d{2}""")) -> LocalDate.parse(trimmed, dateFormatter)
             else -> parseEnglishDate(trimmed) ?: JalaliDate.parse(trimmed, now)
         }

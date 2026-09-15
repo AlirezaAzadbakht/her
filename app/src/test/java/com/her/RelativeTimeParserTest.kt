@@ -25,6 +25,26 @@ class RelativeTimeParserTest {
     }
 
     @Test
+    fun plainWeekdayWithAClockIsTheUpcomingOne() {
+        // 2026-09-11 is Friday, 15:00.
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 17), LocalTime.of(9, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("Thursday at 9am", now))
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 13), LocalTime.of(20, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("every Sunday at 8pm", now))
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 11), LocalTime.of(17, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("Friday at 5:00 PM", now))
+    }
+
+    @Test
+    fun todaysWeekdayAtAPassedClockMeansNextWeek() {
+        assertEquals(LocalDate.of(2026, 9, 18), RelativeTimeParser.parse("Friday at 9am", now)?.toLocalDate())
+    }
+
+    @Test
+    fun partsOfTheDay() {
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 17), LocalTime.of(9, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("Thursday morning", now))
+        assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 12), LocalTime.of(20, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("tomorrow night", now))
+        assertEquals(18, RelativeTimeParser.parse("this evening", now)?.hour)
+    }
+
+    @Test
     fun lastWeekAndNextMonth() {
         assertEquals(LocalDate.of(2026, 9, 4), RelativeTimeParser.parse("last week", now)?.toLocalDate())
         assertEquals(LocalDate.of(2026, 10, 11), RelativeTimeParser.parse("next month", now)?.toLocalDate())
