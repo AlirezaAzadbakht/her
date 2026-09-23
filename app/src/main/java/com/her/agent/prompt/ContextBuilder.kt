@@ -207,6 +207,7 @@ class ContextBuilder(
     private suspend fun reminderLine(reminder: Reminder, nextDay: List<CalendarEvent>, zone: ZoneId): String {
         val body = when (reminder.trigger) {
             ReminderTrigger.TIME -> buildString {
+                if (reminder.alarm) append("alarm, ")
                 append(reminder.fireAt?.let { stamp(it, zone) } ?: "?")
                 if (reminder.repeat != ReminderRepeat.NONE) append(", repeats ${reminder.repeat.name.lowercase()}")
                 append(": \"${reminder.message}\"")

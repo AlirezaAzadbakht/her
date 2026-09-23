@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
 import com.her.HerApplication
+import com.her.MainActivity
 import com.her.core.newId
 import com.her.data.repository.HerRepository
 import com.her.domain.CommitmentStatus
@@ -29,6 +30,9 @@ import org.json.JSONObject
 interface ReminderAlarms {
     fun arm(reminder: Reminder)
     fun disarm(id: String)
+
+    /** Whether a reminder or alarm rings on the minute; Android 12+ asks the user first. */
+    fun exactAllowed(): Boolean = true
 
     companion object {
         val NONE: ReminderAlarms = object : ReminderAlarms {
@@ -78,7 +82,7 @@ class ReminderDelivery(
             // Saved before notifying, so opening the app from the notification shows the same words.
             val metadata = JSONObject().put("reminder", reminder.id).toString()
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, reminder.message, MessageStatus.SENT, metadata))
-            notifier.showReminder(reminder.id, reminder.message)
+            if (reminder.alarm) notifier.showAlarm(reminder.id, reminder.message) else notifier.showReminder(reminder.id, reminder.message)
             val next = nextFireAt(reminder, now)
             repo.saveReminder(
                 reminder.copy(
@@ -167,13 +171,23 @@ class AndroidReminderAlarms(private val context: Context) : ReminderAlarms {
     private val manager: AlarmManager? = context.getSystemService(AlarmManager::class.java)
 
     /** False on Android 12+ until they allow exact alarms; reminders then ring within a few minutes. */
-    fun exactAllowed(): Boolean =
+    override fun exactAllowed(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager?.canScheduleExactAlarms() == true
 
     override fun arm(reminder: Reminder) {
         val at = reminder.fireAt ?: return
         val manager = manager ?: return
         val intent = pendingIntent(reminder.id, create = true) ?: return
+        // An alarm clock alarm shows in the status bar and is let through Doze on the minute.
+        if (reminder.alarm && exactAllowed()) {
+            val open = PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            if (runCatching { manager.setAlarmClock(AlarmManager.AlarmClockInfo(at, open), intent) }.isSuccess) return
+        }
         val exact = exactAllowed() &&
             runCatching { manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent) }.isSuccess
         if (!exact) manager.setWindow(AlarmManager.RTC_WAKEUP, at, INEXACT_WINDOW_MS, intent)

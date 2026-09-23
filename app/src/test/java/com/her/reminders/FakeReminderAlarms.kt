@@ -3,7 +3,7 @@ package com.her.reminders
 import com.her.domain.Reminder
 
 /** Records which reminders are armed, keyed by id, with the time each would ring. */
-class FakeReminderAlarms : ReminderAlarms {
+class FakeReminderAlarms(var exact: Boolean = true) : ReminderAlarms {
     val armed = linkedMapOf<String, Long>()
 
     override fun arm(reminder: Reminder) {
@@ -13,4 +13,6 @@ class FakeReminderAlarms : ReminderAlarms {
     override fun disarm(id: String) {
         armed.remove(id)
     }
+
+    override fun exactAllowed(): Boolean = exact
 }

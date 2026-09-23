@@ -1,11 +1,14 @@
 package com.her.notify
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -63,6 +66,17 @@ open class Notifier(private val context: Context) {
             manager.createNotificationChannel(
                 NotificationChannel(REMINDER_CHANNEL, context.getString(R.string.channel_her_reminders), NotificationManager.IMPORTANCE_HIGH),
             )
+            manager.createNotificationChannel(
+                NotificationChannel(ALARM_CHANNEL, context.getString(R.string.channel_her_alarms), NotificationManager.IMPORTANCE_HIGH).apply {
+                    setSound(
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                },
+            )
             // Its own channel, so they can mute hourly nudges and keep the morning note.
             manager.createNotificationChannel(
                 NotificationChannel(BRIEFING_CHANNEL, context.getString(R.string.channel_her_briefing), NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -100,6 +114,35 @@ open class Notifier(private val context: Context) {
             .addAction(0, "Done", reminderAction(ACTION_REMINDER_DONE, id))
             .addAction(0, "Snooze ${ReminderDelivery.SNOOZE_MINUTES} min", reminderAction(ACTION_REMINDER_SNOOZE, id))
             .build()
+        try {
+            NotificationManagerCompat.from(context).notify(reminderNotificationId(id), notification)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    /** An alarm she set rings at alarm volume, over and over, until they stop or snooze it. */
+    open fun showAlarm(id: String, text: String) {
+        // ponytail: heads-up + insistent sound, no full-screen AlarmActivity; add one if it fails to wake them.
+        val open = PendingIntent.getActivity(
+            context,
+            1,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(context, ALARM_CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Her")
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(open)
+            .setAutoCancel(true)
+            .setOngoing(true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .addAction(0, "Stop", reminderAction(ACTION_REMINDER_DONE, id))
+            .addAction(0, "Snooze ${ReminderDelivery.SNOOZE_MINUTES} min", reminderAction(ACTION_REMINDER_SNOOZE, id))
+            .build()
+            .apply { flags = flags or Notification.FLAG_INSISTENT }
         try {
             NotificationManagerCompat.from(context).notify(reminderNotificationId(id), notification)
         } catch (_: SecurityException) {
@@ -164,6 +207,7 @@ open class Notifier(private val context: Context) {
         const val CHANNEL = "her"
         const val REMINDER_CHANNEL = "her-reminders"
         const val BRIEFING_CHANNEL = "her-briefing"
+        const val ALARM_CHANNEL = "her-alarms"
         const val NOTIFICATION_ID = 17
         const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"

@@ -38,6 +38,7 @@ class ReminderDeliveryTest {
     private lateinit var delivery: ReminderDelivery
     private val clock = FakeClock(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
     private val shown = mutableListOf<String>()
+    private val rung = mutableListOf<String>()
 
     @Before
     fun setup() = runBlocking {
@@ -50,6 +51,10 @@ class ReminderDeliveryTest {
         val notifier = object : Notifier(context) {
             override fun showReminder(id: String, text: String) {
                 shown += text
+            }
+
+            override fun showAlarm(id: String, text: String) {
+                rung += text
             }
         }
         delivery = ReminderDelivery(repo, notifier)
@@ -140,6 +145,19 @@ class ReminderDeliveryTest {
         clock.advance(ReminderDelivery.SNOOZE_MINUTES * 60 * 1000)
         delivery.fireDue()
         assertEquals(listOf("Time to call mom.", "Time to call mom."), shown)
+    }
+
+    @Test
+    fun anAlarmRingsLoudlyAndSnoozeKeepsItAnAlarm() = runBlocking {
+        val result = tools.execute("set_alarm", """{"time":"2026-09-12T12:00:00Z","label":"Leave for the airport"}""")
+        assertTrue(result.payloadJson, result.ok)
+        val id = JSONObject(result.payloadJson).getString("id")
+        clock.set(Instant.parse("2026-09-12T12:00:10Z").toEpochMilli())
+        delivery.fireDue()
+
+        assertEquals(listOf("Leave for the airport"), rung)
+        assertTrue("an alarm is not a quiet reminder", shown.isEmpty())
+        assertTrue(delivery.snooze(id)!!.alarm)
     }
 
     private suspend fun set(arguments: String): String {
