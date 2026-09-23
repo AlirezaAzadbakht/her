@@ -3,9 +3,14 @@ package com.her
 import com.her.work.BackgroundRunPolicy
 import com.her.work.DevicePower
 import com.her.work.RunDecision
+import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -178,6 +183,42 @@ class BackgroundRunPolicyTest {
         assertEquals("hourly:1h|nightly:03:00|briefing:08:00|sync:6h|v2", morning)
         assertEquals("hourly:1h|nightly:03:00|briefing:09:30|sync:6h|v2", later)
         assertTrue(morning != later)
+    }
+
+    @Test
+    fun deadlinesWakeHourlyWhenDueTodayOrOverdue() {
+        val at = ZonedDateTime.of(2026, 9, 23, 10, 0, 0, 0, ZoneId.of("Asia/Tehran"))
+        val atMs = at.toInstant().toEpochMilli()
+        val hour = 60 * 60 * 1000L
+        assertEquals("overdue", BackgroundRunPolicy.deadlineState(atMs - hour, at))
+        assertEquals("today", BackgroundRunPolicy.deadlineState(atMs + hour, at))
+        assertNull(BackgroundRunPolicy.deadlineState(atMs + BackgroundRunPolicy.DAY_MS, at))
+    }
+
+    @Test
+    fun birthdaysComeUpEveryYear() {
+        val today = LocalDate.of(2026, 9, 23)
+        assertEquals(today, BackgroundRunPolicy.upcomingOccurrence("1990-09-23", today))
+        assertEquals(today.plusDays(1), BackgroundRunPolicy.upcomingOccurrence("1990-09-24", today))
+        assertNull(BackgroundRunPolicy.upcomingOccurrence("1990-09-26", today))
+        assertNull(BackgroundRunPolicy.upcomingOccurrence("someday", today))
+    }
+
+    @Test
+    fun nightlyNeedsAMessageSinceTheLastOne() {
+        assertTrue("first run ever", BackgroundRunPolicy.nightlyHasNews(lastUserMessageAt = 0, lastNightlyRunAt = 0))
+        assertFalse(BackgroundRunPolicy.nightlyHasNews(lastUserMessageAt = now - 1000, lastNightlyRunAt = now))
+        assertTrue(BackgroundRunPolicy.nightlyHasNews(lastUserMessageAt = now + 1000, lastNightlyRunAt = now))
+    }
+
+    @Test
+    fun briefingWaitsForSomeoneWhoWentQuiet() {
+        val day = BackgroundRunPolicy.DAY_MS
+        assertNull(BackgroundRunPolicy.briefingAwaySkip(now - day, now, dayHasContent = false))
+        assertNull(BackgroundRunPolicy.briefingAwaySkip(now - 3 * day, now, dayHasContent = true))
+        assertNotNull(BackgroundRunPolicy.briefingAwaySkip(now - 3 * day, now, dayHasContent = false))
+        assertNotNull(BackgroundRunPolicy.briefingAwaySkip(now - 7 * day, now, dayHasContent = true))
+        assertNull("has not written yet", BackgroundRunPolicy.briefingAwaySkip(0, now, dayHasContent = false))
     }
 
     @Test

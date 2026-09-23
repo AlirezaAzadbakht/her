@@ -81,6 +81,11 @@ data class AppSettings(
     val hourlyDuringQuietHours: Boolean = false,
     val showReceipts: Boolean = true,
     val embeddingModel: String = DEFAULT_EMBEDDING_MODEL,
+    /** What the last hourly model call already saw; a skipped hour leaves it alone. */
+    val lastHourlyTriggers: Set<String> = emptySet(),
+    val lastNightlyRunAt: Long = 0L,
+    /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
+    val backgroundModel: String = "",
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -121,6 +126,9 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             hourlyDuringQuietHours = prefs.getBoolean(KEY_HOURLY_QUIET, false),
             showReceipts = prefs.getBoolean(KEY_RECEIPTS, true),
             embeddingModel = prefs.getString(KEY_EMBED_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL,
+            lastHourlyTriggers = prefs.getStringSet(KEY_HOURLY_TRIGGERS, null)?.toSet().orEmpty(),
+            lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
+            backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
         )
     }
 
@@ -151,6 +159,9 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_HOURLY_QUIET, next.hourlyDuringQuietHours)
             putBoolean(KEY_RECEIPTS, next.showReceipts)
             putString(KEY_EMBED_MODEL, next.embeddingModel)
+            putStringSet(KEY_HOURLY_TRIGGERS, next.lastHourlyTriggers)
+            putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
+            putString(KEY_BG_MODEL, next.backgroundModel)
         }
         _state.value = next
     }
@@ -187,5 +198,8 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_RECEIPTS = "show_receipts"
         private const val KEY_EMBED_MODEL = "embedding_model"
         private const val KEY_SCHEDULE = "schedule_fingerprint"
+        private const val KEY_HOURLY_TRIGGERS = "last_hourly_triggers"
+        private const val KEY_NIGHTLY_AT = "last_nightly_at"
+        private const val KEY_BG_MODEL = "background_model"
     }
 }

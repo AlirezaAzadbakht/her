@@ -22,14 +22,24 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v2`
 
 | Pass | Skip | Defer (`Result.retry`) | Run |
 |------|------|------------------------|-----|
-| Hourly | LLM not configured; last **success** &lt; 20 minutes; battery ≤15% and not charging; quiet hours (default) | — | Otherwise. Orchestrator uses CATCH_UP if the last success was &gt; 3 hours ago (including after a quiet night). |
-| Nightly | Already completed today; LLM not configured | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
-| Briefing | Already generated today; LLM not configured; battery ≤15% and not charging | — | Otherwise |
+| Hourly | LLM not configured; last **success** &lt; 20 minutes; battery ≤15% and not charging; quiet hours (default); **nothing new** (see below) | — | Otherwise. Orchestrator uses CATCH_UP if the last success was &gt; 3 hours ago (including after a quiet night). |
+| Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
+| Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
 | Sync | Drive off; battery ≤15% and not charging | — | Otherwise |
 
 LLM failures return `Result.success()` and wait for the next scheduled slot. The only retry is nightly on critically low battery.
 
 Hourly stamps `lastHourlyRunAt` only after a successful pass.
+
+### Nothing new, no model call
+
+The content checks live in `AgentOrchestrator` behind `gated = true`, which only the scheduled workers pass. Manual runs, the developer buttons, and scenarios always reach the model.
+
+Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could speak about, without the model: open tasks and commitments due today or overdue, events starting within 2 hours, important dates today or tomorrow, a "next time with" reminder whose person is on the calendar in the next day, agent-queue items that came due, and their latest message. Each key carries its time (`due:<id>:<dueAt>:overdue`, `msg:<id>`, …). The model runs only when a key is not in `lastHourlyTriggers`, the set the last successful pass saw. So an ignored overdue task gets one nudge, not one an hour, and a moved deadline counts as new. The agent queue's `dueAt` is her way to wake herself later.
+
+The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. A user who comes back is back on their next message; nothing else is stored.
+
+Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
 
 ## Quiet hours
 

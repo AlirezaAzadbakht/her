@@ -61,7 +61,7 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                     return Result.success()
                 }
             }
-            graph.orchestrator.runHourly()
+            graph.orchestrator.runHourly(gated = !manual)
             Result.success()
         } catch (_: Exception) {
             Result.success()
@@ -96,7 +96,7 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                     RunDecision.RUN -> { }
                 }
             }
-            graph.orchestrator.runNightly()
+            graph.orchestrator.runNightly(gated = !manual)
             return Result.success()
         } catch (_: Exception) {
             return Result.success()
@@ -125,7 +125,7 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     return Result.success()
                 }
             }
-            graph.orchestrator.runBriefing()
+            graph.orchestrator.runBriefing(gated = !manual)
             return Result.success()
         } catch (_: Exception) {
             return Result.success()

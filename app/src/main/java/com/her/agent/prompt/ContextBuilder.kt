@@ -16,6 +16,7 @@ import com.her.data.retrieval.MemoryRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.LlmMessage
 import com.her.domain.MemoryHit
+import com.her.work.BackgroundRunPolicy
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -63,14 +64,11 @@ class ContextBuilder(
         val allState = repo.agentState()
         val digest = allState.firstOrNull { it.kind == Identity.DIGEST_KIND }
         val state = allState.filter { it.kind != Identity.DIGEST_KIND }.take(12)
-        val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
-        val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
-        val googleLive = googleCalendar.available()
-        val systemCal = systemCalendar.mirror(from, to, excludeGoogleAccounts = googleLive)
-        val googleCal = googleCalendar.mirror(from, to)
-        val internalCal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
+        val week = week(now, zone)
+        val (internalCal, systemCal, googleCal) = week
+        val googleLive = week.googleLive
         val nowMs = now.toInstant().toEpochMilli()
-        val nextDay = (internalCal + systemCal + googleCal).filter { it.startAt in nowMs..(nowMs + DAY_MS) }
+        val nextDay = week.all.filter { it.startAt in nowMs..(nowMs + DAY_MS) }
         val reminders = repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.take(12)
             .map { reminderLine(it, nextDay, zone) }
 
@@ -140,6 +138,68 @@ class ContextBuilder(
         return BuiltContext(messages, memories, bundle)
     }
 
+    /**
+     * What an autonomous pass could speak about now: open deadlines due today or overdue, events starting within
+     * [horizonMs], dates today or tomorrow, a "next time with" person on the calendar, and with [agentItems] the
+     * queue items that came due and their latest message. Keys carry their time, so a moved deadline is new again.
+     */
+    suspend fun triggers(horizonMs: Long, agentItems: Boolean = true): Set<String> {
+        val zone = repo.profileZone()
+        val now = Instant.ofEpochMilli(repo.clock.nowMillis()).atZone(zone)
+        val nowMs = now.toInstant().toEpochMilli()
+        val events = week(now, zone).all
+        val nextDay = events.filter { it.startAt in nowMs..(nowMs + DAY_MS) }
+        val deadlines = repo.tasks().filter { it.status.name == "OPEN" }.map { it.id to it.dueAt } +
+            repo.commitments().filter { it.status.name == "OPEN" }.map { it.id to it.dueAt }
+        return buildSet {
+            deadlines.forEach { (id, dueAt) ->
+                dueAt?.let { BackgroundRunPolicy.deadlineState(it, now) }?.let { add("due:$id:$dueAt:$it") }
+            }
+            events.filter { it.startAt in nowMs..(nowMs + horizonMs) }.forEach { add("event:${it.startAt}:${it.title}") }
+            repo.importantDates().forEach { date ->
+                BackgroundRunPolicy.upcomingOccurrence(date.dateIso, now.toLocalDate())?.let { add("date:${date.id}:$it") }
+            }
+            repo.reminders().filter { it.status == ReminderStatus.SCHEDULED && it.trigger == ReminderTrigger.PERSON }.forEach {
+                meeting(personName(it), nextDay)?.let { event -> add("person:${it.id}:${event.startAt}") }
+            }
+            if (agentItems) {
+                repo.agentQueue().filter { it.status.name == "OPEN" && (it.dueAt ?: 0L) <= nowMs }
+                    .forEach { add("queue:${it.id}:${it.dueAt}") }
+                repo.lastUserMessage()?.let { add("msg:${it.id}") }
+            }
+        }
+    }
+
+    private data class Week(
+        val internal: List<CalendarEvent>,
+        val system: List<CalendarEvent>,
+        val google: List<CalendarEvent>,
+        val googleLive: Boolean,
+    ) {
+        val all: List<CalendarEvent> get() = internal + system + google
+    }
+
+    /** Today and the next 7 days from every source. Mirroring keeps the live sources' rows fresh in Room. */
+    private suspend fun week(now: ZonedDateTime, zone: ZoneId): Week {
+        val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
+        val googleLive = googleCalendar.available()
+        val system = systemCalendar.mirror(from, to, excludeGoogleAccounts = googleLive)
+        val google = googleCalendar.mirror(from, to)
+        val internal = repo.calendarInRange(from, to).filter { it.source == CalendarSource.INTERNAL }
+        return Week(internal, system, google, googleLive)
+    }
+
+    private suspend fun personName(reminder: Reminder): String =
+        reminder.personId?.let { repo.getPerson(it)?.name } ?: "someone"
+
+    private fun meeting(name: String, nextDay: List<CalendarEvent>): CalendarEvent? {
+        val first = name.substringBefore(' ')
+        return nextDay.firstOrNull {
+            it.title.contains(name, ignoreCase = true) || (first.length >= 3 && it.title.contains(first, ignoreCase = true))
+        }
+    }
+
     /** A PERSON reminder names a calendar event in the next day with that person, so a pass can bring it up in time. */
     private suspend fun reminderLine(reminder: Reminder, nextDay: List<CalendarEvent>, zone: ZoneId): String {
         val body = when (reminder.trigger) {
@@ -149,11 +209,8 @@ class ContextBuilder(
                 append(": \"${reminder.message}\"")
             }
             ReminderTrigger.PERSON -> {
-                val name = reminder.personId?.let { repo.getPerson(it)?.name } ?: "someone"
-                val first = name.substringBefore(' ')
-                val meeting = nextDay.firstOrNull {
-                    it.title.contains(name, ignoreCase = true) || (first.length >= 3 && it.title.contains(first, ignoreCase = true))
-                }
+                val name = personName(reminder)
+                val meeting = meeting(name, nextDay)
                 "next time with $name: \"${reminder.message}\"" +
                     (meeting?.let { " — $name is on the calendar: ${it.title} ${stamp(it.startAt, zone)}" } ?: "")
             }

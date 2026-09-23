@@ -21,6 +21,7 @@ import com.her.domain.MessageStatus
 import com.her.domain.QueueStatus
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import com.her.work.BackgroundRunPolicy
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -102,11 +103,18 @@ class AgentOrchestrator(
         result
     }
 
-    suspend fun runHourly(): TurnResult {
-        val last = settings.read().lastHourlyRunAt
+    /** [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it. */
+    suspend fun runHourly(gated: Boolean = false): TurnResult {
+        val app = settings.read()
+        val last = app.lastHourlyRunAt
         val now = nowMillis()
         if (now - last < 20 * 60 * 1000 && last > 0) {
             repo.logActivity("hourly", "Skipped; ran recently.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
+        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS)
+        if (gated && triggers.all { it in app.lastHourlyTriggers }) {
+            repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
         }
         val result = runTurn(
@@ -118,7 +126,7 @@ class AgentOrchestrator(
             allowNotify = true,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastHourlyRunAt = now) }
+            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = triggers) }
         }
         if (result.assistantText.isNullOrBlank()) {
             repo.logActivity("hourly", "No notification sent.")
@@ -126,12 +134,19 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runNightly(): TurnResult {
+    suspend fun runNightly(gated: Boolean = false): TurnResult {
         val today = repo.today().toString()
-        if (settings.read().lastNightlyDate == today) {
+        val app = settings.read()
+        if (app.lastNightlyDate == today) {
             repo.logActivity("nightly", "Already completed for $today")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
+        if (gated && !BackgroundRunPolicy.nightlyHasNews(lastUserAt, app.lastNightlyRunAt)) {
+            repo.logActivity("nightly", "Skipped; nothing new since last night.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
+        val started = nowMillis()
         val result = runTurn(
             type = AgentRunType.NIGHTLY,
             budget = CallBudget(50),
@@ -141,7 +156,7 @@ class AgentOrchestrator(
             allowNotify = false,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastNightlyDate = today) }
+            settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")
@@ -149,11 +164,22 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runBriefing(): TurnResult {
-        val today = repo.today().toString()
+    suspend fun runBriefing(gated: Boolean = false): TurnResult {
+        val now = repo.now()
+        val today = now.toLocalDate().toString()
         if (settings.read().lastBriefingDate == today) {
             repo.logActivity("briefing", "Already generated for $today")
             return TurnResult(null, false, null, 0, "skipped")
+        }
+        if (gated) {
+            val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
+            val nowMs = now.toInstant().toEpochMilli()
+            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
+            val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
+            BackgroundRunPolicy.briefingAwaySkip(lastUserAt, nowMs, dayHasContent)?.let { reason ->
+                repo.logActivity("briefing", reason)
+                return TurnResult(null, false, null, 0, "skipped")
+            }
         }
         val result = runTurn(
             type = AgentRunType.BRIEFING,
@@ -181,7 +207,8 @@ class AgentOrchestrator(
         val runId = com.her.core.newId()
         val started = nowMillis()
         repo.saveRun(AgentRun(runId, type, started, null, 0, AgentRunStatus.RUNNING, null, null))
-        val configured = llmSettings()
+        val background = settings.read().backgroundModel.trim()
+        val configured = llmSettings().let { if (type != AgentRunType.CHAT && background.isNotEmpty()) it.copy(model = background) else it }
         if (streamToUi) _turnState.value = TurnState.Thinking
         try {
             val built = contextBuilder.build(latestUserText)

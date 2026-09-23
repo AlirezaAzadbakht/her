@@ -149,6 +149,8 @@ class HerRepository(
 
     suspend fun getMessage(id: String): ChatMessage? = chatDao.get(id)?.toDomain()
 
+    suspend fun lastUserMessage(): ChatMessage? = chatDao.latestByRole(MessageRole.USER)?.toDomain()
+
     suspend fun searchChat(query: String, limit: Int): List<ChatMessage> {
         val match = ftsQuery(query) ?: return emptyList()
         val hits = runCatching { chatDao.search(match, limit * 4) }.getOrDefault(emptyList()).map { it.toDomain() }

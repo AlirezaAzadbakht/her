@@ -44,9 +44,9 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 | Run | Max LLM calls | Extra rules |
 |-----|---------------|-------------|
 | Chat | `chatToolCallLimit` (default 12, min 1) | User-driven |
-| Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. |
-| Nightly | 50 | Once per calendar day |
-| Briefing | 8 | Once per calendar day |
+| Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. A scheduled pass skips when nothing new came due ([Background work](Background-work.md#nothing-new-no-model-call)). |
+| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one |
+| Briefing | 8 | Once per calendar day; a scheduled pass skips after 7 quiet days, or 3 when today is empty |
 
 ## Tools
 

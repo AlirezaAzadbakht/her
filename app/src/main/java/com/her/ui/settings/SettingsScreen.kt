@@ -137,6 +137,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
     var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
+    var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
     var advanced by remember { mutableStateOf(false) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
@@ -222,6 +223,12 @@ fun SettingsScreen(vm: HerViewModel) {
                 ) {
                     Hint(connection.orEmpty(), Modifier.padding(top = 6.dp))
                 }
+                Spacer(Modifier.height(12.dp))
+                HerTextField("Background model (optional)", backgroundModel) {
+                    backgroundModel = it
+                    vm.updateSettings { s -> s.copy(backgroundModel = it) }
+                }
+                Hint("Hourly, nightly and the morning briefing use it. Blank uses the model above.")
             }
             if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Text(

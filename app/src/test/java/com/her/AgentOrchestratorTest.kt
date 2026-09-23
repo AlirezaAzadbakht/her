@@ -18,11 +18,16 @@ import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
+import com.her.core.newId
+import com.her.domain.CalendarEvent
+import com.her.domain.CalendarSource
 import com.her.domain.LlmMessage
 import com.her.domain.LlmResponse
 import com.her.domain.LlmToolCall
 import com.her.domain.LlmUsage
 import com.her.domain.MessageRole
+import com.her.domain.TaskItem
+import com.her.domain.TaskStatus
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
@@ -40,6 +45,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+
+private const val HOUR = 60 * 60 * 1000L
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], application = Application::class)
@@ -164,6 +171,73 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun gatedHourlyWakesTheModelOnlyForSomethingNew() = runBlocking {
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.runHourly(gated = true)
+        assertEquals("nothing is due", 0, llm.calls)
+
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        orchestrator.runHourly(gated = true)
+        assertEquals(1, llm.calls)
+
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("an overdue task it already saw stays quiet", 1, llm.calls)
+
+        repo.saveCalendarEvent(event("Dentist", startAt = clock.peek() + 90 * 60 * 1000))
+        orchestrator.runHourly(gated = true)
+        assertEquals("an event starting soon is new", 2, llm.calls)
+
+        clock.advance(HOUR)
+        orchestrator.enqueueUserMessage("I'm at the airport")
+        orchestrator.runHourly(gated = true)
+        assertEquals("their message is new", 3, llm.calls)
+    }
+
+    @Test
+    fun gatedNightlySkipsWhenTheyHaveNotWritten() = runBlocking {
+        val llm = ScriptedLlm({ reply("done") }, { reply("done") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.runNightly(gated = true)
+        assertEquals("the first night always runs", 1, llm.calls)
+
+        clock.advance(24 * HOUR)
+        orchestrator.runNightly(gated = true)
+        assertEquals(1, llm.calls)
+
+        orchestrator.enqueueUserMessage("I started a new job today")
+        orchestrator.runNightly(gated = true)
+        assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun gatedBriefingWaitsForSomeoneWhoWentQuiet() = runBlocking {
+        val llm = ScriptedLlm({ reply("Morning. The day is open.") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("hi")
+        clock.advance(8 * 24 * HOUR)
+        orchestrator.runBriefing(gated = true)
+        assertEquals(0, llm.calls)
+
+        orchestrator.enqueueUserMessage("I'm back")
+        orchestrator.runBriefing(gated = true)
+        assertEquals(1, llm.calls)
+    }
+
+    @Test
+    fun backgroundPassesUseTheBackgroundModel() = runBlocking {
+        settings.update { it.copy(backgroundModel = "small") }
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("hi") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.runHourly()
+        orchestrator.enqueueUserMessage("hello")
+        orchestrator.processOutbox()
+
+        assertEquals(listOf("small", "model"), llm.modelsSeen)
+    }
+
+    @Test
     fun largeToolPayloadsAreTruncatedForTheModel() {
         val payload = "x".repeat(AgentOrchestrator.MAX_TOOL_PAYLOAD_CHARS + 1000)
         val trimmed = AgentOrchestrator.forModel(payload)
@@ -193,6 +267,18 @@ class AgentOrchestratorTest {
         retryDelayMs = { 0L },
     )
 
+    private fun task(title: String, dueAt: Long): TaskItem {
+        val now = clock.peek()
+        return TaskItem(newId(), title, null, TaskStatus.OPEN, dueAt, null, null, now, now, repo.deviceId, 1, null)
+    }
+
+    private fun event(title: String, startAt: Long): CalendarEvent {
+        val now = clock.peek()
+        return CalendarEvent(
+            newId(), title, startAt, startAt + HOUR, null, null, null, CalendarSource.INTERNAL, null, now, now, repo.deviceId, 1, null,
+        )
+    }
+
     private fun reply(text: String) =
         LlmResponse(LlmMessage(role = "assistant", content = text), LlmUsage(10, 5, 1), "{}")
 
@@ -205,6 +291,7 @@ class AgentOrchestratorTest {
     private class ScriptedLlm(vararg steps: () -> LlmResponse) : LlmClient() {
         private val script = steps.toMutableList()
         val toolsSeen = mutableListOf<List<ToolSpec>>()
+        val modelsSeen = mutableListOf<String>()
         val calls: Int get() = toolsSeen.size
 
         override suspend fun complete(
@@ -213,17 +300,18 @@ class AgentOrchestratorTest {
             tools: List<ToolSpec>,
             client: OkHttpClient,
             webSearch: WebSearchRequest?,
-        ): LlmResponse = next(tools)
+        ): LlmResponse = next(settings, tools)
 
         override suspend fun stream(
             settings: LlmSettings,
             messages: List<LlmMessage>,
             tools: List<ToolSpec>,
             onDelta: (String) -> Unit,
-        ): LlmResponse = next(tools)
+        ): LlmResponse = next(settings, tools)
 
-        private fun next(tools: List<ToolSpec>): LlmResponse {
+        private fun next(settings: LlmSettings, tools: List<ToolSpec>): LlmResponse {
             toolsSeen += tools
+            modelsSeen += settings.model
             check(script.isNotEmpty()) { "scripted LLM ran out of responses" }
             return script.removeAt(0)()
         }
