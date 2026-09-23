@@ -227,6 +227,16 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun swipedNudgesReachContextUntilTheyWriteAgain() = runBlocking {
+        settings.update { it.copy(swipedNudges = 3) }
+        assertTrue(contextBuilder.build().systemBundle.contains("Their last 3 notifications were swiped away"))
+
+        orchestrator(ScriptedLlm()).enqueueUserMessage("sorry, busy day")
+        assertEquals(0, settings.read().swipedNudges)
+        assertFalse(contextBuilder.build().systemBundle.contains("swiped away"))
+    }
+
+    @Test
     fun backgroundTokenLimitStopsGatedPasses() = runBlocking {
         repo.recordUsage(AgentRunType.HOURLY, 1000, 50, 1, error = false, cachedInputTokens = 600)
         repo.recordUsage(AgentRunType.NIGHTLY, 900, 50, 1, error = false, cachedInputTokens = 600)

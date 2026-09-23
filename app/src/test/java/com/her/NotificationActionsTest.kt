@@ -47,6 +47,11 @@ class NotificationActionsTest {
     }
 
     @Test
+    fun swipeAwayIsCounted() {
+        assertEquals(NotificationAction.Dismissed, NotificationActions.decide(Notifier.ACTION_NUDGE_DISMISSED, null, null))
+    }
+
+    @Test
     fun unknownActionIsIgnored() {
         assertEquals(NotificationAction.Ignore, NotificationActions.decide("com.her.NOTIFY_DONE", null, "x"))
     }

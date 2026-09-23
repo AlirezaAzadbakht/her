@@ -81,6 +81,7 @@ class AgentOrchestrator(
     suspend fun enqueueUserMessage(text: String, metadataJson: String? = null): ChatMessage {
         val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
         repo.saveMessage(message, enqueueSync = false)
+        if (settings.read().swipedNudges > 0) settings.update { it.copy(swipedNudges = 0) }
         return message
     }
 

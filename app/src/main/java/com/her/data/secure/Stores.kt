@@ -88,6 +88,8 @@ data class AppSettings(
     val backgroundModel: String = "",
     /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
     val backgroundTokenCap: Long = 0L,
+    /** Her notifications swiped away since they last wrote to her. */
+    val swipedNudges: Int = 0,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -132,6 +134,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
+            swipedNudges = prefs.getInt(KEY_SWIPED, 0),
         )
     }
 
@@ -166,6 +169,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
+            putInt(KEY_SWIPED, next.swipedNudges)
         }
         _state.value = next
     }
@@ -206,5 +210,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_NIGHTLY_AT = "last_nightly_at"
         private const val KEY_BG_MODEL = "background_model"
         private const val KEY_BG_CAP = "background_token_cap"
+        private const val KEY_SWIPED = "swiped_nudges"
     }
 }

@@ -103,6 +103,9 @@ class ContextBuilder(
             recent.lastOrNull { it.role.name == "USER" }?.let {
                 appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
             }
+            settings.read().swipedNudges.takeIf { it >= 2 }?.let {
+                appendLine("Their last $it notifications were swiped away without a reply.")
+            }
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })

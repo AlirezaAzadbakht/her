@@ -126,6 +126,13 @@ open class Notifier(private val context: Context) {
             Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // A swipe-away without a reply is how they say "not now"; she reads the count in context.
+        val dismissed = PendingIntent.getBroadcast(
+            context,
+            4,
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_NUDGE_DISMISSED),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val replyAction = NotificationCompat.Action.Builder(0, "Reply", reply)
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
             .setAllowGeneratedReplies(false)
@@ -137,6 +144,7 @@ open class Notifier(private val context: Context) {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
+            .setDeleteIntent(dismissed)
             .setAutoCancel(true)
             .addAction(replyAction)
             .addAction(0, "Later", later)
@@ -162,6 +170,7 @@ open class Notifier(private val context: Context) {
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val ACTION_REMINDER_DONE = "com.her.REMINDER_DONE"
         const val ACTION_REMINDER_SNOOZE = "com.her.REMINDER_SNOOZE"
+        const val ACTION_NUDGE_DISMISSED = "com.her.NUDGE_DISMISSED"
         const val KEY_REPLY = "reply"
         const val EXTRA_TEXT = "text"
 
@@ -175,6 +184,7 @@ sealed class NotificationAction {
     data class Later(val description: String) : NotificationAction()
     data class ReminderDone(val id: String) : NotificationAction()
     data class ReminderSnooze(val id: String) : NotificationAction()
+    data object Dismissed : NotificationAction()
     data object Ignore : NotificationAction()
 }
 
@@ -194,6 +204,7 @@ object NotificationActions {
             ?: NotificationAction.Ignore
         Notifier.ACTION_REMINDER_SNOOZE -> reminderId?.takeIf { it.isNotBlank() }?.let { NotificationAction.ReminderSnooze(it) }
             ?: NotificationAction.Ignore
+        Notifier.ACTION_NUDGE_DISMISSED -> NotificationAction.Dismissed
         else -> NotificationAction.Ignore
     }
 
@@ -245,6 +256,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                                 )
                                 graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
                             }
+                            NotificationAction.Dismissed -> graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
                             is NotificationAction.ReminderDone -> graph.reminderDelivery.done(decision.id)
                             is NotificationAction.ReminderSnooze -> {
                                 graph.reminderDelivery.snooze(decision.id)
