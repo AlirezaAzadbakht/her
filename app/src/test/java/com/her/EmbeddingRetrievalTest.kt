@@ -128,11 +128,13 @@ class EmbeddingRetrievalTest {
         }
         // Roll the file back to version 2, before the embedding cache existed.
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            rollBackToVersionFour(it)
+            it.execSQL("DROP TABLE reminders")
             it.execSQL("DROP TABLE memory_embeddings")
             it.version = 2
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
             .build()
         assertEquals(0, migrated.embeddingDao().count())
         migrated.close()
@@ -149,11 +151,33 @@ class EmbeddingRetrievalTest {
         }
         // Roll the file back to version 3, before reminders existed; Room checks the migrated schema on open.
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            rollBackToVersionFour(it)
             it.execSQL("DROP TABLE reminders")
             it.version = 3
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
+            .build()
+        assertEquals(0, migrated.reminderDao().allActive().size)
+        migrated.close()
+        context.deleteDatabase(name)
+        Unit
+    }
+
+    @Test
+    fun migrationFromVersionFourAddsTheNewColumns() = runBlocking {
+        val name = "migration_${System.nanoTime()}.db"
+        Room.databaseBuilder(context, HerDatabase::class.java, name).build().apply {
+            openHelper.writableDatabase
+            close()
+        }
+        // Roll the file back to version 4, before alarms, cached and background tokens, and Google Tasks ids.
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            rollBackToVersionFour(it)
+            it.version = 4
+        }
+        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
             .build()
         assertEquals(0, migrated.reminderDao().allActive().size)
         migrated.close()
@@ -201,4 +225,28 @@ class EmbeddingRetrievalTest {
             }
         }
     }
+}
+
+/** Rebuilds the tables version 5 widened with their version 4 columns; this SQLite has no DROP COLUMN. */
+private fun rollBackToVersionFour(db: SQLiteDatabase) {
+    db.execSQL("DROP TABLE reminders")
+    db.execSQL(
+        "CREATE TABLE `reminders` (`id` TEXT NOT NULL, `message` TEXT NOT NULL, `trigger` TEXT NOT NULL, `fireAt` INTEGER, " +
+            "`repeat` TEXT NOT NULL, `personId` TEXT, `place` TEXT, `onlyIfEntityType` TEXT, `onlyIfEntityId` TEXT, " +
+            "`status` TEXT NOT NULL, `firedAt` INTEGER, `sourceMessageId` TEXT, `createdAt` INTEGER NOT NULL, " +
+            "`updatedAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    )
+    db.execSQL("DROP TABLE api_usage")
+    db.execSQL(
+        "CREATE TABLE `api_usage` (`day` TEXT NOT NULL, `requests` INTEGER NOT NULL, `inputTokens` INTEGER NOT NULL, " +
+            "`outputTokens` INTEGER NOT NULL, `hourlyCalls` INTEGER NOT NULL, `nightlyCalls` INTEGER NOT NULL, " +
+            "`briefingCalls` INTEGER NOT NULL, `chatCalls` INTEGER NOT NULL, `totalLatencyMs` INTEGER NOT NULL, " +
+            "`errors` INTEGER NOT NULL, PRIMARY KEY(`day`))",
+    )
+    db.execSQL("DROP TABLE tasks")
+    db.execSQL(
+        "CREATE TABLE `tasks` (`id` TEXT NOT NULL, `title` TEXT NOT NULL, `description` TEXT, `status` TEXT NOT NULL, " +
+            "`dueAt` INTEGER, `relatedProjectId` TEXT, `relatedGoalId` TEXT, `createdAt` INTEGER NOT NULL, " +
+            "`updatedAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))",
+    )
 }

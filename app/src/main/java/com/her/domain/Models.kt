@@ -183,6 +183,8 @@ data class TaskItem(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    /** Its row in the "Her" list of Google Tasks, when mirrored. */
+    val googleTaskId: String? = null,
 )
 
 data class Commitment(
@@ -314,6 +316,8 @@ data class Reminder(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    /** Rings like an alarm clock (loud, until stopped) instead of a quiet notification. */
+    val alarm: Boolean = false,
 )
 
 data class MemoryRelationship(
@@ -399,6 +403,9 @@ data class ApiUsageDay(
     val chatCalls: Int,
     val totalLatencyMs: Long,
     val errors: Int,
+    val cachedInputTokens: Long = 0,
+    /** Input plus output tokens of hourly, nightly and briefing passes. */
+    val backgroundTokens: Long = 0,
 )
 
 data class DebugEvent(

@@ -101,7 +101,7 @@ class HerConverters {
         MemoryEmbeddingEntity::class,
         ReminderEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -199,6 +199,15 @@ abstract class HerDatabase : RoomDatabase() {
                     )
                     """.trimIndent(),
                 )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `alarm` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `api_usage` ADD COLUMN `cachedInputTokens` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `api_usage` ADD COLUMN `backgroundTokens` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `googleTaskId` TEXT")
             }
         }
     }

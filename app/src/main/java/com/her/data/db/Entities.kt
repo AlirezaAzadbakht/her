@@ -193,6 +193,7 @@ data class TaskEntity(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    val googleTaskId: String? = null,
 )
 
 @Entity(tableName = "commitments")
@@ -328,6 +329,7 @@ data class ReminderEntity(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    @ColumnInfo(defaultValue = "0") val alarm: Boolean = false,
 )
 
 @Entity(tableName = "memory_relationships")
@@ -426,6 +428,8 @@ data class ApiUsageEntity(
     val chatCalls: Int,
     val totalLatencyMs: Long,
     val errors: Int,
+    @ColumnInfo(defaultValue = "0") val cachedInputTokens: Long = 0,
+    @ColumnInfo(defaultValue = "0") val backgroundTokens: Long = 0,
 )
 
 @Entity(tableName = "debug_events")

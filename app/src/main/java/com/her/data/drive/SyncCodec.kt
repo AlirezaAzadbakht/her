@@ -281,6 +281,7 @@ internal object SyncCodec {
             deviceId = m.deviceId,
             version = m.version,
             deletedAt = m.deletedAt,
+            googleTaskId = json.stringOrNull("googleTaskId"),
         )
     }
 
@@ -482,6 +483,7 @@ internal object SyncCodec {
             deviceId = m.deviceId,
             version = m.version,
             deletedAt = m.deletedAt,
+            alarm = json.optBoolean("alarm", false),
         )
     }
 
