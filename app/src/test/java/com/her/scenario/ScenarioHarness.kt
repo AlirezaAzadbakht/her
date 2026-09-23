@@ -139,10 +139,11 @@ class ScenarioHarness(
                         orchestrator.enqueueUserMessage(turn.text)
                         orchestrator.processOutbox()
                     }
+                    // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.
                     is ScenarioTurn.Run -> when (turn.kind) {
-                        AutonomousRun.HOURLY -> orchestrator.runHourly()
-                        AutonomousRun.NIGHTLY -> orchestrator.runNightly()
-                        AutonomousRun.BRIEFING -> orchestrator.runBriefing()
+                        AutonomousRun.HOURLY -> orchestrator.runHourly(gated = true)
+                        AutonomousRun.NIGHTLY -> orchestrator.runNightly(gated = true)
+                        AutonomousRun.BRIEFING -> orchestrator.runBriefing(gated = true)
                     }
                     // Moving the clock stands in for AlarmManager: anything due rings before the next turn.
                     is ScenarioTurn.Advance -> {

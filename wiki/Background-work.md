@@ -33,7 +33,7 @@ Hourly stamps `lastHourlyRunAt` only after a successful pass.
 
 ### Nothing new, no model call
 
-The content checks live in `AgentOrchestrator` behind `gated = true`, which only the scheduled workers pass. Manual runs, the developer buttons, and scenarios always reach the model.
+The content checks live in `AgentOrchestrator` behind `gated = true`, which the scheduled workers and the scenario harness pass. Manual runs and the developer buttons always reach the model.
 
 Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could speak about, without the model: open tasks and commitments due today or overdue, events starting within 2 hours, important dates today or tomorrow, a "next time with" reminder whose person is on the calendar in the next day, agent-queue items that came due, and their latest message. Each key carries its time (`due:<id>:<dueAt>:overdue`, `msg:<id>`, …). The model runs only when a key is not in `lastHourlyTriggers`, the set the last successful pass saw. So an ignored overdue task gets one nudge, not one an hour, and a moved deadline counts as new. The agent queue's `dueAt` is her way to wake herself later.
 
