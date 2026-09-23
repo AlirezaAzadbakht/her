@@ -19,6 +19,7 @@ import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
 import com.her.core.newId
+import com.her.domain.AgentRunType
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
 import com.her.domain.LlmMessage
@@ -223,6 +224,26 @@ class AgentOrchestratorTest {
         orchestrator.enqueueUserMessage("I'm back")
         orchestrator.runBriefing(gated = true)
         assertEquals(1, llm.calls)
+    }
+
+    @Test
+    fun backgroundTokenLimitStopsGatedPasses() = runBlocking {
+        repo.recordUsage(AgentRunType.HOURLY, 1000, 50, 1, error = false, cachedInputTokens = 600)
+        repo.recordUsage(AgentRunType.NIGHTLY, 900, 50, 1, error = false, cachedInputTokens = 600)
+        repo.recordUsage(AgentRunType.CHAT, 5000, 200, 1, error = false)
+        val usage = repo.usageToday()!!
+        assertEquals("chat does not count", 2000L, usage.backgroundTokens)
+        assertEquals(1200L, usage.cachedInputTokens)
+
+        settings.update { it.copy(backgroundTokenCap = 2000) }
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.runHourly(gated = true)
+        assertEquals(0, llm.calls)
+
+        orchestrator.runHourly()
+        assertEquals("manual runs ignore the limit", 1, llm.calls)
     }
 
     @Test

@@ -404,6 +404,7 @@ class HerRepository(
         outputTokens: Int,
         latencyMs: Long,
         error: Boolean,
+        cachedInputTokens: Int = 0,
     ) {
         val day = today().toString()
         val current = db.logDao().usage(day) ?: ApiUsageEntity(day, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -417,9 +418,13 @@ class HerRepository(
             chatCalls = current.chatCalls + if (type == AgentRunType.CHAT) 1 else 0,
             totalLatencyMs = current.totalLatencyMs + latencyMs,
             errors = current.errors + if (error) 1 else 0,
+            cachedInputTokens = current.cachedInputTokens + cachedInputTokens,
+            backgroundTokens = current.backgroundTokens + if (type != AgentRunType.CHAT) inputTokens + outputTokens else 0,
         )
         db.logDao().upsertUsage(next)
     }
+
+    suspend fun usageToday(): ApiUsageDay? = db.logDao().usage(today().toString())?.toDomain()
 
     fun observeUsageToday(): Flow<ApiUsageDay?> = flow {
         emitAll(db.logDao().observeUsage(today().toString()).map { it?.toDomain() })

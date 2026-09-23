@@ -86,6 +86,8 @@ data class AppSettings(
     val lastNightlyRunAt: Long = 0L,
     /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
     val backgroundModel: String = "",
+    /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
+    val backgroundTokenCap: Long = 0L,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -129,6 +131,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             lastHourlyTriggers = prefs.getStringSet(KEY_HOURLY_TRIGGERS, null)?.toSet().orEmpty(),
             lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
+            backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
         )
     }
 
@@ -162,6 +165,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putStringSet(KEY_HOURLY_TRIGGERS, next.lastHourlyTriggers)
             putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
             putString(KEY_BG_MODEL, next.backgroundModel)
+            putLong(KEY_BG_CAP, next.backgroundTokenCap)
         }
         _state.value = next
     }
@@ -201,5 +205,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_HOURLY_TRIGGERS = "last_hourly_triggers"
         private const val KEY_NIGHTLY_AT = "last_nightly_at"
         private const val KEY_BG_MODEL = "background_model"
+        private const val KEY_BG_CAP = "background_token_cap"
     }
 }

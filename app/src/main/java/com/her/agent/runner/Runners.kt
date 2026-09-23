@@ -112,6 +112,7 @@ class AgentOrchestrator(
             repo.logActivity("hourly", "Skipped; ran recently.")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        if (gated && overBackgroundBudget("hourly")) return TurnResult(null, false, null, 0, "skipped")
         val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS)
         if (gated && triggers.all { it in app.lastHourlyTriggers }) {
             repo.logActivity("hourly", "Skipped; nothing new.")
@@ -141,6 +142,7 @@ class AgentOrchestrator(
             repo.logActivity("nightly", "Already completed for $today")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        if (gated && overBackgroundBudget("nightly")) return TurnResult(null, false, null, 0, "skipped")
         val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
         if (gated && !BackgroundRunPolicy.nightlyHasNews(lastUserAt, app.lastNightlyRunAt)) {
             repo.logActivity("nightly", "Skipped; nothing new since last night.")
@@ -172,6 +174,7 @@ class AgentOrchestrator(
             return TurnResult(null, false, null, 0, "skipped")
         }
         if (gated) {
+            if (overBackgroundBudget("briefing")) return TurnResult(null, false, null, 0, "skipped")
             val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
             val nowMs = now.toInstant().toEpochMilli()
             val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
@@ -193,6 +196,15 @@ class AgentOrchestrator(
             settings.update { it.copy(lastBriefingDate = today) }
         }
         return result
+    }
+
+    /** True, and logged, once today's hourly, nightly and briefing tokens reach the limit set in Settings. */
+    private suspend fun overBackgroundBudget(kind: String): Boolean {
+        // ponytail: checked before a pass, so one pass can overshoot the limit by its own size.
+        val cap = settings.read().backgroundTokenCap
+        if (cap <= 0 || (repo.usageToday()?.backgroundTokens ?: 0L) < cap) return false
+        repo.logActivity(kind, "Skipped; today's background token limit is used.")
+        return true
     }
 
     private suspend fun runTurn(
@@ -240,7 +252,14 @@ class AgentOrchestrator(
                         llm.complete(configured, messages, roundTools)
                     }
                 }
-                repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
+                repo.recordUsage(
+                    type,
+                    response.usage.inputTokens,
+                    response.usage.outputTokens,
+                    response.usage.latencyMs,
+                    error = false,
+                    cachedInputTokens = response.usage.cachedInputTokens,
+                )
                 repo.logDebug(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens}",
