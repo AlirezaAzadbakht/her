@@ -13,6 +13,7 @@ import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.ReminderStatus
+import com.her.domain.TaskStatus
 import com.her.notify.Notifier
 import com.her.reminders.FakeReminderAlarms
 import com.her.reminders.ReminderDelivery
@@ -111,6 +112,34 @@ class ReminderDeliveryTest {
 
         assertTrue(shown.isEmpty())
         assertEquals(ReminderStatus.SCHEDULED, repo.getReminder(id)?.status)
+    }
+
+    @Test
+    fun doneFromTheNotificationClosesTheTaskItWaitedOn() = runBlocking {
+        tools.execute("create_task", """{"title":"Send the invoice"}""")
+        val id = set("""{"message":"The invoice still isn't sent.","when":"2026-09-12T12:00:00Z","onlyIfOpen":"Send the invoice"}""")
+        clock.set(Instant.parse("2026-09-12T12:01:00Z").toEpochMilli())
+        delivery.fireDue()
+
+        delivery.done(id)
+
+        assertEquals(TaskStatus.DONE, repo.tasks().single { it.title == "Send the invoice" }.status)
+    }
+
+    @Test
+    fun snoozeRingsTheSameWordsAgainLater() = runBlocking {
+        val id = set("""{"message":"Time to call mom.","when":"2026-09-12T12:00:00Z"}""")
+        clock.set(Instant.parse("2026-09-12T12:00:30Z").toEpochMilli())
+        delivery.fireDue()
+
+        val again = delivery.snooze(id)!!
+        assertEquals(ReminderStatus.SCHEDULED, again.status)
+        delivery.fireDue()
+        assertEquals("not yet", 1, shown.size)
+
+        clock.advance(ReminderDelivery.SNOOZE_MINUTES * 60 * 1000)
+        delivery.fireDue()
+        assertEquals(listOf("Time to call mom.", "Time to call mom."), shown)
     }
 
     private suspend fun set(arguments: String): String {

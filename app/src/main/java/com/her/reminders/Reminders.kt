@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
 import com.her.HerApplication
+import com.her.core.newId
 import com.her.data.repository.HerRepository
 import com.her.domain.CommitmentStatus
 import com.her.domain.MessageRole
@@ -92,6 +93,43 @@ class ReminderDelivery(
         return due
     }
 
+    /** "Done" on a reminder that rang: closes the task or commitment it was waiting on, without the model. */
+    suspend fun done(id: String) {
+        val reminder = repo.getReminder(id) ?: return
+        val entityId = reminder.onlyIfEntityId
+        val now = repo.clock.nowMillis()
+        when (reminder.onlyIfEntityType) {
+            "tasks" -> entityId?.let { repo.getTask(it) }?.takeIf { it.status == TaskStatus.OPEN }?.let {
+                repo.saveTask(it.copy(status = TaskStatus.DONE, updatedAt = now, version = it.version + 1))
+            }
+            "commitments" -> entityId?.let { repo.getCommitment(it) }
+                ?.takeIf { it.status == CommitmentStatus.OPEN || it.status == CommitmentStatus.MISSED }
+                ?.let { repo.saveCommitment(it.copy(status = CommitmentStatus.DONE, updatedAt = now, version = it.version + 1)) }
+        }
+        repo.logActivity("reminder", "Done from the notification: ${reminder.message.take(80)}")
+    }
+
+    /** Rings the same words again in [minutes] as a one-off, keeping any "only if still open" condition. */
+    suspend fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {
+        val reminder = repo.getReminder(id) ?: return null
+        val now = repo.clock.nowMillis()
+        val again = reminder.copy(
+            id = newId(),
+            trigger = ReminderTrigger.TIME,
+            fireAt = now + minutes * 60 * 1000,
+            repeat = ReminderRepeat.NONE,
+            status = ReminderStatus.SCHEDULED,
+            firedAt = null,
+            createdAt = now,
+            updatedAt = now,
+            deviceId = repo.deviceId,
+            version = 1,
+        )
+        repo.saveReminder(again)
+        repo.logActivity("reminder", "Snoozed $minutes minutes: ${reminder.message.take(80)}")
+        return again
+    }
+
     /** An "only if I haven't done it" reminder is dropped once its task or commitment is finished. */
     private suspend fun stillWanted(reminder: Reminder): Boolean {
         val id = reminder.onlyIfEntityId ?: return true
@@ -117,6 +155,10 @@ class ReminderDelivery(
             }
         }
         return next.toInstant().toEpochMilli()
+    }
+
+    companion object {
+        const val SNOOZE_MINUTES = 10L
     }
 }
 

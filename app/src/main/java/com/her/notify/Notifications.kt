@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -15,6 +16,8 @@ import com.her.R
 import com.her.core.QuietHours
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.QueueStatus
+import com.her.reminders.ReminderDelivery
+import com.her.reminders.rearmAll
 import java.time.ZonedDateTime
 
 data class NotifyDecision(
@@ -60,8 +63,22 @@ open class Notifier(private val context: Context) {
             manager.createNotificationChannel(
                 NotificationChannel(REMINDER_CHANNEL, context.getString(R.string.channel_her_reminders), NotificationManager.IMPORTANCE_HIGH),
             )
+            // Its own channel, so they can mute hourly nudges and keep the morning note.
+            manager.createNotificationChannel(
+                NotificationChannel(BRIEFING_CHANNEL, context.getString(R.string.channel_her_briefing), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    setShowBadge(false)
+                },
+            )
         }
     }
+
+    private fun reminderAction(action: String, id: String): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        0,
+        // The data URI gives each reminder's buttons their own PendingIntent.
+        Intent(context, NotificationActionReceiver::class.java).setAction(action).setData(Uri.parse("her-reminder://$id")),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
 
     /** A reminder they asked for rings even in quiet hours, and each one keeps its own notification. */
     open fun showReminder(id: String, text: String) {
@@ -80,9 +97,11 @@ open class Notifier(private val context: Context) {
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(0, "Done", reminderAction(ACTION_REMINDER_DONE, id))
+            .addAction(0, "Snooze ${ReminderDelivery.SNOOZE_MINUTES} min", reminderAction(ACTION_REMINDER_SNOOZE, id))
             .build()
         try {
-            NotificationManagerCompat.from(context).notify(REMINDER_NOTIFICATION_BASE + (id.hashCode() and 0xFFFF), notification)
+            NotificationManagerCompat.from(context).notify(reminderNotificationId(id), notification)
         } catch (_: SecurityException) {
         }
     }
@@ -111,7 +130,7 @@ open class Notifier(private val context: Context) {
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
             .setAllowGeneratedReplies(false)
             .build()
-        val notification = NotificationCompat.Builder(context, CHANNEL)
+        val notification = NotificationCompat.Builder(context, if (briefing) BRIEFING_CHANNEL else CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(context.getColor(R.color.her_accent))
             .setContentTitle("Her")
@@ -136,12 +155,17 @@ open class Notifier(private val context: Context) {
     companion object {
         const val CHANNEL = "her"
         const val REMINDER_CHANNEL = "her-reminders"
+        const val BRIEFING_CHANNEL = "her-briefing"
         const val NOTIFICATION_ID = 17
         const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
+        const val ACTION_REMINDER_DONE = "com.her.REMINDER_DONE"
+        const val ACTION_REMINDER_SNOOZE = "com.her.REMINDER_SNOOZE"
         const val KEY_REPLY = "reply"
         const val EXTRA_TEXT = "text"
+
+        fun reminderNotificationId(id: String): Int = REMINDER_NOTIFICATION_BASE + (id.hashCode() and 0xFFFF)
     }
 }
 
@@ -149,15 +173,27 @@ open class Notifier(private val context: Context) {
 sealed class NotificationAction {
     data class Reply(val text: String) : NotificationAction()
     data class Later(val description: String) : NotificationAction()
+    data class ReminderDone(val id: String) : NotificationAction()
+    data class ReminderSnooze(val id: String) : NotificationAction()
     data object Ignore : NotificationAction()
 }
 
 object NotificationActions {
-    fun decide(action: String?, replyText: CharSequence?, notificationText: String?): NotificationAction = when (action) {
+    /** [reminderId] comes from a reminder button's `her-reminder://<id>` data URI. */
+    fun decide(
+        action: String?,
+        replyText: CharSequence?,
+        notificationText: String?,
+        reminderId: String? = null,
+    ): NotificationAction = when (action) {
         Notifier.ACTION_REPLY ->
             replyText?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { NotificationAction.Reply(it) }
                 ?: NotificationAction.Ignore
         Notifier.ACTION_LATER -> NotificationAction.Later(laterDescription(notificationText))
+        Notifier.ACTION_REMINDER_DONE -> reminderId?.takeIf { it.isNotBlank() }?.let { NotificationAction.ReminderDone(it) }
+            ?: NotificationAction.Ignore
+        Notifier.ACTION_REMINDER_SNOOZE -> reminderId?.takeIf { it.isNotBlank() }?.let { NotificationAction.ReminderSnooze(it) }
+            ?: NotificationAction.Ignore
         else -> NotificationAction.Ignore
     }
 
@@ -171,10 +207,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as? com.her.HerApplication ?: return
         val graph = app.graph
+        val reminderId = intent.data?.takeIf { it.scheme == "her-reminder" }?.host
         val decision = NotificationActions.decide(
             action = intent.action,
             replyText = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifier.KEY_REPLY),
             notificationText = intent.getStringExtra(Notifier.EXTRA_TEXT),
+            reminderId = reminderId,
         )
         if (decision != NotificationAction.Ignore) {
             val pending = goAsync()
@@ -207,6 +245,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
                                 )
                                 graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
                             }
+                            is NotificationAction.ReminderDone -> graph.reminderDelivery.done(decision.id)
+                            is NotificationAction.ReminderSnooze -> {
+                                graph.reminderDelivery.snooze(decision.id)
+                                graph.reminderAlarms.rearmAll(graph.repo)
+                            }
                             NotificationAction.Ignore -> Unit
                         }
                     }
@@ -215,6 +258,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 }
             }
         }
-        NotificationManagerCompat.from(context).cancel(Notifier.NOTIFICATION_ID)
+        val shown = if (reminderId != null) Notifier.reminderNotificationId(reminderId) else Notifier.NOTIFICATION_ID
+        NotificationManagerCompat.from(context).cancel(shown)
     }
 }

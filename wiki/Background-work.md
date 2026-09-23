@@ -75,6 +75,8 @@ Actions on a notification:
 - **Later**: queues an agent follow-up for tomorrow that quotes the notification text.
 - **Open**: opens the app.
 
+The morning briefing posts on its own **Morning briefing** channel, so hourly nudges can be muted in system settings without losing it.
+
 `NotificationActions.decide` holds that logic so it is unit-tested without Android. The hourly quiet-hours check uses the profile timezone, like the rest of the agent.
 
 Any autonomous text that reaches the phone is also saved as her latest assistant message, so the screen shows what the notification said.
@@ -84,6 +86,6 @@ Any autonomous text that reaches the phone is also saved as her latest assistant
 Clock reminders do not wait for WorkManager. `app/src/main/java/com/her/reminders/Reminders.kt`:
 
 - `AndroidReminderAlarms` arms one `AlarmManager` alarm per reminder: `setExactAndAllowWhileIdle`, or `setWindow` with 10 minutes of slack when Android 12+ has not granted exact alarms. Settings shows **Allow exact reminders** until it is granted.
-- `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time.
+- `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time. **Done** closes the task or commitment an "only if still open" reminder waited on; **Snooze 10 min** rings the same words again as a one-off. Neither calls the model.
 - `BootReceiver` re-arms on `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED`, and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. `HerApplication` re-arms at process start, and `SyncWorker` re-arms after a sync.
 - `HourlyWorker` fires anything overdue before its own policy check, so a reminder the system delayed still rings on the next hourly wakeup.

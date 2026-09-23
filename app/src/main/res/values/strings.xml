@@ -7,6 +7,7 @@
     <string name="channel_her">Her</string>
     <string name="channel_her_work">Background work</string>
     <string name="channel_her_reminders">Reminders</string>
+    <string name="channel_her_briefing">Morning briefing</string>
     <string name="work_running">Her is working</string>
     <string name="share_label">Her</string>
 </resources>
