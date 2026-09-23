@@ -1,5 +1,6 @@
 package com.her.reminders
 
+import android.app.ActivityManager
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -210,6 +211,12 @@ class SystemAlarmClock(private val context: Context) : AlarmClockPort {
         if (days.isNotEmpty()) intent.putExtra(AlarmClock.EXTRA_DAYS, ArrayList(days))
         if (intent.resolveActivity(context.packageManager) == null) {
             error("No clock app on this phone accepts alarms")
+        }
+        // Android drops activity starts from the background without an error, so an alarm set from a notification
+        // reply or a background pass would never exist. Say so rather than report success.
+        val state = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }
+        if (state.importance > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+            error("The clock app can only be opened while Her is on screen. Set a reminder for that time instead.")
         }
         context.startActivity(intent)
     }
