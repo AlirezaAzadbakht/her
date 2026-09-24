@@ -63,6 +63,9 @@ interface MemoryDao {
     @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL AND status = :status ORDER BY importance DESC, updatedAt DESC")
     suspend fun longByStatus(status: MemoryStatus): List<LongTermMemoryEntity>
 
+    @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL")
+    suspend fun allLong(): List<LongTermMemoryEntity>
+
     @Query(
         """
         SELECT short_term_memories.* FROM short_term_memories
@@ -79,6 +82,7 @@ interface MemoryDao {
         SELECT long_term_memories.* FROM long_term_memories
         JOIN long_term_memories_fts ON long_term_memories.rowid = long_term_memories_fts.rowid
         WHERE long_term_memories_fts MATCH :query AND long_term_memories.deletedAt IS NULL
+          AND long_term_memories.status = 'ACTIVE'
         LIMIT :limit
         """,
     )

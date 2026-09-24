@@ -60,6 +60,14 @@ class MemorySearchDaoTest {
         assertEquals(listOf("s2"), hits.map { it.id })
     }
 
+    @Test
+    fun historicalLongTermMemoryIsNotSearchable() = runBlocking {
+        db.memoryDao().upsertLong(longMemory("l1", "Lives in Tehran").copy(status = MemoryStatus.HISTORICAL))
+        db.memoryDao().upsertLong(longMemory("l2", "Works in Tehran"))
+        val hits = db.memoryDao().searchLong(ftsQuery("Tehran")!!, 10)
+        assertEquals(listOf("l2"), hits.map { it.id })
+    }
+
     private fun longMemory(id: String, content: String) = LongTermMemoryEntity(
         id = id,
         content = content,
