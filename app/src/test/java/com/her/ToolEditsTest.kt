@@ -11,6 +11,8 @@ import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
+import com.her.domain.ConfirmationKind
+import com.her.domain.PendingConfirmation
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -96,4 +98,37 @@ class ToolEditsTest {
         assertTrue(tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
         assertTrue(repo.activeUserUnderstandings().isEmpty())
     }
+
+    @Test
+    fun forgetEverythingAlsoRemovesHistoricalMemories() = runBlocking {
+        val id = rememberLong("Lived in Tehran")
+        tools.execute("update_memory", """{"id":"$id","status":"HISTORICAL"}""")
+        val confirmId = JSONObject(tools.execute("forget_memory", """{"everything":true}""").payloadJson).getString("confirmId")
+        assertTrue(tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
+        assertTrue(repo.getLong(id)!!.deletedAt != null)
+    }
+
+    @Test
+    fun forgetEverythingRejectsAnotherKindOfConfirmation() = runBlocking {
+        val id = rememberLong("Lives in Isfahan")
+        repo.saveConfirmation(PendingConfirmation("c1", ConfirmationKind.CALENDAR_DELETE, "Delete event", "{}", 0))
+        assertFalse(tools.execute("forget_memory", """{"everything":true,"confirmId":"c1"}""").ok)
+        assertEquals(null, repo.getLong(id)!!.deletedAt)
+    }
+
+    @Test
+    fun forgettingAnUnknownMemoryIsAnError() = runBlocking {
+        assertFalse(tools.execute("forget_memory", """{"id":"nope"}""").ok)
+    }
+
+    @Test
+    fun updateMemoryClampsScores() = runBlocking {
+        val id = rememberLong("Likes tea")
+        tools.execute("update_memory", """{"id":"$id","confidence":5,"importance":-1}""")
+        assertEquals(1.0, repo.getLong(id)!!.confidence, 0.0)
+        assertEquals(0.0, repo.getLong(id)!!.importance, 0.0)
+    }
+
+    private suspend fun rememberLong(content: String): String =
+        JSONObject(tools.execute("remember", """{"content":"$content","scope":"long_term"}""").payloadJson).getString("id")
 }
