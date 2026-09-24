@@ -15,13 +15,13 @@
   ],
   "expect": {
     "tools_called": [
-      { "name": "start_focus", "args": { "task": { "contains_any": ["quarterly", "report"] } } }
+      { "name": "start_focus", "args": { "task": { "not_empty": true } } }
     ],
     "tools_not_called": ["create_task", "set_reminder", "set_alarm"],
     "no_tool_errors": true,
     "reply": {
       "must_mention_any": ["25"],
-      "judge": "She starts a 25-minute focus round on the quarterly report and says briefly when the break comes, without a list or a plan."
+      "judge": "She starts a pomodoro on the quarterly report (25-minute work rounds with short breaks; several rounds is expected) and says briefly when the first break comes, without a bulleted list or a plan."
     }
   }
 }

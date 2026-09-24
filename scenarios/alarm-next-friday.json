@@ -15,7 +15,7 @@
     "tools_not_called": ["create_task"],
     "no_tool_errors": true,
     "rows": [
-      { "table": "reminders", "count": 1, "where": { "alarm": true, "fireAt": { "time_is": "friday at 6am" } } },
+      { "table": "reminders", "count": 1, "where": { "alarm": true, "fireAt": { "date_is": "friday", "time_is": "6:00" } } },
       { "table": "alarms", "count": 0 }
     ],
     "reply": {
