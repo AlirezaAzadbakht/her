@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 3 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache.
+`HerDatabase` — file `her.db`, version 5 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; `MIGRATION_3_4` creates `reminders`; `MIGRATION_4_5` adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`.
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -59,6 +59,14 @@ Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
 `CalendarDataSource` reads the Android system calendar through `CalendarContract.Instances` (so recurring meetings in the window show up) when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable instance ids.
 
 After Settings → Connect Google completes consent, `GoogleCalendarClient` reads selected calendars from the Google Calendar API (`calendar.readonly`). Those events are mirrored as `GOOGLE` rows. The API is read-only — she will not update or delete Google events. If Google is connected, Google-synced copies on the device calendar are omitted so the same meeting is not listed twice. If Google is not connected, Google-synced device events still appear as system calendar.
+
+## Google Tasks
+
+With Settings → Connections → **Google Tasks** on, `GoogleTasksSync` (`app/src/main/java/com/her/data/google/`) mirrors her tasks with a list named **Her** in Google Tasks, scope `tasks`. It runs on every hourly wake and every sync, and makes no model calls.
+
+- **Pull first.** Changes since `lastTasksSyncAt`, including completed and deleted ones. The newer side wins by `updated` / `updatedAt`. Completed in Google means DONE here, deleted means DROPPED. A task added in Google arrives with id `gtask-<googleId>`, so every device that pulls it lands on the same row.
+- **Push.** Local tasks changed since the last sync. A task without `googleTaskId` is sent only by the device that created it, so two phones do not both add it; its new id syncs through Drive. Mapped tasks are patched, and DROPPED or deleted ones are deleted there.
+- Google keeps only the date of `due`. A date that changed in Google comes back as 23:59 that day in the profile timezone; an unchanged date keeps her time.
 
 `get_calendar_events` can read any slice: `from` / `to` as natural phrases, ISO, epoch millis, or Jalali, or `days` from the start of `from` (or today). A date without a clock is that whole day. Named slices include `this morning`, `this afternoon`, and `this evening` / `tonight`. The window is capped at 400 days.
 

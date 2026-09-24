@@ -41,6 +41,12 @@ The briefing reuses `triggers()` up to midnight, without queue items and message
 
 Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
 
+Settings → Her mind → **Daily background token limit** stops gated passes for the rest of the day once `api_usage.backgroundTokens` (input plus output of hourly, nightly and briefing calls) reaches it. It is checked before a pass, so one pass can go over by its own size. The Today card shows background tokens and the share of input tokens the provider served from cache.
+
+Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count.
+
+The hourly wake also runs the Google Tasks mirror (see [Data and sync](Data-and-sync.md#google-tasks)) before the gate, so a task finished there stops her nudging about it.
+
 ## Quiet hours
 
 Default **23:30–08:00** (`QuietHours` in `Core.kt`). Overnight window: a time is “inside” if it is after start **or** before end.
@@ -75,7 +81,7 @@ Actions on a notification:
 - **Later**: queues an agent follow-up for tomorrow that quotes the notification text.
 - **Open**: opens the app.
 
-The morning briefing posts on its own **Morning briefing** channel, so hourly nudges can be muted in system settings without losing it.
+The morning briefing posts on its own **Morning briefing** channel, so hourly nudges can be muted in system settings without losing it. Alarms she rings use **Alarms**, and a running pomodoro uses **Focus**; see [Agent](Agent.md#focus-pomodoro).
 
 `NotificationActions.decide` holds that logic so it is unit-tested without Android. The hourly quiet-hours check uses the profile timezone, like the rest of the agent.
 
