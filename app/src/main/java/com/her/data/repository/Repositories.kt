@@ -273,6 +273,8 @@ class HerRepository(
 
     suspend fun tasks() = db.taskDao().allActive().map { it.toDomain() }
     suspend fun getTask(id: String) = db.taskDao().get(id)?.toDomain()
+    suspend fun tasksChangedSince(since: Long) = db.taskDao().changedSince(since).map { it.toDomain() }
+    suspend fun taskByGoogleId(googleTaskId: String) = db.taskDao().byGoogleTaskId(googleTaskId)?.toDomain()
     suspend fun saveTask(task: TaskItem) {
         db.taskDao().upsert(task.toEntity())
         enqueue("tasks", task.id, SyncOpType.UPSERT, task.toJson())

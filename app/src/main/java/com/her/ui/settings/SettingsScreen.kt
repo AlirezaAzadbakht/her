@@ -290,6 +290,15 @@ fun SettingsScreen(vm: HerViewModel) {
                     description = "Keeps her records in step across your devices through a private Google Drive app folder. API keys never sync.",
                 ) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
                 ToggleRow(
+                    "Google Tasks",
+                    app.googleTasksEnabled,
+                    description = "Mirrors her tasks to a “Her” list in Google Tasks, both ways. Google keeps the date, not the time.",
+                ) {
+                    val turningOn = !app.googleTasksEnabled
+                    vm.updateSettings { it.copy(googleTasksEnabled = turningOn) }
+                    if (turningOn) vm.connectGoogle()
+                }
+                ToggleRow(
                     "Web search",
                     app.webSearchEnabled,
                     description = "Uses the same Base URL, API key, and model.",

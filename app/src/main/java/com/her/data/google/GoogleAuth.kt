@@ -21,7 +21,7 @@ class GoogleAuthService(
         val message: String,
     )
 
-    suspend fun authorize(drive: Boolean, calendar: Boolean): Outcome {
+    suspend fun authorize(drive: Boolean, calendar: Boolean, tasks: Boolean = false): Outcome {
         val clientId = settings.read().googleClientId.trim()
         if (clientId.isBlank()) {
             return Outcome(message = "Add a Google OAuth client ID in Settings before connecting Google services.")
@@ -29,6 +29,7 @@ class GoogleAuthService(
         val scopes = buildList {
             if (drive) add(Scope(DRIVE_APPDATA))
             if (calendar) add(Scope(CALENDAR))
+            if (tasks) add(Scope(TASKS))
         }
         if (scopes.isEmpty()) return Outcome(message = "No Google scopes requested.")
         return try {
@@ -52,5 +53,6 @@ class GoogleAuthService(
     companion object {
         const val DRIVE_APPDATA = "https://www.googleapis.com/auth/drive.appdata"
         const val CALENDAR = "https://www.googleapis.com/auth/calendar.readonly"
+        const val TASKS = "https://www.googleapis.com/auth/tasks"
     }
 }

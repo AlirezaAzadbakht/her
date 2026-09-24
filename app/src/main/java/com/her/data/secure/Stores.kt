@@ -93,6 +93,9 @@ data class AppSettings(
     val swipedNudges: Int = 0,
     /** The running pomodoro, if any. */
     val focus: FocusSession? = null,
+    /** Mirror her tasks to a "Her" list in Google Tasks. */
+    val googleTasksEnabled: Boolean = false,
+    val lastTasksSyncAt: Long = 0L,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -139,6 +142,8 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
             focus = FocusSession.fromJson(prefs.getString(KEY_FOCUS, null)),
+            googleTasksEnabled = prefs.getBoolean(KEY_GTASKS, false),
+            lastTasksSyncAt = prefs.getLong(KEY_GTASKS_AT, 0L),
         )
     }
 
@@ -175,6 +180,8 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
             putString(KEY_FOCUS, next.focus?.toJson())
+            putBoolean(KEY_GTASKS, next.googleTasksEnabled)
+            putLong(KEY_GTASKS_AT, next.lastTasksSyncAt)
         }
         _state.value = next
     }
@@ -217,5 +224,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_BG_CAP = "background_token_cap"
         private const val KEY_SWIPED = "swiped_nudges"
         private const val KEY_FOCUS = "focus_session"
+        private const val KEY_GTASKS = "google_tasks_enabled"
+        private const val KEY_GTASKS_AT = "google_tasks_synced_at"
     }
 }

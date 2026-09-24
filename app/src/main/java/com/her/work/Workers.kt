@@ -45,6 +45,8 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             graph.reminderDelivery.fireDue()
             graph.reminderAlarms.rearmAll(graph.repo)
         }
+        // No model call; a task finished in Google Tasks stops her nudging about it within the hour.
+        runCatching { graph.googleTasks.sync() }
         return try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -150,6 +152,7 @@ class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val graph = graph() ?: return Result.retry()
+        runCatching { graph.googleTasks.sync() }
         val verdict = BackgroundRunPolicy.decideSync(
             driveEnabled = graph.settings.read().driveEnabled,
             power = readDevicePower(applicationContext),

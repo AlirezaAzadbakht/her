@@ -183,6 +183,13 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<TaskEntity>
 
+    /** Deleted rows too, so a delete reaches Google Tasks. */
+    @Query("SELECT * FROM tasks WHERE updatedAt > :since")
+    suspend fun changedSince(since: Long): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE googleTaskId = :googleTaskId LIMIT 1")
+    suspend fun byGoogleTaskId(googleTaskId: String): TaskEntity?
+
     @Query("UPDATE tasks SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }

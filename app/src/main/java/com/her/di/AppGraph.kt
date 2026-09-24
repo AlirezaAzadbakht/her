@@ -13,6 +13,8 @@ import com.her.data.db.HerDatabase
 import com.her.data.db.SqlBrowser
 import com.her.data.drive.SyncEngine
 import com.her.data.google.GoogleAuthService
+import com.her.data.google.GoogleTasksClient
+import com.her.data.google.GoogleTasksSync
 import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -57,6 +59,7 @@ class AppGraph(context: Context) {
     val googleAuth = GoogleAuthService(appContext, settings)
     val googleCalendarClient = GoogleCalendarClient(googleAuth)
     val googleCalendar = GoogleCalendar(repo, googleCalendarClient)
+    val googleTasks = GoogleTasksSync(repo, GoogleTasksClient(googleAuth), settings)
     val syncEngine = SyncEngine(repo)
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
