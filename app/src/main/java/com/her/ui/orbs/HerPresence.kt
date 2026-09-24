@@ -82,7 +82,7 @@ private fun Halo(energy: () -> Float, live: Boolean, modifier: Modifier) {
     Canvas(modifier) {
         val t = if (animate) clock!!.seconds.toFloat() else 0f
         val e = energy().coerceIn(0f, 1f)
-        if (shader != null) {
+        if (shader != null && Build.VERSION.SDK_INT >= 33) {
             shader.update(size.width, size.height, t, e, colors.halo, colors.glowRose)
             drawRect(shader.brush)
         } else {

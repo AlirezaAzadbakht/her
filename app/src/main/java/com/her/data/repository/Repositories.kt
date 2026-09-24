@@ -177,6 +177,7 @@ class HerRepository(
     suspend fun getLong(id: String) = memoryDao.getLong(id)?.toDomain()
     suspend fun activeShort(): List<ShortTermMemory> = memoryDao.activeShort(nowMillis()).map { it.toDomain() }
     suspend fun activeLong(): List<LongTermMemory> = memoryDao.longByStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
+    suspend fun allLong(): List<LongTermMemory> = memoryDao.allLong().map { it.toDomain() }
 
     suspend fun searchShort(query: String, limit: Int): List<ShortTermMemory> {
         val match = ftsQuery(query) ?: return emptyList()

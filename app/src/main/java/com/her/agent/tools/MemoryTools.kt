@@ -185,8 +185,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.upsertShort(
                     short.copy(
                         content = args.optStringOrNull("content") ?: short.content,
-                        confidence = args.optDoubleOr("confidence", short.confidence),
-                        importance = args.optDoubleOr("importance", short.importance),
+                        confidence = clamp01(args.optDoubleOr("confidence", short.confidence)),
+                        importance = clamp01(args.optDoubleOr("importance", short.importance)),
                         updatedAt = now,
                         version = short.version + 1,
                     ),
@@ -196,8 +196,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.upsertLong(
                     long.copy(
                         content = args.optStringOrNull("content") ?: long.content,
-                        confidence = args.optDoubleOr("confidence", long.confidence),
-                        importance = args.optDoubleOr("importance", long.importance),
+                        confidence = clamp01(args.optDoubleOr("confidence", long.confidence)),
+                        importance = clamp01(args.optDoubleOr("importance", long.importance)),
                         status = parseEnum<MemoryStatus>(args.optStringOrNull("status")) ?: long.status,
                         updatedAt = now,
                         version = long.version + 1,
@@ -226,9 +226,10 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.saveConfirmation(pending)
                 return@register jsonObjectOf("ok" to false, "needsConfirmation" to true, "confirmId" to pending.id, "summary" to pending.summary)
             }
-            val pending = repo.getConfirmation(confirmId) ?: throw ToolValidationException("Confirmation not found")
+            val pending = repo.getConfirmation(confirmId)?.takeIf { it.kind == ConfirmationKind.BULK_FORGET }
+                ?: throw ToolValidationException("Confirmation not found")
             repo.deleteConfirmation(confirmId)
-            repo.activeLong().forEach { repo.deleteLong(it.id) }
+            repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.activeShort().forEach { repo.deleteShort(it.id) }
             repo.activeUserUnderstandings().forEach {
                 repo.saveUserUnderstanding(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = nowMillis(), version = it.version + 1))
@@ -237,7 +238,11 @@ internal fun ToolRegistry.registerMemoryTools() {
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }
         val id = args.requiredString("id")
-        if (repo.getShort(id) != null) repo.deleteShort(id) else repo.deleteLong(id)
+        when {
+            repo.getShort(id) != null -> repo.deleteShort(id)
+            repo.getLong(id) != null -> repo.deleteLong(id)
+            else -> throw ToolValidationException("Memory not found: $id")
+        }
         jsonObjectOf("ok" to true, "id" to id)
     }
 
