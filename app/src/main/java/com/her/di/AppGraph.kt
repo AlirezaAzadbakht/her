@@ -22,6 +22,8 @@ import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.SecureSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
+import com.her.focus.AndroidFocusAlarm
+import com.her.focus.FocusTimer
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import com.her.reminders.AndroidReminderAlarms
@@ -61,6 +63,7 @@ class AppGraph(context: Context) {
     val scheduler = Scheduler(appContext, settings)
     val reminderAlarms = AndroidReminderAlarms(appContext)
     val reminderDelivery = ReminderDelivery(repo, notifier)
+    val focus = FocusTimer(settings, repo, notifier, AndroidFocusAlarm(appContext))
 
     private val contextBuilder: ContextBuilder by lazy {
         ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
@@ -69,7 +72,7 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, googleCalendar, reminderAlarms, SystemAlarmClock(appContext))
+        }, googleCalendar, reminderAlarms, SystemAlarmClock(appContext), focus)
     }
 
     val orchestrator: AgentOrchestrator by lazy {

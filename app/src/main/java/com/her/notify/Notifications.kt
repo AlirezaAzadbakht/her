@@ -19,6 +19,8 @@ import com.her.R
 import com.her.core.QuietHours
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.QueueStatus
+import com.her.focus.FocusReceiver
+import com.her.focus.FocusSession
 import com.her.reminders.ReminderDelivery
 import com.her.reminders.rearmAll
 import java.time.ZonedDateTime
@@ -40,6 +42,9 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
         val quiet = app.quietHours.contains(now.toLocalTime())
         if (quiet && !urgent) {
             return NotifyDecision(false, "quiet hours", key)
+        }
+        if (app.focus?.isWork == true && !urgent) {
+            return NotifyDecision(false, "focusing", key)
         }
         if (app.lastNotificationKey == key && now.toInstant().toEpochMilli() - app.lastNotificationAt < cooldownMs) {
             return NotifyDecision(false, "duplicate/cooldown", key)
@@ -75,6 +80,11 @@ open class Notifier(private val context: Context) {
                             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build(),
                     )
+                },
+            )
+            manager.createNotificationChannel(
+                NotificationChannel(FOCUS_CHANNEL, context.getString(R.string.channel_her_focus), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    setShowBadge(false)
                 },
             )
             // Its own channel, so they can mute hourly nudges and keep the morning note.
@@ -149,6 +159,41 @@ open class Notifier(private val context: Context) {
         }
     }
 
+    /** The running pomodoro. Android ticks the countdown itself; [alert] sounds only when a phase changes. */
+    open fun showFocus(session: FocusSession, text: String?, alert: Boolean) {
+        val open = PendingIntent.getActivity(
+            context,
+            1,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val title = if (session.isWork) "Focus · round ${session.round} of ${session.rounds}" else "Break · ${session.breakMin} min"
+        val notification = NotificationCompat.Builder(context, FOCUS_CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(context.getColor(R.color.her_accent))
+            .setContentTitle(title)
+            .setContentText(text ?: session.label)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(listOfNotNull(text, session.label).distinct().joinToString("\n")))
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setWhen(session.phaseEndsAt)
+            .setShowWhen(true)
+            .setOngoing(true)
+            .setSilent(!alert)
+            .setContentIntent(open)
+            .addAction(0, "Skip", FocusReceiver.intent(context, FocusReceiver.ACTION_SKIP))
+            .addAction(0, "Stop", FocusReceiver.intent(context, FocusReceiver.ACTION_STOP))
+            .build()
+        try {
+            NotificationManagerCompat.from(context).notify(FOCUS_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+        }
+    }
+
+    open fun clearFocus() {
+        NotificationManagerCompat.from(context).cancel(FOCUS_NOTIFICATION_ID)
+    }
+
     open fun show(text: String, briefing: Boolean) {
         val open = PendingIntent.getActivity(
             context,
@@ -208,6 +253,8 @@ open class Notifier(private val context: Context) {
         const val REMINDER_CHANNEL = "her-reminders"
         const val BRIEFING_CHANNEL = "her-briefing"
         const val ALARM_CHANNEL = "her-alarms"
+        const val FOCUS_CHANNEL = "her-focus"
+        const val FOCUS_NOTIFICATION_ID = 18
         const val NOTIFICATION_ID = 17
         const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"

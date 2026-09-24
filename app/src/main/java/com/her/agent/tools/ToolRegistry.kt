@@ -19,6 +19,7 @@ import com.her.domain.GroceryStatus
 import com.her.domain.OpenLoopStatus
 import com.her.domain.ReminderStatus
 import com.her.domain.TaskItem
+import com.her.focus.FocusTimer
 import com.her.reminders.AlarmClockPort
 import com.her.reminders.ReminderAlarms
 import com.her.domain.TaskStatus
@@ -44,6 +45,7 @@ open class ToolRegistry(
     googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
     internal val reminderAlarms: ReminderAlarms = ReminderAlarms.NONE,
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
+    internal val focus: FocusTimer? = null,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
@@ -101,6 +103,7 @@ open class ToolRegistry(
         registerCalendarTools()
         registerMessagingTools()
         registerReminderTools()
+        registerFocusTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */

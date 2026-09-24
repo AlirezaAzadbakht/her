@@ -369,6 +369,7 @@ class BootReceiver : BroadcastReceiver() {
         app.graph.io.execute {
             try {
                 runBlocking { runCatching { app.graph.reminderAlarms.rearmAll(app.graph.repo) } }
+                runCatching { app.graph.focus.rearm() }
             } finally {
                 pending.finish()
             }

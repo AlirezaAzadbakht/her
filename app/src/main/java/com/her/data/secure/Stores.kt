@@ -7,6 +7,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.her.core.QuietHours
 import com.her.core.newId
+import com.her.focus.FocusSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -90,6 +91,8 @@ data class AppSettings(
     val backgroundTokenCap: Long = 0L,
     /** Her notifications swiped away since they last wrote to her. */
     val swipedNudges: Int = 0,
+    /** The running pomodoro, if any. */
+    val focus: FocusSession? = null,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -135,6 +138,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
+            focus = FocusSession.fromJson(prefs.getString(KEY_FOCUS, null)),
         )
     }
 
@@ -170,6 +174,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
+            putString(KEY_FOCUS, next.focus?.toJson())
         }
         _state.value = next
     }
@@ -211,5 +216,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_BG_MODEL = "background_model"
         private const val KEY_BG_CAP = "background_token_cap"
         private const val KEY_SWIPED = "swiped_nudges"
+        private const val KEY_FOCUS = "focus_session"
     }
 }

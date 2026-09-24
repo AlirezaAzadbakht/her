@@ -71,6 +71,10 @@
             android:name=".reminders.ReminderReceiver"
             android:exported="false" />
 
+        <receiver
+            android:name=".focus.FocusReceiver"
+            android:exported="false" />
+
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

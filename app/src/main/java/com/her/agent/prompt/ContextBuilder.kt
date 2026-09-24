@@ -106,6 +106,16 @@ class ContextBuilder(
             settings.read().swipedNudges.takeIf { it >= 2 }?.let {
                 appendLine("Their last $it notifications were swiped away without a reply.")
             }
+            settings.read().focus?.let { f ->
+                val until = clock(f.phaseEndsAt, zone)
+                appendLine(
+                    if (f.isWork) {
+                        "Focus: round ${f.round} of ${f.rounds} on “${f.label}” until $until"
+                    } else {
+                        "Focus: break until $until, then round ${f.round + 1} of ${f.rounds} on “${f.label}”"
+                    },
+                )
+            }
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
