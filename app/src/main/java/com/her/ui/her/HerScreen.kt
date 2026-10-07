@@ -41,12 +41,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -67,20 +67,18 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.agent.runner.Receipts
@@ -88,7 +86,9 @@ import com.her.agent.runner.TurnState
 import com.her.ui.HerViewModel
 import com.her.ui.components.GlassPill
 import com.her.ui.components.sharedPresence
+import com.her.ui.markdown.ContentDirection
 import com.her.ui.markdown.ConversationMarkdown
+import com.her.ui.markdown.firstStrongDirection
 import com.her.ui.orbs.HerPresence
 import com.her.ui.orbs.OrbSize
 import com.her.ui.orbs.OrbState
@@ -339,9 +339,18 @@ fun HerScreen(vm: HerViewModel) {
             }
         }
 
-        val fieldStyle = ConversationStyle.copy(color = scheme.onBackground, fontSize = 17.sp)
+        val fieldStyle = ConversationStyle.copy(
+            color = scheme.onBackground,
+            fontSize = 17.sp,
+            textDirection = TextDirection.Content,
+        )
         val composerFocus = remember { MutableInteractionSource() }
         val composerFocused by composerFocus.collectIsFocusedAsState()
+        val draftDir = when (firstStrongDirection(draft.text)) {
+            ContentDirection.Rtl -> LayoutDirection.Rtl
+            ContentDirection.Ltr -> LayoutDirection.Ltr
+            null -> LocalLayoutDirection.current
+        }
         Box(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)) {
             GlassPill(Modifier.fillMaxWidth(), focused = composerFocused) {
                 Row(
@@ -351,48 +360,45 @@ fun HerScreen(vm: HerViewModel) {
                         .padding(start = 20.dp, end = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    BasicTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 10.dp)
-                            .onPreviewKeyEvent { event ->
-                                if (event.type == KeyEventType.KeyDown &&
-                                    (event.key == Key.Enter || event.key == Key.NumPadEnter)
-                                ) {
-                                    sendDraft()
-                                    true
-                                } else {
-                                    false
-                                }
-                            },
-                        singleLine = true,
-                        textStyle = fieldStyle,
-                        cursorBrush = SolidColor(scheme.primary),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { sendDraft() }),
-                        interactionSource = composerFocus,
-                        decorationBox = { inner ->
-                            Box(contentAlignment = Alignment.CenterStart) {
-                                if (draft.text.isEmpty()) {
-                                    Text("Write something", style = fieldStyle.copy(color = scheme.onSurfaceVariant))
-                                }
-                                inner()
-                            }
-                        },
-                    )
+                    Box(Modifier.weight(1f).padding(end = 10.dp)) {
+                        CompositionLocalProvider(LocalLayoutDirection provides draftDir) {
+                            BasicTextField(
+                                value = draft,
+                                onValueChange = { draft = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                minLines = 1,
+                                maxLines = 6,
+                                textStyle = fieldStyle,
+                                cursorBrush = SolidColor(scheme.primary),
+                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                interactionSource = composerFocus,
+                                decorationBox = { inner ->
+                                    Box(contentAlignment = Alignment.TopStart) {
+                                        if (draft.text.isEmpty()) {
+                                            Text("Write something", style = fieldStyle.copy(color = scheme.onSurfaceVariant))
+                                        }
+                                        inner()
+                                    }
+                                },
+                            )
+                        }
+                    }
                     SendButton(visible = draft.text.isNotBlank(), onClick = { sendDraft() })
                 }
             }
             if (ghost.value < 1f && ghostText.isNotEmpty()) {
+                val ghostAlign = if (firstStrongDirection(ghostText) == ContentDirection.Rtl) {
+                    Alignment.CenterEnd
+                } else {
+                    Alignment.CenterStart
+                }
                 Text(
                     ghostText,
                     style = fieldStyle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
+                        .align(ghostAlign)
                         .padding(start = 20.dp, end = 60.dp)
                         .graphicsLayer {
                             val p = ghost.value
