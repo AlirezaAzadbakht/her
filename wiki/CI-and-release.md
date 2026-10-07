@@ -56,6 +56,7 @@ Published so far:
 | [v0.1.4](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.4) | Persian and full-sentence memory search, save receipts with undo, notification Reply, nightly digest, full Drive sync, optional embeddings, scenarios out of CI |
 | [v0.1.5](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.5) | Real reminders and alarms, natural and Persian times, warm-glow UI with presence orbs, and a matching website. Release APK job did not finish (`sdkmanager` no longer has `tools`) |
 | [v0.1.6](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.6) | CI SDK setup skips the removed `tools` package so the signed 0.1.5 product cut can publish |
+| [v0.1.7](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.7) | Her's feeling index (tone, orb and background colors follow her feeling), memory recall fixes, rotating thinking orb, growing RTL-aware composer, and a send button that works with long text (Enter sends, Shift+Enter adds a line) |
 
 ## Release job
 

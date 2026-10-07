@@ -13,6 +13,7 @@ import com.her.data.db.CalendarEventEntity
 import com.her.data.db.ChatMessageEntity
 import com.her.data.db.CommitmentEntity
 import com.her.data.db.DebugEventEntity
+import com.her.data.db.FeelingEntity
 import com.her.data.db.GoalEntity
 import com.her.data.db.GroceryEntity
 import com.her.data.db.HerDatabase
@@ -45,6 +46,7 @@ import com.her.domain.Commitment
 import com.her.domain.ConfirmationKind
 import com.her.domain.DebugEvent
 import com.her.domain.Goal
+import com.her.domain.HerFeeling
 import com.her.domain.GroceryItem
 import com.her.domain.GroceryStatus
 import com.her.domain.ImportantDate
@@ -374,6 +376,14 @@ class HerRepository(
         enqueue("agent_state", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
+    suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
+    suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()
+    fun observeFeeling(): Flow<HerFeeling?> = db.feelingDao().observeLatest().map { it?.toDomain() }
+    suspend fun saveFeeling(item: HerFeeling) {
+        db.feelingDao().upsert(item.toEntity())
+        enqueue("feelings", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
     suspend fun saveAgentQueue(item: AgentQueueItem) {
         db.agentDao().upsertQueue(item.toEntity())
         enqueue("agent_queue", item.id, SyncOpType.UPSERT, item.toJson())
@@ -633,6 +643,13 @@ fun AgentStateEntry.toJson() = JSONObject()
     .put("id", id).put("kind", kind).put("content", content).put("confidence", confidence)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
     .put("version", version).put("deletedAt", deletedAt).toString()
+
+fun FeelingEntity.toDomain() = HerFeeling(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun HerFeeling.toEntity() = FeelingEntity(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun HerFeeling.toJson() = JSONObject()
+    .put("id", id).put("feeling", feeling.name).put("intensity", intensity).put("note", note)
+    .put("sourceMessageId", sourceMessageId).put("createdAt", createdAt).put("updatedAt", updatedAt)
+    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
 
 fun AgentQueueEntity.toDomain() = AgentQueueItem(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun AgentQueueItem.toEntity() = AgentQueueEntity(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)

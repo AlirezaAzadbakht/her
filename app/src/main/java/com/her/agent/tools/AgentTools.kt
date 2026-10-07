@@ -13,6 +13,8 @@ import com.her.core.requiredString
 import com.her.data.repository.toJson
 import com.her.domain.AgentQueueItem
 import com.her.domain.AgentStateEntry
+import com.her.domain.Feeling
+import com.her.domain.HerFeeling
 import com.her.domain.MemorySource
 import com.her.domain.MemoryStatus
 import com.her.domain.QueueStatus
@@ -38,6 +40,35 @@ internal fun ToolRegistry.registerAgentTools() {
         )
         repo.saveAgentState(item)
         jsonObjectOf("ok" to true, "id" to item.id)
+    }
+    register(
+        "set_feeling",
+        "Record how you feel in this conversation: your emotional tone, not a body sensation. Call it only when the conversation genuinely shifts your feeling. It colors your presence on their screen.",
+        objSchema(
+            "feeling" to enumField<Feeling>(),
+            "intensity" to num("0-1"),
+            "note" to str("A few words on why"),
+            "sourceMessageId" to str("Message that moved you"),
+            required = listOf("feeling"),
+        ),
+    ) { args ->
+        val raw = args.requiredString("feeling")
+        val feeling = parseEnum<Feeling>(raw) ?: throw ToolValidationException("Unknown feeling: $raw")
+        val now = nowMillis()
+        val item = HerFeeling(
+            id = newId(),
+            feeling = feeling,
+            intensity = clamp01(args.optDoubleOr("intensity", 0.5)),
+            note = args.optStringOrNull("note"),
+            sourceMessageId = args.optStringOrNull("sourceMessageId"),
+            createdAt = now,
+            updatedAt = now,
+            deviceId = repo.deviceId,
+            version = 1,
+            deletedAt = null,
+        )
+        repo.saveFeeling(item)
+        jsonObjectOf("ok" to true, "id" to item.id, "feeling" to feeling.name)
     }
     register("get_agent_queue", "Read the assistant's private todo queue.", objSchema()) { jsonObjectOf("ok" to true, "queue" to JSONArray(repo.agentQueue().map { JSONObject(it.toJson()) })) }
     register("add_agent_queue_item", "Add a private assistant todo.", objSchema("description" to str(), "priority" to num(), "dueAt" to str(), required = listOf("description"))) { args ->

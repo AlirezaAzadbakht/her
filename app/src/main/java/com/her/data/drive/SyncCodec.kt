@@ -9,10 +9,12 @@ import com.her.domain.CalendarSource
 import com.her.domain.ChatMessage
 import com.her.domain.Commitment
 import com.her.domain.CommitmentStatus
+import com.her.domain.Feeling
 import com.her.domain.Goal
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryItem
 import com.her.domain.GroceryStatus
+import com.her.domain.HerFeeling
 import com.her.domain.ImportantDate
 import com.her.domain.LongTermMemory
 import com.her.domain.MemoryRelationship
@@ -66,6 +68,7 @@ internal object SyncCodec {
             "agent_state" -> repo.getAgentState(id)?.toJson()
             "agent_queue" -> repo.getAgentQueue(id)?.toJson()
             "reminders" -> repo.getReminder(id)?.toJson()
+            "feelings" -> repo.getFeeling(id)?.toJson()
             else -> null
         }
         return raw?.let(::JSONObject)
@@ -100,6 +103,7 @@ internal object SyncCodec {
             "agent_queue" -> repo.saveAgentQueue(agentQueue(json))
             // Only the device that set a reminder arms its alarm; the others keep the row so they can show or cancel it.
             "reminders" -> repo.saveReminder(reminder(json))
+            "feelings" -> repo.saveFeeling(feeling(json))
             else -> return false
         }
         return true
@@ -476,6 +480,22 @@ internal object SyncCodec {
             onlyIfEntityId = json.stringOrNull("onlyIfEntityId"),
             status = json.enumOr("status", ReminderStatus.SCHEDULED),
             firedAt = json.longOrNull("firedAt"),
+            sourceMessageId = json.stringOrNull("sourceMessageId"),
+            createdAt = m.createdAt,
+            updatedAt = m.updatedAt,
+            deviceId = m.deviceId,
+            version = m.version,
+            deletedAt = m.deletedAt,
+        )
+    }
+
+    private fun feeling(json: JSONObject): HerFeeling {
+        val m = Meta(json)
+        return HerFeeling(
+            id = m.id,
+            feeling = json.enumOr("feeling", Feeling.CALM),
+            intensity = json.optDouble("intensity", 0.5),
+            note = json.stringOrNull("note"),
             sourceMessageId = json.stringOrNull("sourceMessageId"),
             createdAt = m.createdAt,
             updatedAt = m.updatedAt,

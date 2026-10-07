@@ -132,7 +132,7 @@ class EmbeddingRetrievalTest {
             it.version = 2
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
             .build()
         assertEquals(0, migrated.embeddingDao().count())
         migrated.close()
@@ -153,9 +153,29 @@ class EmbeddingRetrievalTest {
             it.version = 3
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
             .build()
         assertEquals(0, migrated.reminderDao().allActive().size)
+        migrated.close()
+        context.deleteDatabase(name)
+        Unit
+    }
+
+    @Test
+    fun migrationFromVersionFourAddsTheFeelingTable() = runBlocking {
+        val name = "migration_${System.nanoTime()}.db"
+        Room.databaseBuilder(context, HerDatabase::class.java, name).build().apply {
+            openHelper.writableDatabase
+            close()
+        }
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
+            it.execSQL("DROP TABLE feelings")
+            it.version = 4
+        }
+        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5)
+            .build()
+        assertEquals(0, migrated.feelingDao().recent(10).size)
         migrated.close()
         context.deleteDatabase(name)
         Unit

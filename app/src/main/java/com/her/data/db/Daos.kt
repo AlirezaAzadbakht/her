@@ -360,6 +360,21 @@ interface AgentDao {
 }
 
 @Dao
+interface FeelingDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: FeelingEntity)
+
+    @Query("SELECT * FROM feelings WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): FeelingEntity?
+
+    @Query("SELECT * FROM feelings WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<FeelingEntity>
+
+    @Query("SELECT * FROM feelings WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT 1")
+    fun observeLatest(): Flow<FeelingEntity?>
+}
+
+@Dao
 interface LogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertActivity(entity: ActivityLogEntity)

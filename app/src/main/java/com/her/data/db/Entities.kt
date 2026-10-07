@@ -9,6 +9,7 @@ import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
 import com.her.domain.CommitmentStatus
 import com.her.domain.ConfirmationKind
+import com.her.domain.Feeling
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryStatus
 import com.her.domain.MemorySource
@@ -351,6 +352,20 @@ data class AgentStateEntity(
     val kind: String,
     val content: String,
     val confidence: Double,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
+@Entity(tableName = "feelings")
+data class FeelingEntity(
+    @PrimaryKey val id: String,
+    val feeling: Feeling,
+    val intensity: Double,
+    val note: String?,
+    val sourceMessageId: String?,
     val createdAt: Long,
     val updatedAt: Long,
     val deviceId: String,

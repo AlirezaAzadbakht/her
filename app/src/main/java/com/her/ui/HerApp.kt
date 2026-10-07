@@ -108,7 +108,8 @@ fun HerApp(vm: HerViewModel) {
         if (!settings.memoryTabEnabled && dest == Dest.Memory) dest = Dest.Her
     }
 
-    AmbientBackground(Modifier.fillMaxSize()) {
+    val feeling by vm.feeling.collectAsState()
+    AmbientBackground(Modifier.fillMaxSize(), tint = feeling?.let { Her.colors.feelingPalettes[it.feeling] }) {
         SharedTransitionLayout(Modifier.fillMaxSize().statusBarsPadding()) {
             AnimatedContent(
                 targetState = stage,

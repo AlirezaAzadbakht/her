@@ -12,6 +12,7 @@ import com.her.core.redactSecrets
 import com.her.core.nowMillis
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
+import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val latestAssistant: StateFlow<ChatMessage?> = graph.repo.observeLatestAssistant()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val profile: StateFlow<UserProfile?> = graph.repo.observeProfile()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val feeling: StateFlow<HerFeeling?> = graph.repo.observeFeeling()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)

@@ -2,6 +2,7 @@ package com.her.ui.orbs
 
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -57,6 +58,12 @@ fun nextLook(prev: PresenceLook, paletteCount: Int, random: Random = Random): Pr
     val states = ThinkingStates.filter { it != prev.state }
     val palettes = (0 until paletteCount).filter { it != prev.palette }
     return PresenceLook(states.random(random), palettes.random(random))
+}
+
+/** Glides each of the three palette colors toward [target], so a feeling change washes in. */
+@Composable
+fun animatedPalette(target: List<Color>): List<Color> = target.mapIndexed { i, c ->
+    animateColorAsState(c, tween(HerMotion.Emphasized * 3), label = "palette-$i").value
 }
 
 private data class OrbPose(val state: OrbState, val paused: Boolean)

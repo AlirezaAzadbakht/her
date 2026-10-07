@@ -11,6 +11,7 @@ import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
 import com.her.domain.CommitmentStatus
 import com.her.domain.ConfirmationKind
+import com.her.domain.Feeling
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryStatus
 import com.her.domain.MemorySource
@@ -65,6 +66,8 @@ class HerConverters {
     @TypeConverter fun toReminderStatus(v: String?): ReminderStatus? = v?.let { ReminderStatus.valueOf(it) }
     @TypeConverter fun reminderRepeat(v: ReminderRepeat?): String? = v?.name
     @TypeConverter fun toReminderRepeat(v: String?): ReminderRepeat? = v?.let { ReminderRepeat.valueOf(it) }
+    @TypeConverter fun feeling(v: Feeling?): String? = v?.name
+    @TypeConverter fun toFeeling(v: String?): Feeling? = v?.let { Feeling.valueOf(it) }
 }
 
 @Database(
@@ -100,8 +103,9 @@ class HerConverters {
         PendingConfirmationEntity::class,
         MemoryEmbeddingEntity::class,
         ReminderEntity::class,
+        FeelingEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -128,6 +132,7 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun confirmationDao(): ConfirmationDao
     abstract fun embeddingDao(): EmbeddingDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun feelingDao(): FeelingDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -189,6 +194,28 @@ abstract class HerDatabase : RoomDatabase() {
                         `onlyIfEntityId` TEXT,
                         `status` TEXT NOT NULL,
                         `firedAt` INTEGER,
+                        `sourceMessageId` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `version` INTEGER NOT NULL,
+                        `deletedAt` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `feelings` (
+                        `id` TEXT NOT NULL,
+                        `feeling` TEXT NOT NULL,
+                        `intensity` REAL NOT NULL,
+                        `note` TEXT,
                         `sourceMessageId` TEXT,
                         `createdAt` INTEGER NOT NULL,
                         `updatedAt` INTEGER NOT NULL,

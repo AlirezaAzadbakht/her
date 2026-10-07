@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -67,12 +68,19 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -95,6 +103,7 @@ import com.her.ui.orbs.OrbState
 import com.her.ui.orbs.PresenceLook
 import com.her.ui.orbs.PresenceMood
 import com.her.ui.orbs.ThinkingOrb
+import com.her.ui.orbs.animatedPalette
 import com.her.ui.orbs.nextLook
 import com.her.ui.orbs.presenceFor
 import com.her.ui.theme.ConversationStyle
@@ -125,6 +134,7 @@ fun HerScreen(vm: HerViewModel) {
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
     val appSettings by vm.settings.collectAsState()
+    val feeling by vm.feeling.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
     val resources = LocalContext.current.resources
@@ -240,7 +250,7 @@ fun HerScreen(vm: HerViewModel) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        val palette = palettes[look.palette]
+        val palette = animatedPalette(feeling?.let { Her.colors.feelingPalettes[it.feeling] } ?: palettes[look.palette])
         PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
         ReplyStage(
             hasText = hasText,
@@ -379,12 +389,26 @@ fun HerScreen(vm: HerViewModel) {
                             BasicTextField(
                                 value = draft,
                                 onValueChange = { draft = it },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onPreviewKeyEvent { event ->
+                                        val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                                        if (enter && !event.isShiftPressed) {
+                                            if (event.type == KeyEventType.KeyDown) sendDraft()
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    },
                                 minLines = 1,
                                 maxLines = 6,
                                 textStyle = fieldStyle,
                                 cursorBrush = SolidColor(scheme.primary),
-                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Send,
+                                ),
+                                keyboardActions = KeyboardActions(onSend = { sendDraft() }),
                                 interactionSource = composerFocus,
                                 decorationBox = { inner ->
                                     Box(contentAlignment = Alignment.TopStart) {
@@ -578,15 +602,17 @@ private fun SendButton(visible: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(40.dp)
+            .clip(CircleShape)
+            // Taps are caught outside the scale layer: a layer that sprang up from scale 0 can keep rejecting hits.
+            .clickable(enabled = visible, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Send" }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 alpha = scale.coerceIn(0f, 1f)
             }
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(colors.glowCoral, colors.glowAmber)))
-            .clickable(enabled = visible, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = "Send" },
+            .background(Brush.linearGradient(listOf(colors.glowCoral, colors.glowAmber))),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(16.dp)) {

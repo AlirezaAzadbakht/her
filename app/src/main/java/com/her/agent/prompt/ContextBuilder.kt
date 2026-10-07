@@ -63,6 +63,7 @@ class ContextBuilder(
         val allState = repo.agentState()
         val digest = allState.firstOrNull { it.kind == Identity.DIGEST_KIND }
         val state = allState.filter { it.kind != Identity.DIGEST_KIND }.take(12)
+        val feelings = repo.recentFeelings(6)
         val from = now.toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
         val to = now.toLocalDate().plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
         val googleLive = googleCalendar.available()
@@ -104,6 +105,13 @@ class ContextBuilder(
             appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
             recent.lastOrNull { it.role.name == "USER" }?.let {
                 appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
+            }
+            feelings.firstOrNull()?.let {
+                appendLine()
+                appendLine("Your feeling: ${it.feeling.name.lowercase()} (${"%.1f".format(it.intensity)})${it.note?.let { n -> " — $n" }.orEmpty()}, since ${stamp(it.createdAt, zone)}")
+                if (feelings.size > 1) {
+                    appendLine("Before that: ${feelings.drop(1).joinToString(", ") { f -> f.feeling.name.lowercase() }}")
+                }
             }
             appendSection("Retrieved memories", memories.map { "${it.id} [${it.memoryType} ${"%.2f".format(it.score)}] ${it.content}" })
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })

@@ -3,11 +3,14 @@ package com.her.ui.components
 import android.graphics.Bitmap
 import android.os.Build
 import android.os.SystemClock
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -24,6 +27,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.her.ui.theme.GrainShader
 import com.her.ui.theme.Her
+import com.her.ui.theme.HerMotion
 import com.her.ui.theme.LocalReducedMotion
 import kotlin.math.cos
 import kotlin.math.max
@@ -34,13 +38,16 @@ import kotlinx.coroutines.delay
 // The drift is 20s+ slow, so ~15 updates a second reads as smooth and keeps an idle screen cheap.
 private const val DriftStepMs = 66L
 
-/** The warm night (or dawn) ground: two slow drifting lights and a whisper of film grain. */
+/** The warm night (or dawn) ground: two slow drifting lights and a whisper of film grain. [tint] recolors the lights. */
 @Composable
 fun AmbientBackground(
     modifier: Modifier = Modifier,
+    tint: List<Color>? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = Her.colors
+    val warmLight by animateColorAsState(tint?.get(0) ?: colors.glowCoral, tween(HerMotion.Ambient), label = "ambient-warm")
+    val roseLight by animateColorAsState(tint?.get(2) ?: colors.glowRose, tween(HerMotion.Ambient), label = "ambient-rose")
     val ground = MaterialTheme.colorScheme.background
     val reduced = LocalReducedMotion.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -68,7 +75,7 @@ fun AmbientBackground(
                 )
                 drawRect(
                     Brush.radialGradient(
-                        listOf(colors.glowCoral.copy(alpha = colors.ambientAlpha), Color.Transparent),
+                        listOf(warmLight.copy(alpha = colors.ambientAlpha), Color.Transparent),
                         center = warm,
                         radius = reach * 0.7f,
                     ),
@@ -79,7 +86,7 @@ fun AmbientBackground(
                 )
                 drawRect(
                     Brush.radialGradient(
-                        listOf(colors.glowRose.copy(alpha = colors.ambientAlpha * 0.75f), Color.Transparent),
+                        listOf(roseLight.copy(alpha = colors.ambientAlpha * 0.75f), Color.Transparent),
                         center = rose,
                         radius = reach * 0.62f,
                     ),
