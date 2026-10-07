@@ -92,8 +92,10 @@ import com.her.ui.markdown.firstStrongDirection
 import com.her.ui.orbs.HerPresence
 import com.her.ui.orbs.OrbSize
 import com.her.ui.orbs.OrbState
+import com.her.ui.orbs.PresenceLook
 import com.her.ui.orbs.PresenceMood
 import com.her.ui.orbs.ThinkingOrb
+import com.her.ui.orbs.nextLook
 import com.her.ui.orbs.presenceFor
 import com.her.ui.theme.ConversationStyle
 import com.her.ui.theme.Her
@@ -103,6 +105,7 @@ import com.her.ui.theme.rememberHerHaptics
 import com.her.ui.theme.rememberShake
 import com.her.ui.theme.shake
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 private const val PinSlackPx = 80
 private val SmallOrb = 28.dp
@@ -210,6 +213,9 @@ fun HerScreen(vm: HerViewModel) {
         }
     }
 
+    val palettes = Her.colors.palettes
+    var look by remember { mutableStateOf(PresenceLook(OrbState.Breathing, 0)) }
+    var sendsLeft by remember { mutableIntStateOf(Random.nextInt(2, 4)) }
     var sendPulse by remember { mutableIntStateOf(0) }
     var pulsing by remember { mutableStateOf(false) }
     LaunchedEffect(sendPulse) {
@@ -234,11 +240,14 @@ fun HerScreen(vm: HerViewModel) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        PresenceSlot(visible = hasText, mood = mood, bump = bump)
+        val palette = palettes[look.palette]
+        PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
         ReplyStage(
             hasText = hasText,
             thinking = awaitingFirstToken,
             bump = bump,
+            orbState = look.state,
+            palette = palette,
             scroll = scroll,
             text = replyText,
             ink = ink,
@@ -334,6 +343,11 @@ fun HerScreen(vm: HerViewModel) {
                 ghostText = text
                 ghostKey += 1
                 sendPulse += 1
+                sendsLeft -= 1
+                if (sendsLeft <= 0) {
+                    look = nextLook(look, palettes.size)
+                    sendsLeft = Random.nextInt(2, 4)
+                }
                 draft = TextFieldValue("")
                 haptics.confirm()
             }
@@ -413,7 +427,7 @@ fun HerScreen(vm: HerViewModel) {
 
 /** The small orb above her reply; it takes over from the big one once words arrive. */
 @Composable
-private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float) {
+private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float, palette: List<Color>) {
     val state = when (mood) {
         PresenceMood.Speaking -> OrbState.Composing
         PresenceMood.Listening -> OrbState.Listening
@@ -442,6 +456,7 @@ private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float) {
                 size = OrbSize.Px20,
                 energy = energy,
                 paused = mood == PresenceMood.Idle || mood == PresenceMood.Error,
+                palette = palette,
                 modifier = if (visible) Modifier.sharedPresence() else Modifier,
             )
         }
@@ -455,6 +470,8 @@ private fun ReplyStage(
     hasText: Boolean,
     thinking: Boolean,
     bump: Float,
+    orbState: OrbState,
+    palette: List<Color>,
     scroll: ScrollState,
     text: String,
     ink: Color,
@@ -474,10 +491,11 @@ private fun ReplyStage(
                 slideOutVertically(HerMotion.exit(HerMotion.Standard)) { -it },
         ) {
             HerPresence(
-                state = OrbState.Breathing,
+                state = orbState,
                 orbSize = BigOrb,
                 energy = (if (thinking) 0.85f else 0.25f) + bump,
                 paused = !thinking,
+                palette = palette,
                 modifier = if (!hasText) Modifier.sharedPresence() else Modifier,
             )
         }

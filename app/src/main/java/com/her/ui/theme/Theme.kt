@@ -56,6 +56,7 @@ data class HerColors(
     val ambientAlpha: Float,
     val orbInkFar: Color,
     val orbInkNear: Color,
+    val palettes: List<List<Color>>,
 ) {
     val glow: List<Color> get() = listOf(glowCoral, glowAmber, glowRose)
 }
@@ -71,6 +72,13 @@ private val NightHer = HerColors(
     ambientAlpha = 0.10f,
     orbInkFar = Color(0xFF5A3F31),
     orbInkNear = Color(0xFFFFE9D2),
+    palettes = listOf(
+        listOf(Color(0xFFFF8A65), Color(0xFFF6B26B), Color(0xFFE57A8A)),
+        listOf(Color(0xFFFFB088), Color(0xFFFFC9A0), Color(0xFFE89A7A)),
+        listOf(Color(0xFFF0C46A), Color(0xFFE8A84A), Color(0xFFD4894A)),
+        listOf(Color(0xFFD4786A), Color(0xFFC45A68), Color(0xFFA84858)),
+        listOf(Color(0xFFFF8A50), Color(0xFFFFB060), Color(0xFFE06070)),
+    ),
 )
 
 private val DawnHer = HerColors(
@@ -84,6 +92,13 @@ private val DawnHer = HerColors(
     ambientAlpha = 0.12f,
     orbInkFar = Color(0xFFE3CDB9),
     orbInkNear = Color(0xFF6E3219),
+    palettes = listOf(
+        listOf(Color(0xFFE2724A), Color(0xFFD48A3A), Color(0xFFC45A70)),
+        listOf(Color(0xFFE89A6A), Color(0xFFE8B88A), Color(0xFFD4785A)),
+        listOf(Color(0xFFD4A03A), Color(0xFFC8882A), Color(0xFFB46A28)),
+        listOf(Color(0xFFC06058), Color(0xFFA84858), Color(0xFF8A3850)),
+        listOf(Color(0xFFE06040), Color(0xFFD4883A), Color(0xFFC05060)),
+    ),
 )
 
 val LocalHerColors = staticCompositionLocalOf { NightHer }
