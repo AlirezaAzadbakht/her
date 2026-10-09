@@ -138,10 +138,10 @@ val HerFontFamily = FontFamily(
     Font(R.font.vazirmatn, FontWeight.Bold),
 )
 
-/** SuperChiby for Latin in her replies; Vazirmatn fills Arabic and Persian glyphs. */
+/** Comfortaa for Latin in her replies; Vazirmatn fills Arabic and Persian glyphs. */
 fun herResponseFontFamily(resources: Resources): FontFamily {
     val latin = PlatformFontFamily.Builder(
-        PlatformFont.Builder(resources, R.font.superchiby).build(),
+        PlatformFont.Builder(resources, R.font.comfortaa).setFontVariationSettings("'wght' 400").build(),
     ).build()
     val arabic = PlatformFontFamily.Builder(
         PlatformFont.Builder(resources, R.font.vazirmatn).build(),
