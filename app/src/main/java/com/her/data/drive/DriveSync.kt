@@ -41,7 +41,16 @@ object MergeEngine {
         if (existing == null) return incoming
         // Learning content is an atomic JSON document. Compare metadata before merging any keys,
         // otherwise key iteration order can mix one device's content with another's version.
-        if (op.entityType == "learning_records") {
+        if (op.entityType == "companion_records") {
+            // A new explicit preference request may start a fresh generation after bulk forgetting.
+            if (existing.optString("kind") == "PREFERENCES" && incoming.optString("kind") == "PREFERENCES") {
+                if (!existing.isNull("deletedAt") && incoming.isNull("deletedAt") && incoming.optLong("createdAt") > existing.optLong("deletedAt")) return incoming
+                if (!incoming.isNull("deletedAt") && existing.isNull("deletedAt") && existing.optLong("createdAt") > incoming.optLong("deletedAt")) return existing
+            }
+            if (!existing.isNull("deletedAt")) return existing
+            if (!incoming.isNull("deletedAt")) return incoming
+        }
+        if (op.entityType in setOf("learning_records", "companion_records")) {
             val incomingTime = incoming.optLong("updatedAt")
             val existingTime = existing.optLong("updatedAt")
             return if (incomingTime > existingTime ||

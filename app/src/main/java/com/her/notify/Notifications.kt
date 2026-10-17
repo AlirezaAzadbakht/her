@@ -49,6 +49,7 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
 }
 
 open class Notifier(private val context: Context) {
+    var companionNoticeKey: String? = null
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(NotificationManager::class.java)
@@ -104,9 +105,12 @@ open class Notifier(private val context: Context) {
         val later = PendingIntent.getBroadcast(
             context,
             3,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text),
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text).putExtra(EXTRA_NOTICE, companionNoticeKey),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val dismiss = PendingIntent.getBroadcast(context, 4,
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_DISMISS).putExtra(EXTRA_NOTICE, companionNoticeKey),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val replyAction = NotificationCompat.Action.Builder(0, "Reply", reply)
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
             .setAllowGeneratedReplies(false)
@@ -119,6 +123,7 @@ open class Notifier(private val context: Context) {
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
             .setAutoCancel(true)
+            .setDeleteIntent(dismiss)
             .addAction(replyAction)
             .addAction(0, "Later", later)
             .addAction(0, "Open", open)
@@ -139,6 +144,8 @@ open class Notifier(private val context: Context) {
         const val NOTIFICATION_ID = 17
         const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"
+        const val ACTION_DISMISS = "com.her.NOTIFY_DISMISS"
+        const val EXTRA_NOTICE = "companionNotice"
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val KEY_REPLY = "reply"
         const val EXTRA_TEXT = "text"
@@ -171,6 +178,19 @@ class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val app = context.applicationContext as? com.her.HerApplication ?: return
         val graph = app.graph
+        val noticeKey = intent.getStringExtra(Notifier.EXTRA_NOTICE)
+        if (noticeKey != null && intent.action in setOf(Notifier.ACTION_DISMISS, Notifier.ACTION_LATER)) {
+            val pending = goAsync()
+            graph.io.execute {
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        com.her.companion.recordCompanionNotificationResponse(graph.repo, noticeKey, intent.action == Notifier.ACTION_DISMISS)
+                    }
+                } finally { pending.finish() }
+            }
+            NotificationManagerCompat.from(context).cancel(Notifier.NOTIFICATION_ID)
+            return
+        }
         val decision = NotificationActions.decide(
             action = intent.action,
             replyText = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifier.KEY_REPLY),

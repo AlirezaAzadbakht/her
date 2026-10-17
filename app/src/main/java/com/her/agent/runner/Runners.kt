@@ -189,13 +189,15 @@ class AgentOrchestrator(
             if (extraSystem != null) {
                 messages.add(1, LlmMessage(role = "system", content = extraSystem))
             }
-            repo.logDebug("prompt", redactSecrets(built.systemBundle))
-            repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.content}" })
+            repo.logDebug("prompt", "contextChars=${built.systemBundle.length}")
+            repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
             var lastText: String? = null
             var preamble = ""
             var silent = false
             var proactive: String? = null
             var proactivePersisted = false
+            var companionAttempted = false
+            var companionKey: String? = null
             val receipts = mutableListOf<Receipt>()
             while (budget.canCall()) {
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
@@ -219,7 +221,7 @@ class AgentOrchestrator(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens}",
                 )
-                repo.logDebug("llm", redactSecrets(response.rawJson.take(8000)))
+                repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
                 val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
                 val calls = msg.toolCalls.orEmpty()
@@ -258,12 +260,14 @@ class AgentOrchestrator(
                             proactivePersisted = true
                         }
                     }
-                    if (call.name == "send_learning_reminder" && result.ok &&
+                    if (call.name == "send_companion_checkin") companionAttempted = true
+                    if (call.name in setOf("send_learning_reminder", "send_companion_checkin") && result.ok &&
                         org.json.JSONObject(result.payloadJson).optBoolean("queued")) {
+                        if (call.name == "send_companion_checkin") companionKey = org.json.JSONObject(result.payloadJson).getString("key")
                         proactive = org.json.JSONObject(call.arguments).getString("content")
                         proactivePersisted = false
                     }
-                    repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
+                    if (call.name !in com.her.agent.tools.companionToolNames) repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
                     messages += LlmMessage(
                         role = "tool",
                         content = forModel(result.payloadJson),
@@ -275,25 +279,33 @@ class AgentOrchestrator(
             if (lastText == null && preamble.isNotBlank() && !silent) {
                 lastText = preamble
             }
-            val cleaned = lastText?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
+            val cleaned = (if (companionAttempted && type != AgentRunType.CHAT) null else lastText)?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
             if (persistAssistant && cleaned != null) {
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }
             // A message delivered with send_user_message still needs to reach the phone.
-            val notifyText = cleaned ?: proactive
-            if (allowNotify && notifyText != null) {
+            var notifyText = if (companionAttempted) proactive else cleaned ?: proactive
+            companionKey?.let { key ->
+                val notice = repo.getCompanionRecord(key)
+                val topic = notice?.let { repo.getCompanionRecord(it.parentId) }
+                if (notice == null || notice.deletedAt != null || topic == null ||
+                    com.her.companion.checkinBlock(repo, settings, topic, notice.data().optString("phase"), key) != null) notifyText = null
+            }
+            val deliveryText = notifyText
+            if (allowNotify && deliveryText != null) {
                 val decision = policy.shouldNotify(
-                    key = "$type:${notifyText.take(40)}",
+                    key = companionKey ?: "$type:${deliveryText.take(40)}",
                     urgent = type == AgentRunType.BRIEFING,
                     now = repo.now(),
                 )
                 if (decision.notify) {
                     // Opening the app from the notification has to show the same words, so an autonomous
                     // reply that was not already saved (briefing, send_user_message) is saved first.
-                    if (!persistAssistant && (notifyText != proactive || !proactivePersisted)) {
-                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, notifyText, MessageStatus.SENT, """{"proactive":true}"""))
+                    if ((!persistAssistant || cleaned == null) && (deliveryText != proactive || !proactivePersisted)) {
+                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliveryText, MessageStatus.SENT, """{"proactive":true}"""))
                     }
-                    notifier.show(notifyText, type == AgentRunType.BRIEFING)
+                    notifier.companionNoticeKey = companionKey
+                    notifier.show(deliveryText, type == AgentRunType.BRIEFING)
                     settings.update { it.copy(lastNotificationKey = decision.key, lastNotificationAt = nowMillis()) }
                 } else {
                     repo.logActivity("notify", "Suppressed: ${decision.reason}")

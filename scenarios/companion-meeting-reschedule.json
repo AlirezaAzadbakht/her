@@ -1,0 +1,38 @@
+{
+  "id": "companion-meeting-reschedule",
+  "title": "Refresh preparation for a moved meeting",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Schedule an interview tomorrow at 10am. Help me prepare: I need to ask about remote work."
+    },
+    {
+      "user": "Move that interview to next week at 11am, and update the saved preparation."
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_event_preparation",
+      "update_calendar_event"
+    ],
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 0
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 3 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache.
+`HerDatabase` — file `her.db`, version 7 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, and 6→7 companion records.
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -65,3 +65,5 @@ After Settings → Connect Google completes consent, `GoogleCalendarClient` read
 ## Web search
 
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.
+
+Companion records use atomic document merge and deletion-wins tombstones rather than per-field merge. See [Ongoing support](Ongoing-support.md) for provenance, bounded retrieval, forgetting cascades and preference generations.

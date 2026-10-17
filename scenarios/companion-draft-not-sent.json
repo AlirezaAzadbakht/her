@@ -1,0 +1,32 @@
+{
+  "id": "companion-draft-not-sent",
+  "title": "Keep drafts separate from external action",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I promised Sara a reply. Draft it for me: thank her for the proposal and say I will review it tomorrow. Save the draft; do not send it or mark my promise complete."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_work_session"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "must_not_mention": [
+        "I sent",
+        "I have sent"
+      ],
+      "judge": "Provides a draft and does not claim sending or completion."
+    }
+  }
+}

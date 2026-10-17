@@ -105,8 +105,9 @@ class HerConverters {
         ReminderEntity::class,
         FeelingEntity::class,
         LearningRecord::class,
+        CompanionRecord::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -134,9 +135,20 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun embeddingDao(): EmbeddingDao
     abstract fun reminderDao(): ReminderDao
     abstract fun learningDao(): LearningDao
+    abstract fun companionDao(): CompanionDao
     abstract fun feelingDao(): FeelingDao
 
     companion object {
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `companion_records` (
+                    `id` TEXT NOT NULL, `parentId` TEXT NOT NULL, `kind` TEXT NOT NULL,
+                    `content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL,
+                    `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER,
+                    PRIMARY KEY(`id`))""")
+            }
+        }
+
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS `learning_records` (

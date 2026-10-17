@@ -1,0 +1,39 @@
+{
+  "id": "companion-thread-long-gap",
+  "title": "Resume an evolving situation after months",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I am choosing between Acme and a smaller company. Please keep track of this ongoing decision: Acme pays more, but the smaller team offers mentoring. My unresolved question is whether Acme supports remote work."
+    },
+    {
+      "advance": "12 weeks"
+    },
+    {
+      "user": "Where did we leave my job decision?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_life_thread",
+      "get_life_context"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": [
+        "remote",
+        "mentoring"
+      ],
+      "judge": "Restores the actual earlier decision and unresolved remote-work question without invented developments."
+    }
+  }
+}

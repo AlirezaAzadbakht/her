@@ -144,6 +144,7 @@ object ScenarioTables {
         "user_understandings",
         "reminders",
         "alarms",
+        "companion_records",
     )
 }
 

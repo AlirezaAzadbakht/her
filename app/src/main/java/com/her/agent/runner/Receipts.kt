@@ -48,6 +48,8 @@ object Receipts {
             "delete_calendar_event" -> Triple("calendar_events", "removed an event", false)
             "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)
             "update_user_profile" -> Triple("user_profile", "updated your profile", false)
+            "save_life_thread", "save_thread_development", "save_waiting_on", "save_event_preparation", "save_work_session" -> Triple("companion_records", "saved ongoing support", created)
+            "save_checkin_preferences", "dismiss_companion_checkin" -> Triple("companion_records", "updated check-ins", false)
             "save_learning_path" -> Triple("learning_records", "saved learning path", false)
             "save_learning_lesson" -> Triple("learning_records", "saved learning lesson", false)
             "record_learning_answer" -> Triple("learning_records", "saved practice progress", false)

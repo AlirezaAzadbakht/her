@@ -206,6 +206,11 @@ object Checks {
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000
         return when (table) {
+            "companion_records" -> repo.companionRecords().map { row ->
+                val data = row.data()
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "parentId" to row.parentId, "kind" to row.kind, "version" to row.version)
+            }
             "chat_messages" -> repo.recentMessages(200).map { messageFields(it) }
             "people" -> repo.people().map {
                 mapOf(

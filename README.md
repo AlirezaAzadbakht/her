@@ -52,6 +52,7 @@ Core principles:
 |---|---|
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
+| 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
@@ -179,6 +180,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
+| [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |
 | [Data and sync](wiki/Data-and-sync.md) | Room, secrets, Drive, calendar, search |

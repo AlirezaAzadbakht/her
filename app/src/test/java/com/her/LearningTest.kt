@@ -151,7 +151,7 @@ class LearningTest {
             it.execSQL("DROP TABLE learning_records")
             it.version = 5
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_5_6).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7).allowMainThreadQueries().build()
         disk.openHelper.readableDatabase.query("SELECT value FROM migration_sentinel").use { assertTrue(it.moveToFirst()); assertEquals("keep", it.getString(0)) }
         val diskRepo = HerRepository(disk, settings, clock)
         seed()

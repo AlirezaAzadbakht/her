@@ -70,8 +70,9 @@ open class ToolRegistry(
         }
         return try {
             validateRequired(spec.first, args)
+            if (name in companionToolNames) validateCompanionSchema(spec.first, args)
             val payload = spec.second.invoke(args)
-            repo.logActivity("tool", name, payload.toString().take(2000))
+            repo.logActivity("tool", name, if (name in companionToolNames) null else payload.toString().take(2000))
             ToolResult(name, payload.optBoolean("ok", true), payload.toString())
         } catch (e: ToolValidationException) {
             ToolResult(name, false, jsonObjectOf("ok" to false, "error" to e.message).toString())
@@ -94,6 +95,27 @@ open class ToolRegistry(
         }
     }
 
+    private fun validateCompanionSchema(spec: ToolSpec, args: JSONObject) {
+        val properties = JSONObject(spec.parametersJson).getJSONObject("properties")
+        args.keys().forEach { key ->
+            val field = properties.optJSONObject(key) ?: throw ToolValidationException("Unknown field: $key")
+            if (!args.isNull(key)) {
+                val value = args.get(key)
+                val valid = when (field.getString("type")) {
+                    "string" -> value is String
+                    "boolean" -> value is Boolean
+                    "number" -> value is Number && value.toDouble().isFinite() && value.toDouble() == value.toLong().toDouble()
+                    "array" -> value is org.json.JSONArray && (0 until value.length()).all { value.get(it) is String }
+                    else -> false
+                }
+                if (!valid) throw ToolValidationException("Invalid type for $key")
+                field.optJSONArray("enum")?.let { values ->
+                    if ((0 until values.length()).none { values.get(it) == value }) throw ToolValidationException("Invalid value for $key")
+                }
+            }
+        }
+    }
+
     private fun registerAll() {
         registerMemoryTools()
         registerEntityTools()
@@ -102,12 +124,17 @@ open class ToolRegistry(
         registerMessagingTools()
         registerReminderTools()
         registerLearningTools()
+        registerCompanionTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */
     suspend fun undo(entityType: String, id: String): Boolean {
         val now = nowMillis()
         when (entityType) {
+            "companion_records" -> {
+                repo.getCompanionRecord(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.forgetCompanion(id)
+            }
             "long_term_memories" -> {
                 repo.getLong(id)?.takeIf { it.deletedAt == null } ?: return false
                 repo.deleteLong(id)

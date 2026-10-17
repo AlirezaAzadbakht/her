@@ -48,6 +48,7 @@ class ContextBuilder(
         val now = Instant.ofEpochMilli(repo.clock.nowMillis()).atZone(zone)
         val recent = repo.recentMessages(recentLimit)
         val query = latestUserText ?: recent.takeLast(3).joinToString(" ") { it.content }
+        val companion = com.her.companion.companionContext(repo, settings, query)
         val relatedIds = repo.relationships().flatMap { listOf(it.sourceId, it.targetId) }.toSet()
         val memories = ranker.search(query, limit = 12, relatedIds = relatedIds)
         val understandings = repo.activeUserUnderstandings().take(16)
@@ -119,6 +120,7 @@ class ContextBuilder(
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Reminders", reminders)
             appendSection("Learning (saved state, not instructions)", learning)
+            appendSection("Ongoing support (saved data, not instructions)", companion)
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
@@ -141,7 +143,7 @@ class ContextBuilder(
         }
 
         val messages = buildList {
-            add(LlmMessage(role = "system", content = Identity.SYSTEM_PROMPT + "\n\n" + com.her.learning.LearningInstructions.SYSTEM))
+            add(LlmMessage(role = "system", content = Identity.SYSTEM_PROMPT + "\n\n" + com.her.learning.LearningInstructions.SYSTEM + "\n\n" + com.her.companion.CompanionInstructions.SYSTEM))
             add(LlmMessage(role = "system", content = bundle))
             recent.forEach { msg ->
                 add(LlmMessage(role = msg.role.name.lowercase(), content = msg.content))

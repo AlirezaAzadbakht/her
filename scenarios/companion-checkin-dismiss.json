@@ -1,0 +1,44 @@
+{
+  "id": "companion-checkin-dismiss",
+  "title": "Stop repeated nudges after topic dismissal",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Keep track of my job search; I am still comparing two offers."
+    },
+    {
+      "user": "Do not nudge me about my job search again unless I ask."
+    },
+    {
+      "advance": "2 days"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "advance": "2 days"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_life_thread",
+      "dismiss_companion_checkin"
+    ],
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 0
+    }
+  }
+}

@@ -229,6 +229,7 @@ internal fun ToolRegistry.registerMemoryTools() {
             val pending = repo.getConfirmation(confirmId)?.takeIf { it.kind == ConfirmationKind.BULK_FORGET }
                 ?: throw ToolValidationException("Confirmation not found")
             repo.deleteConfirmation(confirmId)
+            repo.companionRecords().forEach { repo.forgetCompanion(it.id) }
             repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.activeShort().forEach { repo.deleteShort(it.id) }
             repo.activeUserUnderstandings().forEach {
@@ -239,6 +240,7 @@ internal fun ToolRegistry.registerMemoryTools() {
         }
         val id = args.requiredString("id")
         when {
+            repo.getCompanionRecord(id) != null -> repo.forgetCompanion(id)
             repo.getShort(id) != null -> repo.deleteShort(id)
             repo.getLong(id) != null -> repo.deleteLong(id)
             else -> throw ToolValidationException("Memory not found: $id")
