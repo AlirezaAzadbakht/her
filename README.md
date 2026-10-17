@@ -18,6 +18,7 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 
 [**Site**](https://alirezaazadbakht.github.io/her/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
+[**Changelog**](CHANGELOG.md) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
 [**Scenarios**](wiki/Scenario-engine.md)
@@ -56,6 +57,8 @@ Core principles:
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
+| 💗 **Feeling index** | Keeps a current feeling that sets her tone; her orb and background lights take its colors |
+| 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |
 | 🔎 **Web search** | Optional, when she needs current information |
