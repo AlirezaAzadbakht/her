@@ -67,3 +67,5 @@ After Settings → Connect Google completes consent, `GoogleCalendarClient` read
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.
 
 Companion records use atomic document merge and deletion-wins tombstones rather than per-field merge. See [Ongoing support](Ongoing-support.md) for provenance, bounded retrieval, forgetting cascades and preference generations.
+
+See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including sync and notification limitations.

@@ -4,7 +4,15 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-17
+
 ### Added
+- **Ongoing support.** Keep life threads, track replies owed by others, prepare for meetings, and resume working drafts, with optional personalized check-ins.
+- **Memory you can question and correct.** Ask what she remembers and why; update facts while keeping relevant history, or forget a specific record.
+- **Plans that fit your day.** Choose small actions using time, stated energy, prerequisites and known meetings, without moving your commitments.
+- **Flexible recurring responsibilities.** Skip or postpone one occurrence, pause a routine, and resume without cancelling the whole responsibility.
+- **Decisions and reflection.** Keep the reasons you actually gave for important choices and optionally revisit them later.
+- **Briefings for the moment.** Catch up after time away, prepare to leave, review outstanding matters with someone, or wrap up the week.
 - **Learning in chat.** Ask her to teach you something and she proposes a short roadmap, teaches one small lesson at a time, checks your answers, saves progress, and schedules spaced reviews. Optional study reminders follow quiet hours. See [Learning](wiki/Learning.md).
 
 ### Changed
@@ -106,7 +114,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.4...v0.1.5

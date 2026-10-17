@@ -80,8 +80,8 @@ internal object SyncCodec {
     suspend fun persist(repo: HerRepository, type: String, json: JSONObject): Boolean {
         when (type) {
             "chat_messages" -> repo.saveMessage(chatMessage(json))
-            "short_term_memories" -> repo.upsertShort(shortTerm(json))
-            "long_term_memories" -> repo.upsertLong(longTerm(json))
+            "short_term_memories" -> if (!json.isNull("deletedAt")) repo.forgetKnowledge(json.getString("id")) else repo.upsertShort(shortTerm(json))
+            "long_term_memories" -> if (!json.isNull("deletedAt")) repo.forgetKnowledge(json.getString("id")) else repo.upsertLong(longTerm(json))
             "user_profile" -> repo.saveProfile(profile(json))
             "user_understandings" -> repo.saveUserUnderstanding(understanding(json))
             "people" -> repo.savePerson(person(json))
@@ -108,6 +108,7 @@ internal object SyncCodec {
             "companion_records" -> {
                 val row = com.her.data.db.CompanionRecord.fromJson(json)
                 repo.saveCompanionRecord(row)
+                if (row.kind == "FORGOTTEN") repo.forgetKnowledge(row.data().getString("targetId"))
                 if (row.deletedAt != null) repo.forgetCompanion(row.id)
             }
             "learning_records" -> repo.saveLearningRecord(com.her.data.db.LearningRecord.fromJson(json))

@@ -52,6 +52,11 @@ Core principles:
 |---|---|
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
+| **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |
+| **Daily planning** | Suggests work that fits available time, stated energy, prerequisites and known calendar events |
+| **Recurring responsibilities** | Skips, postpones, pauses and completes individual occurrences conversationally |
+| **Decision memory** | Preserves actual reasons for choices and supports optional later reflection |
+| **Situation briefings** | Gives focused catch-up, leaving, person-specific and weekly summaries with coverage limits |
 | 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
@@ -180,6 +185,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
+| [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |

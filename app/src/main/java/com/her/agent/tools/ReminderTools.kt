@@ -102,6 +102,7 @@ internal fun ToolRegistry.registerReminderTools() {
         if (existing.status != ReminderStatus.SCHEDULED) {
             throw ToolValidationException("That reminder is already ${existing.status.name.lowercase()}; set a new one instead")
         }
+        if ((args.has("when") || args.has("repeat")) && com.her.companion.scheduleForReminder(repo, existing) != null) throw ToolValidationException("Change the linked responsibility schedule or its occurrence instead")
         val fireAt = args.optStringOrNull("when")?.let { reminderTime(it) }
         val trigger = if (fireAt != null) ReminderTrigger.TIME else existing.trigger
         val repeat = parseEnum<ReminderRepeat>(args.optStringOrNull("repeat")) ?: existing.repeat
@@ -140,6 +141,7 @@ internal fun ToolRegistry.registerReminderTools() {
         objSchema("id" to str("Reminder id from context"), required = listOf("id")),
     ) { args ->
         val existing = requireReminder(args.requiredString("id"))
+        if (existing.trigger == ReminderTrigger.TIME) throw ToolValidationException("Use manage_occurrence for repeating responsibilities; cancel_reminder for an unwanted clock reminder")
         val now = nowMillis()
         repo.saveReminder(existing.copy(status = ReminderStatus.FIRED, firedAt = now, updatedAt = now, version = existing.version + 1))
         reminderAlarms.disarm(existing.id)

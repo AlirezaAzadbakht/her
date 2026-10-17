@@ -66,28 +66,45 @@ class ReminderDelivery(
 ) {
     suspend fun fireDue(): List<Reminder> {
         val due = repo.dueTimeReminders()
-        due.forEach { reminder ->
-            val now = repo.clock.nowMillis()
-            if (!stillWanted(reminder)) {
-                repo.saveReminder(reminder.copy(status = ReminderStatus.SKIPPED, updatedAt = now, version = reminder.version + 1))
-                repo.logActivity("reminder", "Skipped, already done: ${reminder.message.take(80)}")
-                return@forEach
+        due.forEach { candidate ->
+            val deliver = repo.learningTransaction {
+                val reminder = repo.getReminder(candidate.id)?.takeIf { it.deletedAt == null && it.status == ReminderStatus.SCHEDULED && it.fireAt == candidate.fireAt }
+                    ?: return@learningTransaction null
+                val now = repo.clock.nowMillis()
+                val schedule = com.her.companion.scheduleForReminder(repo, reminder)
+                val postponed = schedule?.let { s -> repo.companionRecords().firstOrNull { it.kind == "OCCURRENCE" && it.parentId == s.id && it.data().optString("status") == "POSTPONED" && it.data().optLong("until") == reminder.fireAt } }
+                val originalAt = postponed?.data()?.optLong("scheduledAt") ?: reminder.fireAt!!
+                val occurrenceId = schedule?.let { com.her.companion.occurrenceId(it, originalAt) }
+                val occurrence = schedule?.let { com.her.companion.findOccurrence(repo, it, originalAt) }
+                val data = schedule?.data()
+                val paused = data != null && ((data.optString("status") == "PAUSED" && data.optLong("pauseUntil") <= 0) || data.optLong("pauseUntil") > now)
+                val alreadyHandled = occurrence?.data()?.optString("status") in setOf("SKIPPED", "COMPLETED", "NOTIFIED")
+                val deferred = occurrence?.data()?.optString("status") == "POSTPONED" && occurrence.data().optLong("until") > now
+                val wanted = stillWanted(reminder)
+                val next = if (deferred) occurrence!!.data().getLong("until") else if (schedule != null) com.her.companion.nextScheduleAt(repo, schedule, now) else nextFireAt(reminder, now)
+                val key = "reminder-delivery:${reminder.id}:${reminder.fireAt}"
+                val reserved = repo.getCompanionRecord(key) != null
+                repo.saveReminder(reminder.copy(status = when {
+                    !wanted -> ReminderStatus.SKIPPED
+                    next != null -> ReminderStatus.SCHEDULED
+                    paused -> ReminderStatus.SKIPPED
+                    else -> ReminderStatus.FIRED
+                }, fireAt = next ?: reminder.fireAt, firedAt = if (!paused && !alreadyHandled && !deferred && wanted) now else reminder.firedAt,
+                    updatedAt = now, version = reminder.version + 1))
+                if (paused || alreadyHandled || deferred || !wanted || reserved) return@learningTransaction null
+                repo.saveCompanionRecord(com.her.data.db.CompanionRecord(key, reminder.id, "DELIVERY", "{}", now, now, repo.deviceId, 1))
+                if (occurrenceId != null) {
+                    val occurrenceData = (occurrence?.data() ?: JSONObject()).put("status", "NOTIFIED").put("scheduledAt", originalAt)
+                        .put("occurrenceIndex", com.her.companion.occurrenceIndex(repo, schedule, originalAt)).put("scheduleIdentity", com.her.companion.scheduleIdentity(schedule))
+                    repo.saveCompanionRecord(com.her.data.db.CompanionRecord(occurrence?.id ?: occurrenceId, schedule.id, "OCCURRENCE", occurrenceData.toString(), occurrence?.createdAt ?: now, now, repo.deviceId, (occurrence?.version ?: 0) + 1))
+                }
+                reminder
             }
-            // Saved before notifying, so opening the app from the notification shows the same words.
-            val metadata = JSONObject().put("reminder", reminder.id).toString()
-            repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, reminder.message, MessageStatus.SENT, metadata))
-            notifier.showReminder(reminder.id, reminder.message)
-            val next = nextFireAt(reminder, now)
-            repo.saveReminder(
-                reminder.copy(
-                    status = if (next == null) ReminderStatus.FIRED else ReminderStatus.SCHEDULED,
-                    fireAt = next ?: reminder.fireAt,
-                    firedAt = now,
-                    updatedAt = now,
-                    version = reminder.version + 1,
-                ),
-            )
-            repo.logActivity("reminder", "Fired: ${reminder.message.take(80)}")
+            if (deliver != null) {
+                val metadata = JSONObject().put("reminder", deliver.id).toString()
+                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliver.message, MessageStatus.SENT, metadata))
+                notifier.showReminder(deliver.id, deliver.message)
+            }
         }
         return due
     }

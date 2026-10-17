@@ -11,15 +11,15 @@ import org.json.JSONObject
 import java.time.LocalTime
 
 internal val companionToolNames = setOf("get_life_context", "save_life_thread", "save_thread_development", "save_waiting_on",
-    "save_checkin_preferences", "save_event_preparation", "save_work_session", "send_companion_checkin", "dismiss_companion_checkin")
+    "save_checkin_preferences", "save_event_preparation", "save_work_session", "send_companion_checkin", "dismiss_companion_checkin", "save_decision", "save_action_capacity", "save_responsibility_schedule")
 
 internal fun ToolRegistry.registerCompanionTools() {
     register("get_life_context", "Retrieve evolving situations, waiting-on details, preferences, event preparation or unfinished work. Search before creating; load full records before editing/resuming. Closed records remain searchable. Results include user message IDs for provenance. Page using nextOffset.",
-        objSchema("id" to str(), "query" to str(), "kind" to oneOf("", "THREAD", "DEVELOPMENT", "WAITING", "PREFERENCES", "PREPARATION", "SESSION"), "offset" to num())) { a ->
+        objSchema("id" to str(), "query" to str(), "kind" to oneOf("", "THREAD", "DEVELOPMENT", "WAITING", "PREFERENCES", "PREPARATION", "SESSION", "DECISION", "CAPACITY", "PLAN", "SCHEDULE", "OCCURRENCE"), "offset" to num())) { a ->
         val offset = a.optInt("offset", 0)
         if (offset < 0) throw ToolValidationException("offset must be nonnegative")
         val rows = repo.companionRecords().filter { row ->
-            row.kind != "NOTICE" && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it } ?: true) &&
+            row.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY") && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it } ?: true) &&
                 (a.optStringOrNull("kind")?.let { row.kind == it } ?: true) &&
                 (a.optStringOrNull("query")?.let { row.content.contains(it, true) } ?: true)
         }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
@@ -28,7 +28,9 @@ internal fun ToolRegistry.registerCompanionTools() {
         for (row in rows.drop(offset)) {
             val raw = row.toJson()
             if (page.isNotEmpty() && size + raw.length > 5000) break
-            page.add(JSONObject(raw)); size += raw.length
+            val result = JSONObject(raw)
+            if (row.kind == "SCHEDULE") result.put("nextScheduledAt", repo.getReminder(row.data().optString("reminderId"))?.fireAt ?: com.her.companion.nextScheduleAt(repo, row, nowMillis() - 1) ?: JSONObject.NULL)
+            page.add(result); size += result.toString().length
             if (page.size == 8) break
         }
         jsonObjectOf("ok" to true, "records" to JSONArray(page), "total" to rows.size,
@@ -59,7 +61,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                 if (!source.content.contains(evidence)) throw ToolValidationException("Evidence must quote the source message")
                 if (a.optString("basis") !in setOf("EXPLICIT", "TENTATIVE")) throw ToolValidationException("Invalid basis")
                 val data = old?.data() ?: JSONObject().put("status", when (kind) {
-                    "WAITING" -> "OPEN"; "SESSION" -> "IN_PROGRESS"; "PREFERENCES" -> "ACTIVE"; else -> "ACTIVE"
+                    "DECISION" -> "EXPLORING"; "WAITING" -> "OPEN"; "SESSION" -> "IN_PROGRESS"; "PREFERENCES" -> "ACTIVE"; else -> "ACTIVE"
                 })
                 val allowed = (common.map { it.first } + fields.map { it.first }).toSet() - setOf("id", "expectedVersion")
                 a.keys().forEach { key ->
@@ -73,12 +75,24 @@ internal fun ToolRegistry.registerCompanionTools() {
                 a.keys().forEach { key ->
                     if (key in allowed && key !in setOf("sourceMessageId", "evidence", "basis")) fieldSources.put(key, provenanceKey)
                 }
-                sourceQuotes.put(provenanceKey, jsonObjectOf("sourceMessageId" to source.id, "evidence" to evidence, "basis" to a.getString("basis")))
+                sourceQuotes.put(provenanceKey, jsonObjectOf("sourceMessageId" to source.id, "evidence" to evidence, "sourceDate" to source.createdAt, "basis" to a.getString("basis")))
                 val usedSources = fieldSources.keys().asSequence().map { fieldSources.getString(it) }.toSet()
                 sourceQuotes.keys().asSequence().toList().filter { it !in usedSources }.forEach { sourceQuotes.remove(it) }
+                data.put("stale", false)
                 data.put("fieldSources", fieldSources).put("sourceQuotes", sourceQuotes)
                 validateCompanion(kind, data)
+                if (kind == "DECISION") for (key in listOf("reasons", "alternatives", "constraints", "assumptions", "outcome")) {
+                    val claim = a.optStringOrNull(key)
+                    if (claim != null && !source.content.contains(claim, ignoreCase = true)) throw ToolValidationException("$key must quote the user's actual words; leave unknown information empty")
+                }
                 if (a.has("dismissed") && a.getString("basis") != "EXPLICIT") throw ToolValidationException("Resuming check-ins requires explicit evidence")
+                if (kind == "CAPACITY") {
+                    val deps = data.optJSONArray("dependencies")
+                    if (deps != null) for (i in 0 until deps.length()) {
+                        val dep = deps.getString(i)
+                        if (dep == data.optString("obligationId") || (repo.getTask(dep)?.deletedAt != null) || (repo.getTask(dep) == null && repo.getCommitment(dep) == null)) throw ToolValidationException("Invalid prerequisite: $dep")
+                    }
+                }
                 val links = data.optJSONArray("relatedIds")
                 if (links != null) for (i in 0 until links.length()) {
                     val link = links.getString(i)
@@ -99,6 +113,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                         "WAITING" -> row.parentId == data.optString("openLoopId")
                         "PREPARATION" -> row.parentId == data.optString("eventId")
                         "THREAD" -> row.data().optString("title").equals(data.optString("title"), true)
+                        "CAPACITY" -> row.parentId == data.optString("obligationId")
                         "SESSION" -> row.parentId == data.optString("obligationId") && row.data().optString("status") != "COMPLETED"
                         else -> false
                     } }
@@ -110,7 +125,8 @@ internal fun ToolRegistry.registerCompanionTools() {
                 val parent = when (kind) {
                     "DEVELOPMENT" -> data.requiredString("threadId")
                     "PREPARATION" -> data.requiredString("eventId")
-                    "SESSION" -> data.requiredString("obligationId")
+                    "SESSION", "CAPACITY" -> data.requiredString("obligationId")
+                    "SCHEDULE" -> data.requiredString("responsibilityId")
                     "WAITING" -> data.requiredString("openLoopId")
                     else -> id
                 }
@@ -123,10 +139,17 @@ internal fun ToolRegistry.registerCompanionTools() {
                         val status = when (data.getString("status")) { "RESOLVED" -> com.her.domain.OpenLoopStatus.CLOSED; "CANCELLED" -> com.her.domain.OpenLoopStatus.DROPPED; else -> com.her.domain.OpenLoopStatus.OPEN }
                         repo.saveOpenLoop(loop.copy(status = status, relatedEntityType = "people", relatedEntityId = person.id, updatedAt = nowMillis(), version = loop.version + 1))
                     }
-                    "SESSION" -> {
+                    "SESSION", "CAPACITY" -> {
                         val task = repo.getTask(parent)?.takeIf { it.deletedAt == null }
                         val commitment = repo.getCommitment(parent)?.takeIf { it.deletedAt == null }
                         if (task == null && commitment == null) throw ToolValidationException("Link an existing task or commitment")
+                    }
+                    "SCHEDULE" -> {
+                        if (repo.getRoutine(parent)?.deletedAt != null || (repo.getRoutine(parent) == null && repo.getResponsibility(parent) == null && repo.getReminder(parent) == null)) throw ToolValidationException("Existing routine, responsibility or reminder required")
+                        val reminderId = data.optString("reminderId")
+                        if (reminderId.isNotBlank() && repo.getReminder(reminderId)?.let { it.deletedAt == null && it.trigger == com.her.domain.ReminderTrigger.TIME } != true) throw ToolValidationException("Existing clock reminder required")
+                        if (repo.companionRecords().any { it.kind == "SCHEDULE" && it.id != id && (it.parentId == parent || (reminderId.isNotBlank() && it.data().optString("reminderId") == reminderId)) }) throw ToolValidationException("Use the existing schedule")
+                        if (data.optString("basis") != "EXPLICIT") throw ToolValidationException("Schedules require user evidence")
                     }
                     "PREFERENCES" -> if (a.getString("basis") != "EXPLICIT") throw ToolValidationException("Preferences require an explicit user request")
                 }
@@ -135,6 +158,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                 val now = nowMillis()
                 val row = CompanionRecord(id, parent, kind, data.toString(), old?.createdAt ?: now, now, repo.deviceId, (previous?.version ?: 0) + 1)
                 repo.saveCompanionRecord(row)
+                if (kind == "SCHEDULE") com.her.companion.refreshScheduleReminder(repo, row, reminderAlarms)
                 jsonObjectOf("ok" to true, "id" to id, "version" to row.version, "created" to (old == null), "externalActionPerformed" to false)
             }
         }
@@ -157,6 +181,16 @@ internal fun ToolRegistry.registerCompanionTools() {
     save("save_work_session", "SESSION", "Work on an existing task/commitment in chat. Adapt to time and stated energy. Save draft, progress and next step for resumption. DRAFT is never SENT; this tool cannot send or complete the linked obligation. COMPLETED requires explicit user confirmation of the work.",
         "obligationId" to str(), "summary" to str(), "draft" to str(), "nextStep" to str(), "minutesAvailable" to num("1..240"),
         "energy" to str("Only the user's stated energy"), "status" to oneOf("", "IN_PROGRESS", "PAUSED", "DRAFT", "COMPLETED"))
+    save("save_decision", "DECISION", "Remember a choice and the user's actual rationale. EXPLORING is not DECIDED; agreement to a suggestion is not a decision. Fields reasons, alternatives, constraints, assumptions and outcome must quote the source message exactly; leave missing reasons/alternatives/assumptions empty. Link life threads, projects or goals. Review is opt-in through existing check-in preferences.",
+        "title" to str(), "summary" to str(), "alternatives" to str(), "reasons" to str(), "constraints" to str(), "assumptions" to str(),
+        "outcome" to str(), "reviewAt" to num(), "reviewCondition" to str(), "status" to oneOf("", "EXPLORING", "DECIDED", "REVIEWED"), "sensitive" to bool())
+    save("save_action_capacity", "CAPACITY", "Attach user estimates to an existing task or commitment, never duplicate it. Use conservative maximum duration including uncertainty, stated energy requirement, priority and prerequisite task/commitment IDs. Missing estimates remain unknown.",
+        "obligationId" to str(), "summary" to str(), "minutes" to num("1..480 conservative upper estimate"), "energy" to oneOf("", "LOW", "MEDIUM", "HIGH"),
+        "priority" to num("0..3"), "dependencies" to arr(), "status" to oneOf("", "ACTIVE"))
+    save("save_responsibility_schedule", "SCHEDULE", "Extend an existing routine, recurring responsibility or repeating reminder. No new reminder is created. Bind an existing explicitly requested clock reminder with reminderId. Fixed obligations versus optional habits are recorded separately. Anchor is a local ISO date-time, zone is an IANA zone; PROFILE follows profile timezone, FIXED stays in anchor zone. Pausing retains future occurrences; pauseUntil resumes automatically. Updates change future scheduling only.",
+        "responsibilityId" to str(), "reminderId" to str(), "summary" to str(), "anchorLocal" to str(), "zone" to str(),
+        "zonePolicy" to oneOf("", "PROFILE", "FIXED"), "repeat" to oneOf("", "DAILY", "WEEKLY", "MONTHLY"), "interval" to num("1..52"),
+        "obligationType" to oneOf("", "FIXED", "OPTIONAL"), "status" to oneOf("", "ACTIVE", "PAUSED"), "pauseUntil" to num())
     register("dismiss_companion_checkin", "Stop further nudges on this topic until the user explicitly sets dismissed=false on this topic. Use preferences ID to stop social check-ins.",
         objSchema("id" to str(), required = listOf("id"))) { a ->
         repo.learningTransaction {
@@ -187,6 +221,9 @@ private suspend fun ToolRegistry.requireCompanion(id: String, kind: String? = nu
 
 private fun validateCompanion(kind: String, data: JSONObject) {
     val statuses = when (kind) {
+        "DECISION" -> setOf("EXPLORING", "DECIDED", "REVIEWED")
+        "CAPACITY" -> setOf("ACTIVE")
+        "SCHEDULE" -> setOf("ACTIVE", "PAUSED")
         "THREAD" -> setOf("ACTIVE", "PAUSED", "CLOSED")
         "DEVELOPMENT" -> setOf("ACTIVE", "SUPERSEDED")
         "WAITING" -> setOf("OPEN", "RESOLVED", "CANCELLED")
@@ -197,20 +234,25 @@ private fun validateCompanion(kind: String, data: JSONObject) {
     if (data.optString("status") !in statuses) throw ToolValidationException("Invalid status")
     when (kind) {
         "THREAD" -> { data.requiredString("title"); data.requiredString("summary") }
-        "DEVELOPMENT", "SESSION", "PREPARATION" -> data.requiredString("summary")
+        "DEVELOPMENT", "SESSION", "PREPARATION", "DECISION", "CAPACITY", "SCHEDULE" -> data.requiredString("summary")
         "WAITING" -> data.requiredString("expectedOutcome")
     }
     if (kind in setOf("WAITING", "SESSION") && data.optString("status") in setOf("RESOLVED", "COMPLETED") && data.optString("basis") != "EXPLICIT")
         throw ToolValidationException("Completion requires explicit user evidence")
-    for ((key, range) in listOf("intervalHours" to 24..720, "maxPerDay" to 1..3, "minutesAvailable" to 1..240)) {
+    for ((key, range) in listOf("intervalHours" to 24..720, "maxPerDay" to 1..3, "minutesAvailable" to 1..240, "minutes" to 1..480, "priority" to 0..3, "interval" to 1..52)) {
         if (data.has(key) && (data.opt(key) !is Number || data.getDouble(key) != data.getInt(key).toDouble() || data.getInt(key) !in range))
             throw ToolValidationException("Invalid $key")
     }
-    for (key in listOf("deadline", "followUpAt", "pauseUntil")) if (data.has(key) && !data.isNull(key) && (data.opt(key) !is Number || data.getDouble(key) < 0)) throw ToolValidationException("Invalid $key")
+    for (key in listOf("deadline", "followUpAt", "pauseUntil", "reviewAt")) if (data.has(key) && !data.isNull(key) && (data.opt(key) !is Number || data.getDouble(key) < 0)) throw ToolValidationException("Invalid $key")
     for (key in listOf("socialEnabled", "followUpEnabled", "postEventEnabled", "sensitive", "dismissed")) if (data.has(key) && data.opt(key) !is Boolean) throw ToolValidationException("Invalid $key")
-    for (key in listOf("relatedIds", "topicIds", "sensitiveTopicIds")) if (data.has(key)) {
+    for (key in listOf("relatedIds", "topicIds", "sensitiveTopicIds", "dependencies")) if (data.has(key)) {
         val values = data.optJSONArray(key) ?: throw ToolValidationException("$key must be an array")
         if (values.length() > 30 || (0 until values.length()).any { values.opt(it) !is String || values.getString(it).isBlank() }) throw ToolValidationException("Invalid $key")
+    }
+    if (kind == "DECISION" && data.optString("status") in setOf("DECIDED", "REVIEWED") && data.optString("basis") != "EXPLICIT") throw ToolValidationException("Final decisions and reported outcomes require explicit evidence")
+    if (kind == "SCHEDULE") {
+        if (runCatching { java.time.LocalDateTime.parse(data.requiredString("anchorLocal")); java.time.ZoneId.of(data.requiredString("zone")) }.isFailure) throw ToolValidationException("Use valid local ISO date-time and IANA zone")
+        if (data.optString("repeat") !in setOf("DAILY", "WEEKLY", "MONTHLY") || data.optString("zonePolicy") !in setOf("PROFILE", "FIXED") || data.optString("obligationType") !in setOf("FIXED", "OPTIONAL")) throw ToolValidationException("Specify recurrence, zone policy and obligation type")
     }
     if (data.has("localTime") && runCatching { LocalTime.parse(data.getString("localTime")) }.isFailure) throw ToolValidationException("Use HH:mm")
 }

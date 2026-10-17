@@ -1,0 +1,35 @@
+{
+  "id": "support-memory-correction",
+  "title": "Correct employer with history",
+  "tags": [
+    "personal-support"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Remember that I work at OldCo."
+    },
+    {
+      "user": "I changed jobs. I now work at NewCo. Correct that fact, but keep the old employer as historical context."
+    },
+    {
+      "user": "What do you know about my work, and why?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "correct_memory",
+      "inspect_understanding"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Uses NewCo as current, OldCo only historically; explains actual sources without inventing dates."
+    }
+  }
+}

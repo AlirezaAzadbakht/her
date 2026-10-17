@@ -92,7 +92,12 @@ class HybridRanker(
         }
         val unique = hits.distinctBy { it.id }
         val similarity = if (model != null) semanticSimilarity(model, query, unique) else emptyMap()
-        return unique
+        return unique.filter { hit ->
+            val short = repo.getShort(hit.id)
+            val long = repo.getLong(hit.id)
+            (short != null && short.deletedAt == null && short.content == hit.content && (short.expiresAt == null || short.expiresAt > repo.clock.nowMillis())) ||
+                (long != null && long.deletedAt == null && long.status == com.her.domain.MemoryStatus.ACTIVE && long.content == hit.content)
+        }
             .map { it.copy(score = score(query, it, now, relatedIds, similarity[it.id])) }
             .sortedByDescending { it.score }
             .take(limit)
@@ -125,11 +130,18 @@ class HybridRanker(
             val fresh = missing.zip(vectors.drop(1)).filter { (_, vector) -> vector.isNotEmpty() }
             if (fresh.isNotEmpty()) {
                 val now = repo.clock.nowMillis()
-                dao.upsertAll(
-                    fresh.map { (hit, vector) ->
+                repo.learningTransaction {
+                    // A concurrent forget/correction while the network request ran must not restore the cache.
+                    val current = fresh.filter { (hit, _) ->
+                        val short = repo.getShort(hit.id)
+                        val long = repo.getLong(hit.id)
+                        (short != null && short.deletedAt == null && short.content == hit.content && (short.expiresAt == null || short.expiresAt > now)) ||
+                            (long != null && long.deletedAt == null && long.status == com.her.domain.MemoryStatus.ACTIVE && long.content == hit.content)
+                    }
+                    dao.upsertAll(current.map { (hit, vector) ->
                         MemoryEmbeddingEntity(hit.id, model, hashes.getValue(hit.id), vector.size, vector.toBlob(), now)
-                    },
-                )
+                    })
+                }
             }
             (stored + fresh.associate { (hit, vector) -> hit.id to vector })
                 .mapNotNull { (id, vector) -> cosineSimilarity(queryVector, vector)?.let { id to it } }

@@ -30,6 +30,7 @@ suspend fun checkinBlock(repo: HerRepository, settings: AppSettingsStore, row: C
     if (ms - settings.read().lastNotificationAt < 20 * 60_000L) return "notification gap"
     if (repo.recentMessages(30).any { it.role == MessageRole.USER && ms - it.createdAt < 2 * HOUR }) return "recent interaction"
     val data = row.data()
+    if (data.optBoolean("stale")) return "context needs refresh"
     if (row.deletedAt != null || data.optBoolean("dismissed")) return "dismissed or forgotten"
     if (data.optLong("snoozedUntil") > ms) return "snoozed"
     if (data.optBoolean("sensitive") && !prefs.includes("sensitiveTopicIds", row.id)) return "sensitive topic"
@@ -38,6 +39,9 @@ suspend fun checkinBlock(repo: HerRepository, settings: AppSettingsStore, row: C
     } else if (!prefs.includes("topicIds", row.id)) return "topic not opted in"
     if (row.kind != "PREPARATION" && phase != "CHECKIN") return "invalid phase"
     when (row.kind) {
+        "DECISION" -> {
+            if (data.optString("status") != "DECIDED" || data.optLong("reviewAt", Long.MAX_VALUE) > ms) return "decision review not due"
+        }
         "THREAD" -> if (data.optString("status") != "ACTIVE") return "inactive thread"
         "WAITING" -> {
             if (data.optString("status") != "OPEN" || !data.optBoolean("followUpEnabled") ||
@@ -93,9 +97,9 @@ suspend fun recordCompanionNotificationResponse(repo: HerRepository, noticeId: S
     }
 
 suspend fun companionContext(repo: HerRepository, settings: AppSettingsStore, query: String): List<String> {
-    val rows = repo.companionRecords().filter { it.kind != "NOTICE" }
+    val rows = repo.companionRecords().filter { it.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY", "OCCURRENCE") }
     val tokens = query.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length > 2 }.toSet()
-    val ranked = rows.filter { it.kind != "PREFERENCES" }.map { row ->
+    val ranked = rows.filter { it.kind != "PREFERENCES" && !it.data().optBoolean("sensitive") && (it.kind != "PLAN" || it.data().optLong("validUntil") > repo.clock.nowMillis()) }.map { row ->
         row to tokens.count { row.content.lowercase().contains(it) }
     }.filter { it.second > 0 }.sortedWith(compareByDescending<Pair<CompanionRecord, Int>> { it.second }.thenByDescending { it.first.updatedAt }).take(5).map { it.first }
     val candidates = mutableListOf<String>()
@@ -107,7 +111,7 @@ suspend fun companionContext(repo: HerRepository, settings: AppSettingsStore, qu
     }
     return buildList {
         rows.firstOrNull { it.kind == "PREFERENCES" }?.let { add("Check-in preferences v${it.version}: ${it.content.take(1100)}") }
-        ranked.forEach { add("${it.id} v${it.version} ${it.kind}: ${it.content.take(650)}") }
+        ranked.forEach { add("${it.id} v${it.version} ${it.kind}: ${if (it.data().optBoolean("stale")) "STALE: refresh with get_life_context before using this record" else it.content.take(650)}") }
         addAll(candidates.take(3))
         add("Use get_life_context to retrieve older situations, full details and provenance before editing; omitted records are not forgotten.")
     }
@@ -116,6 +120,12 @@ suspend fun companionContext(repo: HerRepository, settings: AppSettingsStore, qu
 object CompanionInstructions {
     val SYSTEM = """
 Ongoing support in the same conversation:
+- Use inspect_understanding for "what do you know" and "why". Explain actual source/date and distinguish explicit, tentative and historical records. Use correct_memory to supersede a specific fact, preserving history; clarify ambiguous corrections first. Never use historical or stale facts as current. Inspect/update affected profile, user understanding and life-thread summaries too; semantic links may be incomplete. Scope forgetting by exact IDs, using existing broad-forget confirmation. Do not promise physical erasure of historical chat or uploaded logs.
+- Use save_action_capacity for user-supplied conservative time estimates, dependencies, priority and energy. Refresh calendar before suggest_daily_plan. Suggest a small achievable selection and explain why; ask about missing estimates only if material. Save accept_daily_plan only on explicit acceptance; begin selected work through save_work_session. Replan remaining work without moving deadlines, events or promises. Expired plans do not create a backlog.
+- Extend existing routines/responsibilities/reminders through save_responsibility_schedule. Keep fixed obligations distinct from optional habits. Use get_life_context for schedules and exact occurrences, then manage_occurrence to skip, postpone or record reported completion. A missed occurrence is not a failure or a reason to escalate. Never create a second check-in or reminder for a bound schedule. Pause/resume by updating the schedule; changing it affects future scheduling. Quote the request and clarify which occurrence for late reports.
+- Use save_decision to preserve important choices and actual reasons, alternatives, constraints, assumptions and optional reviews. Exploration stays EXPLORING. Only explicit choice evidence permits DECIDED; agreeing to help is not choosing. Never invent rationale. Record outcomes only when reported, without personality judgments. Retrieve actual reasons for "why did I choose"; compare new facts to saved assumptions. Scheduled reviews use send_companion_checkin and existing explicit topic preferences; condition-only reviews happen in conversation.
+- Use get_situation_briefing for trip catch-up, leaving, person-specific outstanding matters or weekly wrap-up. Choose the time/topic scope; use exact personId for person briefings. Refresh calendar first when relevant. Briefly prioritize changed, urgent and unresolved items, distinguish stale/missing information and offer expansion. Do not imply external monitoring or create notification schedules. Exclude unrelated sensitive facts even if they mention the person.
+
 - Meaningful evolving situations can be life threads. Do not create one for every mention or confuse a situation with a task. Search get_life_context first, including after long gaps. Save concise current context, decisions, unresolved questions and next steps; record important developments separately. Link existing people, projects, goals, memories and commitments with relatedIds. Quote actual user messages as provenance; label interpretations TENTATIVE. Never turn silence into evidence about mood, consent or events. On corrections update all affected summaries and developments (SUPERSEDED if wrong); close or reopen when requested.
 - Waiting on another person extends an existing open loop using save_waiting_on; promises the user owes remain commitments. Record the expected outcome, person, deadline and earliest follow-up separately. Resolve only from actual user reports or verified evidence. Offer a draft follow-up when useful; never claim it was sent.
 - Check-ins are optional. Inspect/change preferences with get_life_context and save_checkin_preferences. Social-only reconnection requires explicit opt-in. Ask for preferred local time, frequency, tone and topics if needed; allow pause/disable easily. Never guilt, manufacture intimacy, claim human feelings or infer distress from a gap. Sensitivity and dismissals favor silence. Use dismiss_companion_checkin when they decline further nudges on a topic. Do not work around a suppression with another message or reminder.

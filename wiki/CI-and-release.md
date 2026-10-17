@@ -16,7 +16,7 @@ In-progress runs on the same ref are cancelled, **except** tag pushes.
 ## Build job
 
 1. JDK 17 (Temurin), `gradle/actions/setup-gradle@v6`, Android SDK
-2. `./gradlew testDebugUnitTest assembleDebug --no-daemon`
+2. `./gradlew testDebugUnitTest assembleDebug lintDebug assembleRelease --no-daemon`
 3. Upload artifact `her-debug`
 
 CI uses the **wrapper**. That is fine on GitHub runners (`services.gradle.org` works there). Locally, prefer `gradle` after `source scripts/env.sh` — see [Local development](Local-development.md).
@@ -94,6 +94,6 @@ A GitHub OAuth token without the `workflow` scope will reject commits that touch
 
 ## What “green” means
 
-- `build` green: unit tests + debug APK artifact
+- `build` green: unit tests, lint, debug APK artifact and unsigned release build
 - Tag + `release` green: signed APK on the GitHub Release
 - `release` skipped on ordinary `main` pushes is expected

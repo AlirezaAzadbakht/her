@@ -75,3 +75,5 @@ Dropped tasks also set `deletedAt` so they leave the live lists.
 ## Companion support
 
 `CompanionTools` and `companion/Companion.kt` extend the existing repository, context builder and background runner. Room version 7 adds bounded versioned companion records, linked to existing open loops, tasks, commitments and events. Notification eligibility is checked before reservation and again before delivery. See [Ongoing support](Ongoing-support.md) for data, sync and delivery limitations.
+
+See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including sync and notification limitations.

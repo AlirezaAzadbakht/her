@@ -42,3 +42,5 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 - `minSdk` 29, `compileSdk` / `targetSdk` 36, JDK 17
 - Version tags: `vMAJOR.MINOR.PATCH` (CI sets `VERSION_NAME` / `VERSION_CODE` from the tag)
 - Releases and what each one shipped: [CHANGELOG.md](../CHANGELOG.md), APKs on [GitHub Releases](https://github.com/AlirezaAzadbakht/her/releases)
+
+- [Personal support](Personal-support.md): correctable memory, capacity planning, recurrence, decisions and focused briefings.

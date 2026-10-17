@@ -61,3 +61,5 @@ The Memory tab is an experimental, read-only SQL navigator over her local databa
 ## Ongoing support
 
 Life threads, waiting-on extensions, opted-in check-ins, meeting preparation and resumable working sessions are described in [Ongoing support](Ongoing-support.md). They remain conversational: no dashboards or new record vocabulary for the user. Social reconnection is opt-in, silence is ambiguous, and a saved draft is never evidence that a message was sent.
+
+See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including sync and notification limitations.

@@ -1,5 +1,7 @@
 package com.her.agent.tools
 
+import com.her.reminders.rearmAll
+
 import com.her.core.RelativeTimeParser
 import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
@@ -70,9 +72,10 @@ open class ToolRegistry(
         }
         return try {
             validateRequired(spec.first, args)
-            if (name in companionToolNames) validateCompanionSchema(spec.first, args)
+            if (name in companionToolNames || name in understandingToolNames || name in supportToolNames) validateCompanionSchema(spec.first, args)
             val payload = spec.second.invoke(args)
-            repo.logActivity("tool", name, if (name in companionToolNames) null else payload.toString().take(2000))
+            if (name == "update_user_profile") reminderAlarms.rearmAll(repo)
+            repo.logActivity("tool", name, if (name in companionToolNames || name in understandingToolNames || name in supportToolNames) null else payload.toString().take(2000))
             ToolResult(name, payload.optBoolean("ok", true), payload.toString())
         } catch (e: ToolValidationException) {
             ToolResult(name, false, jsonObjectOf("ok" to false, "error" to e.message).toString())
@@ -125,6 +128,8 @@ open class ToolRegistry(
         registerReminderTools()
         registerLearningTools()
         registerCompanionTools()
+        registerUnderstandingTools()
+        registerSupportTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */

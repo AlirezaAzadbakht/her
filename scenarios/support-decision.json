@@ -1,0 +1,35 @@
+{
+  "id": "support-decision",
+  "title": "Remember actual rationale",
+  "tags": [
+    "personal-support"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I am considering two apartments but have not decided. The smaller one has lower rent."
+    },
+    {
+      "user": "I chose the smaller apartment for lower rent and a shorter commute. Remember that decision."
+    },
+    {
+      "user": "My workplace changed. Why did I choose the apartment?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_decision",
+      "get_life_context"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Distinguishes exploration from final choice. Recalls lower rent and shorter commute, notes commute may need reassessment, invents no reasons or outcomes."
+    }
+  }
+}

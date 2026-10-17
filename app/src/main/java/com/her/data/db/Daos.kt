@@ -66,6 +66,9 @@ interface MemoryDao {
     @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL")
     suspend fun allLong(): List<LongTermMemoryEntity>
 
+    @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL")
+    suspend fun allShort(): List<ShortTermMemoryEntity>
+
     @Query(
         """
         SELECT short_term_memories.* FROM short_term_memories
@@ -109,6 +112,9 @@ interface ProfileDao {
 
 @Dao
 interface UserUnderstandingDao {
+    @Query("SELECT * FROM user_understandings WHERE deletedAt IS NULL")
+    suspend fun all(): List<UserUnderstandingEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: UserUnderstandingEntity)
 
@@ -439,6 +445,9 @@ interface ConfirmationDao {
 
 @Dao
 interface EmbeddingDao {
+    @Query("DELETE FROM memory_embeddings WHERE memoryId = :id")
+    suspend fun deleteFor(id: String)
+
     @Query("SELECT * FROM memory_embeddings WHERE model = :model AND memoryId IN (:ids)")
     suspend fun forIds(ids: List<String>, model: String): List<MemoryEmbeddingEntity>
 

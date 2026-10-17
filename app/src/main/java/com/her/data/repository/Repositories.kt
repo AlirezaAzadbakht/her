@@ -169,17 +169,35 @@ class HerRepository(
     }
 
     suspend fun upsertShort(memory: ShortTermMemory) {
-        memoryDao.upsertShort(memory.toEntity())
-        enqueue("short_term_memories", memory.id, SyncOpType.UPSERT, memory.toJson())
+        if (memory.deletedAt != null) { forgetKnowledge(memory.id); return }
+        if (knowledgeForgotten(memory.id) || memory.sourceMessageId?.let { knowledgeForgotten(it) } == true) return
+        db.embeddingDao().deleteFor(memory.id)
+        val retiredAt = getCompanionRecord("superseded:${memory.id}")?.createdAt
+        val row = if (retiredAt != null) memory.copy(expiresAt = retiredAt) else memory
+        memoryDao.upsertShort(row.toEntity())
+        enqueue("short_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun upsertLong(memory: LongTermMemory) {
-        memoryDao.upsertLong(memory.toEntity())
-        enqueue("long_term_memories", memory.id, SyncOpType.UPSERT, memory.toJson())
+        if (memory.deletedAt != null) { forgetKnowledge(memory.id); return }
+        if (knowledgeForgotten(memory.id)) return
+        if (memoryDependencies(memory).any { knowledgeForgotten(it) }) { forgetKnowledge(memory.id); return }
+        db.embeddingDao().deleteFor(memory.id)
+        val superseded = getCompanionRecord("superseded:${memory.id}") != null || memoryDependencies(memory).any { getLong(it)?.status == MemoryStatus.HISTORICAL } || allLong().any { it.id != memory.id && runCatching { JSONObject(it.metadataJson ?: "{}").optString("supersedes") == memory.id }.getOrDefault(false) }
+        val row = if (superseded && memory.status == MemoryStatus.ACTIVE) memory.copy(status = MemoryStatus.HISTORICAL) else memory
+        memoryDao.upsertLong(row.toEntity())
+        enqueue("long_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
+        val previousId = runCatching { JSONObject(row.metadataJson ?: "{}").optString("supersedes") }.getOrDefault("")
+        if (previousId.isNotBlank()) getLong(previousId)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+            upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = row.validFrom, updatedAt = row.updatedAt, version = it.version + 1))
+            invalidateKnowledge(it.id)
+        }
     }
 
     suspend fun getShort(id: String) = memoryDao.getShort(id)?.toDomain()
     suspend fun getLong(id: String) = memoryDao.getLong(id)?.toDomain()
+    suspend fun allShort() = memoryDao.allShort().map { it.toDomain() }
+    suspend fun allUserUnderstandings() = db.userUnderstandingDao().all().map { it.toDomain() }
     suspend fun activeShort(): List<ShortTermMemory> = memoryDao.activeShort(nowMillis()).map { it.toDomain() }
     suspend fun activeLong(): List<LongTermMemory> = memoryDao.longByStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
     suspend fun allLong(): List<LongTermMemory> = memoryDao.allLong().map { it.toDomain() }
@@ -194,16 +212,58 @@ class HerRepository(
         return runCatching { memoryDao.searchLong(match, limit) }.getOrDefault(emptyList()).map { it.toDomain() }
     }
 
-    suspend fun deleteShort(id: String) {
-        forgetCompanion(id)
-        memoryDao.deleteShort(id, nowMillis())
-        enqueue("short_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+    suspend fun deleteShort(id: String) = forgetKnowledge(id)
+    suspend fun deleteLong(id: String) = forgetKnowledge(id)
+
+    suspend fun knowledgeForgotten(id: String): Boolean =
+        getCompanionRecord("forgotten:$id") != null || getLong(id)?.deletedAt != null || getShort(id)?.deletedAt != null
+
+    private fun memoryDependencies(memory: LongTermMemory): Set<String> = buildSet {
+        memory.sourceMessageId?.let { add(it) }
+        val array = runCatching { org.json.JSONArray(memory.derivedFromJson ?: "[]") }.getOrNull()
+        if (array != null) for (i in 0 until array.length()) add(array.optString(i))
     }
 
-    suspend fun deleteLong(id: String) {
+    /** Synced, content-free markers also suppress descendants arriving after the deletion. */
+    suspend fun forgetKnowledge(id: String): Unit = db.withTransaction {
+        val markerId = "forgotten:$id"
+        if (getCompanionRecord(markerId) == null) {
+            val at = nowMillis()
+            saveCompanionRecord(com.her.data.db.CompanionRecord(markerId, markerId, "FORGOTTEN",
+                JSONObject().put("targetId", id).toString(), at, at, deviceId, 1))
+        }
         forgetCompanion(id)
-        memoryDao.deleteLong(id, nowMillis())
-        enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        getLong(id)?.takeIf { it.deletedAt == null }?.let {
+            memoryDao.upsertLong(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
+            enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        }
+        getShort(id)?.takeIf { it.deletedAt == null }?.let {
+            memoryDao.upsertShort(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
+            enqueue("short_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        }
+        db.embeddingDao().deleteFor(id)
+        allLong().filter { id in memoryDependencies(it) }.forEach { forgetKnowledge(it.id) }
+        allShort().filter { it.sourceMessageId == id }.forEach { forgetKnowledge(it.id) }
+        allUserUnderstandings().filter { it.id == id || it.sourceMessageId == id }.forEach {
+            saveUserUnderstanding(it.copy(content = "", status = MemoryStatus.ARCHIVED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+        }
+    }
+
+    /** Keep evidence, but remove stale derived summaries from current answers until refreshed. */
+    suspend fun invalidateKnowledge(id: String): Unit = db.withTransaction {
+        allLong().filter { it.status == MemoryStatus.ACTIVE && id in memoryDependencies(it) }.forEach {
+            upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+            invalidateKnowledge(it.id)
+        }
+        companionRecords().filter { row ->
+            val links = row.data().optJSONArray("relatedIds")
+            row.parentId == id || (links != null && (0 until links.length()).any { links.optString(it) == id })
+        }.forEach { row ->
+            if (!row.data().optBoolean("stale")) {
+                saveCompanionRecord(row.copy(content = row.data().put("stale", true).toString(), updatedAt = nowMillis(), version = row.version + 1))
+                invalidateKnowledge(row.id)
+            }
+        }
     }
 
     suspend fun getProfile(): UserProfile {
@@ -228,8 +288,12 @@ class HerRepository(
     }
 
     suspend fun saveProfile(profile: UserProfile) {
+        val previousZone = db.profileDao().get(UserProfile.PROFILE_ID)?.timezone
         db.profileDao().upsert(profile.toEntity())
         enqueue("user_profile", profile.id, SyncOpType.UPSERT, profile.toJson())
+        if (previousZone != null && previousZone != profile.timezone) companionRecords().filter { it.kind == "SCHEDULE" && it.data().optString("zonePolicy") == "PROFILE" }.forEach {
+            com.her.companion.refreshScheduleReminder(this, it, com.her.reminders.ReminderAlarms.NONE)
+        }
     }
 
     fun observeProfile(): Flow<UserProfile> = flow {
@@ -250,8 +314,10 @@ class HerRepository(
         db.userUnderstandingDao().byFacet(facet, MemoryStatus.ACTIVE)?.toDomain()
 
     suspend fun saveUserUnderstanding(item: UserUnderstanding) {
-        db.userUnderstandingDao().upsert(item.toEntity())
-        enqueue("user_understandings", item.id, SyncOpType.UPSERT, item.toJson())
+        if (item.deletedAt == null && (knowledgeForgotten(item.id) || item.sourceMessageId?.let { knowledgeForgotten(it) } == true)) return
+        val row = if (getCompanionRecord("superseded:${item.id}") != null && item.status == MemoryStatus.ACTIVE) item.copy(status = MemoryStatus.HISTORICAL) else item
+        db.userUnderstandingDao().upsert(row.toEntity())
+        enqueue("user_understandings", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }
@@ -392,12 +458,33 @@ class HerRepository(
             if (links != null) for (i in 0 until links.length()) add(links.optString(i))
         }
         val forgotten = dependencies.any { id ->
+            knowledgeForgotten(id) ||
             db.companionDao().get(id)?.deletedAt != null || getLong(id)?.deletedAt != null ||
                 getShort(id)?.deletedAt != null || getMessage(id)?.deletedAt != null
         }
-        val row = if (forgotten && item.deletedAt == null) item.copy(content = "{}", deletedAt = nowMillis()) else item
+        val staleDependency = dependencies.any { getLong(it)?.status == MemoryStatus.HISTORICAL || getCompanionRecord(it)?.data()?.optBoolean("stale") == true }
+        val safeItem = if (staleDependency && !forgotten && item.kind !in setOf("FORGOTTEN", "DELIVERY")) item.copy(content = data.put("stale", true).toString()) else item
+        val row = if ((forgotten || (item.kind != "PREFERENCES" && getCompanionRecord(item.id)?.deletedAt != null)) && item.deletedAt == null) item.copy(content = "{}", deletedAt = nowMillis()) else safeItem
+        if (row.deletedAt != null) getCompanionRecord(row.id)?.takeIf { it.kind == "SCHEDULE" }?.let { previous ->
+            getReminder(previous.data().optString("reminderId"))?.takeIf { it.deletedAt == null && it.status != com.her.domain.ReminderStatus.CANCELLED }?.let { reminder ->
+                saveReminder(reminder.copy(status = com.her.domain.ReminderStatus.CANCELLED, updatedAt = nowMillis(), version = reminder.version + 1))
+            }
+        }
         db.companionDao().upsert(row)
         enqueue("companion_records", row.id, SyncOpType.UPSERT, row.toJson())
+        if (row.kind == "SUPERSESSION" && row.deletedAt == null) {
+            val target = row.data().getString("targetId")
+            getLong(target)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+                upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = row.createdAt, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            getShort(target)?.takeIf { it.deletedAt == null && (it.expiresAt == null || it.expiresAt > row.createdAt) }?.let {
+                upsertShort(it.copy(expiresAt = row.createdAt, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            getUserUnderstanding(target)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+                saveUserUnderstanding(it.copy(status = MemoryStatus.HISTORICAL, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            invalidateKnowledge(target)
+        }
     }
 
     /** Tombstone the record and all derived records; blank content prevents stale summaries surfacing. */

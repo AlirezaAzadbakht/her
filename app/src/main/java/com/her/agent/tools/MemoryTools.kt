@@ -60,6 +60,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                         .put("id", hit.id)
                         .put("type", hit.memoryType)
                         .put("content", hit.content)
+                        .put("updatedAt", hit.updatedAt)
+                        .put("status", "ACTIVE")
                         .put("score", hit.score)
                         .put("importance", hit.importance)
                         .put("confidence", hit.confidence)
@@ -151,8 +153,8 @@ internal fun ToolRegistry.registerMemoryTools() {
     ) { args ->
         val id = args.requiredString("id")
         val now = nowMillis()
-        val short = repo.getShort(id)
-        val long = repo.getLong(id)
+        val short = repo.getShort(id)?.takeIf { it.deletedAt == null }
+        val long = repo.getLong(id)?.takeIf { it.deletedAt == null }
         when {
             short != null && args.optString("scope") == "long_term" -> {
                 val longId = newId()
@@ -229,17 +231,17 @@ internal fun ToolRegistry.registerMemoryTools() {
             val pending = repo.getConfirmation(confirmId)?.takeIf { it.kind == ConfirmationKind.BULK_FORGET }
                 ?: throw ToolValidationException("Confirmation not found")
             repo.deleteConfirmation(confirmId)
-            repo.companionRecords().forEach { repo.forgetCompanion(it.id) }
+            repo.companionRecords().filter { it.kind !in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") }.forEach { repo.forgetCompanion(it.id) }
             repo.allLong().forEach { repo.deleteLong(it.id) }
-            repo.activeShort().forEach { repo.deleteShort(it.id) }
-            repo.activeUserUnderstandings().forEach {
-                repo.saveUserUnderstanding(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = nowMillis(), version = it.version + 1))
-            }
+            repo.allShort().forEach { repo.deleteShort(it.id) }
+            repo.allUserUnderstandings().forEach { repo.forgetKnowledge(it.id) }
             repo.logActivity("memory", "Bulk forget confirmed ${pending.id}")
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }
         val id = args.requiredString("id")
         when {
+            repo.getUserUnderstanding(id) != null -> repo.forgetKnowledge(id)
+            repo.getCompanionRecord(id)?.kind in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") -> throw ToolValidationException("Internal deletion/delivery marker cannot be removed")
             repo.getCompanionRecord(id) != null -> repo.forgetCompanion(id)
             repo.getShort(id) != null -> repo.deleteShort(id)
             repo.getLong(id) != null -> repo.deleteLong(id)
