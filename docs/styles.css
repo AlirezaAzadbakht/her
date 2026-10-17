@@ -447,8 +447,24 @@ h2 {
   opacity: 0.85;
 }
 
-.card h2 {
+.card h2,
+.card h3 {
+  margin: 0 0 0.6rem;
   font-size: 1.15rem;
+  font-weight: 500;
+}
+
+/* Capabilities: the notes grid, as many columns as fit, under a centered heading. */
+.caps {
+  max-width: 72rem;
+  margin: 0 auto 5rem;
+  text-align: center;
+}
+
+.caps .notes {
+  grid-template-columns: repeat(auto-fit, minmax(min(19rem, 100%), 1fr));
+  margin: 2.5rem 0 0;
+  text-align: start;
 }
 
 .card p {
