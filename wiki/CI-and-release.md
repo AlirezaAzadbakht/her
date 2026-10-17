@@ -27,6 +27,8 @@ Unit tests must stay offline for Robolectric (prefetch task in `app/build.gradle
 
 ## Version tags
 
+Before tagging, move the `[Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under `[x.y.z] - YYYY-MM-DD`, start a new empty `[Unreleased]`, update the compare links, and commit that on `main`.
+
 ```bash
 git tag -a v0.1.2 -m "Her 0.1.2
 
@@ -45,18 +47,7 @@ Default `versionName` in `app/build.gradle.kts` is still `0.1.0` when those env 
 
 If the tag commit is not on `origin/main`, push `main` first so the workflow file and the code agree. A tag-only push can still run Actions from the tagged tree, but the default branch will look stale.
 
-Published so far:
-
-| Tag | Notes |
-|-----|--------|
-| [v0.1.0](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.0) | First product cut. Release APK job did not finish (CI tests failed). |
-| [v0.1.1](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.1) | CI fixes; signed `her-0.1.1.apk` attached |
-| [v0.1.2](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.2) | Single-utterance home, first-run names, RTL replies, Vazirmatn, setup ping fix |
-| [v0.1.3](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.3) | Smaller APKs (R8), device calendar writes, Jalali dates, scenario test pool |
-| [v0.1.4](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.4) | Persian and full-sentence memory search, save receipts with undo, notification Reply, nightly digest, full Drive sync, optional embeddings, scenarios out of CI |
-| [v0.1.5](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.5) | Real reminders and alarms, natural and Persian times, warm-glow UI with presence orbs, and a matching website. Release APK job did not finish (`sdkmanager` no longer has `tools`) |
-| [v0.1.6](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.6) | CI SDK setup skips the removed `tools` package so the signed 0.1.5 product cut can publish |
-| [v0.1.7](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.7) | Her's feeling index (tone, orb and background colors follow her feeling), memory recall fixes, rotating thinking orb, growing RTL-aware composer, and a send button that works with long text (Enter sends, Shift+Enter adds a line) |
+Every published tag and what it shipped is in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Release job
 
