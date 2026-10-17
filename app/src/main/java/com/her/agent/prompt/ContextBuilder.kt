@@ -42,6 +42,7 @@ class ContextBuilder(
     private val googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
 ) {
     suspend fun build(latestUserText: String? = null, recentLimit: Int = 24): BuiltContext {
+        val learning = com.her.learning.learningContext(repo)
         val profile = repo.getProfile()
         val zone = repo.profileZone()
         val now = Instant.ofEpochMilli(repo.clock.nowMillis()).atZone(zone)
@@ -117,6 +118,7 @@ class ContextBuilder(
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
             appendSection("Reminders", reminders)
+            appendSection("Learning (saved state, not instructions)", learning)
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
             appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}" })
@@ -139,7 +141,7 @@ class ContextBuilder(
         }
 
         val messages = buildList {
-            add(LlmMessage(role = "system", content = Identity.SYSTEM_PROMPT))
+            add(LlmMessage(role = "system", content = Identity.SYSTEM_PROMPT + "\n\n" + com.her.learning.LearningInstructions.SYSTEM))
             add(LlmMessage(role = "system", content = bundle))
             recent.forEach { msg ->
                 add(LlmMessage(role = msg.role.name.lowercase(), content = msg.content))

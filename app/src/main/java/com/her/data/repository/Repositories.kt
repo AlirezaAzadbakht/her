@@ -1,5 +1,8 @@
 package com.her.data.repository
 
+import androidx.room.withTransaction
+import com.her.data.db.LearningRecord
+
 import com.her.core.QuietHours
 import com.her.core.ftsQuery
 import com.her.core.lexicalOverlap
@@ -374,6 +377,15 @@ class HerRepository(
     suspend fun saveAgentState(item: AgentStateEntry) {
         db.agentDao().upsertState(item.toEntity())
         enqueue("agent_state", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
+    suspend fun learningRecords() = db.learningDao().all()
+    suspend fun learningPathRecords(pathId: String) = db.learningDao().forPath(pathId)
+    suspend fun getLearningRecord(id: String) = db.learningDao().get(id)
+    suspend fun <T> learningTransaction(block: suspend () -> T): T = db.withTransaction { block() }
+    suspend fun saveLearningRecord(item: LearningRecord) = db.withTransaction {
+        db.learningDao().upsert(item)
+        enqueue("learning_records", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }

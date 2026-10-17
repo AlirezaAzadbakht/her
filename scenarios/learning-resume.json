@@ -1,0 +1,21 @@
+{
+  "id": "learning-resume",
+  "title": "Resume a persisted exercise after unrelated chat",
+  "tags": ["learning", "persistence"],
+  "attempts": 1,
+  "seed": {"tools": [
+    {"name":"save_learning_path","arguments":{"id":"english","title":"English","goal":"Everyday conversation","language":"English"}},
+    {"name":"save_learning_lesson","arguments":{"id":"greetings","pathId":"path:english","title":"Greetings","outcome":"Greet a friend","status":"IN_PROGRESS"}},
+    {"name":"set_learning_exercise","arguments":{"id":"greet","lessonId":"lesson:greetings","prompt":"Which is a greeting: hello or goodbye?","mode":"EXACT","acceptedAnswers":["hello"]}}
+  ]},
+  "turns": [
+    {"user":"By the way, my favorite color is blue."},
+    {"user":"Continue my English lesson, please remind me of the question."}
+  ],
+  "expect": {
+    "tools_called": ["get_learning"],
+    "tools_not_called": ["record_learning_answer"],
+    "no_tool_errors": true,
+    "reply": {"must_mention_any":["hello", "goodbye"], "judge":"Her restores the saved greetings exercise and waits for an answer without inventing progress or requiring a separate interface."}
+  }
+}

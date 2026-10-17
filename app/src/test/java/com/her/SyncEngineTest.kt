@@ -94,6 +94,30 @@ class SyncEngineTest {
     }
 
     @Test
+    fun learningSyncPreservesConcurrentPracticeAndUsesWholeRecordConflicts() = runBlocking {
+        a.call("save_learning_path", """{"id":"python","title":"Python","goal":"Automation"}""")
+        a.call("save_learning_lesson", """{"id":"values","pathId":"path:python","title":"Values","outcome":"Assign values"}""")
+        a.call("set_learning_exercise", """{"id":"sum","lessonId":"lesson:values","prompt":"2 + 2?","mode":"EXACT","acceptedAnswers":["4"]}""")
+        a.engine.sync("token"); b.engine.sync("token")
+        for ((device, id) in listOf(a to "answer-a", b to "answer-b")) {
+            val now = clock.nowMillis()
+            device.repo.saveMessage(com.her.domain.ChatMessage(id, com.her.domain.MessageRole.USER, "4", now, now,
+                device.repo.deviceId, 1, null, com.her.domain.MessageStatus.SENT, null))
+            device.call("record_learning_answer", """{"exerciseId":"exercise:sum","sourceMessageId":"$id","answer":"4","feedback":"Correct"}""")
+        }
+        a.call("save_learning_path", """{"id":"python","expectedVersion":1,"title":"Python A","status":"PAUSED"}""")
+        b.call("save_learning_path", """{"id":"python","expectedVersion":1,"title":"Python B","status":"ACTIVE"}""")
+        a.engine.sync("token"); b.engine.sync("token"); a.engine.sync("token")
+        for (device in listOf(a, b)) {
+            assertEquals(2, device.repo.learningRecords().count { it.kind == "ATTEMPT" })
+            val path = device.repo.getLearningRecord("path:python")!!
+            assertEquals("Python B", path.data().getString("title"))
+            assertEquals("ACTIVE", path.data().getString("status"))
+            assertTrue(device.repo.pendingSyncOps().isEmpty())
+        }
+    }
+
+    @Test
     fun changeLogNamesParse() {
         assertEquals(
             ChangeLogName("6f1c-44aa", 1, 20),

@@ -101,6 +101,7 @@ open class ToolRegistry(
         registerCalendarTools()
         registerMessagingTools()
         registerReminderTools()
+        registerLearningTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */

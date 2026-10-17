@@ -49,6 +49,7 @@ Core principles:
 
 | Feature | What she does |
 |---|---|
+| 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
@@ -175,6 +176,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
+| [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |
 | [Data and sync](wiki/Data-and-sync.md) | Room, secrets, Drive, calendar, search |
 | [Background work](wiki/Background-work.md) | Hourly / nightly / briefing / sync, quiet hours |

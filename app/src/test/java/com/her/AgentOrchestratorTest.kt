@@ -153,6 +153,20 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun learningNudgeReachesNotificationAndChatOnce() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        assertTrue(tools.execute("save_learning_path", """{"id":"python","title":"Python","goal":"Automation","remindersEnabled":true,"reminderTime":"09:00"}""").ok)
+        val llm = ScriptedLlm(
+            { LlmResponse(LlmMessage(role = "assistant", content = null, toolCalls = listOf(
+                LlmToolCall("study", "send_learning_reminder", """{"pathId":"path:python","content":"Ready for Python?"}"""))), LlmUsage(10, 5, 1), "{}") },
+            { reply("NO_NOTIFICATION") },
+        )
+        orchestrator(llm).runHourly()
+        assertEquals(listOf("Ready for Python?"), shown)
+        assertEquals("Ready for Python?", repo.recentMessages(10).last().content)
+    }
+
+    @Test
     fun hourlyNudgeSuppressedByQuietHoursIsNotSaved() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
         settings.update { it.copy(quietHours = QuietHours(22 * 60, 23 * 60)) }

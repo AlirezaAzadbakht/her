@@ -195,6 +195,7 @@ class AgentOrchestrator(
             var preamble = ""
             var silent = false
             var proactive: String? = null
+            var proactivePersisted = false
             val receipts = mutableListOf<Receipt>()
             while (budget.canCall()) {
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
@@ -252,7 +253,15 @@ class AgentOrchestrator(
                     if (result.ok) Receipts.describe(call.name, call.arguments, result.payloadJson)?.let { receipts += it }
                     if (call.name == "send_user_message" && result.ok) {
                         val content = runCatching { org.json.JSONObject(call.arguments).optString("content").trim() }.getOrDefault("")
-                        if (content.isNotBlank() && !Identity.isSilence(content)) proactive = content
+                        if (content.isNotBlank() && !Identity.isSilence(content)) {
+                            proactive = content
+                            proactivePersisted = true
+                        }
+                    }
+                    if (call.name == "send_learning_reminder" && result.ok &&
+                        org.json.JSONObject(result.payloadJson).optBoolean("queued")) {
+                        proactive = org.json.JSONObject(call.arguments).getString("content")
+                        proactivePersisted = false
                     }
                     repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
                     messages += LlmMessage(
@@ -281,7 +290,7 @@ class AgentOrchestrator(
                 if (decision.notify) {
                     // Opening the app from the notification has to show the same words, so an autonomous
                     // reply that was not already saved (briefing, send_user_message) is saved first.
-                    if (!persistAssistant && notifyText != proactive) {
+                    if (!persistAssistant && (notifyText != proactive || !proactivePersisted)) {
                         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, notifyText, MessageStatus.SENT, """{"proactive":true}"""))
                     }
                     notifier.show(notifyText, type == AgentRunType.BRIEFING)

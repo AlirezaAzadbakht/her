@@ -68,6 +68,7 @@ internal object SyncCodec {
             "agent_state" -> repo.getAgentState(id)?.toJson()
             "agent_queue" -> repo.getAgentQueue(id)?.toJson()
             "reminders" -> repo.getReminder(id)?.toJson()
+            "learning_records" -> repo.getLearningRecord(id)?.toJson()
             "feelings" -> repo.getFeeling(id)?.toJson()
             else -> null
         }
@@ -103,6 +104,7 @@ internal object SyncCodec {
             "agent_queue" -> repo.saveAgentQueue(agentQueue(json))
             // Only the device that set a reminder arms its alarm; the others keep the row so they can show or cancel it.
             "reminders" -> repo.saveReminder(reminder(json))
+            "learning_records" -> repo.saveLearningRecord(com.her.data.db.LearningRecord.fromJson(json))
             "feelings" -> repo.saveFeeling(feeling(json))
             else -> return false
         }

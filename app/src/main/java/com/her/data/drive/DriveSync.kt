@@ -39,6 +39,14 @@ object MergeEngine {
 
     fun merge(existing: JSONObject?, incoming: JSONObject, op: SyncOp): JSONObject {
         if (existing == null) return incoming
+        // Learning content is an atomic JSON document. Compare metadata before merging any keys,
+        // otherwise key iteration order can mix one device's content with another's version.
+        if (op.entityType == "learning_records") {
+            val incomingTime = incoming.optLong("updatedAt")
+            val existingTime = existing.optLong("updatedAt")
+            return if (incomingTime > existingTime ||
+                (incomingTime == existingTime && incoming.optString("deviceId") > existing.optString("deviceId"))) incoming else existing
+        }
         val merged = JSONObject(existing.toString())
         val incomingKeys = incoming.keys()
         while (incomingKeys.hasNext()) {
