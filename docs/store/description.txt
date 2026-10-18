@@ -4,37 +4,80 @@
 
 [توضیح کوتاه]
 
-یک گفتگو برای همیشه؛ به یاد می‌سپارد، مرتب می‌کند و پیگیری می‌کند.
+یک گفت‌وگوی همیشگی برای یادآوری، برنامه‌ریزی و پیگیری کارهای مهم.
 
 [توضیح کامل]
 
-هِر یک دستیار هوش مصنوعی شخصی و فقط متنی است. اینجا خبری از صفحه‌ی شلوغ چت نیست: فقط یک گفتگوی پیوسته برای همیشه، و روی صفحه تنها آخرین پیامِ او را می‌بینید.
+هِر؛ دستیاری که چیزهای مهم زندگی‌تان را به خاطر می‌سپارد.
 
-شما عادی حرف می‌زنید؛ هِر خودش تشخیص می‌دهد کدام حرف یک خاطره است، کدام یک هدف، کدام یک قلم خرید، یک قرار در تقویم یا چیزی که باید بعداً پیگیری شود. لازم نیست هیچ دستوری یاد بگیرید.
+تا حالا شده کاری را برای بعد بگذارید و فراموشش کنید؟ تصمیم بگیرید چیزی را یاد بگیرید، اما در شلوغی روزمره از آن دور شوید؟ یا فقط دلتان بخواهد کسی باشد که برنامه‌ها و قول‌هایتان را یادتان بیاورد؟
 
-چه کارهایی می‌کند:
+هِر برای همین لحظه‌ها ساخته شده است.
 
-🧠 حافظه: چیزهایی را که درباره‌ی خودتان می‌گویید به یاد می‌سپارد و هر وقت لازم باشد به خاطر می‌آورد. می‌توانید بپرسید چه چیزی یادش هست، اصلاحش کنید یا بخواهید فراموشش کند.
-⏰ یادآور و زنگ هشدار: «ساعت ۶ یادم بنداز»، «دفعه‌ی بعد که رضا را دیدم». یادآورها بدون اینترنت هم سر وقت زنگ می‌زنند.
-📅 تقویم و تاریخ شمسی: زمان‌ها و تاریخ‌های فارسی و شمسی را می‌فهمد و رویداد می‌سازد.
-🛒 لیست خرید: بگویید برنج تمام شده، به لیست خرید اضافه می‌شود.
-🎯 هدف‌ها و قول‌ها: کارها و قول‌هایتان را دنبال می‌کند و سراغشان را می‌گیرد.
-📚 یادگیری در گفتگو: برایتان نقشه‌ی راه می‌چیند، درس‌های کوتاه می‌دهد، جوابتان را بررسی می‌کند و مرور را زمان‌بندی می‌کند.
-🗓️ برنامه‌ریزی روزانه: کارهایی پیشنهاد می‌دهد که با وقت، انرژی و جلسه‌هایتان جور باشد.
-🔔 پیگیری و خلاصه‌ی صبحگاهی: فقط وقتی چیزی واقعاً مهم است حرف می‌زند و ساعت‌های سکوت شما را رعایت می‌کند.
-🌐 فارسی و راست‌به‌چپ: پاسخ‌های فارسی راست‌به‌چپ نمایش داده می‌شوند.
-📴 صف آفلاین: پیام‌هایی که بدون اینترنت می‌فرستید ذخیره می‌شوند و بعداً یک‌جا رسیدگی می‌شوند.
-☁️ همگام‌سازی: داده‌ها از طریق Google Drive خودتان بین دستگاه‌ها همگام می‌شوند.
+هِر یک دستیار هوش مصنوعی شخصی است که با شما گفت‌وگو می‌کند، چیزهای مهم را به خاطر می‌سپارد و کمک می‌کند زندگی روزمره‌تان را راحت‌تر مدیریت کنید.
 
-حریم خصوصی:
-مدل هوش مصنوعی را خودتان انتخاب می‌کنید (هر سرویس سازگار با OpenAI). کلید API فقط در Keystore گوشی نگهداری می‌شود؛ نه در پایگاه داده نوشته می‌شود و نه همگام‌سازی می‌شود.
+فقط مثل همیشه حرف بزنید.
 
-صداقت:
-هِر هیچ‌وقت ادعا نمی‌کند انسان است و بدن، اتاق یا آب‌وهوایی از خودش نمی‌سازد.
+لازم نیست دستور خاصی یاد بگیرید یا برای هر کار سراغ یک بخش جداگانه بروید. کافی است بگویید:
 
-نیازمندی‌ها: اندروید ۱۰ یا بالاتر، و یک کلید API از یک سرویس مدل زبانی سازگار با OpenAI.
+«راستی، برنجمون تموم شده.»
+«فردا ساعت ۶ یادم بنداز به مامان زنگ بزنم.»
+«می‌خوام بالاخره انگلیسی یاد بگیرم.»
+«به رضا قول دادم آخر هفته کمکش کنم.»
 
-متن‌باز: https://her-project.ir
+هِر از دل همین حرف‌های ساده متوجه می‌شود چه چیزی را به خاطر بسپارد، به فهرست خرید اضافه کند، برایش یادآور بگذارد یا بعداً پیگیری کند.
+
+یک گفت‌وگو، بدون شروع دوباره
+
+در هِر خبری از ده‌ها گفت‌وگوی پراکنده نیست. شما یک گفت‌وگوی ادامه‌دار دارید و صفحه هم ساده و خلوت می‌ماند؛ فقط آخرین پیام هِر را می‌بینید. چیزهای مهمی که می‌گویید، برای گفت‌وگوهای بعدی به خاطر سپرده می‌شوند تا لازم نباشد هر بار همه‌چیز را از اول توضیح دهید.
+
+هِر چه کمکی به شما می‌کند؟
+
+🧠 چیزهای مهم را به خاطر می‌سپارد
+علاقه‌ها، برنامه‌ها و نکته‌هایی را که درباره خودتان می‌گویید به یاد می‌سپارد و هر وقت به کارتان بیاید از آن‌ها استفاده می‌کند. هر زمان هم بخواهید، می‌توانید بپرسید چه چیزهایی یادش مانده، اصلاحشان کنید یا بخواهید فراموششان کند.
+
+⏰ به‌موقع یادتان می‌اندازد
+از «ساعت ۸ یادم بنداز» تا «دفعه بعد که رضا رو دیدم، یادم بنداز کتابش رو پس بدم». هِر کمک می‌کند کارهای کوچک و بزرگ از قلم نیفتند. یادآورهای زمان‌دار حتی بدون اینترنت هم زنگ می‌زنند.
+
+📅 قرارهایتان را مرتب می‌کند
+برنامه‌ها و رویدادهای تقویمتان را بررسی می‌کند و قرارهای تازه را ثبت می‌کند. تاریخ شمسی و عبارت‌های معمولی مثل «پس‌فردا عصر» را هم می‌فهمد.
+
+🛒 فهرست خریدتان را آماده نگه می‌دارد
+وسط حرف‌هایتان گفتید شیر تمام شده؟ هِر می‌تواند همان موقع به فهرست خرید اضافه‌اش کند.
+
+🎯 هدف‌ها و قول‌هایتان را پیگیری می‌کند
+فرقی نمی‌کند می‌خواهید ورزش را شروع کنید، کتابی را تمام کنید یا به قولی عمل کنید؛ هِر کمک می‌کند یادتان بماند چه تصمیمی گرفته‌اید و چقدر پیش رفته‌اید.
+
+📚 یادگرفتن را ساده‌تر می‌کند
+برای یادگیری زبان، برنامه‌نویسی یا هر موضوع تازه‌ای، می‌تواند مسیر یادگیری بچیند، درس‌های کوتاه بدهد، جواب‌هایتان را بررسی کند و زمان مرور را یادآوری کند.
+
+🗓️ برای روزتان برنامه پیشنهاد می‌دهد
+با توجه به وقت آزاد، قرارها، کارهای عقب‌مانده و انرژی‌تان، کمک می‌کند تصمیم بگیرید امروز بهتر است سراغ چه کاری بروید.
+
+🔔 وقتی لازم باشد، خودش سراغتان می‌آید
+می‌تواند درباره کارهای نیمه‌تمام پیگیری کند و صبح‌ها خلاصه‌ای از چیزهای مهم روز را بگوید؛ بدون اینکه ساعت‌های سکوت و استراحتتان را نادیده بگیرد.
+
+🌐 با فارسی راحت است
+فارسی صحبت کنید، تاریخ شمسی بگویید و پاسخ‌ها را با نمایش درست راست‌به‌چپ بخوانید.
+
+📴 پیام‌هایتان با قطع اینترنت از دست نمی‌روند
+اگر آفلاین باشید، پیام‌ها ذخیره می‌شوند تا بعد از وصل‌شدن اینترنت به آن‌ها رسیدگی شود.
+
+☁️ همراهتان در دستگاه‌های مختلف
+می‌توانید اطلاعاتتان را با کمک Google Drive شخصی خودتان بین دستگاه‌ها هماهنگ نگه دارید.
+
+حریم خصوصی و انتخاب با شماست
+
+خودتان انتخاب می‌کنید هِر از کدام سرویس هوش مصنوعی استفاده کند. هِر هم درباره ماهیتش صادق است: یک دستیار هوش مصنوعی است، نه انسانی با تجربه‌ها و زندگی واقعی.
+
+برای شروع، به گوشی با اندروید ۱۰ یا بالاتر و کلید دسترسی یک سرویس هوش مصنوعی سازگار نیاز دارید.
+
+هِر قرار نیست به‌جای شما زندگی کند؛ فقط کمک می‌کند چیزهای کمتری را فراموش کنید و برای چیزهایی که واقعاً مهم‌اند، وقت بیشتری داشته باشید.
+
+هِر متن‌باز است.
+وب‌سایت: https://her-project.ir
+کد منبع: https://github.com/AlirezaAzadbakht/her
+
 
 ========================================
 English
@@ -42,34 +85,76 @@ English
 
 [Short description]
 
-One conversation, forever. She remembers, organizes, and follows up.
+One ongoing conversation to remember, plan, and follow through.
 
 [Full description]
 
-Her is a persistent, text-only personal AI assistant. It is not a chat app: there is one continuous conversation for the life of the app, and the screen shows only her latest message.
+Meet Her. Your personal AI assistant who remembers what matters.
 
-You talk naturally. Her decides what becomes a memory, a goal, a grocery item, a calendar event, or something to follow up on later. You never need to learn commands.
+Ever forgotten something you meant to do? Lost track of a goal you were excited about? Or wished you had a little help keeping everything in your life organized?
 
-What she can do:
+That's what Her is here for.
 
-🧠 Memory: learns facts about you and recalls them when they matter. Ask what she remembers, correct it, or have her forget.
-⏰ Reminders & alarms: "remind me at 6", "next time I see Reza". Reminders ring on time even offline.
-📅 Calendar: reads and creates events in your phone calendar or Google Calendar. Understands Persian times and Jalali dates.
-🛒 Groceries: mention you're out of rice and it goes on the list.
-🎯 Goals & commitments: tracks tasks and promises and checks in on them.
-📚 Learning in chat: builds a roadmap, teaches short lessons, checks your answers and schedules reviews.
-🗓️ Daily planning: suggests work that fits your time, energy and meetings.
-🔔 Follow-ups & morning briefing: speaks up only when something matters, and respects your quiet hours.
-🌐 Persian & RTL: Persian replies read right to left.
-📴 Offline queue: messages sent without a connection are handled together later.
-☁️ Multi-device sync: through your own Google Drive app data.
+Her is a personal AI assistant that remembers the important things you share, helps you stay organized, and follows up when it matters.
 
-Private by design:
-Bring your own OpenAI-compatible model. Your API key lives only in the Android Keystore. It is never written to the database and never synced.
+Just talk like you normally would.
 
-Honest:
-She never claims to be human or invents a body, a room, or the weather.
+No special commands to learn. No jumping between different screens for every little task. Simply say things like:
 
-Requirements: Android 10+ and an API key for an OpenAI-compatible model.
+"We're out of milk."
+"Remind me to call Mom tomorrow at 6."
+"I want to start learning Spanish."
+"I promised Reza I'd help him this weekend."
 
-Open source: https://her-project.ir
+Her can recognize what to remember, add to a shopping list, put on your calendar, or check in on later.
+
+One conversation. No starting over.
+
+Instead of juggling separate chats, you have one ongoing conversation with Her. The screen stays simple, showing only her latest message. She keeps track of the important details so you don't have to explain everything from scratch each time.
+
+Here's how Her can help.
+
+🧠 Remembers what matters
+Her remembers useful details about your preferences, plans, and everyday life. You can ask what she remembers, correct something, or tell her to forget it.
+
+⏰ Reminds you at the right time
+From "remind me at 8" to "next time I see Reza, remind me to return his book," Her helps you keep track of the things you don't want to forget. Time-based reminders can still ring when you're offline.
+
+📅 Keeps your plans organized
+Her can check your phone or Google Calendar and create new events. She also understands Persian expressions and Jalali dates.
+
+🛒 Keeps track of groceries
+Mention you're out of coffee or rice, and Her can add it to your shopping list without interrupting the conversation.
+
+🎯 Helps you stick with your goals
+Whether you're building a habit, finishing a book, or keeping a promise, Her helps you remember your commitments and checks in on your progress.
+
+📚 Makes learning feel manageable
+Want to learn a language or pick up a new skill? Her can create a learning plan, guide you through short lessons, check your answers, and remind you when it's time to review.
+
+🗓️ Helps you plan your day
+Her can suggest what to focus on based on your schedule, free time, energy, and unfinished tasks. The goal isn't to pack every minute—it's to make your day feel more manageable.
+
+🔔 Checks in when it matters
+Her can follow up on unfinished tasks and share a useful morning briefing, while respecting the quiet hours you set.
+
+🌐 Feels natural in Persian, too
+Chat in Persian, use Jalali dates, and read replies with proper right-to-left formatting.
+
+📴 Doesn't lose your messages offline
+Messages you send without an internet connection are saved and handled once you're back online.
+
+☁️ Stays with you across devices
+Keep your information in sync through your own Google Drive account.
+
+Your assistant. Your choice.
+
+You choose which supported AI service Her uses. And Her is clear about what she is: an AI assistant, not a person pretending to have real-world experiences.
+
+To get started, you'll need an Android phone running Android 10 or newer and an access key from a compatible AI provider.
+
+Her isn't here to run your life. She's here to help you remember the little things, make progress on the big things, and have more room for what matters.
+
+Her is open source.
+Website: https://her-project.ir
+Source code: https://github.com/AlirezaAzadbakht/her
