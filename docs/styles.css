@@ -258,6 +258,11 @@ nav a {
   text-transform: uppercase;
 }
 
+[dir="rtl"] .eyebrow {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 h1 {
   margin: 0 0 1.1rem;
   font-size: clamp(2.1rem, 5.6vw, 3.7rem);
