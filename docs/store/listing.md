@@ -1,7 +1,7 @@
 # Store listing
 
 Assets for Cafe Bazaar, Myket and Google Play.
-The short and full descriptions, as plain text ready to paste, are in [description.md](description.md).
+The short and full descriptions, ready to paste, are in [description.txt](description.txt).
 Images are in [`fa/`](fa) and [`en/`](en); rebuild them with [`render.sh`](render.sh).
 
 | Asset | Size | File |

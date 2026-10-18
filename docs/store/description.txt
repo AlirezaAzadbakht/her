@@ -1,18 +1,13 @@
-# Store description
+========================================
+فارسی
+========================================
 
-Plain text, ready to paste into the store fields (store forms don't render Markdown).
+[توضیح کوتاه]
 
-## فارسی
-
-### توضیح کوتاه
-
-```text
 یک گفتگو برای همیشه؛ به یاد می‌سپارد، مرتب می‌کند و پیگیری می‌کند.
-```
 
-### توضیح کامل
+[توضیح کامل]
 
-```text
 هِر یک دستیار هوش مصنوعی شخصی و فقط متنی است. اینجا خبری از صفحه‌ی شلوغ چت نیست: فقط یک گفتگوی پیوسته برای همیشه، و روی صفحه تنها آخرین پیامِ او را می‌بینید.
 
 شما عادی حرف می‌زنید؛ هِر خودش تشخیص می‌دهد کدام حرف یک خاطره است، کدام یک هدف، کدام یک قلم خرید، یک قرار در تقویم یا چیزی که باید بعداً پیگیری شود. لازم نیست هیچ دستوری یاد بگیرید.
@@ -39,20 +34,18 @@ Plain text, ready to paste into the store fields (store forms don't render Markd
 
 نیازمندی‌ها: اندروید ۱۰ یا بالاتر، و یک کلید API از یک سرویس مدل زبانی سازگار با OpenAI.
 
-متن‌باز: https://github.com/AlirezaAzadbakht/her
-```
+متن‌باز: https://her-project.ir
 
-## English
+========================================
+English
+========================================
 
-### Short description
+[Short description]
 
-```text
 One conversation, forever. She remembers, organizes, and follows up.
-```
 
-### Full description
+[Full description]
 
-```text
 Her is a persistent, text-only personal AI assistant. It is not a chat app: there is one continuous conversation for the life of the app, and the screen shows only her latest message.
 
 You talk naturally. Her decides what becomes a memory, a goal, a grocery item, a calendar event, or something to follow up on later. You never need to learn commands.
@@ -79,5 +72,4 @@ She never claims to be human or invents a body, a room, or the weather.
 
 Requirements: Android 10+ and an API key for an OpenAI-compatible model.
 
-Open source: https://github.com/AlirezaAzadbakht/her
-```
+Open source: https://her-project.ir
