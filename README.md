@@ -195,7 +195,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Local development](wiki/Local-development.md) | Toolchain, Make, emulator, tests |
 | [Scenario engine](wiki/Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](wiki/CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
-| [Store listing](docs/store/listing.md) | Persian and English store copy, icon, feature graphic and screenshots |
+| [Store listing](docs/store/listing.md) | Store icon, feature graphic, screenshots and [descriptions](docs/store/description.md) in Persian and English |
 
 ## Credits
 
