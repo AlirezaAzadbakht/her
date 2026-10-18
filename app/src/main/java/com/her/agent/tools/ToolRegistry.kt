@@ -72,10 +72,18 @@ open class ToolRegistry(
         }
         return try {
             validateRequired(spec.first, args)
-            if (name in companionToolNames || name in understandingToolNames || name in supportToolNames) validateCompanionSchema(spec.first, args)
+            if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) validateCompanionSchema(spec.first, args)
+            if (name in emotionalToolNames) {
+                args.keys().forEach { key ->
+                    val v = args.get(key)
+                    if (v is String && v.length > 800) throw ToolValidationException("Field too long: $key")
+                    if (key in setOf("confidence", "intensity") && (v !is Number || v.toDouble() !in 0.0..1.0)) throw ToolValidationException("$key must be between 0 and 1")
+                    if (key in setOf("offset", "expectedVersion") && (v !is Number || v.toDouble() != v.toLong().toDouble())) throw ToolValidationException("$key must be an integer")
+                }
+            }
             val payload = spec.second.invoke(args)
             if (name == "update_user_profile") reminderAlarms.rearmAll(repo)
-            repo.logActivity("tool", name, if (name in companionToolNames || name in understandingToolNames || name in supportToolNames) null else payload.toString().take(2000))
+            repo.logActivity("tool", name, if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) null else payload.toString().take(2000))
             ToolResult(name, payload.optBoolean("ok", true), payload.toString())
         } catch (e: ToolValidationException) {
             ToolResult(name, false, jsonObjectOf("ok" to false, "error" to e.message).toString())
@@ -107,7 +115,7 @@ open class ToolRegistry(
                 val valid = when (field.getString("type")) {
                     "string" -> value is String
                     "boolean" -> value is Boolean
-                    "number" -> value is Number && value.toDouble().isFinite() && value.toDouble() == value.toLong().toDouble()
+                    "number" -> value is Number && value.toDouble().isFinite() && (spec.name in emotionalToolNames || value.toDouble() == value.toLong().toDouble())
                     "array" -> value is org.json.JSONArray && (0 until value.length()).all { value.get(it) is String }
                     else -> false
                 }
@@ -130,6 +138,7 @@ open class ToolRegistry(
         registerCompanionTools()
         registerUnderstandingTools()
         registerSupportTools()
+        registerEmotionalTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */

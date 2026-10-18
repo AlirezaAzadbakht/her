@@ -1,0 +1,106 @@
+package com.her.agent.tools
+
+import com.her.core.ToolValidationException
+import com.her.core.jsonObjectOf
+import com.her.core.requiredString
+import com.her.data.db.CompanionRecord
+import com.her.domain.MessageRole
+import com.her.feelings.emotionalKinds
+import com.her.feelings.emotionalState
+import org.json.JSONArray
+import org.json.JSONObject
+
+internal val emotionalToolNames = setOf("get_emotional_state", "record_emotional_experience", "save_emotional_understanding", "save_emotional_reflection")
+
+internal fun ToolRegistry.registerEmotionalTools() {
+    register("get_emotional_state", "Read modeled feelings, purpose, and evidence. Page history with offset; use id for one record before correcting it.", objSchema("offset" to num(), "id" to str())) { a ->
+        val rows = repo.companionRecords().filter { it.kind in emotionalKinds }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
+        val offset = a.optInt("offset", 0)
+        if (offset < 0) throw ToolValidationException("Invalid offset")
+        val requestedId = a.optString("id").trim().takeIf { it.isNotEmpty() }
+        val selected = rows.filter { requestedId == null || it.id == requestedId }
+        jsonObjectOf("state" to emotionalState(rows, nowMillis()).toJson(), "records" to JSONArray(selected.drop(offset).take(6).map { JSONObject(it.toJson()) }),
+            "nextOffset" to if (offset + 6 < selected.size) offset + 6 else null,
+            "recentUserMessages" to JSONArray(repo.recentMessages(12).filter { it.role == MessageRole.USER && it.deletedAt == null }.takeLast(3)
+                .map { jsonObjectOf("id" to it.id, "content" to it.content.take(800)) }),
+            "completedTasks" to JSONArray(repo.tasks().filter { it.status == com.her.domain.TaskStatus.DONE && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
+                .map { jsonObjectOf("id" to it.id, "title" to it.title, "updatedAt" to it.updatedAt) }))
+    }
+    val common = arrayOf("id" to str("Stable ID, reuse when correcting"), "expectedVersion" to num(),
+        "sourceMessageId" to str("Copy an actual UUID from context or get_emotional_state.recentUserMessages. Never use current/latest or invent an ID."), "evidence" to str("Exact contiguous substring copied from the source. Do not add quotation marks or punctuation."), "confidence" to num("0 to 1"))
+    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. ACTION_SUCCEEDED requires an existing completed task; other events require a user quote. Interpretations remain tentative.",
+        objSchema(*common, "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION"),
+            "taskId" to str(), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
+            required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
+        repo.learningTransaction {
+            val event = a.requiredString("event")
+            val source: String
+            val occurredAt: Long
+            if (event == "ACTION_SUCCEEDED") {
+                val task = repo.getTask(a.requiredString("taskId"))?.takeIf { it.deletedAt == null && it.status == com.her.domain.TaskStatus.DONE }
+                    ?: throw ToolValidationException("A completed task is required")
+                source = task.id; occurredAt = task.updatedAt
+            } else {
+                val message = emotionalEvidence(a)
+                source = message.id; occurredAt = message.createdAt
+            }
+            val id = "EMOTION_EVENT:$event:$source"
+            val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOf(source)))
+            saveEmotion(id, "EMOTION_EVENT", data, a)
+        }
+    }
+    register("save_emotional_understanding", "Save or correct a situation-specific understanding. Their stated feeling, interpretation and support approach remain separate; include exceptions. Updates require expectedVersion and fresh quoted evidence.",
+        objSchema(*common, "situation" to str(), "userFeeling" to str("Copy a short exact substring such as sad or anxious from the source; no added punctuation, quotation marks or paraphrase."), "interpretation" to str(), "supportApproach" to str(), "exceptions" to str(),
+            required = listOf("id", "sourceMessageId", "evidence", "confidence", "situation", "userFeeling", "interpretation", "supportApproach", "exceptions"))) { a ->
+        repo.learningTransaction {
+            val message = emotionalEvidence(a)
+            if (!message.content.contains(a.requiredString("userFeeling"))) throw ToolValidationException("userFeeling must quote the source")
+            saveEmotion("EMOTION_UNDERSTANDING:${a.requiredString("id").removePrefix("EMOTION_UNDERSTANDING:")}", "EMOTION_UNDERSTANDING", JSONObject(a.toString()), a)
+        }
+    }
+    register("save_emotional_reflection", "Quiet evidence-linked reflection. Reuse the daily ID on retry. This records learning, never awards emotional points or sends messages.",
+        objSchema("id" to str(), "expectedVersion" to num(), "eventIds" to arr(), "helped" to str("What helped, or Unknown; never empty"), "misunderstood" to str("What was misunderstood, or None observed; never empty"), "uncertain" to str("What remains uncertain, or None identified; never empty"), "adjustment" to str("A future adjustment, or Continue current approach; never empty"),
+            required = listOf("id", "eventIds", "helped", "misunderstood", "uncertain", "adjustment"))) { a ->
+        repo.learningTransaction {
+            val ids = a.getJSONArray("eventIds")
+            if (ids.length() !in 1..8) throw ToolValidationException("Cite 1 to 8 events")
+            for (i in 0 until ids.length()) {
+                repo.getCompanionRecord(ids.getString(i))?.takeIf { it.kind == "EMOTION_EVENT" && it.deletedAt == null && !it.data().optBoolean("stale") }
+                    ?: throw ToolValidationException("Unavailable event")
+            }
+            saveEmotion("EMOTION_REFLECTION:${a.requiredString("id").removePrefix("EMOTION_REFLECTION:")}", "EMOTION_REFLECTION", JSONObject(a.toString()).put("relatedIds", ids), a)
+        }
+    }
+}
+
+private suspend fun ToolRegistry.emotionalEvidence(a: JSONObject): com.her.domain.ChatMessage {
+    val message = repo.getMessage(a.requiredString("sourceMessageId"))?.takeIf { it.role == MessageRole.USER && it.deletedAt == null }
+        ?: throw ToolValidationException("Existing user message required")
+    if (!message.content.contains(a.requiredString("evidence"))) throw ToolValidationException("Evidence must quote the user")
+    return message
+}
+
+private suspend fun ToolRegistry.saveEmotion(id: String, kind: String, data: JSONObject, args: JSONObject): JSONObject {
+    if (id.length > 240) throw ToolValidationException("ID too long")
+    val old = repo.getCompanionRecord(id)
+    if (old?.deletedAt != null) throw ToolValidationException("Record was forgotten")
+    data.remove("id"); data.remove("expectedVersion")
+    val previous = old?.data()
+    // Revising an appraisal never refreshes the emotional age of the original experience.
+    if (kind == "EMOTION_EVENT" && previous != null) data.put("occurredAt", previous.getLong("occurredAt"))
+    val canonical = data.keys().asSequence().sorted().joinToString("|") { "$it=${data.get(it)}" }
+    if (previous != null && canonical == previous.keys().asSequence().sorted().joinToString("|") { "$it=${previous.get(it)}" }) return jsonObjectOf("ok" to true, "id" to id, "version" to old.version)
+    if (old != null && args.optLong("expectedVersion", -1) != old.version) throw ToolValidationException("Read record and provide expectedVersion")
+    val now = nowMillis()
+    repo.saveCompanionRecord(CompanionRecord(id, id, kind, data.toString(), old?.createdAt ?: now, now, repo.deviceId, (old?.version ?: 0) + 1))
+    if (old != null && kind == "EMOTION_EVENT") {
+        repo.companionRecords().filter { it.kind == "EMOTION_REFLECTION" }.forEach { reflection ->
+            val links = reflection.data().optJSONArray("relatedIds")
+            if (links != null && (0 until links.length()).any { links.optString(it) == id }) {
+                repo.saveCompanionRecord(reflection.copy(content = reflection.data().put("stale", true).toString(), updatedAt = now, version = reflection.version + 1))
+            }
+        }
+    }
+    if (repo.getCompanionRecord(id)?.deletedAt != null) throw ToolValidationException("Source was forgotten")
+    return jsonObjectOf("ok" to true, "id" to id, "version" to (old?.version ?: 0) + 1)
+}

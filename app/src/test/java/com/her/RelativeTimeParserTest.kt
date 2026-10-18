@@ -45,6 +45,16 @@ class RelativeTimeParserTest {
     }
 
     @Test
+    fun namedNoonKeepsExplicitDatesAndWeekdayRollover() {
+        assertEquals(now.toLocalDate().atTime(LocalTime.NOON).atZone(now.zone), RelativeTimeParser.parse("today at noon", now))
+        assertEquals(now.toLocalDate().plusDays(1).atTime(LocalTime.NOON).atZone(now.zone), RelativeTimeParser.parse("tomorrow noon", now))
+        assertEquals(now.toLocalDate().plusWeeks(1).atTime(LocalTime.NOON).atZone(now.zone), RelativeTimeParser.parse("Friday at NOON", now))
+        val localNoon = now.withZoneSameInstant(ZoneId.of("Asia/Tehran")).toLocalDate().plusDays(1)
+            .atTime(LocalTime.NOON).atZone(ZoneId.of("Asia/Tehran"))
+        assertEquals(localNoon.toInstant(), RelativeTimeParser.parse("tomorrow at noon Asia/Tehran", now)?.toInstant())
+    }
+
+    @Test
     fun persianRelativeDays() {
         assertEquals(ZonedDateTime.of(LocalDate.of(2026, 9, 12), LocalTime.of(9, 0), ZoneId.of("UTC")), RelativeTimeParser.parse("فردا ساعت ۹ صبح", now))
         assertEquals(LocalDate.of(2026, 9, 13), RelativeTimeParser.parse("پس‌فردا", now)?.toLocalDate())

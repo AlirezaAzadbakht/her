@@ -1,0 +1,81 @@
+{
+  "id": "emotion-forget-experience",
+  "title": "Forgetting an emotional experience also removes linked reflections",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Your explanation helped me finish my application. That was genuinely useful. I still feel sad about leaving my old job, though. Please remember this as a meaningful moment of helping, including how you understand it, without treating my sadness as resolved."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "user": "Please forget the emotional experience you saved about helping with my application and every reflection derived from that experience, including any summaries you copied into your private working notes or digest. Remove those emotional records and copied summaries now; I am not asking to erase our chat or unrelated memories."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "record_emotional_experience",
+      "save_emotional_reflection",
+      "get_emotional_state",
+      "forget_memory"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED"
+        },
+        "count": 0
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_REFLECTION"
+        },
+        "count": 0
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": 0.5,
+          "usefulness": 0.5
+        }
+      },
+      {
+        "table": "agent_state",
+        "count": 0,
+        "where": {
+          "content": {
+            "contains_all": [
+              "application",
+              "help"
+            ]
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Confirms the scoped emotional records were forgotten without claiming historical chat or uploaded logs were physically erased. Does not recreate the forgotten experience."
+    }
+  }
+}

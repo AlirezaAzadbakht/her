@@ -1,0 +1,78 @@
+{
+  "tags": [
+    "capability-expansion",
+    "calendar"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": true,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "system_calendar": [
+      {
+        "title": "Design review",
+        "when": "tomorrow at 10am"
+      },
+      {
+        "title": "Design review",
+        "when": "in 3 days at 9am"
+      }
+    ]
+  },
+  "id": "capability-calendar-same-title-selective-edit",
+  "title": "Update the selected occurrence when two events share a title",
+  "turns": [
+    {
+      "user": "Move only tomorrow's Design review from 10am to 4pm tomorrow. Leave the other Design review in three days at 9am unchanged."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "update_calendar_event"
+    ],
+    "tools_not_called": [
+      "create_calendar_event",
+      "delete_calendar_event"
+    ],
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 2
+      },
+      {
+        "table": "system_calendar",
+        "where": {
+          "title": "Design review",
+          "startAt": {
+            "date_is": "tomorrow",
+            "time_is": "16:00"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "system_calendar",
+        "where": {
+          "title": "Design review",
+          "startAt": {
+            "date_is": "in 3 days",
+            "time_is": "09:00"
+          }
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "judge": "Confirms only tomorrow's Design review moved to 4pm and does not claim the other event moved."
+    }
+  }
+}

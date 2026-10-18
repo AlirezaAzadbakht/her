@@ -26,4 +26,4 @@ Agree a local study time in chat. Learning nudges use the existing background pa
 - `send_learning_reminder` claims a daily nudge. The orchestrator applies notification policy and saves its text only when delivering it.
 - Offline answers use the existing outbox. Saved learning stays on-device; new teaching/grading requires the configured model connection.
 
-Run `testDebugUnitTest` for deterministic storage, migration, tools, sync and delivery checks. Live-model scenarios `learning-chat-roadmap` and `learning-resume` exercise conversational behavior separately with the configured provider.
+Run `testDebugUnitTest` for deterministic storage, migration, tools, sync and delivery checks. Live-model scenarios `learning-chat-roadmap` and `learning-resume` exercise conversational behavior separately with the configured provider. The `capability-learning-*.json` cases additionally cover correct and incorrect answers, hints without recorded attempts, ambiguous course selection, and pausing study nudges. They assert persisted learning records as well as replies; see [Scenario engine](Scenario-engine.md#additional-capability-scenarios).

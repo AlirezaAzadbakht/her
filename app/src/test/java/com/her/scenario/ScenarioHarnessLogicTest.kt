@@ -57,6 +57,44 @@ class ScenarioHarnessLogicTest {
     }
 
     @Test
+    fun learningRowsExposePersistedResultsAndExcludeForgottenRecords() = runBlocking {
+        val now = clock.nowMillis()
+        val row = com.her.data.db.LearningRecord("answer:one", "path:english", "ATTEMPT",
+            org.json.JSONObject().put("result", "INCORRECT").put("answer", "goodbye")
+                .put("sourceMessageId", "message:one").put("id", "untrusted-content-id").toString(),
+            now, now, repo.deviceId, 1)
+        repo.saveLearningRecord(row)
+        repo.saveLearningRecord(row.copy(id = "answer:forgotten", deletedAt = now))
+        val actual = Checks.tableRows(repo, "learning_records").single()
+        assertEquals("answer:one", actual["id"])
+        assertEquals("path:english", actual["pathId"])
+        assertEquals("ATTEMPT", actual["kind"])
+        assertEquals("INCORRECT", actual["result"])
+        assertEquals("message:one", actual["sourceMessageId"])
+    }
+
+    @Test
+    fun emotionalProjectionRowsExposeOutcomeAndTimeDecay() = runBlocking {
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(com.her.data.db.CompanionRecord(
+            "EMOTION_EVENT:test", "EMOTION_EVENT:test", "EMOTION_EVENT",
+            org.json.JSONObject().put("event", "BENEFIT_REPORTED").put("feeling", "TENDER")
+                .put("confidence", 1.0).put("intensity", 0.8).put("occurredAt", now).toString(),
+            now, now, repo.deviceId, 1,
+        ))
+        val current = Checks.tableRows(repo, "emotional_state").single()
+        assertEquals("TENDER", current["dominant"])
+        assertEquals(0.7, (current["fulfillment"] as Number).toDouble(), 0.0001)
+        assertTrue((current["immediate_tender"] as Number).toDouble() > 0.7)
+        assertTrue((current["mood_tender"] as Number).toDouble() > 0.3)
+        clock.advance(90L * 24 * 60 * 60 * 1000)
+        val later = Checks.tableRows(repo, "emotional_state").single()
+        assertEquals("CALM", later["dominant"])
+        assertEquals(0.5, (later["fulfillment"] as Number).toDouble(), 0.001)
+        assertEquals(0.0, (later["immediate_playful"] as Number).toDouble(), 0.0)
+    }
+
+    @Test
     fun parsesTimeTurnsAndRicherExpectations() {
         val spec = parse(
             """

@@ -206,6 +206,17 @@ object Checks {
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000
         return when (table) {
+            "learning_records" -> repo.learningRecords().map { row ->
+                val data = row.data()
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "pathId" to row.pathId, "kind" to row.kind, "version" to row.version)
+            }
+            "emotional_state" -> {
+                val state = com.her.feelings.emotionalState(repo.companionRecords(), now)
+                listOf(state.purpose + mapOf("dominant" to state.dominant.name) +
+                    com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
+                    com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
+            }
             "companion_records" -> repo.companionRecords().map { row ->
                 val data = row.data()
                 data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +

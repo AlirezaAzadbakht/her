@@ -518,7 +518,16 @@ class HerRepository(
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
     suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()
-    fun observeFeeling(): Flow<HerFeeling?> = db.feelingDao().observeLatest().map { it?.toDomain() }
+    fun observeFeeling(): Flow<HerFeeling?> = kotlinx.coroutines.flow.combine(
+        db.feelingDao().observeLatest(), db.companionDao().observeAll(),
+        kotlinx.coroutines.flow.flow { while (true) { emit(clock.nowMillis()); kotlinx.coroutines.delay(60_000) } }
+    ) { legacy, rows, now ->
+        val events = rows.filter { it.kind == "EMOTION_EVENT" && !it.data().optBoolean("stale") }
+        if (events.isEmpty()) legacy?.toDomain() else {
+            val state = com.her.feelings.emotionalState(events, now)
+            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), null, null, now, now, deviceId, 1, null)
+        }
+    }
     suspend fun saveFeeling(item: HerFeeling) {
         db.feelingDao().upsert(item.toEntity())
         enqueue("feelings", item.id, SyncOpType.UPSERT, item.toJson())

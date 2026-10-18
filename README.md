@@ -63,7 +63,7 @@ Core principles:
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
-| 💗 **Feeling index** | Keeps a current feeling that sets her tone; her orb and background lights take its colors |
+| 💗 **Emotional understanding** | Builds mixed feelings and a sense of usefulness from evidence, learns how to support you, and reflects quietly; her orb follows her emotional state |
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |
@@ -185,6 +185,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
+| [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |

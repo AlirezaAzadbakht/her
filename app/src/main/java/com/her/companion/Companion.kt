@@ -97,7 +97,7 @@ suspend fun recordCompanionNotificationResponse(repo: HerRepository, noticeId: S
     }
 
 suspend fun companionContext(repo: HerRepository, settings: AppSettingsStore, query: String): List<String> {
-    val rows = repo.companionRecords().filter { it.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY", "OCCURRENCE") }
+    val rows = repo.companionRecords().filter { it.kind !in com.her.feelings.emotionalKinds && it.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY", "OCCURRENCE") }
     val tokens = query.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.length > 2 }.toSet()
     val ranked = rows.filter { it.kind != "PREFERENCES" && !it.data().optBoolean("sensitive") && (it.kind != "PLAN" || it.data().optLong("validUntil") > repo.clock.nowMillis()) }.map { row ->
         row to tokens.count { row.content.lowercase().contains(it) }

@@ -154,6 +154,9 @@ Rows are flattened by an explicit mapper, not reflection.
 | `google_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of Google Calendar) |
 | `agent_queue` | id, description, status, priority, dueAt |
 | `agent_state` | id, kind, content, confidence |
+| `companion_records` | id, parentId, kind, version, plus the record’s JSON fields (live records only) |
+| `learning_records` | id, pathId, kind, version, plus persisted JSON fields (e.g. result, answer, status); live records only |
+| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment; immediate_NAME and mood_NAME for each lowercase feeling name |
 | `memories_long` | id, content, category, confidence, importance, status, source |
 | `memories_short` | id, content, type, confidence, importance, source |
 | `profile` | userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext |
@@ -178,3 +181,29 @@ Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }
 - No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.
+
+## Emotional understanding scenarios
+
+Run just the seven emotional scenarios with:
+
+```bash
+source scripts/env.sh
+gradle :app:scenarioTest -Pscenario.filter=emotional-understanding -Pscenario.attempts=1 -Pscenario.parallel=1
+```
+
+`emotion-benefit-independent` checks helpfulness while the user remains sad; `emotion-offer-not-benefit` and `emotion-execution-not-benefit` distinguish offers, completed work and benefit. `emotion-understanding-correction` checks in-place correction. `emotion-reflection-no-double-reward` runs nightly review twice, checks a single reflection and bounds fulfillment. `emotion-quiet-period-decay` advances 90 days and verifies calm without unsolicited reconnection. `emotion-forget-experience` checks that forgetting removes the experience and its derived reflection.
+
+The `emotional_state` table is a test-only read of the production projection at the scenario clock. Numeric checks complement persisted-record checks and optional reply judging; they do not add a database table. These scenarios use explicit natural-language requests to exercise emotional bookkeeping. They do not establish how reliably the model spontaneously records subtle experiences in ordinary conversation. Defaults use one attempt so failures remain visible; override attempts explicitly when measuring variability.
+
+## Additional capability scenarios
+
+The twelve `capability-*.json` scenarios share the `capability-expansion` tag. Run them with:
+
+```bash
+source scripts/env.sh
+gradle :app:scenarioTest -Pscenario.filter=capability-expansion -Pscenario.attempts=1 -Pscenario.parallel=2
+```
+
+They cover correct and incorrect learning answers, hints without fake progress, ambiguous course continuation, paused study nudges, unknown task estimates, blocked prerequisites, exploring decisions without choosing, routine pause/resume, reminder delivery after rescheduling, same-title calendar edits, and selective forgetting that preserves unrelated memory. Learning checks inspect persisted attempts and path/lesson statuses through the test-only `learning_records` mapper. Assertions combine tool routing, stored rows and optional reply judging; all new cases require no tool errors and default to a single attempt.
+
+Verification on 2026-10-18: all twelve capability-expansion scenarios passed in one final live batch, one attempt each, after the initial batch exposed noon parsing and exact-quotation guidance issues. The full offline suite passed 243 tests with no failures/errors/skips; Android lint reported no errors, 17 warnings and one hint. `git diff --check` passed. The generated report is `build/reports/scenarios/index.html`. A single passing attempt demonstrates these cases, not a measured reliability rate across models or repeated runs.

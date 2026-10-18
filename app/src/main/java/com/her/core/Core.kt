@@ -123,7 +123,7 @@ object RelativeTimeParser {
     private val zoneSuffix = Regex("""\s+([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
     private val atClock = Regex("""^(.*?)\s+at\s+(.+)$""", RegexOption.IGNORE_CASE)
     private val trailingClock = Regex(
-        """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?)$""",
+        """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?|noon)$""",
         RegexOption.IGNORE_CASE,
     )
     private val dayPart = Regex("""^(.+?)\s+(morning|afternoon|evening|night)$""")
@@ -301,6 +301,7 @@ object RelativeTimeParser {
 
     private fun parseClock(raw: String): LocalTime? {
         val text = raw.trim().lowercase(Locale.US).replace(".", "")
+        if (text == "noon") return LocalTime.NOON
         val match = Regex("""^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(am|pm)?$""").matchEntire(text)
             ?: return null
         var hour = match.groupValues[1].toInt()

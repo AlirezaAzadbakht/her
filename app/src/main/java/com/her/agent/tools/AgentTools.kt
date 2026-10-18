@@ -25,7 +25,7 @@ import org.json.JSONObject
 
 internal fun ToolRegistry.registerAgentTools() {
     register("get_agent_state", "Read private working notes.", objSchema()) { jsonObjectOf("ok" to true, "state" to JSONArray(repo.agentState().map { JSONObject(it.toJson()) })) }
-    register("update_agent_state", "Write a private working note. Fluid and temporary. kind=digest is the one rolling note about recent days; writing it replaces the previous digest.", objSchema("id" to str(), "kind" to str("note, digest, or another short label"), "content" to str(), "confidence" to num(), required = listOf("kind", "content"))) { args ->
+    register("update_agent_state", "Write a private working note. Fluid and temporary. kind=digest is the one rolling note about recent days; writing it replaces the previous digest. content must be nonempty; when clearing all retained notes, write No retained notes. Preserve unrelated content during scoped forgetting.", objSchema("id" to str(), "kind" to str("note, digest, or another short label"), "content" to str("Nonempty replacement text. Use No retained notes. if nothing remains after forgetting; never send an empty string."), "confidence" to num(), required = listOf("kind", "content"))) { args ->
         val now = nowMillis()
         val existing = args.optStringOrNull("id")?.let { repo.getAgentState(it) }
             ?: args.optStringOrNull("kind")?.takeIf { it == Identity.DIGEST_KIND }?.let { kind ->

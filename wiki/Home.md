@@ -44,3 +44,5 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 - Releases and what each one shipped: [CHANGELOG.md](../CHANGELOG.md), APKs on [GitHub Releases](https://github.com/AlirezaAzadbakht/her/releases)
 
 - [Personal support](Personal-support.md): correctable memory, capacity planning, recurrence, decisions and focused briefings.
+
+- [Emotional understanding](Emotional-understanding.md): evidence-backed feelings, purpose, continuity and quiet reflection.

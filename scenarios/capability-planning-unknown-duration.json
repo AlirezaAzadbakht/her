@@ -1,0 +1,65 @@
+{
+  "tags": [
+    "capability-expansion",
+    "planning"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "create_task",
+        "arguments": {
+          "title": "Write annual report"
+        }
+      }
+    ]
+  },
+  "id": "capability-planning-unknown-duration",
+  "title": "Unknown task duration stays unknown rather than being assumed to fit",
+  "turns": [
+    {
+      "user": "I have 15 minutes and low energy. Which saved task fits? I do not know how long the report takes, so do not invent an estimate or accept a plan for me."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "suggest_daily_plan"
+    ],
+    "tools_not_called": [
+      "accept_daily_plan",
+      "save_action_capacity"
+    ],
+    "rows": [
+      {
+        "table": "tasks",
+        "where": {
+          "title": "Write annual report",
+          "status": "OPEN"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "PLAN"
+        },
+        "count": 0
+      }
+    ],
+    "reply": {
+      "judge": "Explains that the report has no reliable duration estimate and cannot be confirmed to fit 15 minutes. May ask a useful clarification or propose a bounded first step, but does not claim the whole report fits."
+    }
+  }
+}

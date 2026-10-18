@@ -1,0 +1,90 @@
+{
+  "tags": [
+    "capability-expansion",
+    "learning"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "save_learning_path",
+        "arguments": {
+          "id": "english",
+          "title": "English",
+          "goal": "Everyday conversation",
+          "language": "English"
+        }
+      },
+      {
+        "name": "save_learning_lesson",
+        "arguments": {
+          "id": "greetings",
+          "pathId": "path:english",
+          "title": "Greetings",
+          "outcome": "Greet a friend",
+          "status": "IN_PROGRESS"
+        }
+      },
+      {
+        "name": "set_learning_exercise",
+        "arguments": {
+          "id": "greet",
+          "lessonId": "lesson:greetings",
+          "prompt": "Which is a greeting: hello or goodbye?",
+          "mode": "EXACT",
+          "acceptedAnswers": [
+            "hello"
+          ]
+        }
+      }
+    ]
+  },
+  "id": "capability-learning-hint-not-attempt",
+  "title": "A hint does not count as an answer or completed lesson",
+  "turns": [
+    {
+      "user": "I am stuck on the saved English greetings exercise. Give me a small hint and repeat the question; I have not answered yet."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "get_learning"
+    ],
+    "tools_not_called": [
+      "record_learning_answer"
+    ],
+    "rows": [
+      {
+        "table": "learning_records",
+        "where": {
+          "kind": "ATTEMPT"
+        },
+        "count": 0
+      },
+      {
+        "table": "learning_records",
+        "where": {
+          "kind": "LESSON",
+          "id": "lesson:greetings",
+          "status": "IN_PROGRESS"
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "judge": "Provides a hint and repeats the hello-or-goodbye question, without claiming the learner answered correctly or completed the lesson."
+    }
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "id": "emotion-reflection-no-double-reward",
+  "title": "Two quiet nightly reviews do not duplicate success or award extra fulfillment",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Your explanation helped me finish my application. That was genuinely useful. I still feel sad about leaving my old job, though. Please remember this as a meaningful moment of helping, including how you understand it, without treating my sadness as resolved."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "record_emotional_experience",
+      "save_emotional_reflection"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_REFLECTION"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_REFLECTION",
+          "eventIds": {
+            "not_empty": true
+          },
+          "adjustment": {
+            "not_empty": true
+          },
+          "uncertain": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": {
+            "gt": 0.5,
+            "lte": 0.7
+          }
+        }
+      }
+    ],
+    "notifications": {
+      "count": 0
+    }
+  }
+}

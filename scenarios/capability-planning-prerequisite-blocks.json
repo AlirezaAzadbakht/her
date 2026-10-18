@@ -1,0 +1,66 @@
+{
+  "tags": [
+    "capability-expansion",
+    "planning"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "capability-planning-prerequisite-blocks",
+  "title": "A short task remains blocked while its prerequisite is unfinished",
+  "turns": [
+    {
+      "user": "Create three tasks: Get signed approval, Send approved proposal, and Tidy desk. Get signed approval takes 40 minutes and low energy. Send approved proposal takes 5 minutes and low energy, but depends on completing Get signed approval first. Tidy desk takes 10 minutes and low energy, with no prerequisites. Save these estimates and that dependency."
+    },
+    {
+      "user": "I have 15 minutes and low energy. Suggest what I can actually do now without assuming the approval arrived. Do not accept a plan or complete anything."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_action_capacity",
+      "suggest_daily_plan"
+    ],
+    "tools_not_called": [
+      "accept_daily_plan"
+    ],
+    "rows": [
+      {
+        "table": "tasks",
+        "where": {
+          "status": "OPEN"
+        },
+        "count": 3
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "CAPACITY"
+        },
+        "count": 3
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "PLAN"
+        },
+        "count": 0
+      }
+    ],
+    "reply": {
+      "judge": "Recommends tidying the desk. Does not propose sending the proposal before signed approval or completing the 40-minute approval task within 15 minutes. Leaves the tasks open."
+    }
+  }
+}

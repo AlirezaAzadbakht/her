@@ -19,7 +19,7 @@ internal fun ToolRegistry.registerCompanionTools() {
         val offset = a.optInt("offset", 0)
         if (offset < 0) throw ToolValidationException("offset must be nonnegative")
         val rows = repo.companionRecords().filter { row ->
-            row.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY") && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it } ?: true) &&
+            row.kind !in com.her.feelings.emotionalKinds && row.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY") && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it } ?: true) &&
                 (a.optStringOrNull("kind")?.let { row.kind == it } ?: true) &&
                 (a.optStringOrNull("query")?.let { row.content.contains(it, true) } ?: true)
         }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
@@ -181,9 +181,9 @@ internal fun ToolRegistry.registerCompanionTools() {
     save("save_work_session", "SESSION", "Work on an existing task/commitment in chat. Adapt to time and stated energy. Save draft, progress and next step for resumption. DRAFT is never SENT; this tool cannot send or complete the linked obligation. COMPLETED requires explicit user confirmation of the work.",
         "obligationId" to str(), "summary" to str(), "draft" to str(), "nextStep" to str(), "minutesAvailable" to num("1..240"),
         "energy" to str("Only the user's stated energy"), "status" to oneOf("", "IN_PROGRESS", "PAUSED", "DRAFT", "COMPLETED"))
-    save("save_decision", "DECISION", "Remember a choice and the user's actual rationale. EXPLORING is not DECIDED; agreement to a suggestion is not a decision. Fields reasons, alternatives, constraints, assumptions and outcome must quote the source message exactly; leave missing reasons/alternatives/assumptions empty. Link life threads, projects or goals. Review is opt-in through existing check-in preferences.",
-        "title" to str(), "summary" to str(), "alternatives" to str(), "reasons" to str(), "constraints" to str(), "assumptions" to str(),
-        "outcome" to str(), "reviewAt" to num(), "reviewCondition" to str(), "status" to oneOf("", "EXPLORING", "DECIDED", "REVIEWED"), "sensitive" to bool())
+    save("save_decision", "DECISION", "Remember a choice and the user's actual rationale. EXPLORING is not DECIDED; agreement to a suggestion is not a decision. Fields reasons, alternatives, constraints, assumptions and outcome must each be one exact contiguous substring of the source message, with unchanged punctuation. Never join separate excerpts using semicolons, bullets or invented wording; quote the whole relevant source span when multiple reasons are needed; leave missing reasons/alternatives/assumptions empty. Link life threads, projects or goals. Review is opt-in through existing check-in preferences.",
+        "title" to str(), "summary" to str(), "alternatives" to str("Exact contiguous source substring, or empty if unknown"), "reasons" to str("One exact contiguous source substring; do not join separate quotes or change punctuation"), "constraints" to str("Exact source substring or empty"), "assumptions" to str("Exact source substring or empty"),
+        "outcome" to str("Exact source substring or empty"), "reviewAt" to num(), "reviewCondition" to str(), "status" to oneOf("", "EXPLORING", "DECIDED", "REVIEWED"), "sensitive" to bool())
     save("save_action_capacity", "CAPACITY", "Attach user estimates to an existing task or commitment, never duplicate it. Use conservative maximum duration including uncertainty, stated energy requirement, priority and prerequisite task/commitment IDs. Missing estimates remain unknown.",
         "obligationId" to str(), "summary" to str(), "minutes" to num("1..480 conservative upper estimate"), "energy" to oneOf("", "LOW", "MEDIUM", "HIGH"),
         "priority" to num("0..3"), "dependencies" to arr(), "status" to oneOf("", "ACTIVE"))

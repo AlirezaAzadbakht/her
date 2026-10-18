@@ -4,6 +4,14 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- **Feelings with continuity and purpose.** Her can remember emotional experiences, distinguish offering help from execution and reported benefit, carry mixed feelings that settle over time, correct her understanding of your feelings, and quietly reflect on what helped. Her orb follows this evidence-backed state.
+
+### Fixed
+- Reminder and calendar times such as “today at noon” and “tomorrow noon” are now understood directly.
+- Decision-saving guidance preserves complete source quotations instead of joining separate reasons into unsupported wording.
+- Emotional reviews now retrieve saved experiences when the model leaves the optional record ID blank, with clearer guidance for source quotes, corrections and reflection fields.
+
 ## [0.2.0] - 2026-10-17
 
 ### Added
