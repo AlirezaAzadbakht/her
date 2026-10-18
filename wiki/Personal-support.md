@@ -24,7 +24,7 @@ After refreshing the existing calendar integration, `suggest_daily_plan` returns
 
 `save_responsibility_schedule` extends an existing routine, responsibility or reminder. It stores fixed/optional classification, a local date-time anchor, daily/weekly/monthly recurrence with interval 1–52, timezone policy, and pause state. It can bind one existing explicitly requested clock reminder; it never creates one implicitly. There is one schedule per responsibility and one owner per bound reminder. Other recurrence patterns require conversational adjustment to a supported schedule.
 
-`get_life_context` exposes the next scheduled timestamp. `manage_occurrence` requires the original scheduled timestamp and explicit evidence to skip, postpone or complete one occurrence. Skipping leaves the next occurrence intact. Forgetting a schedule cancels its bound reminder. Postponement must be in the future and before the following occurrence. Late completion does not consume the next reminder. Repeated identical operations are no-ops. Pausing indefinitely or until a date preserves the routine; resumption uses the same schedule. Changing schedule fields affects future calculations.
+`get_life_context` exposes the next scheduled timestamp and finds a schedule by its `SCHEDULE:` id or the unprefixed id used when saving. `manage_occurrence` requires that schedule id, the scheduled timestamp (millis or epoch seconds), and explicit evidence to skip, postpone or complete one occurrence. Skipping leaves the next occurrence intact. Forgetting a schedule cancels its bound reminder. Postponement must be in the future and before the following occurrence. Late completion does not consume the next reminder. Repeated identical operations are no-ops. Pausing indefinitely or until a date preserves the routine; resumption uses the same schedule. Changing schedule fields affects future calculations.
 
 Occurrence indices preserve a skip across profile timezone changes. Occurrences are calculated from the original local anchor, avoiding permanent drift after month-end clamping or DST gaps. Java time shifts nonexistent local times forward and chooses the earlier offset for ambiguous times. PROFILE follows profile timezone changes; FIXED stays in the saved zone. Existing alarm rearming/background passes apply updated reminder times. Existing reminders without schedules retain their recurrence behavior.
 
@@ -48,6 +48,16 @@ DECISION, CAPACITY, PLAN, SCHEDULE, OCCURRENCE, DELIVERY, SUPERSESSION and FORGO
 
 New decision/capacity/plan creation receipts support existing creation undo. Schedule/occurrence edits and corrections produce non-undoable edit receipts; they do not misleadingly offer restoration of a prior version. Sync is last-write-wins for concurrent edits of the same document, not a semantic merge; two offline devices can still make conflicting choices.
 
-`PersonalSupportTest` exercises correction/history, derived forgetting and cache removal, late sync/no echo, capacity/dependencies/calendar, explicit plan acceptance, skip/postpone/pause/late completion, DST/month-end/timezone behavior, rationale validation, sensitive/stale briefings and receipt undo. Five `scenarios/support-*.json` scenarios exercise live-model routing separately from deterministic tests. Scenario parsing alone does not prove live-model adherence or Android notification delivery.
+`PersonalSupportTest` exercises correction/history, derived forgetting and cache removal, late sync/no echo, capacity/dependencies/calendar, explicit plan acceptance, skip/postpone/pause/late completion, DST/month-end/timezone behavior, rationale validation, sensitive/stale briefings, receipt undo, and unprefixed schedule IDs / epoch-second occurrence times. Five `scenarios/support-*.json` scenarios exercise live-model routing separately from deterministic tests. Real-device notification delivery was not tested.
 
-Verification on 2026-10-17: `gradle :app:testDebugUnitTest :app:lintDebug --offline` completed successfully. The unit suite reports **233 tests, zero failures/errors/skips**, including 16 `PersonalSupportTest` cases and the existing companion, migration, reminder and sync tests. Android lint reports **zero errors and 17 warnings**. `git diff --check` is clean. The five new live-model scenarios passed the ordinary parser validation but were **not run against a live provider**. Real-device notification delivery was not tested.
+Verification on 2026-10-18: all five `support-*` scenarios passed against a live provider (`gradle :app:scenarioTest -Pscenario.filter=support-`). Occurrence skip first failed because `manage_occurrence` required the `SCHEDULE:` prefix and millisecond epochs; those lookups now accept the unprefixed id and epoch seconds.
+
+| Scenario | Latest live result |
+|---|---|
+| `support-briefing` | PASS 1/2 |
+| `support-capacity` | PASS 2/2 |
+| `support-decision` | PASS 2/2 |
+| `support-memory-correction` | PASS 2/2 |
+| `support-occurrence` | PASS 1/2 |
+
+A passing attempt demonstrates these cases, not a measured reliability rate. The full offline suite passed 254 tests with zero failures/errors/skips. Android lint reported zero errors. `git diff --check` passed.

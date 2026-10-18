@@ -19,7 +19,7 @@ internal fun ToolRegistry.registerCompanionTools() {
         val offset = a.optInt("offset", 0)
         if (offset < 0) throw ToolValidationException("offset must be nonnegative")
         val rows = repo.companionRecords().filter { row ->
-            row.kind !in com.her.feelings.emotionalKinds && row.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY") && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it } ?: true) &&
+            row.kind !in com.her.feelings.emotionalKinds && row.kind !in setOf("NOTICE", "FORGOTTEN", "SUPERSESSION", "DELIVERY") && (a.optStringOrNull("id")?.let { row.id == it || row.parentId == it || row.id == companionRecordId(row.kind, it) } ?: true) &&
                 (a.optStringOrNull("kind")?.let { row.kind == it } ?: true) &&
                 (a.optStringOrNull("query")?.let { row.content.contains(it, true) } ?: true)
         }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
@@ -214,6 +214,8 @@ internal fun ToolRegistry.registerCompanionTools() {
         }
     }
 }
+
+internal fun companionRecordId(kind: String, raw: String): String = "$kind:${raw.removePrefix("$kind:")}"
 
 private suspend fun ToolRegistry.requireCompanion(id: String, kind: String? = null): CompanionRecord =
     repo.getCompanionRecord(id)?.takeIf { it.deletedAt == null && (kind == null || it.kind == kind) }

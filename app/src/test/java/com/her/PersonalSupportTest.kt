@@ -136,6 +136,15 @@ class PersonalSupportTest {
         assertEquals(unknown, plan.getJSONArray("unknownEstimates").getJSONObject(0).getString("id"))
     }
 
+    @Test fun occurrenceAcceptsUnprefixedScheduleIdAndEpochSeconds() = runBlocking {
+        val schedule = schedule()
+        val at = Instant.parse("2026-10-17T12:00:00Z").toEpochMilli()
+        occurrence(schedule.removePrefix("SCHEDULE:"), at / 1000, "SKIPPED")
+        assertEquals("SKIPPED", repo.companionRecords().single { it.kind == "OCCURRENCE" }.data().getString("status"))
+        val page = call("get_life_context", JSONObject().put("id", schedule.removePrefix("SCHEDULE:")).put("kind", "SCHEDULE"))
+        assertEquals(schedule, page.getJSONArray("records").getJSONObject(0).getString("id"))
+    }
+
     @Test fun skippingThisWeekKeepsNextWeekAndLateCompletionDoesNotConsumeFuture() = runBlocking {
         val reminder = reminder(); val schedule = schedule(reminder)
         val at = Instant.parse("2026-10-17T12:00:00Z").toEpochMilli()

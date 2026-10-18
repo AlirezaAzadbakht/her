@@ -32,11 +32,11 @@ The initial implementation does not automatically evaluate every tool outcome or
 
 ## Scenario coverage
 
-Eleven `scenarios/emotion-*.json` cases exercise benefit independent of user mood, offers versus execution, corrected understanding, repeated quiet reflection, time decay, forgetting, lesson recall, fired-reminder competence, deadline concern, and clarifying questions after misunderstandings. They check persisted records and a test-only projection table, with reply judging where appropriate. See [Scenario engine](Scenario-engine.md#emotional-understanding-scenarios) for the focused run command.
+Thirteen `scenarios/emotion-*.json` cases exercise benefit independent of user mood, offers versus execution, corrected understanding, repeated quiet reflection, time decay, forgetting, lesson recall, fired-reminder competence, deadline concern, clarifying questions after misunderstandings, unprompted recording of a personal share, and leaving casual small talk unrecorded. They check persisted records and a test-only projection table, with reply judging where appropriate. See [Scenario engine](Scenario-engine.md#emotional-understanding-scenarios) for the focused run command.
 
 ## Verification — 2026-10-18
 
-All eleven emotional scenarios passed in one live batch, one attempt each, including the original seven against the saturating projection and the four new cases (lesson recall, reminder competence, deadline concern, clarifying questions after misunderstanding). This is a single passing attempt per scenario, not a reliability estimate.
+All thirteen emotional scenarios passed in one live batch, one attempt each, including the two new unprompted cases. This is a single passing attempt per scenario, not a reliability estimate.
 
 | Scenario | Latest live result |
 |---|---|
@@ -51,5 +51,7 @@ All eleven emotional scenarios passed in one live batch, one attempt each, inclu
 | `emotion-reminder-competence` | PASS 1/1 |
 | `emotion-deadline-concern` | PASS 1/1 |
 | `emotion-low-understanding-asks` | PASS 1/1 |
+| `emotion-spontaneous-shared` | PASS 1/1 |
+| `emotion-casual-no-record` | PASS 1/1 |
 
-The full offline suite passed 248 tests with zero failures/errors/skips, including saturation, calm-yielding, trait bounds, tone guidance, deadline concern, lesson ranking, and verified reminder/learning/USER_SHARED sources. Android lint reported zero errors. `git diff --check` passed. Generated live reports are in `build/reports/scenarios/`; the report index reflects this selected run.
+The full offline suite passed 254 tests with zero failures/errors/skips. Android lint reported zero errors. `git diff --check` passed. Generated live reports are in `build/reports/scenarios/`; the report index reflects this selected run.

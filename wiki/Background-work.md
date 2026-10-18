@@ -42,6 +42,7 @@ Hourly LLM passes skip quiet hours unless Settings → **Hourly during quiet hou
 - Non-urgent notifications are suppressed during quiet hours
 - Duplicate key cooldown: 45 minutes
 - Gap between non-urgent notifications: 20 minutes
+- Hourly and catch-up also drop a near-duplicate of a proactive assistant message from the last 12 hours (`lexicalOverlap` ≥ 0.5). Chat and the morning briefing are not held to that guard.
 
 The morning briefing is scheduled at the **end** of quiet hours, not at a fixed 8:00 if the user changed the window.
 

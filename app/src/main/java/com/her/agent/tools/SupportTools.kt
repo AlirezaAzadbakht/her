@@ -47,8 +47,10 @@ internal fun ToolRegistry.registerSupportTools() {
             required = listOf("id", "scheduledAt", "action", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {
             requireUserEvidence(a)
-            val schedule = repo.getCompanionRecord(a.requiredString("id"))?.takeIf { it.kind == "SCHEDULE" && it.deletedAt == null } ?: throw ToolValidationException("Retrieve the schedule first")
-            val at = a.getLong("scheduledAt")
+            val schedule = repo.getCompanionRecord(companionRecordId("SCHEDULE", a.requiredString("id")))
+                ?.takeIf { it.kind == "SCHEDULE" && it.deletedAt == null }
+                ?: throw ToolValidationException("Retrieve the schedule first")
+            val at = a.getLong("scheduledAt").let { raw -> if (raw in 1_000_000_000L..9_999_999_999L) raw * 1000 else raw }
             // Local occurrence index survives a profile timezone change; retain its original identity.
             val zone = repo.profileZone()
             val old = findOccurrence(repo, schedule, at)

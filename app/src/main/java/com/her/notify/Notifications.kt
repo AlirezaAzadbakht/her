@@ -13,7 +13,10 @@ import androidx.core.app.RemoteInput
 import com.her.MainActivity
 import com.her.R
 import com.her.core.QuietHours
+import com.her.core.lexicalOverlap
 import com.her.data.secure.AppSettingsStore
+import com.her.domain.ChatMessage
+import com.her.domain.MessageRole
 import com.her.domain.QueueStatus
 import java.time.ZonedDateTime
 
@@ -46,6 +49,27 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
 
     fun inQuietHours(now: ZonedDateTime, hours: QuietHours = settings.read().quietHours): Boolean =
         hours.contains(now.toLocalTime())
+}
+
+internal const val ALREADY_SAID_WINDOW_MS = 12L * 60 * 60 * 1000
+internal const val ALREADY_SAID_OVERLAP = 0.5
+
+/** True when a recent proactive assistant message is about the same thing. */
+internal fun alreadySaidProactively(
+    messages: List<ChatMessage>,
+    deliveryText: String,
+    nowMs: Long,
+    createdBefore: Long = nowMs,
+): Boolean {
+    val cutoff = nowMs - ALREADY_SAID_WINDOW_MS
+    return messages.any { message ->
+        message.role == MessageRole.ASSISTANT &&
+            message.deletedAt == null &&
+            message.createdAt >= cutoff &&
+            message.createdAt < createdBefore &&
+            message.metadataJson?.replace(" ", "")?.contains("\"proactive\":true") == true &&
+            lexicalOverlap(deliveryText, message.content) >= ALREADY_SAID_OVERLAP
+    }
 }
 
 open class Notifier(private val context: Context) {

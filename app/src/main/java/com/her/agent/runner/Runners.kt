@@ -20,7 +20,9 @@ import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.domain.QueueStatus
 import com.her.notify.NotificationPolicy
+import com.her.notify.NotifyDecision
 import com.her.notify.Notifier
+import com.her.notify.alreadySaidProactively
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -293,11 +295,17 @@ class AgentOrchestrator(
             }
             val deliveryText = notifyText
             if (allowNotify && deliveryText != null) {
-                val decision = policy.shouldNotify(
-                    key = companionKey ?: "$type:${deliveryText.take(40)}",
-                    urgent = type == AgentRunType.BRIEFING,
-                    now = repo.now(),
-                )
+                val alreadySaid = type in setOf(AgentRunType.HOURLY, AgentRunType.CATCH_UP) &&
+                    alreadySaidProactively(repo.recentMessages(80), deliveryText, nowMillis(), started)
+                val decision = if (alreadySaid) {
+                    NotifyDecision(false, "already said", companionKey ?: "$type:${deliveryText.take(40)}")
+                } else {
+                    policy.shouldNotify(
+                        key = companionKey ?: "$type:${deliveryText.take(40)}",
+                        urgent = type == AgentRunType.BRIEFING,
+                        now = repo.now(),
+                    )
+                }
                 if (decision.notify) {
                     // Opening the app from the notification has to show the same words, so an autonomous
                     // reply that was not already saved (briefing, send_user_message) is saved first.

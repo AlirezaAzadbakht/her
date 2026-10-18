@@ -184,18 +184,18 @@ Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }
 
 ## Emotional understanding scenarios
 
-Run the eleven emotional scenarios with:
+Run the thirteen emotional scenarios with:
 
 ```bash
 source scripts/env.sh
 gradle :app:scenarioTest -Pscenario.filter=emotional-understanding -Pscenario.attempts=1 -Pscenario.parallel=1
 ```
 
-`emotion-benefit-independent` checks helpfulness while the user remains sad; `emotion-offer-not-benefit` and `emotion-execution-not-benefit` distinguish offers, completed work and benefit. `emotion-understanding-correction` checks in-place correction. `emotion-reflection-no-double-reward` runs nightly review twice, checks a single reflection and bounds fulfillment. `emotion-quiet-period-decay` advances 90 days and verifies calm without unsolicited reconnection. `emotion-forget-experience` checks that forgetting removes the experience and its derived reflection. `emotion-lesson-recall` reuses a saved listening-first approach. `emotion-reminder-competence` raises competence only after a reminder has fired. `emotion-deadline-concern` shows concern from an open task due soon. `emotion-low-understanding-asks` expects a clarifying question after repeated misunderstandings.
+`emotion-benefit-independent` checks helpfulness while the user remains sad; `emotion-offer-not-benefit` and `emotion-execution-not-benefit` distinguish offers, completed work and benefit. `emotion-understanding-correction` checks in-place correction. `emotion-reflection-no-double-reward` runs nightly review twice, checks a single reflection and bounds fulfillment. `emotion-quiet-period-decay` advances 90 days and verifies calm without unsolicited reconnection. `emotion-forget-experience` checks that forgetting removes the experience and its derived reflection. `emotion-lesson-recall` reuses a saved listening-first approach. `emotion-reminder-competence` raises competence only after a reminder has fired. `emotion-deadline-concern` shows concern from an open task due soon. `emotion-low-understanding-asks` expects a clarifying question after repeated misunderstandings. `emotion-spontaneous-shared` records a personal milestone as `USER_SHARED` without being asked to remember it. `emotion-casual-no-record` leaves ordinary small talk unrecorded.
 
-The `emotional_state` table is a test-only read of the production projection at the scenario clock. Numeric checks complement persisted-record checks and optional reply judging; they do not add a database table. These scenarios use explicit natural-language requests to exercise emotional bookkeeping. They do not establish how reliably the model spontaneously records subtle experiences in ordinary conversation. Defaults use one attempt so failures remain visible; override attempts explicitly when measuring variability.
+The `emotional_state` table is a test-only read of the production projection at the scenario clock. Numeric checks complement persisted-record checks and optional reply judging; they do not add a database table. Most cases still use explicit natural-language requests to exercise bookkeeping. The two unprompted scenarios check a clear personal share versus casual small talk; they do not measure how often subtle experiences are recorded in ordinary conversation. Defaults use one attempt so failures remain visible; override attempts explicitly when measuring variability.
 
-Verification on 2026-10-18: all eleven `emotional-understanding` scenarios passed in one live batch, one attempt each, after deepening the projection, sources, lesson recall and expression. The full offline suite passed 248 tests with no failures/errors/skips. Android lint reported no errors. `git diff --check` passed. The generated report is `build/reports/scenarios/index.html`. A single passing attempt demonstrates these cases, not a measured reliability rate across models or repeated runs.
+Verification on 2026-10-18: all thirteen `emotional-understanding` scenarios passed in one live batch, one attempt each. `hourly-no-repeat-nudge` also passed after a 12-hour near-duplicate guard on hourly/catch-up notifications. The full offline suite passed 254 tests with no failures/errors/skips. Android lint reported no errors. `git diff --check` passed. The generated report is `build/reports/scenarios/index.html`. A single passing attempt demonstrates these cases, not a measured reliability rate across models or repeated runs.
 
 ## Additional capability scenarios
 

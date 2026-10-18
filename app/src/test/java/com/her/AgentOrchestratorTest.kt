@@ -23,6 +23,7 @@ import com.her.domain.LlmResponse
 import com.her.domain.LlmToolCall
 import com.her.domain.LlmUsage
 import com.her.domain.MessageRole
+import com.her.domain.MessageStatus
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
@@ -65,7 +66,9 @@ class AgentOrchestratorTest {
         repo = HerRepository(db, settings, clock)
         val ranker = HybridRanker(repo)
         val calendar = CalendarDataSource(context)
-        tools = ToolRegistry(repo, ranker, settings, calendar, WebSearchClient())
+        tools = ToolRegistry(repo, ranker, settings, calendar, WebSearchClient(), onUserMessage = { text ->
+            repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
+        })
         contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
         notifier = object : Notifier(context) {
             override fun show(text: String, briefing: Boolean) {
@@ -167,6 +170,80 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun sendUserMessageHourlyNudgeIsNotRepeated() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+    }
+
+    @Test
+    fun hourlyDoesNotRepeatARecentProactiveNudge() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { reply("The passport renewal is overdue.") },
+                { reply("The passport renewal is overdue.") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+        assertEquals(1, repo.recentMessages(10).count { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun hourlyStillDeliversAnUnrelatedNudge() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { reply("The passport renewal is overdue.") },
+                { reply("Milk is on the grocery list.") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(
+            listOf("The passport renewal is overdue.", "Milk is on the grocery list."),
+            shown,
+        )
+    }
+
+    @Test
+    fun recentProactiveNudgeDoesNotSuppressBriefing() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        repo.saveMessage(
+            repo.newChatMessage(
+                MessageRole.ASSISTANT,
+                "The passport renewal is overdue.",
+                MessageStatus.SENT,
+                """{"proactive":true}""",
+            ),
+        )
+        orchestrator(ScriptedLlm({ reply("The passport renewal is overdue.") })).runBriefing()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+    }
+
+    @Test
     fun hourlyNudgeSuppressedByQuietHoursIsNotSaved() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
         settings.update { it.copy(quietHours = QuietHours(22 * 60, 23 * 60)) }
@@ -210,8 +287,8 @@ class AgentOrchestratorTest {
     private fun reply(text: String) =
         LlmResponse(LlmMessage(role = "assistant", content = text), LlmUsage(10, 5, 1), "{}")
 
-    private fun toolCall(name: String) = LlmResponse(
-        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, "{}"))),
+    private fun toolCall(name: String, arguments: String = "{}") = LlmResponse(
+        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
         LlmUsage(10, 5, 1),
         "{}",
     )

@@ -12,6 +12,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- An overdue nudge is no longer repeated a few hours later.
 - Reminder and calendar times such as “today at noon” and “tomorrow noon” are now understood directly.
 - Decision-saving guidance preserves complete source quotations instead of joining separate reasons into unsupported wording.
 - Emotional reviews now retrieve saved experiences when the model leaves the optional record ID blank, with clearer guidance for source quotes, corrections and reflection fields.
