@@ -1,0 +1,26 @@
+{
+  "id": "calendar-empty-day-no-invention",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "5abb8a6d3503f6a6",
+          "summary": "tools=88 [user(What's on my calendar to)]",
+          "response": {
+            "role": "assistant",
+            "content": "Nothing is on the calendar tomorrow.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

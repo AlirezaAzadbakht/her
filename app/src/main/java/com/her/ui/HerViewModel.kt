@@ -16,6 +16,7 @@ import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val googleMessage = MutableStateFlow<String?>(null)
     val googleConsent = MutableStateFlow<PendingIntent?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
+    private var turnJob: Job? = null
 
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debugEvents = graph.repo.observeDebug().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -127,7 +129,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         sendError.value = null
-        viewModelScope.launch {
+        turnJob?.cancel()
+        turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 graph.orchestrator.enqueueUserMessage(
                     trimmed,
@@ -142,6 +145,10 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun cancelTurn() {
+        turnJob?.cancel()
     }
 
     fun undoReceipts(messageId: String, receipts: List<Receipt>) {

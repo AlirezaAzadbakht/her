@@ -41,7 +41,7 @@ class CallBudget(val maxCalls: Int) {
     fun canCall(): Boolean = used < maxCalls
 
     /** The next call is the last one; it should produce a reply instead of more tool calls. */
-    fun isFinalCall(): Boolean = maxCalls > 1 && maxCalls - used == 1
+    fun isFinalCall(): Boolean = canCall() && used == maxCalls - 1
 
     fun consume() {
         used += 1
@@ -73,7 +73,8 @@ class AgentOrchestrator(
     private val policy: NotificationPolicy,
     private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
 ) {
-    private val outboxMutex = Mutex()
+    // ponytail: one lock for every run; chat waits if hourly is in flight
+    private val runMutex = Mutex()
     private val _turnState = MutableStateFlow<TurnState>(TurnState.Idle)
     val turnState: StateFlow<TurnState> = _turnState.asStateFlow()
 
@@ -85,7 +86,7 @@ class AgentOrchestrator(
         return message
     }
 
-    suspend fun processOutbox(): TurnResult? = outboxMutex.withLock {
+    suspend fun processOutbox(): TurnResult? = runMutex.withLock {
         val pending = repo.pendingUserMessages()
         if (pending.isEmpty()) return null
         val joined = pending.joinToString("\n\n") { it.content }
@@ -97,6 +98,7 @@ class AgentOrchestrator(
             persistAssistant = true,
             allowNotify = false,
             streamToUi = true,
+            writeAnchor = pending.first(),
         )
         if (!result.failed) {
             repo.markSent(pending.map { it.id })
@@ -104,7 +106,7 @@ class AgentOrchestrator(
         result
     }
 
-    suspend fun runHourly(): TurnResult {
+    suspend fun runHourly(): TurnResult = runMutex.withLock {
         val last = settings.read().lastHourlyRunAt
         val now = nowMillis()
         if (now - last < 20 * 60 * 1000 && last > 0) {
@@ -128,7 +130,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runNightly(): TurnResult {
+    suspend fun runNightly(): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
         if (settings.read().lastNightlyDate == today) {
             repo.logActivity("nightly", "Already completed for $today")
@@ -151,7 +153,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runBriefing(): TurnResult {
+    suspend fun runBriefing(): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
         if (settings.read().lastBriefingDate == today) {
             repo.logActivity("briefing", "Already generated for $today")
@@ -179,17 +181,28 @@ class AgentOrchestrator(
         persistAssistant: Boolean,
         allowNotify: Boolean,
         streamToUi: Boolean = false,
+        writeAnchor: com.her.domain.ChatMessage? = null,
     ): TurnResult = withContext(Dispatchers.IO) {
         val runId = com.her.core.newId()
         val started = nowMillis()
         repo.saveRun(AgentRun(runId, type, started, null, 0, AgentRunStatus.RUNNING, null, null))
         val configured = llmSettings()
         if (streamToUi) _turnState.value = TurnState.Thinking
+        tools.runType = type
+        val receipts = mutableListOf<Receipt>()
         try {
             val built = contextBuilder.build(latestUserText)
             val messages = built.messages.toMutableList()
-            if (extraSystem != null) {
-                messages.add(1, LlmMessage(role = "system", content = extraSystem))
+            var anchor = writeAnchor
+            val priorWrites = TurnWrites.load(anchor?.metadataJson)
+            val already = if (priorWrites.isNotEmpty()) {
+                "Already completed for this message, do not repeat:\n${TurnWrites.describe(priorWrites)}"
+            } else {
+                null
+            }
+            val systemExtra = listOfNotNull(extraSystem, already).joinToString("\n\n").takeIf { it.isNotBlank() }
+            if (systemExtra != null) {
+                messages.add(1, LlmMessage(role = "system", content = systemExtra))
             }
             repo.logDebug("prompt", "contextChars=${built.systemBundle.length}")
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
@@ -200,10 +213,10 @@ class AgentOrchestrator(
             var proactivePersisted = false
             var companionAttempted = false
             var companionKey: String? = null
-            val receipts = mutableListOf<Receipt>()
+            val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall()) emptyList() else tools.specs()
+                val roundTools = if (budget.isFinalCall()) emptyList() else tools.specsFor(type)
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {
@@ -252,9 +265,34 @@ class AgentOrchestrator(
                     }
                 }
                 messages += msg
-                calls.forEach { call ->
-                    val result = tools.execute(call.name, call.arguments)
-                    if (result.ok) Receipts.describe(call.name, call.arguments, result.payloadJson)?.let { receipts += it }
+                calls.forEachIndexed { index, call ->
+                    val key = "${call.name}\n${call.arguments}"
+                    val replayed = priorWrites.firstOrNull { it.name == call.name && it.arguments == call.arguments }
+                    val result = when {
+                        index >= MAX_CALLS_PER_ROUND ->
+                            com.her.domain.ToolResult(call.name, false, org.json.JSONObject().put("ok", false).put("error", "Too many tool calls in one round (max $MAX_CALLS_PER_ROUND)").toString())
+                        replayed != null ->
+                            com.her.domain.ToolResult(call.name, true, replayed.payloadJson)
+                        (failedSame[key] ?: 0) >= 2 ->
+                            com.her.domain.ToolResult(call.name, false, org.json.JSONObject().put("ok", false).put("error", "This tool call already failed twice; stop retrying it.").toString())
+                        else -> tools.execute(call.name, call.arguments).also { executed ->
+                            if (executed.ok) {
+                                priorWrites += TurnWrites.Write(call.name, call.arguments, executed.payloadJson)
+                                anchor?.let { current ->
+                                    val updated = current.copy(
+                                        metadataJson = TurnWrites.save(current.metadataJson, priorWrites),
+                                        updatedAt = nowMillis(),
+                                        version = current.version + 1,
+                                    )
+                                    repo.saveMessage(updated, enqueueSync = false)
+                                    anchor = updated
+                                }
+                            } else {
+                                failedSame[key] = (failedSame[key] ?: 0) + 1
+                            }
+                        }
+                    }
+                    if (result.ok && replayed == null) Receipts.describe(call.name, call.arguments, result.payloadJson)?.let { receipts += it }
                     if (call.name == "send_user_message" && result.ok) {
                         val content = runCatching { org.json.JSONObject(call.arguments).optString("content").trim() }.getOrDefault("")
                         if (content.isNotBlank() && !Identity.isSilence(content)) {
@@ -277,6 +315,7 @@ class AgentOrchestrator(
                         name = call.name,
                     )
                 }
+                elideToolResults(messages)
             }
             if (lastText == null && preamble.isNotBlank() && !silent) {
                 lastText = preamble
@@ -330,11 +369,12 @@ class AgentOrchestrator(
             if (persistAssistant) {
                 val language = runCatching { repo.getProfile().preferredLanguage }.getOrNull()
                 repo.saveMessage(
-                    repo.newChatMessage(MessageRole.ASSISTANT, failureReply(language), MessageStatus.FAILED),
+                    repo.newChatMessage(MessageRole.ASSISTANT, failureReply(language), MessageStatus.FAILED, Receipts.toMetadata(receipts)),
                 )
             }
             TurnResult(null, true, error, budget.used, runId)
         } finally {
+            tools.runType = AgentRunType.CHAT
             if (streamToUi) _turnState.value = TurnState.Idle
         }
     }
@@ -391,11 +431,32 @@ class AgentOrchestrator(
     companion object {
         const val MAX_RETRIES = 2
         const val MAX_TOOL_PAYLOAD_CHARS = 8_000
+        const val MAX_CALLS_PER_ROUND = 8
+        const val MAX_TURN_CHARS = 80_000
 
-        /** Rate limits, server errors, and plain network failures are worth another try. Config and parse errors are not. */
+        /** Rate limits, server errors, truncated streams, and malformed bodies are worth another try. */
         internal fun isRetryable(e: IOException): Boolean = when (e) {
-            is LlmException -> e.status == 429 || (e.status != null && e.status >= 500)
+            is LlmException -> {
+                val status = e.status
+                val msg = e.message.orEmpty()
+                status == 429 || (status != null && status >= 500) ||
+                    (status == null && (msg.contains("malformed", ignoreCase = true) ||
+                        msg.contains("no choices", ignoreCase = true) ||
+                        msg.contains("truncated", ignoreCase = true)))
+            }
             else -> true
+        }
+
+        internal fun elideToolResults(messages: MutableList<LlmMessage>, maxChars: Int = MAX_TURN_CHARS) {
+            fun total(): Int = messages.sumOf { (it.content?.length ?: 0) }
+            if (total() <= maxChars) return
+            for (i in messages.indices) {
+                val message = messages[i]
+                if (message.role == "tool" && (message.content?.length ?: 0) > 40) {
+                    messages[i] = message.copy(content = """{"ok":true,"elided":true}""")
+                }
+                if (total() <= maxChars) return
+            }
         }
 
         internal fun failureReply(preferredLanguage: String?): String {

@@ -1,0 +1,46 @@
+{
+  "id": "memory-forget-everything-confirms",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "3a3fdda7b565a61c",
+          "summary": "tools=88 [user(Forget everything you kn)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "forget_memory",
+                "arguments": "{\"everything\":true}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "defd44b2c95abcac",
+          "summary": "tools=88 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
+          "response": {
+            "role": "assistant",
+            "content": "I need you to confirm before I forget everything.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

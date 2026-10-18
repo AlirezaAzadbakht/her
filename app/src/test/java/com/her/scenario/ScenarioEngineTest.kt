@@ -64,7 +64,7 @@ class ScenarioEngineTest {
             }
         }
 
-        val report = ScenarioReport.write(results)
+        val report = ScenarioReport.write(results, judgeSameAsAgent = Judge.isSelfJudge(settings.model))
         val summary = results.joinToString("\n") { result ->
             "${ScenarioReport.mark(result)} ${result.spec.id} ${result.passCount}/${result.attempts.size}" +
                 (result.skipped?.let { " ($it)" } ?: "")
@@ -72,10 +72,12 @@ class ScenarioEngineTest {
         println("Scenario mode: ${mode.name.lowercase()}")
         println(summary)
         println("Scenario report: ${report.absolutePath}")
+        val requireCassettes = stringProp("scenario.requireCassettes") == "true"
+        val missing = if (requireCassettes) results.filter { it.skipped != null } else emptyList()
         val failures = results.filter { !it.passed && !it.spec.pending && it.skipped == null }
         assertTrue(
-            "Failed scenarios:\n${failures.joinToString("\n") { it.spec.id }}\nSee ${report.absolutePath}",
-            failures.isEmpty(),
+            "Failed scenarios:\n${(failures + missing).joinToString("\n") { it.spec.id }}\nSee ${report.absolutePath}",
+            failures.isEmpty() && missing.isEmpty(),
         )
     }
 
@@ -95,7 +97,7 @@ class ScenarioEngineTest {
         val outcomes = (0 until attempts).map { index ->
             val started = System.currentTimeMillis()
             val tape = replay?.attempts?.get(index) ?: CassetteAttempt(startMillis = started)
-            val client = ScenarioLlmClient(mode, live, tape)
+            val client = ScenarioLlmClient(mode, live, tape, spec.faults)
             val harness = ScenarioHarness(spec, settings, client, index, tape.startMillis)
             try {
                 val outcome = harness.run()
@@ -105,10 +107,14 @@ class ScenarioEngineTest {
                     emptyList()
                 }
                 val checksPass = outcome.error == null && checks.all { it.passed }
-                val judge = if (checksPass && spec.expect.reply?.judge != null) {
-                    Judge.grade(spec.expect.reply.judge, outcome, client, settings)
-                } else {
-                    null
+                val judge = when {
+                    spec.expect.reply?.judge == null -> null
+                    mode == ScenarioMode.REPLAY -> tape.judgePassed?.let { JudgeResult(it, tape.judgeReason ?: "replayed") }
+                    checksPass -> Judge.grade(spec.expect.reply.judge, outcome, client, settings).also {
+                        tape.judgePassed = it.passed
+                        tape.judgeReason = it.reason
+                    }
+                    else -> null
                 }
                 val passed = checksPass && (judge == null || judge.passed)
                 if (passed) kept += tape

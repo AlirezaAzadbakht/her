@@ -17,11 +17,16 @@ class StreamAccumulator {
     private var role: String = "assistant"
     private var usage: LlmUsage = LlmUsage(0, 0, 0)
     private var lastRaw: String = ""
+    var finished: Boolean = false
+        private set
 
     fun accept(data: String): AcceptResult {
         val trimmed = data.trim()
         if (trimmed.isEmpty()) return AcceptResult(true, null)
-        if (trimmed == "[DONE]") return AcceptResult(false, null)
+        if (trimmed == "[DONE]") {
+            finished = true
+            return AcceptResult(false, null)
+        }
         lastRaw = trimmed
         val root = runCatching { JSONObject(trimmed) }.getOrElse {
             return AcceptResult(true, null)
@@ -32,6 +37,8 @@ class StreamAccumulator {
         }
         val choice = root.optJSONArray("choices")?.optJSONObject(0)
             ?: return AcceptResult(true, null)
+        val finish = choice.optString("finish_reason")
+        if (finish.isNotBlank() && finish != "null") finished = true
         val delta = when {
             choice.has("delta") -> choice.optJSONObject("delta") ?: JSONObject()
             choice.has("message") -> choice.optJSONObject("message") ?: JSONObject()

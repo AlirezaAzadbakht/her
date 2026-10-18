@@ -60,8 +60,9 @@ All tests are JVM / Robolectric unit tests under `app/src/test/java/com/her/`. T
 | Test | Why it exists |
 |------|----------------|
 | `HerSimulationTest` | Scripted first days through real Room + tools (no live LLM). Writes `build/reports/her-simulation.html` and `.txt` under the test working directory |
-| `ScenarioPoolValidationTest` | Parses `scenarios/*.json` with no LLM calls (this is what CI runs) |
-| `ScenarioEngineTest` | Live-LLM pool; **not** in `testDebugUnitTest`. Run `make scenarios`. See [Scenario engine](Scenario-engine.md) |
+| `ScenarioPoolValidationTest` | Parses `scenarios/*.json` with no LLM calls |
+| `CoreCassetteTest` | Records and replays `ci-core` cassettes with a scripted model (no live LLM) |
+| `ScenarioEngineTest` | Live-LLM pool; **not** in `testDebugUnitTest`. CI replays `ci-core` cassettes. Run `make scenarios`. See [Scenario engine](Scenario-engine.md) |
 | `MarkdownParserTest` | Local chat markdown |
 | `EnumParseTest` | `cancelled` → `DROPPED` |
 | `RoomDaoTest` | FTS + grocery persistence |

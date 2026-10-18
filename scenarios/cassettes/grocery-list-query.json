@@ -1,0 +1,26 @@
+{
+  "id": "grocery-list-query",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "a97dd336c45e6369",
+          "summary": "tools=88 [user(What's on the shopping l)]",
+          "response": {
+            "role": "assistant",
+            "content": "Coffee, rice, and eggs.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

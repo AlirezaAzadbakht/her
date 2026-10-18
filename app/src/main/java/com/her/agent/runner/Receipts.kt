@@ -104,3 +104,31 @@ object Receipts {
         .put("undoable", undoable)
         .put("undone", undone)
 }
+
+/** Tool writes already applied for a still-pending user batch, so a retry does not duplicate them. */
+internal object TurnWrites {
+    const val KEY = "turnWrites"
+
+    data class Write(val name: String, val arguments: String, val payloadJson: String)
+
+    fun load(metadataJson: String?): MutableList<Write> {
+        if (metadataJson.isNullOrBlank()) return mutableListOf()
+        val array = runCatching { JSONObject(metadataJson).optJSONArray(KEY) }.getOrNull() ?: return mutableListOf()
+        return (0 until array.length()).mapNotNull { i ->
+            val obj = array.optJSONObject(i) ?: return@mapNotNull null
+            Write(obj.optString("name"), obj.optString("arguments"), obj.optString("payload"))
+        }.toMutableList()
+    }
+
+    fun save(metadataJson: String?, writes: List<Write>): String {
+        val root = runCatching { JSONObject(metadataJson ?: "{}") }.getOrDefault(JSONObject())
+        val array = JSONArray()
+        writes.forEach { write ->
+            array.put(JSONObject().put("name", write.name).put("arguments", write.arguments).put("payload", write.payloadJson))
+        }
+        return root.put(KEY, array).toString()
+    }
+
+    fun describe(writes: List<Write>): String =
+        writes.joinToString("; ") { "${it.name} ${it.payloadJson.take(120)}" }
+}

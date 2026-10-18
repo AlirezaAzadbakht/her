@@ -17,7 +17,8 @@ In-progress runs on the same ref are cancelled, **except** tag pushes.
 
 1. JDK 17 (Temurin), `gradle/actions/setup-gradle@v6`, Android SDK
 2. `./gradlew testDebugUnitTest assembleDebug lintDebug assembleRelease --no-daemon`
-3. Upload artifact `her-debug`
+3. Replay `ci-core` scenario cassettes (`scenarioTest -Pscenario.mode=replay -Pscenario.filter=ci-core -Pscenario.requireCassettes=true`)
+4. Upload artifact `her-debug`
 
 CI uses the **wrapper**. That is fine on GitHub runners (`services.gradle.org` works there). Locally, prefer `gradle` after `source scripts/env.sh` — see [Local development](Local-development.md).
 

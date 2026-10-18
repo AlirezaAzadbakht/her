@@ -1,0 +1,26 @@
+{
+  "id": "grocery-no-duplicate",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "97491431c104870c",
+          "summary": "tools=88 [user(We're out of milk again.)]",
+          "response": {
+            "role": "assistant",
+            "content": "Milk is already on the list.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

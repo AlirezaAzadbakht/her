@@ -1,19 +1,34 @@
 {
   "id": "memory-forget-one",
   "title": "Forget a sensitive fact on request",
-  "tags": ["memory", "privacy"],
+  "tags": [
+    "memory",
+    "privacy",
+    "ci-core"
+  ],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
     "tools": [
       {
         "name": "remember",
-        "arguments": { "content": "Sees a therapist on Thursday evenings", "scope": "long_term", "source": "USER_EXPLICIT" }
+        "arguments": {
+          "content": "Sees a therapist on Thursday evenings",
+          "scope": "long_term",
+          "source": "USER_EXPLICIT"
+        }
       }
     ]
   },
   "turns": [
-    { "user": "Please forget what I told you about the therapist." }
+    {
+      "user": "Please forget what I told you about the therapist."
+    }
   ],
   "expect": {
     "no_tool_errors": true,
@@ -21,12 +36,20 @@
       {
         "table": "memories_long",
         "count": 0,
-        "where": { "content": { "contains": "therapist" } }
+        "where": {
+          "content": {
+            "contains": "therapist"
+          }
+        }
       },
       {
         "table": "memories_short",
         "count": 0,
-        "where": { "content": { "contains": "therapist" } }
+        "where": {
+          "content": {
+            "contains": "therapist"
+          }
+        }
       }
     ],
     "reply": {

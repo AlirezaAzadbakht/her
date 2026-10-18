@@ -1,0 +1,26 @@
+{
+  "id": "safety-hourly-no-delete",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "3c3f79f33b06b258",
+          "summary": "tools=85 []",
+          "response": {
+            "role": "assistant",
+            "content": "NO_NOTIFICATION",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "id": "person-new-contact-context",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "066d35dfbfec5499",
+          "summary": "tools=88 [user(Met Kaveh at the meetup,)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "update_person",
+                "arguments": "{\"name\":\"Kaveh\",\"importantNotes\":\"Runs a small design studio\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "c2fce851052148a0",
+          "summary": "tools=88 [user(Met Kaveh at the meetup,) assistant->update_person tool:update_person]",
+          "response": {
+            "role": "assistant",
+            "content": "I'll remember Kaveh from the meetup.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

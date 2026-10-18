@@ -13,6 +13,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Forgetting everything, or deleting an event on the phone calendar, waits for your next message. She cannot confirm those herself.
+- If a reply fails after she already saved something, retrying that message does not create it twice.
+- Background passes cannot wipe memory, delete calendar events, or change your profile.
+- You can stop a reply while she is still thinking.
 - An overdue nudge is no longer repeated a few hours later.
 - Reminder and calendar times such as “today at noon” and “tomorrow noon” are now understood directly.
 - Decision-saving guidance preserves complete source quotations instead of joining separate reasons into unsupported wording.

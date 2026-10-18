@@ -1,0 +1,46 @@
+{
+  "id": "open-loop-close",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "b7090865666ad2fd",
+          "summary": "tools=88 [user(Mina got back to me, the)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "close_open_loop",
+                "arguments": "{\"id\":\"494deb8e-4f69-3189-88a4-73cf964212ed\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "c80e3b5e9126e890",
+          "summary": "tools=88 [user(Mina got back to me, the) assistant->close_open_loop tool:close_open_loop]",
+          "response": {
+            "role": "assistant",
+            "content": "The payment with Mina is resolved.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

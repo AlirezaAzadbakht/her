@@ -158,6 +158,31 @@ class ScenarioLogicTest {
         assertEquals("google_calendar", spec.expect.rows.single().table)
     }
 
+    @Test
+    fun parsesFaultsAndConcurrentRun() {
+        val file = tmp.newFile("fault-retry.json")
+        file.writeText(
+            """
+            {
+              "id": "fault-retry",
+              "title": "Retry after a 500",
+              "faults": [{ "call": 2, "type": "http_500" }],
+              "turns": [
+                { "user": "Add milk" },
+                { "run": "hourly", "concurrent_with_user": "hi" }
+              ],
+              "expect": { "tools_called": ["add_grocery"] }
+            }
+            """.trimIndent(),
+        )
+        val spec = ScenarioLoader.parse(file)
+        assertEquals(2, spec.faults.single().call)
+        assertEquals("http_500", spec.faults.single().type)
+        val run = spec.turns[1] as ScenarioTurn.Run
+        assertEquals(AutonomousRun.HOURLY, run.kind)
+        assertEquals("hi", run.concurrentWithUser)
+    }
+
     @Test(expected = ScenarioParseException::class)
     fun rejectsUnknownKey() {
         val file = tmp.newFile("bad.json")

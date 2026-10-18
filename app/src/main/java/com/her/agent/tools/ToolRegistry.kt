@@ -2,9 +2,12 @@ package com.her.agent.tools
 
 import com.her.reminders.rearmAll
 
+import com.her.core.COMMON_DONE
+import com.her.core.COMMON_DROPPED
 import com.her.core.RelativeTimeParser
 import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
+import com.her.core.normalizeStatusKey
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.GoogleCalendar
 import com.her.data.calendar.GoogleCalendarClient
@@ -13,12 +16,16 @@ import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.MemoryRanker
 import com.her.data.secure.AppSettingsStore
+import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
 import com.her.domain.Commitment
 import com.her.domain.CommitmentStatus
+import com.her.domain.ConfirmationKind
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryStatus
+import com.her.domain.MessageRole
 import com.her.domain.OpenLoopStatus
+import com.her.domain.PendingConfirmation
 import com.her.domain.ReminderStatus
 import com.her.domain.TaskItem
 import com.her.reminders.AlarmClockPort
@@ -50,6 +57,8 @@ open class ToolRegistry(
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
     internal val googleCalendar = googleCalendar
+    /** Chat may use every tool; autonomous runs cannot wipe or rewrite identity. */
+    var runType: AgentRunType = AgentRunType.CHAT
 
     internal fun nowMillis(): Long = repo.clock.nowMillis()
 
@@ -57,12 +66,18 @@ open class ToolRegistry(
         registerAll()
     }
 
-    fun specs(): List<ToolSpec> {
+    fun specs(): List<ToolSpec> = specsFor(AgentRunType.CHAT)
+
+    fun specsFor(type: AgentRunType): List<ToolSpec> {
         val all = handlers.values.map { it.first }
-        return if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" }
+        val visible = if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" }
+        return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS }
     }
 
     open suspend fun execute(name: String, arguments: String): ToolResult {
+        if (runType != AgentRunType.CHAT && name in AUTONOMOUS_BLOCKED_TOOLS) {
+            return ToolResult(name, false, jsonObjectOf("ok" to false, "error" to "Not available during autonomous runs").toString())
+        }
         val spec = handlers[name] ?: return ToolResult(name, false, jsonObjectOf("error" to "Unknown tool: $name").toString())
         val args = try {
             if (arguments.isBlank()) JSONObject() else JSONObject(arguments)
@@ -72,6 +87,7 @@ open class ToolRegistry(
         }
         return try {
             validateRequired(spec.first, args)
+            validateTypes(spec.first, args)
             if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) validateCompanionSchema(spec.first, args)
             if (name in emotionalToolNames) {
                 args.keys().forEach { key ->
@@ -104,6 +120,50 @@ open class ToolRegistry(
                 throw ToolValidationException("Missing required field: $key")
             }
         }
+    }
+
+    private fun validateTypes(spec: ToolSpec, args: JSONObject) {
+        val properties = JSONObject(spec.parametersJson).optJSONObject("properties") ?: return
+        args.keys().forEach { key ->
+            val field = properties.optJSONObject(key) ?: return@forEach
+            if (args.isNull(key)) return@forEach
+            val value = args.get(key)
+            val valid = when (field.optString("type")) {
+                "string" -> value is String
+                "boolean" -> value is Boolean
+                "number" -> value is Number && value.toDouble().isFinite()
+                "array" -> value is org.json.JSONArray && (0 until value.length()).all { value.get(it) is String }
+                else -> true
+            }
+            if (!valid) throw ToolValidationException("Invalid type for $key")
+            if (!enumAllowed(field, value)) throw ToolValidationException("Invalid value for $key")
+        }
+    }
+
+    private fun enumAllowed(field: JSONObject, value: Any): Boolean {
+        val values = field.optJSONArray("enum") ?: return true
+        val text = value.toString()
+        if ((0 until values.length()).any { values.get(it).toString() == text }) return true
+        val mapped = COMMON_DONE[normalizeStatusKey(text)]
+            ?: COMMON_DROPPED[normalizeStatusKey(text)]
+            ?: normalizeStatusKey(text)
+        return (0 until values.length()).any { values.get(it).toString() == mapped }
+    }
+
+    /**
+     * A confirmId is only valid after a later user message. Same-turn retries from the model
+     * cannot consume the token they just created.
+     */
+    internal suspend fun consumeConfirmation(confirmId: String, kind: ConfirmationKind): PendingConfirmation {
+        val pending = repo.getConfirmation(confirmId)?.takeIf { it.kind == kind }
+            ?: throw ToolValidationException("Confirmation not found")
+        val lastUser = repo.recentMessages(48).lastOrNull { it.role == MessageRole.USER }
+            ?: throw ToolValidationException("Wait for them to confirm before using this confirmId")
+        if (pending.createdAt >= lastUser.createdAt) {
+            throw ToolValidationException("Wait for them to confirm before using this confirmId")
+        }
+        repo.deleteConfirmation(confirmId)
+        return pending
     }
 
     private fun validateCompanionSchema(spec: ToolSpec, args: JSONObject) {
@@ -251,3 +311,5 @@ open class ToolRegistry(
         return parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
     }
 }
+
+internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile")

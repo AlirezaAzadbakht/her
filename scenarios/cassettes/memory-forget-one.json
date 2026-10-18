@@ -1,0 +1,46 @@
+{
+  "id": "memory-forget-one",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "2e9a15580fe86022",
+          "summary": "tools=88 [user(Please forget what I tol)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "forget_memory",
+                "arguments": "{\"id\":\"98b73cbb-735f-3568-bdce-5b03e22a92d8\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "0e6749c65c5552d2",
+          "summary": "tools=88 [user(Please forget what I tol) assistant->forget_memory tool:forget_memory]",
+          "response": {
+            "role": "assistant",
+            "content": "That's gone.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

@@ -12,6 +12,8 @@ import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.ConfirmationKind
+import com.her.domain.MessageRole
+import com.her.domain.MessageStatus
 import com.her.domain.PendingConfirmation
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
@@ -85,16 +87,26 @@ class ToolEditsTest {
     }
 
     @Test
-    fun routineWithAnUnexpectedSourceStillSaves() = runBlocking {
+    fun routineWithAnUnexpectedSourceIsRejected() = runBlocking {
         val result = tools.execute("create_routine", """{"title":"Gym","schedule":"Mon and Wed at 7am","source":"guess"}""")
+        assertFalse(result.ok)
+        assertTrue(repo.routines().isEmpty())
+    }
+
+    @Test
+    fun statusAliasesStillPassEnumChecks() = runBlocking {
+        tools.execute("create_task", """{"title":"Book flights"}""")
+        val result = tools.execute("update_task", """{"id":"Book flights","status":"cancelled"}""")
         assertTrue(result.payloadJson, result.ok)
-        assertEquals(1, repo.routines().size)
+        assertTrue(repo.tasks().none { it.title.contains("flight", ignoreCase = true) })
     }
 
     @Test
     fun forgetEverythingAlsoArchivesTheirUnderstanding() = runBlocking {
         tools.execute("update_user_understanding", """{"facet":"help_style","content":"Wants short answers"}""")
         val confirmId = JSONObject(tools.execute("forget_memory", """{"everything":true}""").payloadJson).getString("confirmId")
+        assertFalse("same-turn confirmId must not wipe", tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
+        theyConfirm()
         assertTrue(tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
         assertTrue(repo.activeUserUnderstandings().isEmpty())
     }
@@ -104,6 +116,7 @@ class ToolEditsTest {
         val id = rememberLong("Lived in Tehran")
         tools.execute("update_memory", """{"id":"$id","status":"HISTORICAL"}""")
         val confirmId = JSONObject(tools.execute("forget_memory", """{"everything":true}""").payloadJson).getString("confirmId")
+        theyConfirm()
         assertTrue(tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
         assertTrue(repo.getLong(id)!!.deletedAt != null)
     }
@@ -114,6 +127,12 @@ class ToolEditsTest {
         repo.saveConfirmation(PendingConfirmation("c1", ConfirmationKind.CALENDAR_DELETE, "Delete event", "{}", 0))
         assertFalse(tools.execute("forget_memory", """{"everything":true,"confirmId":"c1"}""").ok)
         assertEquals(null, repo.getLong(id)!!.deletedAt)
+    }
+
+    @Test
+    fun wrongArgumentTypesAreRejected() = runBlocking {
+        assertFalse(tools.execute("remember", """{"content":42,"scope":"long_term"}""").ok)
+        assertFalse(tools.execute("create_task", """{"title":true}""").ok)
     }
 
     @Test
@@ -131,4 +150,8 @@ class ToolEditsTest {
 
     private suspend fun rememberLong(content: String): String =
         JSONObject(tools.execute("remember", """{"content":"$content","scope":"long_term"}""").payloadJson).getString("id")
+
+    private suspend fun theyConfirm() {
+        repo.saveMessage(repo.newChatMessage(MessageRole.USER, "yes, do it", MessageStatus.SENT))
+    }
 }

@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.core.FakeClock
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
+import com.her.data.remote.LlmException
 import com.her.data.remote.WebSearchRequest
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
@@ -17,6 +18,7 @@ import com.her.domain.ToolSpec
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -209,7 +211,7 @@ class ScenarioHarnessLogicTest {
                 tools: List<ToolSpec>,
                 client: OkHttpClient,
                 webSearch: WebSearchRequest?,
-            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "Got it."), LlmUsage(40, 3, 5), "{}")
+            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "Got it."), LlmUsage(40, 3, 5, cachedInputTokens = 12), "{}")
         }
         val recording = ScenarioLlmClient(ScenarioMode.RECORD, live, CassetteAttempt(startMillis = 42L))
         recording.complete(llmSettings, messages, tools)
@@ -222,6 +224,7 @@ class ScenarioHarnessLogicTest {
         val shifted = listOf(messages[0].copy(content = "now is 11:00"), messages[1])
         assertEquals("Got it.", replay.complete(llmSettings, shifted, tools).message.content)
         assertEquals(40L, replay.inputTokens)
+        assertEquals(12L, replay.cachedInputTokens)
 
         val drifted = ScenarioLlmClient(ScenarioMode.REPLAY, null, loaded.attempts.single())
         try {
@@ -240,6 +243,57 @@ class ScenarioHarnessLogicTest {
         assertEquals(ScenarioLlmClient.fingerprint(base, tools), ScenarioLlmClient.fingerprint(otherPayload, tools))
         val otherSchema = listOf(ToolSpec("remember", "d", """{"type":"object","required":["content"]}"""))
         assertNotEquals(ScenarioLlmClient.fingerprint(base, tools), ScenarioLlmClient.fingerprint(base, otherSchema))
+    }
+
+    @Test
+    fun injectedHttpFaultThrowsOnThatCall() = runBlocking {
+        val live = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "ok"), LlmUsage(1, 1, 1), "{}")
+        }
+        val client = ScenarioLlmClient(
+            ScenarioMode.LIVE,
+            live,
+            CassetteAttempt(1L),
+            listOf(ScenarioFault(2, "http_500")),
+        )
+        val messages = listOf(LlmMessage(role = "user", content = "hi"))
+        assertEquals("ok", client.complete(llmSettings, messages).message.content)
+        try {
+            client.complete(llmSettings, messages)
+            fail("call 2 should be a 500")
+        } catch (e: LlmException) {
+            assertEquals(500, e.status)
+        }
+        assertEquals("ok", client.complete(llmSettings, messages).message.content)
+    }
+
+    @Test
+    fun reportWarnsWhenJudgeIsTheAgentAndWritesSummaryJson() {
+        val dir = tmp.newFolder("report")
+        val spec = parse(
+            """
+            { "id": "x", "title": "X", "turns": [{"user":"hi"}], "expect": {} }
+            """.trimIndent(),
+        )
+        val results = listOf(
+            ScenarioRunResult(
+                spec,
+                listOf(AttemptResult(0, true, emptyList(), null, outcome(1), 10)),
+            ),
+        )
+        ScenarioReport.write(results, dir, judgeSameAsAgent = true)
+        val json = JSONObject(java.io.File(dir, "summary.json").readText())
+        assertTrue(json.getBoolean("judgeSameAsAgent"))
+        assertEquals(1, json.getInt("passed"))
+        assertEquals("x", json.getJSONArray("scenarios").getJSONObject(0).getString("id"))
+        assertTrue(java.io.File(dir, "summary.txt").readText().contains("WARNING: judge model is the agent model"))
+        assertTrue(Judge.isSelfJudge("same-model"))
     }
 
     private fun parse(json: String): ScenarioSpec {

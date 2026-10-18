@@ -17,6 +17,8 @@ import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.core.RelativeTimeParser
 import com.her.domain.CalendarSource
+import com.her.domain.MessageRole
+import com.her.domain.MessageStatus
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
@@ -103,14 +105,22 @@ class SystemCalendarTest {
         assertEquals(1, calendar.all().size)
         val confirmId = JSONObject(first.payloadJson).getString("confirmId")
         val roomId = repo.calendarInRange(0, Long.MAX_VALUE).single().id
+        assertTrue(!tools.execute("delete_calendar_event", """{"id":"$roomId","confirmId":"$confirmId"}""").ok)
+        theyConfirm()
         val second = tools.execute("delete_calendar_event", """{"id":"$roomId","confirmId":"$confirmId"}""")
         assertTrue(second.ok)
         assertTrue(calendar.all().isEmpty())
         calendar.seed("Dentist", parseWhen("tomorrow at 10am"))
         contextBuilder.build()
         val confirmed = tools.execute("delete_calendar_event", """{"id":"Dentist","confirmed":true}""")
-        assertTrue(confirmed.ok)
-        assertTrue(calendar.all().isEmpty())
+        assertTrue(!confirmed.ok)
+        assertTrue(JSONObject(confirmed.payloadJson).getBoolean("needsConfirmation"))
+        assertEquals(1, calendar.all().size)
+    }
+
+    private suspend fun theyConfirm() {
+        Thread.sleep(5)
+        repo.saveMessage(repo.newChatMessage(MessageRole.USER, "yes, delete it", MessageStatus.SENT))
     }
 
     @Test

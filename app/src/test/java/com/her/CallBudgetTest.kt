@@ -16,4 +16,13 @@ class CallBudgetTest {
         assertFalse(budget.canCall())
         assertTrue(budget.used == 10)
     }
+
+    @Test
+    fun oneCallBudgetIsTheFinalCall() {
+        val budget = CallBudget(1)
+        assertTrue(budget.isFinalCall())
+        budget.consume()
+        assertFalse(budget.canCall())
+        assertFalse(budget.isFinalCall())
+    }
 }

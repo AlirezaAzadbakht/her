@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
+import com.her.core.DeterministicIds
 import com.her.core.FakeClock
 import com.her.core.RelativeTimeParser
 import com.her.data.calendar.CalendarDataSource
@@ -30,6 +31,9 @@ import com.her.reminders.FakeAlarmClock
 import com.her.reminders.FakeReminderAlarms
 import com.her.reminders.ReminderAlarms
 import com.her.reminders.ReminderDelivery
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 data class RecordedNotification(
@@ -96,6 +100,7 @@ class ScenarioHarness(
     attempt: Int,
     startMillis: Long,
 ) {
+    private val idPrefix = "${spec.id}:$startMillis"
     private val context = ApplicationProvider.getApplicationContext<Application>()
     val clock = FakeClock(startMillis)
     private val settings = AppSettingsStore(context, "her_scenario_${spec.id}_${attempt}_${System.nanoTime()}")
@@ -127,7 +132,7 @@ class ScenarioHarness(
         policy = NotificationPolicy(settings),
     )
 
-    suspend fun run(): HarnessOutcome {
+    suspend fun run(): HarnessOutcome = withContext(DeterministicIds(idPrefix)) {
         var lastReply: String? = null
         var error: String? = null
         try {
@@ -139,10 +144,26 @@ class ScenarioHarness(
                         orchestrator.enqueueUserMessage(turn.text)
                         orchestrator.processOutbox()
                     }
-                    is ScenarioTurn.Run -> when (turn.kind) {
-                        AutonomousRun.HOURLY -> orchestrator.runHourly()
-                        AutonomousRun.NIGHTLY -> orchestrator.runNightly()
-                        AutonomousRun.BRIEFING -> orchestrator.runBriefing()
+                    is ScenarioTurn.Run -> {
+                        suspend fun runAutonomous() = when (turn.kind) {
+                            AutonomousRun.HOURLY -> orchestrator.runHourly()
+                            AutonomousRun.NIGHTLY -> orchestrator.runNightly()
+                            AutonomousRun.BRIEFING -> orchestrator.runBriefing()
+                        }
+                        val userText = turn.concurrentWithUser
+                        if (userText == null) {
+                            runAutonomous()
+                        } else {
+                            coroutineScope {
+                                val background = async { runAutonomous() }
+                                val chat = async {
+                                    orchestrator.enqueueUserMessage(userText)
+                                    orchestrator.processOutbox()
+                                }
+                                background.await()
+                                chat.await()
+                            }
+                        }
                     }
                     // Moving the clock stands in for AlarmManager: anything due rings before the next turn.
                     is ScenarioTurn.Advance -> {
@@ -169,9 +190,8 @@ class ScenarioHarness(
         }
         val messages = repo.recentMessages(200)
         val reply = Checks.lastAssistantReply(messages, lastReply)
-            ?: notifier.notifications.lastOrNull()?.text
         val bundle = runCatching { contextBuilder.build().systemBundle }.getOrDefault("")
-        return HarnessOutcome(
+        return@withContext HarnessOutcome(
             toolCalls = tools.calls,
             notifications = notifier.notifications,
             messages = messages,

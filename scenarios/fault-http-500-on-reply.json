@@ -1,0 +1,27 @@
+{
+  "id": "fault-http-500-on-reply",
+  "title": "A 500 after the write does not create the task twice",
+  "tags": ["faults", "tasks", "retry"],
+  "attempts": 1,
+  "faults": [{ "call": 2, "type": "http_500" }],
+  "turns": [
+    { "user": "Add a task to buy milk." }
+  ],
+  "expect": {
+    "tools_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 1,
+        "where": {
+          "title": { "contains": "milk" },
+          "status": { "equals": "OPEN" }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Milk is a task once, even though the follow-up model call failed and was retried."
+    }
+  }
+}

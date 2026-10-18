@@ -1,0 +1,46 @@
+{
+  "id": "language-english-despite-tehran",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "d826fb262d0dc627",
+          "summary": "tools=88 [user(Can you add eggs to the )]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "add_grocery",
+                "arguments": "{\"name\":\"eggs\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "86d3f4f28cc6d32b",
+          "summary": "tools=88 [user(Can you add eggs to the ) assistant->add_grocery tool:add_grocery]",
+          "response": {
+            "role": "assistant",
+            "content": "Eggs are on the list.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

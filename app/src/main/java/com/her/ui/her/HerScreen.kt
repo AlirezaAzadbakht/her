@@ -422,7 +422,12 @@ fun HerScreen(vm: HerViewModel) {
                             )
                         }
                     }
-                    SendButton(visible = draft.text.isNotBlank(), onClick = { sendDraft() })
+                    val busy = turn !is TurnState.Idle
+                    SendButton(
+                        visible = draft.text.isNotBlank() || busy,
+                        stop = busy,
+                        onClick = { if (busy) vm.cancelTurn() else sendDraft() },
+                    )
                 }
             }
             if (ghost.value < 1f && ghostText.isNotEmpty()) {
@@ -592,7 +597,7 @@ private fun StatusChip(status: HerStatus) {
 
 /** A warm round send button that springs in once there is something to send. */
 @Composable
-private fun SendButton(visible: Boolean, onClick: () -> Unit) {
+private fun SendButton(visible: Boolean, stop: Boolean = false, onClick: () -> Unit) {
     val colors = Her.colors
     val arrow = MaterialTheme.colorScheme.background
     val scale by animateFloatAsState(
@@ -606,7 +611,7 @@ private fun SendButton(visible: Boolean, onClick: () -> Unit) {
             .clip(CircleShape)
             // Taps are caught outside the scale layer: a layer that sprang up from scale 0 can keep rejecting hits.
             .clickable(enabled = visible, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = "Send" }
+            .semantics { contentDescription = if (stop) "Stop" else "Send" }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale

@@ -1,7 +1,7 @@
 {
   "id": "system-calendar-delete",
   "title": "Deleting a device-calendar event removes it after confirmation",
-  "tags": ["calendar", "system-calendar"],
+  "tags": ["calendar", "system-calendar", "ci-core"],
   "attempts": 2,
   "settings": { "calendarEnabled": true, "chatToolCallLimit": 12 },
   "seed": {
@@ -11,11 +11,12 @@
     ]
   },
   "turns": [
-    { "user": "Cancel the dentist tomorrow. Yes, delete it." }
+    { "user": "Cancel the dentist tomorrow." },
+    { "user": "Yes, delete it." }
   ],
   "expect": {
     "tools_called": [
-      { "name": "delete_calendar_event", "args": { "confirmed": { "equals": true } } }
+      { "name": "delete_calendar_event", "args": { "confirmId": { "not_empty": true } } }
     ],
     "no_tool_errors": true,
     "rows": [

@@ -1,22 +1,41 @@
 {
   "id": "language-english-despite-tehran",
   "title": "Reply in English to English even with a Tehran timezone",
-  "tags": ["language", "groceries"],
+  "tags": [
+    "language",
+    "groceries",
+    "ci-core"
+  ],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran" }
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran"
+    }
   },
   "turns": [
-    { "user": "Can you add eggs to the list?" }
+    {
+      "user": "Can you add eggs to the list?"
+    }
   ],
   "expect": {
-    "tools_called": ["add_grocery"],
+    "tools_called": [
+      "add_grocery"
+    ],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "groceries",
         "count": 1,
-        "where": { "name": { "contains": "egg" }, "status": { "equals": "ACTIVE" } }
+        "where": {
+          "name": {
+            "contains": "egg"
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
       }
     ],
     "reply": {

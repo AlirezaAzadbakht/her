@@ -74,6 +74,10 @@ class OrchestratorReceiptsTest {
         val receipts = Receipts.fromMetadata(saved.metadataJson)
         assertEquals("private notes are not announced", listOf("added rice to groceries"), receipts.map { it.label })
         assertTrue(receipts.single().undoable)
+        val bundleMessages = contextBuilder.build().messages
+        val assistant = bundleMessages.last { it.role == "assistant" }
+        assertTrue(assistant.content!!.contains("[saved groceries"))
+        assertTrue(assistant.content.contains("added rice to groceries"))
     }
 
     @Test

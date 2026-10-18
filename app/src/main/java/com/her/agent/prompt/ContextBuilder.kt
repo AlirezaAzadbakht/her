@@ -1,5 +1,6 @@
 package com.her.agent.prompt
 
+import com.her.agent.runner.Receipts
 import com.her.core.formatNaturalDate
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.GoogleCalendar
@@ -16,6 +17,7 @@ import com.her.data.retrieval.MemoryRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.LlmMessage
 import com.her.domain.MemoryHit
+import com.her.domain.MessageRole
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -160,10 +162,22 @@ class ContextBuilder(
             add(LlmMessage(role = "system", content = Identity.SYSTEM_PROMPT + "\n\n" + com.her.learning.LearningInstructions.SYSTEM + "\n\n" + com.her.companion.CompanionInstructions.SYSTEM))
             add(LlmMessage(role = "system", content = bundle))
             recent.forEach { msg ->
-                add(LlmMessage(role = msg.role.name.lowercase(), content = msg.content))
+                add(LlmMessage(role = msg.role.name.lowercase(), content = withReceipts(msg)))
             }
         }
         return BuiltContext(messages, memories, bundle)
+    }
+
+    private fun withReceipts(msg: com.her.domain.ChatMessage): String {
+        if (msg.role != MessageRole.ASSISTANT) return msg.content
+        val receipts = Receipts.fromMetadata(msg.metadataJson).filter { !it.undone }
+        if (receipts.isEmpty()) return msg.content
+        return buildString {
+            append(msg.content)
+            receipts.forEach { receipt ->
+                append("\n[saved ${receipt.entityType} ${receipt.entityId.take(8)} \"${receipt.label}\"]")
+            }
+        }
     }
 
     /** A PERSON reminder names a calendar event in the next day with that person, so a pass can bring it up in time. */

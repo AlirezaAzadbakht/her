@@ -8,12 +8,19 @@ import com.her.domain.LlmToolCall
 import com.her.domain.ToolSpec
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.coroutines.cancellation.CancellationException
 
 class LlmException(message: String, val status: Int? = null) : IOException(message)
 
@@ -37,7 +44,7 @@ open class LlmClient(
         }
         val request = request(settings, messages, tools, stream = false, webSearch = webSearch)
         val started = System.currentTimeMillis()
-        client.newCall(request).execute().use { response ->
+        client.newCall(request).await().use { response ->
             val raw = response.body?.string().orEmpty()
             val latency = System.currentTimeMillis() - started
             if (!response.isSuccessful) {
@@ -61,7 +68,7 @@ open class LlmClient(
         }
         val request = request(settings, messages, tools, stream = true, webSearch = null)
         val started = System.currentTimeMillis()
-        http.newCall(request).execute().use { response ->
+        http.newCall(request).await().use { response ->
             if (!response.isSuccessful) {
                 val raw = response.body?.string().orEmpty()
                 if (looksLikeStreamingUnsupported(response.code, raw)) {
@@ -93,6 +100,7 @@ open class LlmClient(
                 result.contentDelta?.let(onDelta)
                 if (!result.continueStreaming) break
             }
+            if (!acc.finished) throw LlmException("LLM stream truncated")
             return acc.toResponse(System.currentTimeMillis() - started)
         }
     }
@@ -161,7 +169,11 @@ open class LlmClient(
     }
 
     private fun parseResponse(raw: String, latency: Long): LlmResponse {
-        val root = JSONObject(raw)
+        val root = try {
+            JSONObject(raw)
+        } catch (e: Exception) {
+            throw LlmException("malformed LLM JSON: ${e.message}")
+        }
         val choice = root.optJSONArray("choices")?.optJSONObject(0)
             ?: throw LlmException("LLM response had no choices")
         val message = choice.optJSONObject("message") ?: JSONObject()
@@ -202,6 +214,7 @@ open class LlmClient(
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(120, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(180, TimeUnit.SECONDS)
             .build()
 
         internal fun looksLikeStreamingUnsupported(status: Int, raw: String): Boolean {
@@ -260,4 +273,23 @@ private fun List<LlmMessage>.toJsonArray(): JSONArray {
         array.put(obj)
     }
     return array
+}
+
+private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
+    cont.invokeOnCancellation { cancel() }
+    enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            if (!cont.isActive) return
+            val ex = if (call.isCanceled()) CancellationException("LLM call cancelled", e) else e
+            cont.resumeWithException(ex)
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            if (!cont.isActive) {
+                response.close()
+                return
+            }
+            cont.resume(response)
+        }
+    })
 }

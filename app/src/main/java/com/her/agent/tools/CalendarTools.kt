@@ -122,9 +122,8 @@ internal fun ToolRegistry.registerCalendarTools() {
         val existing = requireCalendarEvent(args.requiredString("id"))
         refuseGoogleWrite(existing)
         if (existing.source != CalendarSource.INTERNAL && existing.externalId != null) {
-            val already = args.optBoolean("confirmed", false)
             val confirmId = args.optStringOrNull("confirmId")
-            if (!already && confirmId == null) {
+            if (confirmId == null) {
                 val pending = PendingConfirmation(
                     newId(),
                     ConfirmationKind.CALENDAR_DELETE,
@@ -140,11 +139,7 @@ internal fun ToolRegistry.registerCalendarTools() {
                     "summary" to pending.summary,
                 )
             }
-            if (!already) {
-                val token = confirmId ?: throw ToolValidationException("Confirmation not found")
-                repo.getConfirmation(token) ?: throw ToolValidationException("Confirmation not found")
-                repo.deleteConfirmation(token)
-            }
+            consumeConfirmation(confirmId, ConfirmationKind.CALENDAR_DELETE)
             systemCalendar.delete(existing)
         }
         repo.deleteCalendarEvent(existing.id)

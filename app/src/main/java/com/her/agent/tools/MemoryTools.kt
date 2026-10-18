@@ -228,9 +228,7 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.saveConfirmation(pending)
                 return@register jsonObjectOf("ok" to false, "needsConfirmation" to true, "confirmId" to pending.id, "summary" to pending.summary)
             }
-            val pending = repo.getConfirmation(confirmId)?.takeIf { it.kind == ConfirmationKind.BULK_FORGET }
-                ?: throw ToolValidationException("Confirmation not found")
-            repo.deleteConfirmation(confirmId)
+            val pending = consumeConfirmation(confirmId, ConfirmationKind.BULK_FORGET)
             repo.companionRecords().filter { it.kind !in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") }.forEach { repo.forgetCompanion(it.id) }
             repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.allShort().forEach { repo.deleteShort(it.id) }

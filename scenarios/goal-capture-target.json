@@ -1,22 +1,44 @@
 {
   "id": "goal-capture-target",
   "title": "Capture a goal with its target date",
-  "tags": ["goals"],
+  "tags": [
+    "goals",
+    "ci-core"
+  ],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    }
   },
   "turns": [
-    { "user": "I want to run a half marathon by next March." }
+    {
+      "user": "I want to run a half marathon by next March."
+    }
   ],
   "expect": {
-    "tools_called": ["create_goal"],
+    "tools_called": [
+      "create_goal"
+    ],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "goals",
         "count": 1,
-        "where": { "title": { "contains": "marathon" }, "status": { "equals": "ACTIVE" }, "targetDate": { "not_empty": true } }
+        "where": {
+          "title": {
+            "contains": "marathon"
+          },
+          "status": {
+            "equals": "ACTIVE"
+          },
+          "targetDate": {
+            "not_empty": true
+          }
+        }
       }
     ],
     "reply": {

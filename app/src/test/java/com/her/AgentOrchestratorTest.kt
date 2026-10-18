@@ -28,7 +28,11 @@ import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import java.time.Instant
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.junit.After
@@ -111,6 +115,13 @@ class AgentOrchestratorTest {
         assertFalse(result.failed)
         assertEquals("ok", result.assistantText)
         assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun retriesTruncatedStreamsButNotConfigErrors() {
+        assertTrue(AgentOrchestrator.isRetryable(LlmException("LLM stream truncated")))
+        assertTrue(AgentOrchestrator.isRetryable(LlmException("LLM response had no choices")))
+        assertFalse(AgentOrchestrator.isRetryable(LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")))
     }
 
     @Test
@@ -270,6 +281,142 @@ class AgentOrchestratorTest {
 
         assertFalse(result.ok)
         assertTrue(JSONObject(result.payloadJson).getString("error").contains("valid JSON"))
+    }
+
+    @Test
+    fun oneCallBudgetWithholdsTools() = runBlocking {
+        settings.update { it.copy(chatToolCallLimit = 1) }
+        val llm = ScriptedLlm({ reply("Hi.") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("hi")
+        val result = orchestrator.processOutbox()!!
+        assertEquals("Hi.", result.assistantText)
+        assertTrue(llm.toolsSeen.single().isEmpty())
+    }
+
+    @Test
+    fun retriesMalformedJsonThenSucceeds() = runBlocking {
+        val llm = ScriptedLlm(
+            { throw LlmException("malformed LLM JSON: not json") },
+            { reply("ok") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("hi")
+        val result = orchestrator.processOutbox()!!
+        assertFalse(result.failed)
+        assertEquals("ok", result.assistantText)
+        assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun failedTurnDoesNotDuplicateWritesOnRetry() = runBlocking {
+        val llm = ScriptedLlm(
+            { toolCall("create_task", """{"title":"Buy milk"}""") },
+            { throw LlmException("server error", 500) },
+            { throw LlmException("server error", 500) },
+            { throw LlmException("server error", 500) },
+            { toolCall("create_task", """{"title":"Buy milk"}""") },
+            { reply("Added it.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("Buy milk")
+        val first = orchestrator.processOutbox()!!
+        assertTrue(first.failed)
+        assertEquals(1, repo.tasks().size)
+        val second = orchestrator.processOutbox()!!
+        assertFalse(second.failed)
+        assertEquals(1, repo.tasks().size)
+    }
+
+    @Test
+    fun autonomousRunsCannotForgetMemory() = runBlocking {
+        tools.execute("remember", """{"content":"Likes tea","scope":"long_term"}""")
+        val llm = ScriptedLlm(
+            { toolCall("forget_memory", """{"everything":true}""") },
+            { reply("NO_NOTIFICATION") },
+        )
+        orchestrator(llm).runHourly()
+        assertTrue(llm.toolsSeen[0].none { it.name == "forget_memory" })
+        assertEquals(1, repo.allLong().count { it.deletedAt == null })
+    }
+
+    @Test
+    fun duplicateToolCallsAreNotExecutedTwice() = runBlocking {
+        val llm = ScriptedLlm(
+            {
+                LlmResponse(
+                    LlmMessage(
+                        role = "assistant",
+                        toolCalls = listOf(
+                            LlmToolCall("a", "create_task", """{"title":"Call Sara"}"""),
+                            LlmToolCall("b", "create_task", """{"title":"Call Sara"}"""),
+                        ),
+                    ),
+                    LlmUsage(10, 5, 1),
+                    "{}",
+                )
+            },
+            { reply("Noted.") },
+        )
+        orchestrator(llm).run {
+            enqueueUserMessage("Remind me to call Sara")
+            processOutbox()
+        }
+        assertEquals(1, repo.tasks().size)
+    }
+
+    @Test
+    fun elidesOldToolResultsPastTheBudget() {
+        val messages = MutableList(3) { i ->
+            LlmMessage(role = "tool", content = "x".repeat(40_000), toolCallId = "c$i", name = "search_memory")
+        }
+        AgentOrchestrator.elideToolResults(messages, maxChars = 50_000)
+        assertTrue(messages.any { it.content == """{"ok":true,"elided":true}""" })
+        assertTrue(messages.sumOf { it.content?.length ?: 0 } <= 50_000 + 40_000)
+    }
+
+    @Test
+    fun runsAreSerialized() = runBlocking {
+        val started = mutableListOf<String>()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse {
+                started += "hourly"
+                gate.await()
+                return reply("NO_NOTIFICATION")
+            }
+
+            override suspend fun stream(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                onDelta: (String) -> Unit,
+            ): LlmResponse {
+                started += "chat"
+                return reply("ok")
+            }
+        }
+        val orch = orchestrator(llm)
+        coroutineScope {
+            val hourly = launch { orch.runHourly() }
+            while (started.isEmpty()) yield()
+            val chat = launch {
+                orch.enqueueUserMessage("hi")
+                orch.processOutbox()
+            }
+            delay(40)
+            assertEquals(listOf("hourly"), started)
+            gate.complete(Unit)
+            hourly.join()
+            chat.join()
+        }
+        assertEquals(listOf("hourly", "chat"), started)
     }
 
     private fun orchestrator(llm: LlmClient) = AgentOrchestrator(
