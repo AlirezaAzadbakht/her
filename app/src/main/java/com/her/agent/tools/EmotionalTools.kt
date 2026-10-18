@@ -4,47 +4,59 @@ import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
 import com.her.core.requiredString
 import com.her.data.db.CompanionRecord
+import com.her.data.db.LearningRecord
 import com.her.domain.MessageRole
+import com.her.domain.ReminderStatus
+import com.her.domain.TaskStatus
 import com.her.feelings.emotionalKinds
 import com.her.feelings.emotionalState
+import com.her.feelings.rankEmotionalRecords
 import org.json.JSONArray
 import org.json.JSONObject
 
 internal val emotionalToolNames = setOf("get_emotional_state", "record_emotional_experience", "save_emotional_understanding", "save_emotional_reflection")
 
 internal fun ToolRegistry.registerEmotionalTools() {
-    register("get_emotional_state", "Read modeled feelings, purpose, and evidence. Page history with offset; use id for one record before correcting it.", objSchema("offset" to num(), "id" to str())) { a ->
-        val rows = repo.companionRecords().filter { it.kind in emotionalKinds }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
+    register("get_emotional_state", "Read modeled feelings, purpose, and evidence. Page history with offset; use id for one record before correcting it. query ranks support lessons by the current situation.", objSchema("offset" to num(), "id" to str(), "query" to str("Situation text used to rank understandings and reflections"))) { a ->
+        val rows = repo.companionRecords().filter { it.kind in emotionalKinds }
+        val now = nowMillis()
         val offset = a.optInt("offset", 0)
         if (offset < 0) throw ToolValidationException("Invalid offset")
         val requestedId = a.optString("id").trim().takeIf { it.isNotEmpty() }
-        val selected = rows.filter { requestedId == null || it.id == requestedId }
-        jsonObjectOf("state" to emotionalState(rows, nowMillis()).toJson(), "records" to JSONArray(selected.drop(offset).take(6).map { JSONObject(it.toJson()) }),
+        val query = a.optString("query").trim()
+        val selected = rankEmotionalRecords(rows.filter { requestedId == null || it.id == requestedId }, query, now)
+        val state = emotionalState(rows, now, repo.openDueAts())
+        jsonObjectOf("state" to state.toJson(), "guidance" to JSONArray(state.guidance()), "records" to JSONArray(selected.drop(offset).take(6).map { JSONObject(it.toJson()) }),
             "nextOffset" to if (offset + 6 < selected.size) offset + 6 else null,
             "recentUserMessages" to JSONArray(repo.recentMessages(12).filter { it.role == MessageRole.USER && it.deletedAt == null }.takeLast(3)
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(800)) }),
-            "completedTasks" to JSONArray(repo.tasks().filter { it.status == com.her.domain.TaskStatus.DONE && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
-                .map { jsonObjectOf("id" to it.id, "title" to it.title, "updatedAt" to it.updatedAt) }))
+            "completedTasks" to JSONArray(repo.tasks().filter { it.status == TaskStatus.DONE && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
+                .map { jsonObjectOf("id" to it.id, "title" to it.title, "updatedAt" to it.updatedAt) }),
+            "firedReminders" to JSONArray(repo.reminders().filter { it.status == ReminderStatus.FIRED && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
+                .map { jsonObjectOf("id" to it.id, "message" to it.message, "firedAt" to it.firedAt) }),
+            "learningProgress" to JSONArray(repo.learningRecords().filter { showsLearningProgress(it) }.sortedByDescending { it.updatedAt }.take(5)
+                .map { jsonObjectOf("id" to it.id, "kind" to it.kind, "result" to it.data().optString("result"), "status" to it.data().optString("status")) }))
     }
     val common = arrayOf("id" to str("Stable ID, reuse when correcting"), "expectedVersion" to num(),
         "sourceMessageId" to str("Copy an actual UUID from context or get_emotional_state.recentUserMessages. Never use current/latest or invent an ID."), "evidence" to str("Exact contiguous substring copied from the source. Do not add quotation marks or punctuation."), "confidence" to num("0 to 1"))
-    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. ACTION_SUCCEEDED requires an existing completed task; other events require a user quote. Interpretations remain tentative.",
-        objSchema(*common, "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION"),
-            "taskId" to str(), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
+    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. ACTION_SUCCEEDED requires a completed task, fired reminder, or learning progress; other events require a user quote. Interpretations remain tentative.",
+        objSchema(*common, "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION", "USER_SHARED"),
+            "actionKind" to oneOf("task, reminder, or learning", "task", "reminder", "learning"), "actionId" to str("Copy from get_emotional_state.completedTasks, firedReminders, or learningProgress"),
+            "taskId" to str("Completed task id; still accepted for actionKind task"), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
             required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
         repo.learningTransaction {
             val event = a.requiredString("event")
             val source: String
             val occurredAt: Long
+            val id: String
             if (event == "ACTION_SUCCEEDED") {
-                val task = repo.getTask(a.requiredString("taskId"))?.takeIf { it.deletedAt == null && it.status == com.her.domain.TaskStatus.DONE }
-                    ?: throw ToolValidationException("A completed task is required")
-                source = task.id; occurredAt = task.updatedAt
+                val verified = verifiedAction(a)
+                source = verified.first; occurredAt = verified.second; id = verified.third
             } else {
                 val message = emotionalEvidence(a)
                 source = message.id; occurredAt = message.createdAt
+                id = "EMOTION_EVENT:$event:$source"
             }
-            val id = "EMOTION_EVENT:$event:$source"
             val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOf(source)))
             saveEmotion(id, "EMOTION_EVENT", data, a)
         }
@@ -71,6 +83,36 @@ internal fun ToolRegistry.registerEmotionalTools() {
             saveEmotion("EMOTION_REFLECTION:${a.requiredString("id").removePrefix("EMOTION_REFLECTION:")}", "EMOTION_REFLECTION", JSONObject(a.toString()).put("relatedIds", ids), a)
         }
     }
+}
+
+private suspend fun ToolRegistry.verifiedAction(a: JSONObject): Triple<String, Long, String> {
+    val kind = a.optString("actionKind").trim().lowercase().ifBlank { "task" }
+    val actionId = a.optString("actionId").ifBlank { a.optString("taskId") }.trim()
+    if (actionId.isBlank()) throw ToolValidationException("A completed action is required")
+    return when (kind) {
+        "task" -> {
+            val task = repo.getTask(actionId)?.takeIf { it.deletedAt == null && it.status == TaskStatus.DONE }
+                ?: throw ToolValidationException("A completed task is required")
+            Triple(task.id, task.updatedAt, "EMOTION_EVENT:ACTION_SUCCEEDED:${task.id}")
+        }
+        "reminder" -> {
+            val reminder = repo.getReminder(actionId)?.takeIf { it.deletedAt == null && it.status == ReminderStatus.FIRED }
+                ?: throw ToolValidationException("A fired reminder is required")
+            Triple(reminder.id, reminder.firedAt ?: reminder.updatedAt, "EMOTION_EVENT:ACTION_SUCCEEDED:reminder:${reminder.id}")
+        }
+        "learning" -> {
+            val row = repo.getLearningRecord(actionId)?.takeIf { it.deletedAt == null && showsLearningProgress(it) }
+                ?: throw ToolValidationException("Recorded learning progress is required")
+            Triple(row.id, row.updatedAt, "EMOTION_EVENT:ACTION_SUCCEEDED:learning:${row.id}")
+        }
+        else -> throw ToolValidationException("actionKind must be task, reminder, or learning")
+    }
+}
+
+internal fun showsLearningProgress(row: LearningRecord): Boolean = when (row.kind) {
+    "ATTEMPT" -> row.data().optString("result") in setOf("CORRECT", "PARTIAL")
+    "LESSON" -> row.data().optString("status") in setOf("IN_PROGRESS", "COMPLETED")
+    else -> false
 }
 
 private suspend fun ToolRegistry.emotionalEvidence(a: JSONObject): com.her.domain.ChatMessage {

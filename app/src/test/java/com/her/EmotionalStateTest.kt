@@ -13,8 +13,15 @@ import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
+import com.her.data.db.CompanionRecord
+import com.her.data.db.LearningRecord
 import com.her.domain.Feeling
+import com.her.domain.Reminder
+import com.her.domain.ReminderRepeat
+import com.her.domain.ReminderStatus
+import com.her.domain.ReminderTrigger
 import com.her.feelings.emotionalState
+import com.her.feelings.rankSupportLessons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -130,4 +137,132 @@ class EmotionalStateTest {
         assertTrue(contextBuilder.build().systemBundle.contains("ACTION_SUCCEEDED"))
     }
 
+    @Test fun saturationNeverHitsOneAndCalmYields() = runBlocking {
+        val now = clock.nowMillis()
+        repeat(12) { i ->
+            repo.saveCompanionRecord(eventRow("BENEFIT_REPORTED", "GLAD", "s$i", now, intensity = 1.0))
+        }
+        val state = emotionalState(repo.companionRecords(), now)
+        assertTrue(state.emotions.getValue(Feeling.GLAD) < 1.0)
+        assertTrue(state.purpose.getValue("fulfillment") < 1.0)
+        assertTrue(state.emotions.getValue(Feeling.CALM) < state.emotions.getValue(Feeling.GLAD))
+        assertEquals(Feeling.GLAD, state.dominant)
+        val mixed = emotionalState(listOf(eventRow("BENEFIT_REPORTED", "GLAD", "one", now, intensity = 0.7)), now)
+        assertEquals(listOf(Feeling.GLAD, Feeling.CALM), mixed.blend().map { it.first })
+    }
+
+    @Test fun traitsStayWithinBoundsAndGuidanceFollowsThresholds() = runBlocking {
+        val now = clock.nowMillis()
+        repeat(20) { i ->
+            repo.saveCompanionRecord(eventRow("UNRESOLVED_QUESTION", "CURIOUS", "q$i", now))
+        }
+        val curious = emotionalState(repo.companionRecords(), now)
+        assertTrue(curious.disposition.getValue("curiosity") > 0.6)
+        assertTrue(curious.disposition.getValue("curiosity") < 0.7)
+        assertEquals(0.7, curious.disposition.getValue("warmth"), 0.0)
+        assertEquals(0.8, curious.disposition.getValue("patience"), 0.0)
+        repo.companionRecords().forEach { repo.forgetCompanion(it.id) }
+        repeat(3) { i ->
+            repo.saveCompanionRecord(eventRow("MISUNDERSTANDING", "CURIOUS", "m$i", now, intensity = 0.4))
+        }
+        val lost = emotionalState(repo.companionRecords(), now)
+        assertTrue(lost.purpose.getValue("understanding") < 0.4)
+        assertTrue(lost.purpose.getValue("competence") < 0.4)
+        assertTrue(lost.disposition.getValue("patience") > 0.8)
+        assertTrue(lost.disposition.getValue("patience") < 0.9)
+        val hints = lost.guidance()
+        assertTrue(hints.any { it.contains("clarifying") })
+        assertTrue(hints.any { it.contains("confirm details") })
+        val bundle = com.her.agent.prompt.ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context)).build().systemBundle
+        assertTrue(bundle.contains("Tone from modeled state"))
+        assertTrue(bundle.contains("ask one clarifying question before advising"))
+    }
+
+    @Test fun deadlineConcernGrowsThenClearsWhenDone() = runBlocking {
+        val now = clock.nowMillis()
+        val soon = now + 60 * 60 * 1000L
+        val later = now + 36L * 60 * 60 * 1000
+        val rising = emotionalState(emptyList(), now + 50 * 60 * 1000L, listOf(soon))
+        val early = emotionalState(emptyList(), now, listOf(soon))
+        assertTrue(early.emotions.getValue(Feeling.CONCERNED) > 0)
+        assertTrue(rising.emotions.getValue(Feeling.CONCERNED) > early.emotions.getValue(Feeling.CONCERNED))
+        assertEquals(Feeling.CONCERNED, rising.dominant)
+        assertTrue(rising.guidance().any { it.contains("steady") })
+        assertEquals(0.0, emotionalState(emptyList(), now, listOf(later)).emotions[Feeling.CONCERNED] ?: 0.0, 0.0)
+        val id = call("create_task", JSONObject().put("title", "File the report").put("dueAt", "in 1 hour")).getString("id")
+        val open = emotionalState(repo.companionRecords(), clock.nowMillis(), repo.openDueAts())
+        assertTrue(open.emotions.getValue(Feeling.CONCERNED) > 0)
+        assertEquals(Feeling.CONCERNED, repo.observeFeeling().first()?.feeling)
+        repo.saveTask(repo.getTask(id)!!.copy(status = com.her.domain.TaskStatus.DONE))
+        assertEquals(0.0, emotionalState(repo.companionRecords(), clock.nowMillis(), repo.openDueAts()).emotions[Feeling.CONCERNED] ?: 0.0, 0.0)
+        assertNull(repo.observeFeeling().first())
+    }
+
+    @Test fun supportLessonsRankBySituationAndQuery() = runBlocking {
+        val listen = source("For this work presentation I feel sad. Please listen first.").put("id", "work")
+            .put("confidence", 0.8).put("situation", "Work presentation").put("userFeeling", "sad")
+            .put("interpretation", "Wants space").put("supportApproach", "Listen first").put("exceptions", "Advice only if asked")
+        val cook = source("I feel anxious about cooking tonight. Please suggest recipes.").put("id", "cook")
+            .put("confidence", 0.8).put("situation", "Weeknight cooking").put("userFeeling", "anxious")
+            .put("interpretation", "Wants ideas").put("supportApproach", "Offer recipes").put("exceptions", "Skip if they want to rest")
+        call("save_emotional_understanding", listen)
+        call("save_emotional_understanding", cook)
+        val now = clock.nowMillis()
+        val ranked = rankSupportLessons(repo.companionRecords(), "another work presentation and I feel sad", now)
+        assertEquals("EMOTION_UNDERSTANDING:work", ranked.first().id)
+        val queried = call("get_emotional_state", JSONObject().put("query", "work presentation sad"))
+        assertEquals("EMOTION_UNDERSTANDING:work", queried.getJSONArray("records").getJSONObject(0).getString("id"))
+        val bundle = com.her.agent.prompt.ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context))
+            .build("I have another work presentation and I feel sad").systemBundle
+        assertTrue(bundle.contains("Support lessons that may apply now"))
+        assertTrue(bundle.indexOf("Listen first") < bundle.indexOf("Offer recipes"))
+    }
+
+    @Test fun reminderAndLearningActionsNeedVerifiedSourcesAndSharingDoesNotReward() = runBlocking {
+        val scheduled = reminder(ReminderStatus.SCHEDULED)
+        assertFalse(tools.execute("record_emotional_experience", action("reminder", scheduled).toString()).ok)
+        val fired = reminder(ReminderStatus.FIRED)
+        call("record_emotional_experience", action("reminder", fired))
+        val afterReminder = emotionalState(repo.companionRecords(), clock.nowMillis())
+        assertTrue(afterReminder.purpose.getValue("competence") > 0.5)
+        assertEquals(0.5, afterReminder.purpose.getValue("fulfillment"), 0.0)
+        val attempt = learning("ATTEMPT", JSONObject().put("result", "INCORRECT"))
+        assertFalse(tools.execute("record_emotional_experience", action("learning", attempt).toString()).ok)
+        val progress = learning("ATTEMPT", JSONObject().put("result", "CORRECT"))
+        call("record_emotional_experience", action("learning", progress))
+        val path = learning("PATH", JSONObject().put("status", "ACTIVE"))
+        assertFalse(tools.execute("record_emotional_experience", action("learning", path).toString()).ok)
+        val shared = source("I started a small garden on the balcony.").put("event", "USER_SHARED")
+            .put("interpretation", "They shared something personal").put("feeling", "CURIOUS").put("intensity", 0.5).put("confidence", 0.8)
+        call("record_emotional_experience", shared)
+        val state = emotionalState(repo.companionRecords(), clock.nowMillis())
+        assertEquals(0.5, state.purpose.getValue("fulfillment"), 0.0)
+        assertTrue(state.emotions.getValue(Feeling.CURIOUS) > 0)
+        val inspected = call("get_emotional_state", JSONObject())
+        assertTrue(inspected.getJSONArray("firedReminders").length() >= 1)
+        assertTrue(inspected.getJSONArray("learningProgress").length() >= 1)
+        assertTrue(state.purpose.getValue("competence") > afterReminder.purpose.getValue("competence"))
+    }
+
+    private fun eventRow(event: String, feeling: String, source: String, now: Long, intensity: Double = 0.8) =
+        CompanionRecord("EMOTION_EVENT:$event:$source", "EMOTION_EVENT:$event:$source", "EMOTION_EVENT",
+            JSONObject().put("event", event).put("feeling", feeling).put("intensity", intensity).put("confidence", 1.0).put("occurredAt", now).toString(),
+            now, now, repo.deviceId, 1)
+
+    private suspend fun reminder(status: ReminderStatus): String {
+        val now = clock.nowMillis()
+        val id = "reminder-$status-${System.nanoTime()}"
+        repo.saveReminder(Reminder(id, "Drink water", ReminderTrigger.TIME, now + 3_600_000, ReminderRepeat.NONE, null, null, null, null, status, if (status == ReminderStatus.FIRED) now else null, null, now, now, repo.deviceId, 1, null))
+        return id
+    }
+
+    private suspend fun learning(kind: String, data: JSONObject): String {
+        val now = clock.nowMillis()
+        val id = "learn:$kind:${System.nanoTime()}"
+        repo.saveLearningRecord(LearningRecord(id, "path:x", kind, data.toString(), now, now, repo.deviceId, 1, null))
+        return id
+    }
+
+    private fun action(kind: String, id: String) = JSONObject().put("event", "ACTION_SUCCEEDED").put("actionKind", kind).put("actionId", id)
+        .put("interpretation", "Verified $kind completed").put("feeling", "GLAD").put("intensity", 0.6).put("confidence", 1.0)
 }

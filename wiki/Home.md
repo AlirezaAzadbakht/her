@@ -45,4 +45,4 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 
 - [Personal support](Personal-support.md): correctable memory, capacity planning, recurrence, decisions and focused briefings.
 
-- [Emotional understanding](Emotional-understanding.md): evidence-backed feelings, purpose, continuity and quiet reflection.
+- [Emotional understanding](Emotional-understanding.md): evidence-backed feelings, purpose, recalled support lessons, continuity and quiet reflection.

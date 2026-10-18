@@ -76,6 +76,7 @@ import com.her.ui.onboarding.RequestFirstRunPermissions
 import com.her.ui.onboarding.SetupScreen
 import com.her.ui.orbs.HerPresence
 import com.her.ui.orbs.OrbState
+import com.her.ui.orbs.feelingPalette
 import com.her.ui.settings.SettingsScreen
 import com.her.ui.theme.Her
 import com.her.ui.theme.HerFontFamily
@@ -108,8 +109,8 @@ fun HerApp(vm: HerViewModel) {
         if (!settings.memoryTabEnabled && dest == Dest.Memory) dest = Dest.Her
     }
 
-    val feeling by vm.feeling.collectAsState()
-    AmbientBackground(Modifier.fillMaxSize(), tint = feeling?.let { Her.colors.feelingPalettes[it.feeling] }) {
+    val feelingBlend by vm.feelingBlend.collectAsState()
+    AmbientBackground(Modifier.fillMaxSize(), tint = feelingPalette(feelingBlend, Her.colors.feelingPalettes)) {
         SharedTransitionLayout(Modifier.fillMaxSize().statusBarsPadding()) {
             AnimatedContent(
                 targetState = stage,

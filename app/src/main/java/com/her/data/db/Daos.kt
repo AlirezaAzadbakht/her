@@ -190,6 +190,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<TaskEntity>
 
+    @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
+    fun observeAll(): Flow<List<TaskEntity>>
+
     @Query("UPDATE tasks SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -204,6 +207,9 @@ interface CommitmentDao {
 
     @Query("SELECT * FROM commitments WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<CommitmentEntity>
+
+    @Query("SELECT * FROM commitments WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
+    fun observeAll(): Flow<List<CommitmentEntity>>
 
     @Query("UPDATE commitments SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)

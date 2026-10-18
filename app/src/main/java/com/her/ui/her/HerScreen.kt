@@ -104,6 +104,7 @@ import com.her.ui.orbs.PresenceLook
 import com.her.ui.orbs.PresenceMood
 import com.her.ui.orbs.ThinkingOrb
 import com.her.ui.orbs.animatedPalette
+import com.her.ui.orbs.feelingPalette
 import com.her.ui.orbs.nextLook
 import com.her.ui.orbs.presenceFor
 import com.her.ui.theme.ConversationStyle
@@ -134,7 +135,7 @@ fun HerScreen(vm: HerViewModel) {
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
     val appSettings by vm.settings.collectAsState()
-    val feeling by vm.feeling.collectAsState()
+    val feelingBlend by vm.feelingBlend.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
     val resources = LocalContext.current.resources
@@ -250,7 +251,7 @@ fun HerScreen(vm: HerViewModel) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        val palette = animatedPalette(feeling?.let { Her.colors.feelingPalettes[it.feeling] } ?: palettes[look.palette])
+        val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
         PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
         ReplyStage(
             hasText = hasText,

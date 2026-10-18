@@ -19,7 +19,7 @@ enum class ConfirmationKind { CALENDAR_DELETE, BULK_FORGET, EXTERNAL_DESTRUCTIVE
 enum class ReminderTrigger { TIME, PERSON, PLACE }
 enum class ReminderStatus { SCHEDULED, FIRED, SKIPPED, CANCELLED }
 enum class ReminderRepeat { NONE, DAILY, WEEKLY, MONTHLY }
-enum class Feeling { CALM, CURIOUS, PLAYFUL, TENDER, GLAD, CONCERNED, WISTFUL }
+enum class Feeling { CALM, CURIOUS, PLAYFUL, TENDER, GLAD, CONCERNED, WISTFUL, HOPEFUL, PENSIVE, RELIEVED }
 
 data class ChatMessage(
     val id: String,

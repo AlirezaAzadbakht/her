@@ -21,8 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import com.her.agent.runner.TurnState
+import com.her.domain.Feeling
 import com.her.ui.theme.HaloShader
 import com.her.ui.theme.Her
 import com.her.ui.theme.HerMotion
@@ -58,6 +60,15 @@ fun nextLook(prev: PresenceLook, paletteCount: Int, random: Random = Random): Pr
     val states = ThinkingStates.filter { it != prev.state }
     val palettes = (0 until paletteCount).filter { it != prev.palette }
     return PresenceLook(states.random(random), palettes.random(random))
+}
+
+/** Mixes the two strongest feelings so the orb can carry more than one at once. */
+fun feelingPalette(blend: List<Pair<Feeling, Double>>, palettes: Map<Feeling, List<Color>>): List<Color>? {
+    val first = blend.firstOrNull()?.let { palettes[it.first] } ?: return null
+    val second = blend.getOrNull(1) ?: return first
+    val secondColors = palettes[second.first] ?: return first
+    val t = (second.second / (blend[0].second + second.second)).toFloat()
+    return first.zip(secondColors).map { (a, b) -> lerp(a, b, t) }
 }
 
 /** Glides each of the three palette colors toward [target], so a feeling change washes in. */

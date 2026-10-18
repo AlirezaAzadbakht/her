@@ -6,6 +6,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Added
 - **Feelings with continuity and purpose.** Her can remember emotional experiences, distinguish offering help from execution and reported benefit, carry mixed feelings that settle over time, correct her understanding of your feelings, and quietly reflect on what helped. Her orb follows this evidence-backed state.
+- **Deeper feeling model.** Repeated experiences no longer slam into a ceiling; calm gives way to stronger feelings; purpose and a little curiosity or patience change how she answers. Fired reminders and learning progress can count as executed help; an approaching deadline can add concern; saved support lessons come back when a similar situation returns. The orb can mix two feelings, including hopeful, pensive and relieved.
+
+### Changed
+- Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
 - Reminder and calendar times such as “today at noon” and “tomorrow noon” are now understood directly.

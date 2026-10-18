@@ -89,6 +89,9 @@ private val NightHer = HerColors(
         Feeling.GLAD to listOf(Color(0xFFFFD27A), Color(0xFFF6B26B), Color(0xFFFF9E6E)),
         Feeling.CONCERNED to listOf(Color(0xFFA88AC8), Color(0xFF8A7AB8), Color(0xFFC48AA8)),
         Feeling.WISTFUL to listOf(Color(0xFF8AA4C8), Color(0xFFA89AC0), Color(0xFFC49AAA)),
+        Feeling.HOPEFUL to listOf(Color(0xFFE8C87A), Color(0xFFC8D48A), Color(0xFFF0B070)),
+        Feeling.PENSIVE to listOf(Color(0xFF9AA8C0), Color(0xFFB8A8C8), Color(0xFF8A9AB0)),
+        Feeling.RELIEVED to listOf(Color(0xFFA8D4B8), Color(0xFFD4E8C8), Color(0xFFF0D4A8)),
     ),
 )
 
@@ -118,6 +121,9 @@ private val DawnHer = HerColors(
         Feeling.GLAD to listOf(Color(0xFFD8A030), Color(0xFFD48A3A), Color(0xFFE2724A)),
         Feeling.CONCERNED to listOf(Color(0xFF7A5EA0), Color(0xFF6A5A98), Color(0xFF9A5A80)),
         Feeling.WISTFUL to listOf(Color(0xFF5A7AA0), Color(0xFF7A6EA0), Color(0xFF9A6E80)),
+        Feeling.HOPEFUL to listOf(Color(0xFFC8A84A), Color(0xFFA8B86A), Color(0xFFD4945A)),
+        Feeling.PENSIVE to listOf(Color(0xFF6A7A98), Color(0xFF7A6A90), Color(0xFF5A6A80)),
+        Feeling.RELIEVED to listOf(Color(0xFF6AAA88), Color(0xFFA8C490), Color(0xFFD4B07A)),
     ),
 )
 

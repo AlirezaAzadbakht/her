@@ -48,6 +48,8 @@ import com.her.domain.ChatMessage
 import com.her.domain.Commitment
 import com.her.domain.ConfirmationKind
 import com.her.domain.DebugEvent
+import com.her.domain.CommitmentStatus
+import com.her.domain.Feeling
 import com.her.domain.Goal
 import com.her.domain.HerFeeling
 import com.her.domain.GroceryItem
@@ -69,6 +71,7 @@ import com.her.domain.ShortTermMemory
 import com.her.domain.SyncOp
 import com.her.domain.SyncOpType
 import com.her.domain.TaskItem
+import com.her.domain.TaskStatus
 import com.her.domain.UserProfile
 import com.her.domain.UserUnderstanding
 import java.time.LocalDate
@@ -518,14 +521,27 @@ class HerRepository(
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
     suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()
-    fun observeFeeling(): Flow<HerFeeling?> = kotlinx.coroutines.flow.combine(
-        db.feelingDao().observeLatest(), db.companionDao().observeAll(),
-        kotlinx.coroutines.flow.flow { while (true) { emit(clock.nowMillis()); kotlinx.coroutines.delay(60_000) } }
-    ) { legacy, rows, now ->
+    suspend fun openDueAts(): List<Long> =
+        tasks().filter { it.status == TaskStatus.OPEN }.mapNotNull { it.dueAt } +
+            commitments().filter { it.status == CommitmentStatus.OPEN }.mapNotNull { it.dueAt }
+    fun observeFeeling(): Flow<HerFeeling?> = projectedFeeling().map { it.first }
+    fun observeEmotionalBlend(): Flow<List<Pair<Feeling, Double>>> = projectedFeeling().map { it.second }
+    private fun projectedFeeling(): Flow<Pair<HerFeeling?, List<Pair<Feeling, Double>>>> = kotlinx.coroutines.flow.combine(
+        db.feelingDao().observeLatest(),
+        db.companionDao().observeAll(),
+        db.taskDao().observeAll(),
+        db.commitmentDao().observeAll(),
+        flow { while (true) { emit(clock.nowMillis()); kotlinx.coroutines.delay(60_000) } },
+    ) { legacy, rows, tasks, commitments, now ->
         val events = rows.filter { it.kind == "EMOTION_EVENT" && !it.data().optBoolean("stale") }
-        if (events.isEmpty()) legacy?.toDomain() else {
-            val state = com.her.feelings.emotionalState(events, now)
-            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), null, null, now, now, deviceId, 1, null)
+        val dues = tasks.filter { it.status == TaskStatus.OPEN }.mapNotNull { it.dueAt } +
+            commitments.filter { it.status == CommitmentStatus.OPEN }.mapNotNull { it.dueAt }
+        if (events.isEmpty() && dues.none { com.her.feelings.deadlineConcern(it, now) > 0 }) {
+            val feeling = legacy?.toDomain()
+            feeling to (feeling?.let { listOf(it.feeling to it.intensity) } ?: emptyList())
+        } else {
+            val state = com.her.feelings.emotionalState(events, now, dues)
+            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), null, null, now, now, deviceId, 1, null) to state.blend()
         }
     }
     suspend fun saveFeeling(item: HerFeeling) {

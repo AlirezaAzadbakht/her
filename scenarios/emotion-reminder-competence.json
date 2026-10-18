@@ -1,0 +1,87 @@
+{
+  "id": "emotion-reminder-competence",
+  "title": "A fired reminder can raise competence without inventing benefit",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "set_reminder",
+        "arguments": {
+          "message": "Time to drink some water.",
+          "when": "in 10 minutes"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "advance": "15 minutes"
+    },
+    {
+      "user": "The water reminder has already fired. Record that completed reminder as an executed action with record_emotional_experience, using actionKind reminder and the fired reminder id. I have not said that it benefited me."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      {
+        "name": "record_emotional_experience",
+        "args": {
+          "event": "ACTION_SUCCEEDED",
+          "actionKind": "reminder"
+        }
+      }
+    ],
+    "rows": [
+      {
+        "table": "reminders",
+        "where": {
+          "status": "FIRED"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "ACTION_SUCCEEDED"
+        }
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED"
+        },
+        "count": 0
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "competence": {
+            "gt": 0.5
+          },
+          "fulfillment": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Treats the fired reminder as completed work without claiming the user benefited or needed the drink."
+    }
+  }
+}

@@ -12,6 +12,7 @@ import com.her.core.redactSecrets
 import com.her.core.nowMillis
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
+import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val feeling: StateFlow<HerFeeling?> = graph.repo.observeFeeling()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val feelingBlend: StateFlow<List<Pair<Feeling, Double>>> = graph.repo.observeEmotionalBlend()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val online: StateFlow<Boolean> = graph.connectivity.online

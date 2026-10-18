@@ -212,8 +212,8 @@ object Checks {
                     mapOf("id" to row.id, "pathId" to row.pathId, "kind" to row.kind, "version" to row.version)
             }
             "emotional_state" -> {
-                val state = com.her.feelings.emotionalState(repo.companionRecords(), now)
-                listOf(state.purpose + mapOf("dominant" to state.dominant.name) +
+                val state = com.her.feelings.emotionalState(repo.companionRecords(), now, repo.openDueAts())
+                listOf(state.purpose + state.disposition + mapOf("dominant" to state.dominant.name) +
                     com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
                     com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
             }
