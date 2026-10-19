@@ -28,7 +28,7 @@ Important record kinds:
 | Store | Prefs name | What |
 |-------|------------|------|
 | `SecureSettingsStore` | `her_secure_settings` | LLM base URL, API key, model (EncryptedSharedPreferences + MasterKey) |
-| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, Google client id, web search, calendar/Drive flags, tool-call limit, last-run dates, onboarding flags, first-run permission ask |
+| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, web search, calendar/Drive flags, tool-call limit, last-run dates, onboarding flags, first-run permission ask |
 
 `redactSecrets` in `Core.kt` strips keys from debug logs.
 
@@ -52,7 +52,7 @@ Download + `MergeEngine`: last-write-wins per field on `updatedAt`, except **`PU
 - Files are listed across all Drive pages and read oldest first per device. The per-device cursor comes from the `{firstSeq}-{lastSeq}` file name, so a file already read is not downloaded again.
 - A row that cannot be applied (for example, a delete for a row this device never had) is skipped and logged, and the sync continues.
 
-Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
+Needs Settings: Drive enabled + Connect Google. Scope: `drive.appdata`. A first-run **Restore from Google Drive** uses the same download path: one `sync` after Drive consent, then the restored profile can skip the name steps. API keys never sync.
 
 ## Calendar
 

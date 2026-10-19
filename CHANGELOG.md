@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Moving to a new phone? On the first screen, tap Restore from Google Drive to bring back your conversation and everything she knows.
 - Her is now on Cafe Bazaar, linked from the website and README.
 - Her can assess progress, her contribution, expectedness and uncertainty, link feedback to ongoing experiences, and keep unresolved questions open as feelings settle.
 - Quiet reflections can become tentative support lessons with exceptions; later feedback helps her judge which approaches work for you.
@@ -14,6 +15,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Deeper feeling model.** Repeated experiences no longer slam into a ceiling; calm gives way to stronger feelings; purpose and a little curiosity or patience change how she answers. Fired reminders and learning progress can count as executed help; an approaching deadline can add concern; saved support lessons come back when a similar situation returns. The orb can mix two feelings, including hopeful, pensive and relieved.
 
 ### Changed
+- Connecting Google Drive and Calendar no longer asks for a client ID; just tap Connect Google.
 - Saving reminders and work drafts automatically contributes evidence of Her's work without assuming it benefited you. Marking your own task done no longer gives her credit for doing it.
 - Repeated reports linked to the same emotional outcome no longer refresh its age or reward it again; corrections and forgetting also reach derived lessons and their feedback.
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.

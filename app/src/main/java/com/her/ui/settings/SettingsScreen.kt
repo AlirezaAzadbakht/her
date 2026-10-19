@@ -133,7 +133,6 @@ fun SettingsScreen(vm: HerViewModel) {
     var base by remember { mutableStateOf(llm.baseUrl) }
     var key by remember { mutableStateOf(llm.apiKey) }
     var model by remember { mutableStateOf(llm.model) }
-    var googleClient by remember { mutableStateOf(app.googleClientId) }
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
     var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
@@ -299,10 +298,6 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                HerTextField("Google OAuth client ID", googleClient) {
-                    googleClient = it
-                    vm.updateSettings { s -> s.copy(googleClientId = it) }
-                }
                 HerTextField("Web search endpoint (optional override)", searchUrl) {
                     searchUrl = it
                     vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }

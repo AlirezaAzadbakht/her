@@ -52,7 +52,7 @@ class AppGraph(context: Context) {
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
     val webSearch = WebSearchClient(llm = llm, llmSettings = { secure.read() })
-    val googleAuth = GoogleAuthService(appContext, settings)
+    val googleAuth = GoogleAuthService(appContext)
     val googleCalendarClient = GoogleCalendarClient(googleAuth)
     val googleCalendar = GoogleCalendar(repo, googleCalendarClient)
     val syncEngine = SyncEngine(repo)

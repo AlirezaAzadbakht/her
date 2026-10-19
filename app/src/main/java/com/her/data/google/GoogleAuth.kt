@@ -7,13 +7,11 @@ import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Tasks
-import com.her.data.secure.AppSettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class GoogleAuthService(
     private val context: Context,
-    private val settings: AppSettingsStore,
 ) {
     data class Outcome(
         val accessToken: String? = null,
@@ -22,10 +20,6 @@ class GoogleAuthService(
     )
 
     suspend fun authorize(drive: Boolean, calendar: Boolean): Outcome {
-        val clientId = settings.read().googleClientId.trim()
-        if (clientId.isBlank()) {
-            return Outcome(message = "Add a Google OAuth client ID in Settings before connecting Google services.")
-        }
         val scopes = buildList {
             if (drive) add(Scope(DRIVE_APPDATA))
             if (calendar) add(Scope(CALENDAR))
@@ -34,7 +28,6 @@ class GoogleAuthService(
         return try {
             val request = AuthorizationRequest.builder()
                 .setRequestedScopes(scopes)
-                .requestOfflineAccess(clientId)
                 .build()
             val result: AuthorizationResult = withContext(Dispatchers.IO) {
                 Tasks.await(Identity.getAuthorizationClient(context).authorize(request))

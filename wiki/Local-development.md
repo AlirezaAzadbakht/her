@@ -77,3 +77,11 @@ Robolectric does **not** download `android-all` at test time. Gradle prefetches 
 - Application id: `com.her.debug`
 - Version name suffix: `-debug`
 - Activity: `com.her.MainActivity`
+
+## Google Cloud (Drive / Calendar)
+
+One-time, for you as the developer — users only tap Connect Google.
+
+1. In a Google Cloud project, enable the Drive API and Google Calendar API, then configure the OAuth consent screen.
+2. Create an OAuth client of type **Android** with package `com.her.debug` and the SHA-1 of the debug key. Create another for release (`com.her`) with the release/upload key, and another for the Play App Signing key if you ship through Play.
+3. `calendar.readonly` is a sensitive scope. Until Google verifies the app, it only works for test users you add on the consent screen (up to 100). `drive.appdata` alone does not need that verification.

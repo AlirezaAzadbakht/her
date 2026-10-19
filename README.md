@@ -85,7 +85,7 @@ Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed 
 1. Open the app. Give your name, then hers.
 2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**.
 3. Continue. She greets you by those names once the connection works.
-4. *Optional:* grant calendar permission, add a Google OAuth client ID for Drive/Calendar, enable web search.
+4. *Optional:* grant calendar permission, tap Connect Google for Drive/Calendar, enable web search.
 5. *Optional:* Settings → Advanced → Experimental to hide the Memory SQL navigator (shown by default).
 
 ## Build from source
@@ -147,7 +147,7 @@ The model only **proposes** tool calls. The app validates schemas and enforces c
 
 ## Google integrations
 
-Drive sync and direct Google Calendar access need an OAuth client ID from your Google Cloud project. Enter it in Settings. Each device configures API and Google credentials independently.
+Drive sync and direct Google Calendar access use Settings → Connect Google. Each device configures its API credentials independently. Developers register Android OAuth clients once in Google Cloud; see [Local development](wiki/Local-development.md).
 
 ## CI & release
 
