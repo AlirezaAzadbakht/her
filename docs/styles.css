@@ -173,6 +173,10 @@ nav a {
   transition: transform 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out), color 0.3s var(--ease-out);
 }
 
+.btn svg {
+  margin-inline-end: 0.5rem;
+}
+
 .btn:active {
   transform: scale(0.97);
 }
