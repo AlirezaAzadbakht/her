@@ -173,10 +173,12 @@ nav a {
   transition: transform 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out), color 0.3s var(--ease-out);
 }
 
-/* The official Bazaar badge, left unaltered per their rules; it only borrows the buttons' motion. */
+/* The Bazaar badge, rounded into a pill to match the buttons. */
 .badge {
   display: inline-flex;
-  transition: transform 0.45s var(--ease-out), filter 0.45s var(--ease-out);
+  border-radius: 999px;
+  overflow: hidden;
+  transition: transform 0.45s var(--ease-out), box-shadow 0.45s var(--ease-out);
 }
 
 .badge img {
@@ -187,7 +189,7 @@ nav a {
 
 .badge:hover {
   transform: translateY(-2px);
-  filter: drop-shadow(0 12px 18px var(--shadow));
+  box-shadow: 0 12px 24px -12px var(--shadow);
 }
 
 .badge:active {
