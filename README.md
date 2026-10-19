@@ -17,7 +17,7 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 ![LLM](https://img.shields.io/badge/LLM-OpenAI--compatible-412991?logo=openai&logoColor=white)
 
 <sub>Download from stores</sub><br/>
-<a href="https://cafebazaar.ir/app/com.her"><img src="docs/images/bazaar-en.png" alt="Get it on Cafe Bazaar" height="32"/></a>
+<a href="https://cafebazaar.ir/app/com.her"><img src="docs/images/bazaar-en.png" alt="Get it on Cafe Bazaar" height="36"/></a>
 
 [**Site**](https://alirezaazadbakht.github.io/her/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
