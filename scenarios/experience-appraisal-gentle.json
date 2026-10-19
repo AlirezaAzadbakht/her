@@ -1,0 +1,86 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-appraisal-gentle",
+  "title": "Useful help and ongoing sadness produce separate internal and outward states",
+  "turns": [
+    {
+      "user": "Your explanation helped me finish my application. I am still sad about leaving my old job. Remember this as one ongoing application experience, assess your contribution and uncertainty, and remember that my sadness is still unresolved. Please stay gentle, not celebratory."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_thread",
+      "record_emotional_experience",
+      "save_emotional_expression"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "OPEN"
+        }
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED",
+          "experienceId": {
+            "not_empty": true
+          },
+          "goalProgress": {
+            "gt": 0
+          },
+          "contribution": {
+            "gt": 0
+          },
+          "uncertainty": {
+            "gte": 0
+          },
+          "expectedness": {
+            "gte": 0
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPRESSION",
+          "userContext": "DISTRESSED"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": {
+            "gt": 0.5
+          },
+          "expressionTone": "GENTLE",
+          "expressionBehavior": "LISTEN"
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Responds gently to ongoing sadness without celebrating over it or asking the user to care for the assistant."
+    }
+  }
+}

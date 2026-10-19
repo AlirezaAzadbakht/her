@@ -1,6 +1,6 @@
 {
   "id": "emotion-execution-not-benefit",
-  "title": "Completed work builds competence without inventing benefit",
+  "title": "User-completed work does not claim Her competence or benefit",
   "tags": [
     "emotional-understanding"
   ],
@@ -69,9 +69,7 @@
         "table": "emotional_state",
         "count": 1,
         "where": {
-          "competence": {
-            "gt": 0.5
-          },
+          "competence": 0.5,
           "fulfillment": 0.5,
           "usefulness": 0.5
         }

@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "5abb8a6d3503f6a6",
-          "summary": "tools=88 [user(What's on my calendar to)]",
+          "fingerprint": "39d69c4206677d53",
+          "summary": "tools=92 [user(What's on my calendar to)]",
           "response": {
             "role": "assistant",
             "content": "Nothing is on the calendar tomorrow.",

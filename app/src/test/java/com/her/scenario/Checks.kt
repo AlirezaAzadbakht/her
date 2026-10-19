@@ -213,7 +213,8 @@ object Checks {
             }
             "emotional_state" -> {
                 val state = com.her.feelings.emotionalState(repo.companionRecords(), now, repo.openDueAts())
-                listOf(state.purpose + state.disposition + mapOf("dominant" to state.dominant.name) +
+                val expression = com.her.feelings.emotionalExpression(repo.companionRecords(), state, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)
+                listOf(state.purpose + state.disposition + mapOf("dominant" to state.dominant.name, "expressionTone" to expression.getString("tone"), "expressionBehavior" to expression.getString("behavior"), "openExperiences" to com.her.feelings.openExperiences(repo.companionRecords()).size) +
                     com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
                     com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
             }

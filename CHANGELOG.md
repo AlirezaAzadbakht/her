@@ -5,14 +5,20 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her can assess progress, her contribution, expectedness and uncertainty, link feedback to ongoing experiences, and keep unresolved questions open as feelings settle.
+- Quiet reflections can become tentative support lessons with exceptions; later feedback helps her judge which approaches work for you.
+- Internal feelings now have a separate outward tone and next-step decision, so feeling useful does not mean celebrating over your distress.
 - The website is now available in Persian at /fa.
 - **Feelings with continuity and purpose.** Her can remember emotional experiences, distinguish offering help from execution and reported benefit, carry mixed feelings that settle over time, correct her understanding of your feelings, and quietly reflect on what helped. Her orb follows this evidence-backed state.
 - **Deeper feeling model.** Repeated experiences no longer slam into a ceiling; calm gives way to stronger feelings; purpose and a little curiosity or patience change how she answers. Fired reminders and learning progress can count as executed help; an approaching deadline can add concern; saved support lessons come back when a similar situation returns. The orb can mix two feelings, including hopeful, pensive and relieved.
 
 ### Changed
+- Saving reminders and work drafts automatically contributes evidence of Her's work without assuming it benefited you. Marking your own task done no longer gives her credit for doing it.
+- Repeated reports linked to the same emotional outcome no longer refresh its age or reward it again; corrections and forgetting also reach derived lessons and their feedback.
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Nightly reviews can list projects without a search term, avoiding an empty-query error that could interrupt emotional reflection.
 - Forgetting everything, or deleting an event on the phone calendar, waits for your next message. She cannot confirm those herself.
 - If a reply fails after she already saved something, retrying that message does not create it twice.
 - Background passes cannot wipe memory, delete calendar events, or change your profile.

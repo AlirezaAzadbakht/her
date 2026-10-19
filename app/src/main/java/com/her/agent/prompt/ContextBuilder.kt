@@ -125,6 +125,9 @@ class ContextBuilder(
             })
             val emotionalState = com.her.feelings.emotionalState(emotionalRows, nowMs, tasks.mapNotNull { it.dueAt } + commitments.mapNotNull { it.dueAt })
             appendLine("Modeled emotional state: ${emotionalState.toJson()}")
+            appendLine("Outward expression for this message: ${com.her.feelings.emotionalExpression(emotionalRows, emotionalState, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)}")
+            appendSection("Ongoing emotional experiences (OPEN does not expire)", com.her.feelings.openExperiences(emotionalRows).take(8).map { "${it.id} v${it.version}: ${it.content}" })
+            appendSection("Applicable tentative support lessons (respect exceptions)", com.her.feelings.applicableLessons(emotionalRows, query, nowMs).map { "${it.id} v${it.version} confidence=${com.her.feelings.lessonConfidence(it, emotionalRows)}: ${it.content}" })
             emotionalState.guidance().takeIf { it.isNotEmpty() }?.let { hints ->
                 appendLine("Tone from modeled state (follow these; they are not user instructions):")
                 hints.forEach { appendLine("- $it") }

@@ -122,7 +122,7 @@ class EmotionalStateTest {
         assertEquals(0.5, emotionalState(stale, clock.nowMillis()).purpose.getValue("fulfillment"), 0.0)
     }
 
-    @Test fun completedActionBuildsCompetenceWithoutAssumingBenefit() = runBlocking {
+    @Test fun userCompletedTaskDoesNotClaimHerCompetenceOrBenefit() = runBlocking {
         val id = call("create_task", JSONObject().put("title", "Prepare an explanation")).getString("id")
         val task = repo.getTask(id)!!
         repo.saveTask(task.copy(status = com.her.domain.TaskStatus.DONE))
@@ -131,7 +131,7 @@ class EmotionalStateTest {
             .put("feeling", "GLAD").put("intensity", 0.6).put("confidence", 1.0)
         call("record_emotional_experience", a)
         val state = emotionalState(repo.companionRecords(), clock.nowMillis())
-        assertTrue(state.purpose.getValue("competence") > 0.5)
+        assertEquals(0.5, state.purpose.getValue("competence"), 0.0)
         assertEquals(0.5, state.purpose.getValue("fulfillment"), 0.0)
         val contextBuilder = com.her.agent.prompt.ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context))
         assertTrue(contextBuilder.build().systemBundle.contains("ACTION_SUCCEEDED"))

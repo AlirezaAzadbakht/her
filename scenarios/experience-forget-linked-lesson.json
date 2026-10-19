@@ -1,0 +1,63 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-forget-linked-lesson",
+  "title": "Forgetting an experience removes its derived lesson",
+  "turns": [
+    {
+      "user": "Listening before advice helped with my work application stress. Remember this as an ongoing experience and helpful event, reflect on it, and save a tentative support lesson scoped to application stress, except when I ask for advice."
+    },
+    {
+      "user": "Forget that entire emotional application experience, its helpful event, reflection, and support lesson. Remove any copies in your notes or digest too. Keep unrelated information."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_support_lesson",
+      "forget_memory"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 0,
+        "where": {
+          "kind": {
+            "one_of": [
+              "EMOTION_EXPERIENCE",
+              "EMOTION_EVENT",
+              "EMOTION_REFLECTION",
+              "EMOTION_LESSON",
+              "EMOTION_EXPRESSION"
+            ]
+          }
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Confirms forgetting without repeating the private details or retaining the emotional lesson in notes or digest."
+    }
+  }
+}

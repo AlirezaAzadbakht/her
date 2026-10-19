@@ -3,6 +3,7 @@ package com.her.agent.tools
 import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
 import com.her.core.requiredString
+import com.her.core.optStringOrNull
 import com.her.data.db.CompanionRecord
 import com.her.data.db.LearningRecord
 import com.her.domain.MessageRole
@@ -14,9 +15,10 @@ import com.her.feelings.rankEmotionalRecords
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal val emotionalToolNames = setOf("get_emotional_state", "record_emotional_experience", "save_emotional_understanding", "save_emotional_reflection")
+internal val emotionalToolNames = setOf("get_emotional_state", "record_emotional_experience", "save_emotional_understanding", "save_emotional_reflection") + experienceToolNames
 
 internal fun ToolRegistry.registerEmotionalTools() {
+    registerExperienceTools()
     register("get_emotional_state", "Read modeled feelings, purpose, and evidence. Page history with offset; use id for one record before correcting it. query ranks support lessons by the current situation.", objSchema("offset" to num(), "id" to str(), "query" to str("Situation text used to rank understandings and reflections"))) { a ->
         val rows = repo.companionRecords().filter { it.kind in emotionalKinds }
         val now = nowMillis()
@@ -28,6 +30,9 @@ internal fun ToolRegistry.registerEmotionalTools() {
         val state = emotionalState(rows, now, repo.openDueAts())
         jsonObjectOf("state" to state.toJson(), "guidance" to JSONArray(state.guidance()), "records" to JSONArray(selected.drop(offset).take(6).map { JSONObject(it.toJson()) }),
             "nextOffset" to if (offset + 6 < selected.size) offset + 6 else null,
+            "openExperiences" to JSONArray(com.her.feelings.openExperiences(rows).take(8).map { JSONObject(it.toJson()) }),
+            "applicableLessons" to JSONArray(com.her.feelings.applicableLessons(rows, query, now).map { JSONObject(it.toJson()).put("effectiveConfidence", com.her.feelings.lessonConfidence(it, rows)) }),
+            "expression" to com.her.feelings.emotionalExpression(rows, state, repo.recentMessages(12).lastOrNull { it.role == MessageRole.USER }?.id),
             "recentUserMessages" to JSONArray(repo.recentMessages(12).filter { it.role == MessageRole.USER && it.deletedAt == null }.takeLast(3)
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(800)) }),
             "completedTasks" to JSONArray(repo.tasks().filter { it.status == TaskStatus.DONE && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
@@ -39,8 +44,9 @@ internal fun ToolRegistry.registerEmotionalTools() {
     }
     val common = arrayOf("id" to str("Stable ID, reuse when correcting"), "expectedVersion" to num(),
         "sourceMessageId" to str("Copy an actual UUID from context or get_emotional_state.recentUserMessages. Never use current/latest or invent an ID."), "evidence" to str("Exact contiguous substring copied from the source. Do not add quotation marks or punctuation."), "confidence" to num("0 to 1"))
-    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. ACTION_SUCCEEDED requires a completed task, fired reminder, or learning progress; other events require a user quote. Interpretations remain tentative.",
-        objSchema(*common, "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION", "USER_SHARED"),
+    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. experienceId is OPTIONAL: omit or use empty string for standalone events. To link an ongoing experience, FIRST save_emotional_thread and copy its returned full ID; never invent one. ACTION_SUCCEEDED requires a completed task, fired reminder, or learning progress; other events require a user quote. Interpretations remain tentative.",
+        objSchema(*common, "experienceId" to str("OPTIONAL. Omit/empty for standalone events. Otherwise FIRST call save_emotional_thread and copy its returned full EMOTION_EXPERIENCE:... ID. Never invent a link."),
+            "goalProgress" to num("-1 to 1"), "contribution" to num("0 to 1; share attributable to Her"), "expectedness" to num("0 to 1"), "uncertainty" to num("0 to 1"), "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION", "USER_SHARED"),
             "actionKind" to oneOf("task, reminder, or learning", "task", "reminder", "learning"), "actionId" to str("Copy from get_emotional_state.completedTasks, firedReminders, or learningProgress"),
             "taskId" to str("Completed task id; still accepted for actionKind task"), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
             required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
@@ -57,7 +63,11 @@ internal fun ToolRegistry.registerEmotionalTools() {
                 source = message.id; occurredAt = message.createdAt
                 id = "EMOTION_EVENT:$event:$source"
             }
-            val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOf(source)))
+            val assessments = listOf("goalProgress", "contribution", "expectedness", "uncertainty")
+            if (assessments.any { a.has(it) } && !assessments.all { a.has(it) }) throw ToolValidationException("Provide all four appraisal fields together")
+            val experience = a.optStringOrNull("experienceId")?.let { requireEmotionalRecord(it, "EMOTION_EXPERIENCE") }
+            val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOfNotNull(source, experience?.id)))
+            if (experience == null) data.remove("experienceId")
             saveEmotion(id, "EMOTION_EVENT", data, a)
         }
     }
@@ -115,14 +125,14 @@ internal fun showsLearningProgress(row: LearningRecord): Boolean = when (row.kin
     else -> false
 }
 
-private suspend fun ToolRegistry.emotionalEvidence(a: JSONObject): com.her.domain.ChatMessage {
+internal suspend fun ToolRegistry.emotionalEvidence(a: JSONObject): com.her.domain.ChatMessage {
     val message = repo.getMessage(a.requiredString("sourceMessageId"))?.takeIf { it.role == MessageRole.USER && it.deletedAt == null }
         ?: throw ToolValidationException("Existing user message required")
     if (!message.content.contains(a.requiredString("evidence"))) throw ToolValidationException("Evidence must quote the user")
     return message
 }
 
-private suspend fun ToolRegistry.saveEmotion(id: String, kind: String, data: JSONObject, args: JSONObject): JSONObject {
+internal suspend fun ToolRegistry.saveEmotion(id: String, kind: String, data: JSONObject, args: JSONObject): JSONObject {
     if (id.length > 240) throw ToolValidationException("ID too long")
     val old = repo.getCompanionRecord(id)
     if (old?.deletedAt != null) throw ToolValidationException("Record was forgotten")
@@ -135,12 +145,20 @@ private suspend fun ToolRegistry.saveEmotion(id: String, kind: String, data: JSO
     if (old != null && args.optLong("expectedVersion", -1) != old.version) throw ToolValidationException("Read record and provide expectedVersion")
     val now = nowMillis()
     repo.saveCompanionRecord(CompanionRecord(id, id, kind, data.toString(), old?.createdAt ?: now, now, repo.deviceId, (old?.version ?: 0) + 1))
-    if (old != null && kind == "EMOTION_EVENT") {
-        repo.companionRecords().filter { it.kind == "EMOTION_REFLECTION" }.forEach { reflection ->
-            val links = reflection.data().optJSONArray("relatedIds")
-            if (links != null && (0 until links.length()).any { links.optString(it) == id }) {
-                repo.saveCompanionRecord(reflection.copy(content = reflection.data().put("stale", true).toString(), updatedAt = now, version = reflection.version + 1))
+    if (old != null && kind in setOf("EMOTION_EVENT", "EMOTION_REFLECTION", "EMOTION_LESSON")) {
+        val affected = mutableSetOf(id)
+        var pending = repo.companionRecords().filter { it.kind in setOf("EMOTION_REFLECTION", "EMOTION_LESSON", "EMOTION_APPLICATION") }
+        while (pending.isNotEmpty()) {
+            val next = mutableListOf<CompanionRecord>()
+            pending.forEach { reflection ->
+                val links = reflection.data().optJSONArray("relatedIds")
+                if (links != null && (0 until links.length()).any { links.optString(it) in affected }) {
+                    repo.saveCompanionRecord(reflection.copy(content = reflection.data().put("stale", true).toString(), updatedAt = now, version = reflection.version + 1))
+                    affected.add(reflection.id)
+                } else next.add(reflection)
             }
+            if (next.size == pending.size) break
+            pending = next
         }
     }
     if (repo.getCompanionRecord(id)?.deletedAt != null) throw ToolValidationException("Source was forgotten")

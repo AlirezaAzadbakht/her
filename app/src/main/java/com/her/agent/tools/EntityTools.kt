@@ -91,8 +91,11 @@ internal fun ToolRegistry.registerEntityTools() {
             ?: args.optStringOrNull("name")?.let { n -> repo.searchProjects(n).firstOrNull() }
         jsonObjectOf("ok" to true, "project" to project?.let { JSONObject(it.toJson()) })
     }
-    register("search_projects", "Search projects.", objSchema("query" to str(), required = listOf("query"))) { args ->
-        jsonObjectOf("ok" to true, "projects" to JSONArray(repo.searchProjects(args.requiredString("query")).map { JSONObject(it.toJson()) }))
+    register("search_projects", "Search projects by name, description or summary. Omit query or leave it blank to list all remembered projects.",
+        objSchema("query" to str("Optional search text; blank lists projects"))) { args ->
+        val query = args.optStringOrNull("query")?.trim()?.takeIf { it.isNotEmpty() }
+        val projects = if (query == null) repo.projects() else repo.searchProjects(query)
+        jsonObjectOf("ok" to true, "projects" to JSONArray(projects.map { JSONObject(it.toJson()) }))
     }
     register("update_project", "Create or update a project. Ideas can live in description/summary or related memories.", objSchema("id" to str(), "name" to str(), "description" to str(), "summary" to str(), "status" to enumField<ProjectStatus>(), "importance" to num())) { args ->
         val now = nowMillis()

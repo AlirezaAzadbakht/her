@@ -57,6 +57,47 @@ class ToolEditsTest {
     }
 
     @Test
+    fun projectSearchListsForBlankOrMissingQueryAndKeepsDeletedProjectsHidden() = runBlocking {
+        val first = tools.execute("update_project", """{"name":"Application","importance":0.9}""")
+        val second = tools.execute("update_project", """{"name":"Garden","importance":0.2}""")
+        val removed = tools.execute("update_project", """{"name":"Old project"}""")
+        assertTrue(first.payloadJson, first.ok)
+        assertTrue(second.payloadJson, second.ok)
+        assertTrue(removed.payloadJson, removed.ok)
+        val deleted = repo.getProject(JSONObject(removed.payloadJson).getString("id"))!!
+        repo.saveProject(deleted.copy(deletedAt = repo.clock.nowMillis()))
+        for (args in listOf("{}", """{"query":""}""", """{"query":"   "}""", """{"query":null}""")) {
+            val result = tools.execute("search_projects", args)
+            assertTrue(result.payloadJson, result.ok)
+            val projects = JSONObject(result.payloadJson).getJSONArray("projects")
+            assertEquals(listOf("Application", "Garden"), (0 until projects.length()).map { projects.getJSONObject(it).getString("name") })
+        }
+    }
+
+    @Test
+    fun projectSearchStillFiltersAndRejectsWrongTypes() = runBlocking {
+        assertTrue(tools.execute("update_project", """{"name":"Application"}""").ok)
+        assertTrue(tools.execute("update_project", """{"name":"Garden"}""").ok)
+        val result = tools.execute("search_projects", """{"query":" Application "}""")
+        assertTrue(result.payloadJson, result.ok)
+        val projects = JSONObject(result.payloadJson).getJSONArray("projects")
+        assertEquals(1, projects.length())
+        assertEquals("Application", projects.getJSONObject(0).getString("name"))
+        val empty = tools.execute("search_projects", """{"query":"unmatched"}""")
+        assertTrue(empty.payloadJson, empty.ok)
+        assertEquals(0, JSONObject(empty.payloadJson).getJSONArray("projects").length())
+        assertFalse(tools.execute("search_projects", """{"query":42}""").ok)
+    }
+
+    @Test
+    fun nightlyProjectListingWorksWhenThereAreNoProjects() = runBlocking {
+        tools.runType = com.her.domain.AgentRunType.NIGHTLY
+        val result = tools.execute("search_projects", """{"query":""}""")
+        assertTrue(result.payloadJson, result.ok)
+        assertEquals(0, JSONObject(result.payloadJson).getJSONArray("projects").length())
+    }
+
+    @Test
     fun updateTaskMovesTheDeadline() = runBlocking {
         val id = JSONObject(tools.execute("create_task", """{"title":"Renew passport","dueAt":"1790000000000"}""").payloadJson).getString("id")
         val result = tools.execute("update_task", """{"id":"Renew passport","dueAt":"1790086400000"}""")

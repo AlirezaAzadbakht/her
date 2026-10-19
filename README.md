@@ -63,7 +63,7 @@ Core principles:
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
-| 💗 **Emotional understanding** | Builds mixed feelings and a sense of usefulness from evidence, reuses how to support you, and reflects quietly; her orb can mix two feelings |
+| 💗 **Emotional understanding** | Assesses her contribution and uncertainty, remembers ongoing experiences, learns scoped support lessons from feedback, and keeps her internal feelings separate from the tone you need; her orb can mix two feelings |
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |

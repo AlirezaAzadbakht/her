@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "3c3f79f33b06b258",
-          "summary": "tools=85 []",
+          "fingerprint": "a52d44536340f502",
+          "summary": "tools=89 []",
           "response": {
             "role": "assistant",
             "content": "NO_NOTIFICATION",

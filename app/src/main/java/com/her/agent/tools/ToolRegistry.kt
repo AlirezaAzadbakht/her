@@ -93,11 +93,17 @@ open class ToolRegistry(
                 args.keys().forEach { key ->
                     val v = args.get(key)
                     if (v is String && v.length > 800) throw ToolValidationException("Field too long: $key")
-                    if (key in setOf("confidence", "intensity") && (v !is Number || v.toDouble() !in 0.0..1.0)) throw ToolValidationException("$key must be between 0 and 1")
+                    if (key in setOf("confidence", "intensity", "contribution", "expectedness", "uncertainty") && (v !is Number || v.toDouble() !in 0.0..1.0)) throw ToolValidationException("$key must be between 0 and 1")
+                    if (key == "goalProgress" && (v !is Number || v.toDouble() !in -1.0..1.0)) throw ToolValidationException("goalProgress must be between -1 and 1")
                     if (key in setOf("offset", "expectedVersion") && (v !is Number || v.toDouble() != v.toLong().toDouble())) throw ToolValidationException("$key must be an integer")
                 }
             }
             val payload = spec.second.invoke(args)
+            if (name in setOf("set_reminder", "save_work_session")) {
+                try { captureEmotionalWork(name, payload) }
+                catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                catch (_: Exception) { repo.logActivity("emotion", "Could not capture work evidence", null) }
+            }
             if (name == "update_user_profile") reminderAlarms.rearmAll(repo)
             repo.logActivity("tool", name, if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) null else payload.toString().take(2000))
             ToolResult(name, payload.optBoolean("ok", true), payload.toString())
