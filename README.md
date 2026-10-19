@@ -16,15 +16,15 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 ![JDK](https://img.shields.io/badge/JDK-17-orange?logo=openjdk&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-OpenAI--compatible-412991?logo=openai&logoColor=white)
 
+<sub>Download from stores</sub><br/>
+<a href="https://cafebazaar.ir/app/com.her"><img src="docs/images/bazaar-en.png" alt="Get it on Cafe Bazaar" height="40"/></a>
+
 [**Site**](https://alirezaazadbakht.github.io/her/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
 [**Changelog**](CHANGELOG.md) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
 [**Scenarios**](wiki/Scenario-engine.md)
-
-<sub>Download from stores</sub><br/>
-<a href="https://cafebazaar.ir/app/com.her"><img src="docs/images/bazaar-en.png" alt="Get it on Cafe Bazaar" height="50"/></a>
 
 <br/>
 
