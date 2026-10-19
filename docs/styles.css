@@ -349,6 +349,7 @@ h1 {
   position: absolute;
   inset: -18%;
   z-index: -1;
+  pointer-events: none;
   border-radius: 50%;
   background: radial-gradient(circle, var(--halo), transparent 62%);
   opacity: 0.28;
