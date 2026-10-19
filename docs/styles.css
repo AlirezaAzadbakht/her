@@ -179,9 +179,9 @@ nav a {
 
 .badge img {
   display: block;
-  width: 421px;
+  height: 50px;
+  width: auto;
   max-width: 100%;
-  height: auto;
 }
 
 .btn:active {
