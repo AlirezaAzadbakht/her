@@ -1,5 +1,9 @@
 package com.her.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -129,11 +133,7 @@ fun HerApp(vm: HerViewModel) {
                     Box(Modifier.fillMaxSize().blur(blur.dp)) {
                         when (current) {
                             Stage.Loading -> LoadingStage()
-                            Stage.Names -> NameOnboarding(
-                                userName = profile?.userName,
-                                onSaveUserName = { vm.saveUserName(it) },
-                                onSaveAssistantName = { vm.saveAssistantName(it) },
-                            )
+                            Stage.Names -> NamesStage(vm, profile?.userName)
                             Stage.Setup -> SetupScreen(
                                 initial = vm.llmSettings(),
                                 message = connectionMessage,
@@ -153,6 +153,36 @@ private fun AnimatedContentTransitionScope<Stage>.stageTransition(): ContentTran
     (fadeIn(HerMotion.enter(HerMotion.Emphasized, delayMillis = 90)) +
         scaleIn(HerMotion.enter(HerMotion.Emphasized, delayMillis = 90), initialScale = 0.97f)) togetherWith
         fadeOut(tween(HerMotion.Standard, easing = HerMotion.EmphasizedAccelerate))
+
+@Composable
+private fun NamesStage(vm: HerViewModel, userName: String?) {
+    val restoring by vm.restoring.collectAsState()
+    val restoreMessage by vm.restoreMessage.collectAsState()
+    val googleConsent by vm.googleConsent.collectAsState()
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            vm.restoreFromDrive()
+        } else {
+            vm.restoring.value = false
+            vm.restoreMessage.value = "Google permission was not granted."
+        }
+    }
+    LaunchedEffect(googleConsent) {
+        val pending = googleConsent ?: return@LaunchedEffect
+        vm.clearGoogleConsent()
+        consentLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+    }
+    NameOnboarding(
+        userName = userName,
+        onSaveUserName = { vm.saveUserName(it) },
+        onSaveAssistantName = { vm.saveAssistantName(it) },
+        restoring = restoring,
+        restoreMessage = restoreMessage,
+        onRestore = { vm.restoreFromDrive() },
+    )
+}
 
 @Composable
 private fun LoadingStage() {

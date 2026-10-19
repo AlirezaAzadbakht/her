@@ -118,6 +118,23 @@ class SyncEngineTest {
     }
 
     @Test
+    fun restoreFillsBlankLocalProfileNames() = runBlocking {
+        a.call("update_user_profile", """{"userName":"Alireza","assistantName":"Her"}""")
+        a.engine.sync("token")
+
+        clock.advance(60_000)
+        val local = b.repo.getProfile()
+        assertNull(local.userName)
+        assertNull(local.assistantName)
+        assertTrue(local.updatedAt > a.repo.getProfile().updatedAt)
+
+        b.engine.sync("token")
+        val restored = b.repo.getProfile()
+        assertEquals("Alireza", restored.userName)
+        assertEquals("Her", restored.assistantName)
+    }
+
+    @Test
     fun changeLogNamesParse() {
         assertEquals(
             ChangeLogName("6f1c-44aa", 1, 20),

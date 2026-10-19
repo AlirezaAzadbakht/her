@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.data.secure.LlmSettings
 import com.her.ui.components.HerButton
+import com.her.ui.components.HerButtonTone
 import com.her.ui.components.HerTextField
 import com.her.ui.components.StaggeredText
 import com.her.ui.components.sharedPresence
@@ -58,10 +59,14 @@ fun NameOnboarding(
     userName: String?,
     onSaveUserName: (String) -> Unit,
     onSaveAssistantName: (String) -> Unit,
+    restoring: Boolean = false,
+    restoreMessage: String? = null,
+    onRestore: () -> Unit = {},
 ) {
     var step by rememberSaveable { mutableStateOf(if (userName.isNullOrBlank()) 0 else 1) }
     var yours by rememberSaveable { mutableStateOf(userName.orEmpty()) }
     var hers by rememberSaveable { mutableStateOf("") }
+    val scheme = MaterialTheme.colorScheme
     val haptics = rememberHerHaptics()
     var pulse by remember { mutableStateOf(false) }
     LaunchedEffect(step) {
@@ -99,6 +104,26 @@ fun NameOnboarding(
                         },
                         enabled = yours.isNotBlank(),
                     )
+                    Spacer(Modifier.height(8.dp))
+                    HerButton(
+                        "Restore from Google Drive",
+                        onClick = onRestore,
+                        tone = HerButtonTone.Quiet,
+                        loading = restoring,
+                        loadingText = "Restoring…",
+                    )
+                    AnimatedVisibility(
+                        visible = restoreMessage != null,
+                        enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+                        exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+                    ) {
+                        Text(
+                            restoreMessage.orEmpty(),
+                            color = scheme.onSurfaceVariant,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(top = 14.dp),
+                        )
+                    }
                 }
             } else {
                 val greeting = yours.trim().ifBlank { userName.orEmpty().trim() }

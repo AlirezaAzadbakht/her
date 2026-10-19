@@ -15,6 +15,7 @@ import com.her.domain.ChatMessage
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
+import com.her.reminders.rearmAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,8 +49,11 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
     val googleConsent = MutableStateFlow<PendingIntent?>(null)
+    val restoring = MutableStateFlow(false)
+    val restoreMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
     private var turnJob: Job? = null
+    private var restoreJob: Job? = null
 
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debugEvents = graph.repo.observeDebug().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -206,5 +210,42 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun finishGoogleConnect() {
         googleConsent.value = null
         connectGoogle()
+    }
+
+    fun restoreFromDrive() {
+        if (restoreJob?.isActive == true) return
+        restoreJob = viewModelScope.launch {
+            restoring.value = true
+            restoreMessage.value = null
+            try {
+                val outcome = withContext(Dispatchers.IO) {
+                    graph.googleAuth.authorize(drive = true, calendar = false)
+                }
+                if (outcome.pendingIntent != null) {
+                    googleConsent.value = outcome.pendingIntent
+                    return@launch
+                }
+                val token = outcome.accessToken
+                if (token.isNullOrBlank()) {
+                    restoreMessage.value = outcome.message
+                    return@launch
+                }
+                graph.settings.update { it.copy(driveEnabled = true) }
+                val summary = withContext(Dispatchers.IO) {
+                    val result = graph.syncEngine.sync(token)
+                    graph.reminderAlarms.rearmAll(graph.repo)
+                    result
+                }
+                restoreMessage.value = if (summary.applied == 0) {
+                    "Nothing to restore in this Google account."
+                } else {
+                    "Restored ${summary.applied} items."
+                }
+            } catch (e: Exception) {
+                restoreMessage.value = e.message ?: "Restore failed."
+            } finally {
+                if (googleConsent.value == null) restoring.value = false
+            }
+        }
     }
 }
