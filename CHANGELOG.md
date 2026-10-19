@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her is now on Cafe Bazaar, linked from the website and README.
 - Her can assess progress, her contribution, expectedness and uncertainty, link feedback to ongoing experiences, and keep unresolved questions open as feelings settle.
 - Quiet reflections can become tentative support lessons with exceptions; later feedback helps her judge which approaches work for you.
 - Internal feelings now have a separate outward tone and next-step decision, so feeling useful does not mean celebrating over your distress.

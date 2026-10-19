@@ -18,6 +18,7 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 
 [**Site**](https://alirezaazadbakht.github.io/her/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
+[**Cafe Bazaar**](https://cafebazaar.ir/app/com.her) ·
 [**Changelog**](CHANGELOG.md) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
@@ -75,7 +76,7 @@ Core principles:
 
 ### Install
 
-Grab the signed APK from the [latest release](https://github.com/AlirezaAzadbakht/her/releases/latest) and install it on an Android 10+ device.
+Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed APK from the [latest release](https://github.com/AlirezaAzadbakht/her/releases/latest), and install it on an Android 10+ device.
 
 ### First run
 
