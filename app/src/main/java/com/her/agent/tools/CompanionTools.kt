@@ -39,15 +39,19 @@ internal fun ToolRegistry.registerCompanionTools() {
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(300)) }))
     }
     val common = arrayOf("id" to str("Stable ID; reuse on retry"), "expectedVersion" to num(),
-        "sourceMessageId" to str("Actual user message supporting this write"), "evidence" to str("Exact short quotation from that message"),
+        "sourceMessageId" to str("Actual user message supporting this write"), "evidence" to str("One exact contiguous substring of the source message. Never join separate excerpts. Use the whole message if supporting multiple facts."),
         "basis" to oneOf("Distinguish fact from interpretation", "EXPLICIT", "TENTATIVE"),
         "dismissed" to bool("False only when the user explicitly requests resuming this topic"),
-        "relatedIds" to arr("Existing person, project, goal, memory, commitment, task or companion IDs"))
+        "relatedIds" to arr("Existing person, project, goal, memory, commitment, task, open-loop or companion IDs"))
     fun save(name: String, kind: String, description: String, vararg fields: Pair<String, Field>) {
         register(name, description + " Read first; updates require expectedVersion. Provide sourceMessageId and evidence. Null clears optional fields. Never fabricate evidence.",
-            objSchema(*common, *fields, required = listOf("id", "sourceMessageId", "evidence", "basis"))) { a ->
+            objSchema(*common, *fields, required = (if (kind == "WAITING") emptyList() else listOf("id")) + listOf("sourceMessageId", "evidence", "basis"))) { a ->
             repo.learningTransaction {
-                val id = if (kind == "PREFERENCES") "companion:preferences" else "$kind:${a.requiredString("id").removePrefix("$kind:")}"
+                val rawId = if (kind == "PREFERENCES") "preferences" else a.optStringOrNull("id") ?: if (kind == "WAITING") {
+                    val parentId = a.requiredString("openLoopId")
+                    repo.companionRecords().firstOrNull { it.kind == "WAITING" && it.parentId == parentId }?.id ?: parentId
+                } else a.requiredString("id")
+                val id = if (kind == "PREFERENCES") "companion:preferences" else "$kind:${rawId.removePrefix("$kind:")}"
                 if (id.length > 180) throw ToolValidationException("ID too long")
                 val previous = repo.getCompanionRecord(id)
                 if (previous?.deletedAt != null && kind != "PREFERENCES") throw ToolValidationException("Record was forgotten; use a new ID only on a new user request")
@@ -57,9 +61,25 @@ internal fun ToolRegistry.registerCompanionTools() {
                     ?.takeIf { it.role == MessageRole.USER && it.deletedAt == null }
                     ?: throw ToolValidationException("Source must be an existing user message")
                 if (previous?.deletedAt != null && source.createdAt <= previous.deletedAt) throw ToolValidationException("New preferences need a user request after forgetting")
-                val evidence = a.requiredString("evidence")
+                val evidence = if (kind == "WAITING") com.her.companion.delegationEvidence(source.content, a.requiredString("evidence")) else a.requiredString("evidence")
+                a.put("evidence", evidence)
                 if (!source.content.contains(evidence)) throw ToolValidationException("Evidence must quote the source message")
                 if (a.optString("basis") !in setOf("EXPLICIT", "TENTATIVE")) throw ToolValidationException("Invalid basis")
+                if (kind == "WAITING") {
+                    val phrase = a.optStringOrNull("deadlineText")
+                    // Providers often fill unused optional numbers with zero. It means unspecified, not clear.
+                    if (phrase == null && old != null && !a.isNull("deadline") && a.optLong("deadline") == 0L && old.data().optLong("deadline") > 0L) {
+                        a.remove("deadline"); a.remove("deadlineText")
+                    }
+                    if (phrase != null) {
+                        val deadline = if (source.content.contains(phrase)) {
+                            com.her.core.RelativeTimeParser.parse(phrase, java.time.Instant.ofEpochMilli(source.createdAt).atZone(repo.profileZone()))
+                                ?.toInstant()?.toEpochMilli() ?: throw ToolValidationException("Cannot parse deadlineText; use a date and time")
+                        } else if (old?.data()?.optString("deadlineText") == phrase) old.data().optLong("deadline")
+                        else throw ToolValidationException("deadlineText must quote the source message's date/time phrase")
+                        a.put("deadline", deadline)
+                    }
+                }
                 val data = old?.data() ?: JSONObject().put("status", when (kind) {
                     "DECISION" -> "EXPLORING"; "WAITING" -> "OPEN"; "SESSION" -> "IN_PROGRESS"; "PREFERENCES" -> "ACTIVE"; else -> "ACTIVE"
                 })
@@ -73,7 +93,8 @@ internal fun ToolRegistry.registerCompanionTools() {
                 val sourceQuotes = data.optJSONObject("sourceQuotes") ?: JSONObject()
                 val provenanceKey = "${source.id}:${a.getString("basis")}"
                 a.keys().forEach { key ->
-                    if (key in allowed && key !in setOf("sourceMessageId", "evidence", "basis")) fieldSources.put(key, provenanceKey)
+                    if (key in allowed && key !in setOf("sourceMessageId", "evidence", "basis") &&
+                        !(kind == "WAITING" && old != null && old.data().opt(key) == a.opt(key))) fieldSources.put(key, provenanceKey)
                 }
                 sourceQuotes.put(provenanceKey, jsonObjectOf("sourceMessageId" to source.id, "evidence" to evidence, "sourceDate" to source.createdAt, "basis" to a.getString("basis")))
                 val usedSources = fieldSources.keys().asSequence().map { fieldSources.getString(it) }.toSet()
@@ -81,6 +102,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                 data.put("stale", false)
                 data.put("fieldSources", fieldSources).put("sourceQuotes", sourceQuotes)
                 validateCompanion(kind, data)
+                if (kind == "WAITING") com.her.companion.validateDelegation(repo, id, data, a, source.content)
                 if (kind == "DECISION") for (key in listOf("reasons", "alternatives", "constraints", "assumptions", "outcome")) {
                     val claim = a.optStringOrNull(key)
                     if (claim != null && !source.content.contains(claim, ignoreCase = true)) throw ToolValidationException("$key must quote the user's actual words; leave unknown information empty")
@@ -99,6 +121,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                     val exists = repo.getPerson(link)?.let { it.deletedAt == null } == true ||
                         repo.getProject(link)?.let { it.deletedAt == null } == true || repo.getGoal(link)?.let { it.deletedAt == null } == true ||
                         repo.getTask(link)?.let { it.deletedAt == null } == true || repo.getCommitment(link)?.let { it.deletedAt == null } == true ||
+                        repo.getOpenLoop(link)?.let { it.deletedAt == null } == true ||
                         repo.getLong(link)?.let { it.deletedAt == null } == true || repo.getShort(link)?.let { it.deletedAt == null } == true ||
                         repo.getCompanionRecord(link)?.let { it.deletedAt == null } == true
                     if (!exists) throw ToolValidationException("Linked record not found: $link")
@@ -137,7 +160,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                         val person = repo.getPerson(data.requiredString("personId"))?.takeIf { it.deletedAt == null }
                             ?: throw ToolValidationException("Existing person required")
                         val status = when (data.getString("status")) { "RESOLVED" -> com.her.domain.OpenLoopStatus.CLOSED; "CANCELLED" -> com.her.domain.OpenLoopStatus.DROPPED; else -> com.her.domain.OpenLoopStatus.OPEN }
-                        repo.saveOpenLoop(loop.copy(status = status, relatedEntityType = "people", relatedEntityId = person.id, updatedAt = nowMillis(), version = loop.version + 1))
+                        repo.saveOpenLoop(loop.copy(description = if (data.optBoolean("delegated")) data.requiredString("expectedOutcome") else loop.description, status = status, relatedEntityType = "people", relatedEntityId = person.id, updatedAt = nowMillis(), version = loop.version + 1))
                     }
                     "SESSION", "CAPACITY" -> {
                         val task = repo.getTask(parent)?.takeIf { it.deletedAt == null }
@@ -168,10 +191,17 @@ internal fun ToolRegistry.registerCompanionTools() {
         "status" to oneOf("", "ACTIVE", "PAUSED", "CLOSED"), "sensitive" to bool())
     save("save_thread_development", "DEVELOPMENT", "Save a separate development with provenance. Correct mistaken entries in place rather than repeating them in summaries.",
         "threadId" to str(), "summary" to str(), "status" to oneOf("", "ACTIVE", "SUPERSEDED"))
-    save("save_waiting_on", "WAITING", "Extend an existing open loop for something another person owes. The user's own obligations remain tasks/commitments. RESOLVED requires an explicit reported response. Follow-ups are draft offers, never sent messages.",
-        "openLoopId" to str(), "personId" to str(), "expectedOutcome" to str(), "deadline" to num("Epoch millis or null"),
+    save("save_waiting_on", "WAITING", "Extend an existing open loop for something another person owes. Empty id derives a stable ID from the open loop; reuse the returned ID on updates. The user's own obligations remain tasks/commitments. RESOLVED requires an explicit reported response. Follow-ups are draft offers, never sent messages.",
+        "openLoopId" to str("Existing open-loop ID; create first"), "personId" to str("Existing owner person ID; search_people/update_person FIRST, never empty on creation"), "expectedOutcome" to str(), "deadline" to num("Epoch millis or null"),
+        "deadlineText" to str("Preferred: exact date/time phrase from the source, e.g. tomorrow at 4pm. App converts it relative to that message; overrides deadline. Empty if unknown or not changing it."),
         "followUpAt" to num("Earliest eligible epoch millis or null"), "followUpEnabled" to bool(),
-        "status" to oneOf("", "OPEN", "RESOLVED", "CANCELLED"))
+        "status" to oneOf("", "OPEN", "RESOLVED", "CANCELLED"),
+        "delegated" to bool("True for work assigned to an owner; reuse the existing waiting record"),
+        "priority" to num("User-stated impact: 0 low, 1 normal, 2 high, 3 critical; omit if unknown"),
+        "progress" to str("Exact quotation of actual progress, not an assignment. Empty string means no report."),
+        "blocker" to str("Exact quotation of a reported blocker; empty string clears a resolved blocker or means unknown"),
+        "decisionNeeded" to str("Exact quotation of what the user must decide; empty string clears it or means unknown"),
+        "dependencies" to arr("Existing WAITING record or open-loop IDs that must resolve first; never person IDs"))
     save("save_checkin_preferences", "PREFERENCES", "Inspect/change/pause/disable check-ins. Singleton ID preferences. Social reconnection must be explicitly opted into. Topic IDs are exact companion IDs; empty topics disables contextual check-ins. Sensitive topics require inclusion in sensitiveTopicIds.",
         "status" to oneOf("", "ACTIVE", "PAUSED", "DISABLED"), "socialEnabled" to bool(), "intervalHours" to num("24..720"),
         "localTime" to str("HH:mm"), "tone" to str(), "topicIds" to arr(), "sensitiveTopicIds" to arr(), "maxPerDay" to num("1..3"), "pauseUntil" to num())
@@ -246,7 +276,7 @@ private fun validateCompanion(kind: String, data: JSONObject) {
             throw ToolValidationException("Invalid $key")
     }
     for (key in listOf("deadline", "followUpAt", "pauseUntil", "reviewAt")) if (data.has(key) && !data.isNull(key) && (data.opt(key) !is Number || data.getDouble(key) < 0)) throw ToolValidationException("Invalid $key")
-    for (key in listOf("socialEnabled", "followUpEnabled", "postEventEnabled", "sensitive", "dismissed")) if (data.has(key) && data.opt(key) !is Boolean) throw ToolValidationException("Invalid $key")
+    for (key in listOf("socialEnabled", "followUpEnabled", "postEventEnabled", "sensitive", "dismissed", "delegated")) if (data.has(key) && data.opt(key) !is Boolean) throw ToolValidationException("Invalid $key")
     for (key in listOf("relatedIds", "topicIds", "sensitiveTopicIds", "dependencies")) if (data.has(key)) {
         val values = data.optJSONArray(key) ?: throw ToolValidationException("$key must be an array")
         if (values.length() > 30 || (0 until values.length()).any { values.opt(it) !is String || values.getString(it).isBlank() }) throw ToolValidationException("Invalid $key")

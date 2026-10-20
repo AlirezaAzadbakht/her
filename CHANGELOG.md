@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Executive delegation extends waiting-on records with owned outcomes, dependencies, reported progress, blockers and decisions needed. Ask “what needs me today?” for an evidence-grounded exception briefing; missing updates remain unknown.
 - Moving to a new phone? On the first screen, tap Restore from Google Drive to bring back your conversation and everything she knows.
 - Her is now on Cafe Bazaar, linked from the website and README.
 - Her can assess progress, her contribution, expectedness and uncertainty, link feedback to ongoing experiences, and keep unresolved questions open as feelings settle.

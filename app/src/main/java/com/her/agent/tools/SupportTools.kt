@@ -7,9 +7,15 @@ import com.her.domain.*
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal val supportToolNames = setOf("suggest_daily_plan", "accept_daily_plan", "manage_occurrence", "get_situation_briefing")
+internal val supportToolNames = setOf("suggest_daily_plan", "accept_daily_plan", "manage_occurrence", "get_situation_briefing", "get_executive_briefing")
 
 internal fun ToolRegistry.registerSupportTools() {
+    register("get_executive_briefing", "What needs the user's attention: decisions, reported blockers, dependency risks and overdue delegated outcomes. Read-only, on-demand; no external monitoring or messages. Missing updates never mean failure or on-track. Results are ranked, paginated and include evidence timestamps. Retrieve full WAITING records before edits.",
+        objSchema("offset" to num("Nonnegative integer"))) { a ->
+        val offset = a.optInt("offset", 0)
+        if (offset < 0 || (a.has("offset") && a.getDouble("offset") != offset.toDouble())) throw ToolValidationException("Invalid offset")
+        executiveBriefing(repo, offset)
+    }
     register("suggest_daily_plan", "Suggest at most three achievable actions using saved conservative estimates, dependencies, stated energy, priorities and locally known calendar conflicts. Refresh calendar first. Unknown estimates are reported, never guessed. Replanning changes no obligations and creates no daily backlog. Ask only for estimates that affect the choice.",
         objSchema("minutes" to num("1..480"), "energy" to oneOf("User-stated only", "LOW", "MEDIUM", "HIGH"), required = listOf("minutes"))) { a ->
         val minutes = a.getInt("minutes")

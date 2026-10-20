@@ -58,6 +58,7 @@ Core principles:
 | **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |
 | **Daily planning** | Suggests work that fits available time, stated energy, prerequisites and known calendar events |
 | **Recurring responsibilities** | Skips, postpones, pauses and completes individual occurrences conversationally |
+| **Executive delegation** | Tracks owned outcomes, dependencies, reported blockers and decisions needed; gives an on-demand briefing of exceptions with evidence and coverage limits |
 | **Decision memory** | Preserves actual reasons for choices and supports optional later reflection |
 | **Situation briefings** | Gives focused catch-up, leaving, person-specific and weekly summaries with coverage limits |
 | 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
