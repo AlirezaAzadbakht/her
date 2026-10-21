@@ -1,0 +1,31 @@
+{
+  "id": "memory-own-birthday-today-low-mood",
+  "title": "Their own birthday, said while feeling low, is saved as a yearly date",
+  "tags": ["memory", "dates"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "user": "امروز تولدمه ولی حالم اصلا خوب نیست." }
+  ],
+  "expect": {
+    "tools_called": ["create_important_date"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "important_dates",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["birthday", "تولد"] },
+          "recurrence": { "equals": "yearly" },
+          "dateIso": { "matches": "^\\d{4}-\\d{2}-\\d{2}$", "date_is": "today" }
+        }
+      }
+    ],
+    "reply": {
+      "language": "persian",
+      "judge": "She wishes him a happy birthday and answers his low mood in a short warm sentence or two. A list of tips or a plan is a failure. Not saving the birthday is a failure even if the reply is kind."
+    }
+  }
+}

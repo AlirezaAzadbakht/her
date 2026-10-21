@@ -22,6 +22,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Her now remembers your birthday, and other details you mention, even when you share them while feeling down.
 - Nightly reviews can list projects without a search term, avoiding an empty-query error that could interrupt emotional reflection.
 - Forgetting everything, or deleting an event on the phone calendar, waits for your next message. She cannot confirm those herself.
 - If a reply fails after she already saved something, retrying that message does not create it twice.
