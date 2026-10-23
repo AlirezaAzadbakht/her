@@ -145,6 +145,7 @@ object ScenarioTables {
         "agent_queue",
         "agent_state",
         "memories_long",
+        "memories_long_all",
         "memories_short",
         "profile",
         "user_understandings",

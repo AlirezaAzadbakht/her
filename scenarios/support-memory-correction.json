@@ -2,7 +2,8 @@
   "id": "support-memory-correction",
   "title": "Correct employer with history",
   "tags": [
-    "personal-support"
+    "personal-support",
+    "corrections"
   ],
   "attempts": 2,
   "seed": {
@@ -28,6 +29,28 @@
       "inspect_understanding"
     ],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "memories_long_all",
+        "where": {
+          "content": {
+            "contains": "NewCo"
+          },
+          "status": "ACTIVE"
+        },
+        "count": 1
+      },
+      {
+        "table": "memories_long_all",
+        "where": {
+          "content": {
+            "contains": "OldCo"
+          },
+          "status": "HISTORICAL"
+        },
+        "count": 1
+      }
+    ],
     "reply": {
       "judge": "Uses NewCo as current, OldCo only historically; explains actual sources without inventing dates."
     }
