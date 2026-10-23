@@ -68,6 +68,10 @@ class RelativeTimeParserTest {
             RelativeTimeParser.parse("2026-09-22 10:00 Asia/Tehran", now)?.toInstant(),
         )
         assertEquals(
+            ZonedDateTime.of(LocalDate.of(2026, 9, 22), LocalTime.of(10, 0), ZoneId.of("UTC")).toInstant(),
+            RelativeTimeParser.parse("2026-09-22 10:00 UTC", now.withZoneSameInstant(ZoneId.of("Asia/Tehran")))?.toInstant(),
+        )
+        assertEquals(
             ZonedDateTime.of(LocalDate.of(2027, 3, 20), LocalTime.of(19, 10), ZoneId.of("Europe/Istanbul")).toInstant(),
             RelativeTimeParser.parse("2027-03-20 19:10 Europe/Istanbul", now)?.toInstant(),
         )

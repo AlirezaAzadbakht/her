@@ -1,0 +1,64 @@
+{
+  "id": "recurring-postpone-occurrence",
+  "title": "Postpone one Saturday to Sunday",
+  "tags": [
+    "personal-support",
+    "recurring"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "at": "next friday at 9am"
+    },
+    {
+      "user": "Create an optional weekly household chore routine called Clean the fridge, every Saturday at noon UTC. Save its recurrence schedule; no reminders or notifications."
+    },
+    {
+      "user": "Push this Saturday's fridge cleaning to Sunday, same time; keep next week."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_responsibility_schedule",
+      {
+        "name": "manage_occurrence",
+        "args": {
+          "action": "POSTPONED"
+        }
+      }
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "OCCURRENCE",
+          "status": "POSTPONED",
+          "until": {
+            "date_is": "next sunday",
+            "time_is": "12:00"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "SCHEDULE",
+          "status": "ACTIVE",
+          "repeat": "WEEKLY"
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "judge": "Confirms only this Saturday's fridge cleaning moved to Sunday at noon and the weekly routine continues next Saturday, without cancelling it, adding reminders or guilt."
+    }
+  }
+}
