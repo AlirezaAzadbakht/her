@@ -266,6 +266,26 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun sendUserMessageHeldByQuietHoursStillReachesTheMorning() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T01:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+            ),
+        )
+        orchestrator.runHourly()
+        assertTrue(repo.recentMessages(10).isEmpty())
+        clock.set(Instant.parse("2026-09-12T09:00:00Z").toEpochMilli())
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+    }
+
+    @Test
     fun largeToolPayloadsAreTruncatedForTheModel() {
         val payload = "x".repeat(AgentOrchestrator.MAX_TOOL_PAYLOAD_CHARS + 1000)
         val trimmed = AgentOrchestrator.forModel(payload)

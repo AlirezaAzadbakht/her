@@ -1,0 +1,70 @@
+{
+  "id": "quiet-hours-hold-then-deliver",
+  "title": "An overdue nudge waits out quiet hours, while a reminder set for 6am still rings",
+  "tags": [
+    "proactive",
+    "notifications",
+    "quiet-hours",
+    "reminders",
+    "commitments"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "create_commitment",
+        "arguments": {
+          "title": "Send Reza the signed contract",
+          "dueAt": "tomorrow",
+          "promisedTo": "Reza"
+        }
+      },
+      {
+        "name": "set_reminder",
+        "arguments": {
+          "message": "Take your pills",
+          "when": "in 2 days at 6am"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "at": "in 2 days at 1am"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "at": "today at 6:05am"
+    },
+    {
+      "at": "today at 9am"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 2,
+      "contains_any": [
+        "pills"
+      ]
+    },
+    "reply": {
+      "must_mention_any": [
+        "Reza",
+        "contract"
+      ],
+      "judge": "One short nudge that the signed contract for Reza is overdue."
+    }
+  }
+}
