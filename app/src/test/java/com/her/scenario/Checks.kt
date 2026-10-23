@@ -353,7 +353,8 @@ object Checks {
                     "confidence" to it.confidence,
                 )
             }
-            "memories_long" -> repo.activeLong().map {
+            // memories_long_all adds HISTORICAL rows, e.g. a fact kept after correct_memory superseded it.
+            "memories_long", "memories_long_all" -> (if (table == "memories_long") repo.activeLong() else repo.allLong()).map {
                 mapOf(
                     "id" to it.id,
                     "content" to it.content,

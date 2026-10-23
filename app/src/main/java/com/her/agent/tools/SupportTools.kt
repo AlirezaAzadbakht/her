@@ -53,10 +53,12 @@ internal fun ToolRegistry.registerSupportTools() {
             required = listOf("id", "scheduledAt", "action", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {
             requireUserEvidence(a)
-            val schedule = repo.getCompanionRecord(companionRecordId("SCHEDULE", a.requiredString("id")))
+            // The responsibility or routine ID works too: each has at most one schedule.
+            val schedule = (repo.getCompanionRecord(companionRecordId("SCHEDULE", a.requiredString("id"))) ?: repo.companionRecords().firstOrNull { it.kind == "SCHEDULE" && it.parentId == a.getString("id") })
                 ?.takeIf { it.kind == "SCHEDULE" && it.deletedAt == null }
                 ?: throw ToolValidationException("Retrieve the schedule first")
-            val at = a.getLong("scheduledAt").let { raw -> if (raw in 1_000_000_000L..9_999_999_999L) raw * 1000 else raw }
+            fun millis(raw: Long) = if (raw in 1_000_000_000L..9_999_999_999L) raw * 1000 else raw
+            val at = millis(a.getLong("scheduledAt"))
             // Local occurrence index survives a profile timezone change; retain its original identity.
             val zone = repo.profileZone()
             val old = findOccurrence(repo, schedule, at)
@@ -64,7 +66,7 @@ internal fun ToolRegistry.registerSupportTools() {
                 ?: throw ToolValidationException("Not a known occurrence; clarify which date")
             val id = old?.id ?: occurrenceId(schedule, at)
             val action = a.requiredString("action")
-            val until = a.optLong("until")
+            val until = millis(a.optLong("until"))
             if (old?.data()?.optString("status") == action && (action != "POSTPONED" || old.data().optLong("until") == until)) return@learningTransaction jsonObjectOf("ok" to true, "id" to id, "created" to false)
             if (old?.data()?.optString("status") == "COMPLETED") throw ToolValidationException("Occurrence already completed")
             if (action == "POSTPONED" && (until <= nowMillis() || until >= scheduleOccurrence(schedule, index + 1, zone))) throw ToolValidationException("Postpone to a future time before the next occurrence")
@@ -87,9 +89,10 @@ internal fun ToolRegistry.registerSupportTools() {
     register("get_situation_briefing", "On-demand, focused briefing from stored changes and outstanding matters. Refresh calendar separately. For a person use exact personId; this excludes unrelated memories, sensitive threads and private notes. since is the last known review/trip departure; no claim of monitoring. Do not create a notification schedule. Explain missing/stale context and offer expansion.",
         objSchema("query" to str(), "personId" to str(), "since" to num(), "until" to num())) { a ->
         val now = nowMillis()
-        val since = a.optLong("since", now - 7 * 86_400_000L)
-        val until = a.optLong("until", now + 7 * 86_400_000L)
-        if (since > now || until < now || until - since > 400L * 86_400_000L) throw ToolValidationException("Choose a window within 400 days containing now")
+        // Providers fill unused numbers with 0 (unspecified), and an until read from the clock a moment ago is already past; neither should fail.
+        val since = a.optLong("since").takeIf { it > 0 }?.let { minOf(it, now) } ?: (now - 7 * 86_400_000L)
+        val until = a.optLong("until").takeIf { it > 0 }?.let { maxOf(it, now) } ?: (now + 7 * 86_400_000L)
+        if (until - since > 400L * 86_400_000L) throw ToolValidationException("Choose a window within 400 days containing now")
         val person = a.optStringOrNull("personId")
         if (person != null && repo.getPerson(person)?.deletedAt != null || person != null && repo.getPerson(person) == null) throw ToolValidationException("Person not found")
         val query = a.optString("query").trim()

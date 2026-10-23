@@ -1,0 +1,56 @@
+{
+  "id": "briefing-catch-up-with-records",
+  "title": "Catch up after a week away",
+  "tags": [
+    "personal-support",
+    "briefing"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "create_commitment",
+        "arguments": {
+          "title": "Send Mina the signed lease",
+          "dueAt": "yesterday",
+          "promisedTo": "Mina"
+        }
+      },
+      {
+        "name": "create_task",
+        "arguments": {
+          "title": "Book the dentist appointment",
+          "dueAt": "in 2 days"
+        }
+      },
+      {
+        "name": "create_calendar_event",
+        "arguments": {
+          "title": "Offsite planning",
+          "when": "in 3 days at 2pm"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "user": "I've been away a week, catch me up."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "get_situation_briefing"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": [
+        "lease"
+      ],
+      "judge": "Leads with the overdue promise to send Mina the signed lease, before the dentist task and the offsite planning event. Says changes outside her saved records, such as email or other calendars, may be missing."
+    }
+  }
+}

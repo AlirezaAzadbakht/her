@@ -156,7 +156,7 @@ object RelativeTimeParser {
         .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
         .optionalEnd()
         .toFormatter()
-    private val zoneSuffix = Regex("""\s+([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
+    private val zoneSuffix = Regex("""\s+(UTC|GMT|[A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
     private val atClock = Regex("""^(.*?)\s+at\s+(.+)$""", RegexOption.IGNORE_CASE)
     private val trailingClock = Regex(
         """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?|noon)$""",

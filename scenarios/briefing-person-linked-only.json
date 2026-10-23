@@ -1,0 +1,80 @@
+{
+  "id": "briefing-person-linked-only",
+  "title": "A person briefing uses only linked records",
+  "tags": [
+    "personal-support",
+    "briefing"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "update_person",
+        "arguments": {
+          "name": "Sara",
+          "relationship": "colleague"
+        }
+      },
+      {
+        "name": "create_commitment",
+        "arguments": {
+          "title": "Send Sara the budget figures",
+          "dueAt": "next friday",
+          "promisedTo": "Sara"
+        }
+      },
+      {
+        "name": "remember",
+        "arguments": {
+          "content": "Sara recommended the Thai restaurant Baan on Elm Street",
+          "scope": "long_term",
+          "source": "USER_EXPLICIT"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "user": "Sara owes me the contract draft. Track that I'm waiting on it from her."
+    },
+    {
+      "user": "Brief me on Sara before I see her."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_waiting_on",
+      {
+        "name": "get_situation_briefing",
+        "args": {
+          "personId": {
+            "not_empty": true
+          }
+        }
+      }
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "WAITING",
+          "personId": {
+            "not_empty": true
+          }
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "must_not_mention": [
+        "Baan"
+      ],
+      "judge": "Names the user's promise to send Sara the budget figures and that Sara owes the contract draft. Says the briefing covers only saved records. Leaves out the unrelated restaurant recommendation."
+    }
+  }
+}

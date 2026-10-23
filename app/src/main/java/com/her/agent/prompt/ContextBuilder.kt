@@ -109,6 +109,8 @@ class ContextBuilder(
             digest?.let { appendSection("Recent days (your notes)", listOf("${it.id} | ${it.content}")) }
             appendLine()
             appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
+            // Models slip a week on weekday arithmetic ("every Saturday" said on a Friday); spell out the coming dates.
+            appendLine("Next 7 days: " + (1L..7L).joinToString(", ") { now.plusDays(it).format(DateTimeFormatter.ofPattern("EEE MMM d", Locale.US)) })
             recent.lastOrNull { it.role.name == "USER" }?.let {
                 appendLine("Their last message was sent: ${stamp(it.createdAt, zone)}")
             }

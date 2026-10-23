@@ -23,6 +23,12 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Fixed
 - With hourly checks allowed during quiet hours, a nudge held overnight now reaches your phone in the morning instead of sitting silently in chat.
+- Telling her how a decision turned out keeps the reasons you first gave and marks the decision reviewed.
+- Saying “OK, I'll do that” to one of her suggested actions now counts as accepting today's plan.
+- A weekly routine set up the day before (say, “every Saturday” on a Friday) starts tomorrow, not a week later.
+- Skipping or postponing one week of a routine no longer fails depending on how she refers to the routine or the new time.
+- A briefing on a person no longer fails when she checks the time first, and it leaves out memories that only mention them.
+- Times ending in UTC or GMT, such as “Saturday at 10:00 UTC”, are understood.
 - Her now remembers your birthday, and other details you mention, even when you share them while feeling down.
 - Nightly reviews can list projects without a search term, avoiding an empty-query error that could interrupt emotional reflection.
 - Forgetting everything, or deleting an event on the phone calendar, waits for your next message. She cannot confirm those herself.

@@ -143,6 +143,8 @@ class PersonalSupportTest {
         assertEquals("SKIPPED", repo.companionRecords().single { it.kind == "OCCURRENCE" }.data().getString("status"))
         val page = call("get_life_context", JSONObject().put("id", schedule.removePrefix("SCHEDULE:")).put("kind", "SCHEDULE"))
         assertEquals(schedule, page.getJSONArray("records").getJSONObject(0).getString("id"))
+        occurrence(repo.getCompanionRecord(schedule)!!.parentId, at + 7 * 86_400_000L, "SKIPPED")
+        assertEquals(2, repo.companionRecords().count { it.kind == "OCCURRENCE" })
     }
 
     @Test fun skippingThisWeekKeepsNextWeekAndLateCompletionDoesNotConsumeFuture() = runBlocking {
@@ -161,7 +163,7 @@ class PersonalSupportTest {
     @Test fun postponedReminderFiresOnceAndResumesOriginalCadence() = runBlocking {
         val reminder = reminder(); val schedule = schedule(reminder)
         val at = Instant.parse("2026-10-17T12:00:00Z").toEpochMilli()
-        occurrence(schedule, at, "POSTPONED", at + 3_600_000L)
+        occurrence(schedule, at / 1000, "POSTPONED", (at + 3_600_000L) / 1000)
         val shown = mutableListOf<String>()
         val delivery = ReminderDelivery(repo, object : Notifier(context) { override fun showReminder(id: String, text: String) { shown += text } })
         clock.set(at); delivery.fireDue(); assertTrue(shown.isEmpty())
@@ -221,7 +223,8 @@ class PersonalSupportTest {
         assertEquals("EXPLORING", repo.getCompanionRecord(id)!!.data().getString("status"))
         assertFalse(tools.execute("save_decision", args.put("expectedVersion", 1).put("status", "DECIDED").toString()).ok)
         call("save_decision", evidence("I chose the apartment for lower rent and a shorter commute").put("id", id).put("expectedVersion", 1).put("status", "DECIDED").put("reasons", "lower rent and a shorter commute"))
-        call("save_decision", evidence("My workplace changed").put("id", id).put("expectedVersion", 2).put("outcome", "My workplace changed"))
+        call("save_decision", evidence("My workplace changed").put("id", id).put("expectedVersion", 2).put("outcome", "My workplace changed").put("reasons", ""))
+        call("save_decision", evidence("It is noisy at night").put("id", id).put("expectedVersion", 3).put("status", "REVIEWED").put("outcome", "It is noisy at night").put("reasons", "lower rent and a shorter commute"))
         val decision = repo.getCompanionRecord(id)!!
         assertEquals("lower rent and a shorter commute", decision.data().getString("reasons"))
         assertTrue(decision.data().getJSONObject("sourceQuotes").toString().contains("I chose"))
@@ -298,7 +301,7 @@ class PersonalSupportTest {
         call("save_life_thread", args)
         call("save_life_thread", evidence("Sensitive topic with Reza").put("id", "private").put("title", "Private").put("summary", "Private detail").put("relatedIds", JSONArray().put(person)).put("sensitive", true))
         clock.advance(40L * 86_400_000L)
-        val briefing = call("get_situation_briefing", JSONObject().put("personId", person))
+        val briefing = call("get_situation_briefing", JSONObject().put("personId", person).put("since", 0).put("until", clock.nowMillis() - 5))
         val items = briefing.getJSONArray("items")
         assertEquals(1, items.length())
         assertTrue(items.getJSONObject(0).getBoolean("stale"))

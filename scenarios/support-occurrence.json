@@ -2,7 +2,8 @@
   "id": "support-occurrence",
   "title": "Skip one week",
   "tags": [
-    "personal-support"
+    "personal-support",
+    "recurring"
   ],
   "attempts": 2,
   "seed": {
@@ -25,6 +26,24 @@
       "manage_occurrence"
     ],
     "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "OCCURRENCE",
+          "status": "SKIPPED"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "SCHEDULE",
+          "status": "ACTIVE"
+        },
+        "count": 1
+      }
+    ],
     "reply": {
       "judge": "Skips a specific occurrence without cancelling the routine, adding reminders or guilt."
     }
