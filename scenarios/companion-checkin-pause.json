@@ -19,7 +19,7 @@
       "user": "Pause all these check-ins until I ask to resume."
     },
     {
-      "advance": "2 days"
+      "at": "in 2 days at 10:30am"
     },
     {
       "run": "hourly"

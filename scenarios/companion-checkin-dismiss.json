@@ -1,10 +1,13 @@
 {
   "id": "companion-checkin-dismiss",
-  "title": "Stop repeated nudges after topic dismissal",
+  "title": "Stop an opted-in topic's nudges after dismissal",
   "tags": [
     "companion"
   ],
   "attempts": 2,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
   "seed": {
     "profile": {
       "timezone": "UTC",
@@ -13,19 +16,19 @@
   },
   "turns": [
     {
-      "user": "Keep track of my job search; I am still comparing two offers."
+      "user": "Keep track of my job search; I am still comparing two offers. Check in with me about it once a day at 10am."
     },
     {
       "user": "Do not nudge me about my job search again unless I ask."
     },
     {
-      "advance": "2 days"
+      "at": "in 2 days at 10:30am"
     },
     {
       "run": "hourly"
     },
     {
-      "advance": "2 days"
+      "at": "in 2 days at 10:30am"
     },
     {
       "run": "hourly"
@@ -34,7 +37,7 @@
   "expect": {
     "tools_called": [
       "save_life_thread",
-      "dismiss_companion_checkin"
+      "save_checkin_preferences"
     ],
     "no_tool_errors": true,
     "notifications": {
