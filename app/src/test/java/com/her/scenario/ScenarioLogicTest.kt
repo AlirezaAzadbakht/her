@@ -8,6 +8,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -181,6 +182,17 @@ class ScenarioLogicTest {
         val run = spec.turns[1] as ScenarioTurn.Run
         assertEquals(AutonomousRun.HOURLY, run.kind)
         assertEquals("hi", run.concurrentWithUser)
+    }
+
+    @Test
+    fun parsesQueuedUserTurnOnly() {
+        val file = tmp.newFile("queued.json")
+        file.writeText("""{"id":"q","title":"Q","turns":[{"user":"Add milk","queued":true},{"user":"hi"}],"expect":{}}""")
+        val turns = ScenarioLoader.parse(file).turns
+        assertTrue((turns[0] as ScenarioTurn.User).queued)
+        assertFalse((turns[1] as ScenarioTurn.User).queued)
+        file.writeText("""{"id":"q","title":"Q","turns":[{"run":"hourly","queued":true}],"expect":{}}""")
+        assertThrows(ScenarioParseException::class.java) { ScenarioLoader.parse(file) }
     }
 
     @Test(expected = ScenarioParseException::class)

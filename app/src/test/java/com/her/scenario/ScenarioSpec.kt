@@ -55,7 +55,8 @@ data class SeedToolCall(
 )
 
 sealed class ScenarioTurn {
-    data class User(val text: String) : ScenarioTurn()
+    /** `queued` leaves the message pending, like one sent offline; the next unqueued user turn sends the batch. */
+    data class User(val text: String, val queued: Boolean = false) : ScenarioTurn()
     data class Run(val kind: AutonomousRun, val concurrentWithUser: String? = null) : ScenarioTurn()
 
     /** Move the harness clock forward, e.g. `"3 days"`. */
@@ -170,7 +171,7 @@ object ScenarioLoader {
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
     )
     private val seedToolKeys = setOf("name", "arguments")
-    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user")
+    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued")
     private val faultKeys = setOf("call", "type")
     val faultTypes = setOf("http_500", "http_429", "malformed_json", "truncated_stream")
     private val expectKeys = setOf(
@@ -353,7 +354,8 @@ object ScenarioLoader {
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {
         rejectUnknown(obj, turnKeys, path, file)
-        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) }
+        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) } - "queued"
+        if (obj.has("queued") && !obj.has("user")) throw ScenarioParseException(file, "$path.queued needs user")
         val concurrent = obj.optString("concurrent_with_user").takeIf { obj.has("concurrent_with_user") && it.isNotBlank() }
         if (concurrent != null) {
             if (!obj.has("run")) throw ScenarioParseException(file, "$path.concurrent_with_user needs run")
@@ -367,7 +369,7 @@ object ScenarioLoader {
             throw ScenarioParseException(file, "$path must have exactly one of user, run, advance, at")
         }
         return when (present.single()) {
-            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path))
+            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path), obj.optBoolean("queued", false))
             "run" -> {
                 val raw = obj.requiredString(file, "run", path).lowercase()
                 if (raw !in runKinds) {
