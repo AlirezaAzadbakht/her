@@ -142,7 +142,7 @@ class ScenarioHarness(
                 val result = when (turn) {
                     is ScenarioTurn.User -> {
                         orchestrator.enqueueUserMessage(turn.text)
-                        orchestrator.processOutbox()
+                        if (turn.queued) null else orchestrator.processOutbox()
                     }
                     is ScenarioTurn.Run -> {
                         suspend fun runAutonomous() = when (turn.kind) {
