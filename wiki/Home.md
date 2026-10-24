@@ -6,6 +6,8 @@ This folder is the working map of the repo: what the product is, how the code is
 
 ## Pages
 
+An experimental native Apple client is documented separately in [Apple client preview](Apple-client.md). Its availability and limits are independent of the Android capabilities below.
+
 | Page | What it covers |
 |------|----------------|
 | [Product](Product.md) | Personality, classification rules, what the user never has to say |

@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Apple clients now include system and synced internal calendars, timed/repeating/conditional reminders, conversational person/place reminders, optional automatic reviews with quiet hours, and Android-compatible Google Drive change logs. iOS controls background timing; live Google access requires the owner's Apple OAuth setup and signing. See apple/GOOGLE_SETUP.md.
 - No API key? The first screen and Settings link to Her Cloud, where you can buy credit. Then tap Paste settings or Scan QR code to connect with what it gives you.
 - Executive delegation extends waiting-on records with owned outcomes, dependencies, reported progress, blockers and decisions needed. Ask “what needs me today?” for an evidence-grounded exception briefing; missing updates remain unknown.
 - Moving to a new phone? On the first screen, tap Restore from Google Drive to bring back your conversation and everything she knows.
@@ -28,6 +29,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Forgetting Apple memory also excludes old synced conversation copies and late-arriving source-dependent records from future model context.
 - With hourly checks allowed during quiet hours, a nudge held overnight now reaches your phone in the morning instead of sitting silently in chat.
 - Telling her how a decision turned out keeps the reasons you first gave and marks the decision reviewed.
 - Saying “OK, I'll do that” to one of her suggested actions now counts as accepting today's plan.

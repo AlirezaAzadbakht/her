@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleDisplayName</key><string>Her</string>
+    <key>CFBundleExecutable</key><string>Her</string>
+    <key>CFBundleIdentifier</key><string>org.her.apple.preview</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>Her</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.2.0</string>
+    <key>CFBundleVersion</key><string>2</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSCalendarsFullAccessUsageDescription</key><string>Her reads your events to plan around meetings and creates, moves or deletes events only when you request it.</string>
+    <key>NSCalendarsUsageDescription</key><string>Her reads and updates calendar events at your request.</string>
+    <key>BGTaskSchedulerPermittedIdentifiers</key><array><string>org.her.apple.preview.refresh</string><string>org.her.apple.preview.processing</string></array>
+    <key>UIBackgroundModes</key><array><string>fetch</string><string>processing</string></array>
+    <key>GIDClientID</key><string>$(HER_GOOGLE_CLIENT_ID)</string>
+    <key>CFBundleURLTypes</key><array><dict><key>CFBundleTypeRole</key><string>Editor</string><key>CFBundleURLSchemes</key><array><string>$(HER_GOOGLE_REVERSED_CLIENT_ID)</string></array></dict></array>
+    <key>NSAppTransportSecurity</key><dict>
+        <key>NSAllowsLocalNetworking</key><true/>
+    </dict>
+    <key>UILaunchScreen</key><dict/>
+    <key>UISupportedInterfaceOrientations</key><array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key><array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict></plist>

@@ -52,8 +52,11 @@ Core principles:
 
 ## Features
 
+Except for the explicitly marked Apple preview, the table below describes Android. See the [Apple client's current limits](wiki/Apple-client.md) before building.
+
 | Feature | What she does |
 |---|---|
+| **Apple preview (experimental)** | Native iOS/macOS conversation, source-backed records, calendars, reminders, optional background review and Android-compatible Drive sync transport. Google access requires owner OAuth setup; iOS background timing is system-controlled. [Build and limitations](apple/README.md) |
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |
@@ -190,6 +193,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 |------|----------------|
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
+| [Apple client preview](wiki/Apple-client.md) | Experimental iOS/macOS scope, builds, signing and current limitations |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
 | [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |

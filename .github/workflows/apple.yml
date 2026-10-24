@@ -1,0 +1,36 @@
+name: Apple preview
+on:
+  pull_request:
+    paths: ['apple/**', '.github/workflows/apple.yml']
+  push:
+    paths: ['apple/**', '.github/workflows/apple.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apple-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core contract checks
+        run: bash apple/scripts/check.sh
+      - name: macOS application
+        run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=macOS' -derivedDataPath build/apple-mac ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
+      - name: iOS Simulator application
+        run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=iOS Simulator' -derivedDataPath build/apple-ios CODE_SIGNING_ALLOWED=NO build
+      - name: iOS device compilation (unsigned)
+        run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=iOS' -derivedDataPath build/apple-device CODE_SIGNING_ALLOWED=NO build
+      - name: iOS Simulator first-run smoke test
+        run: bash apple/scripts/smoke-ios.sh build/apple-ios/Build/Products/Debug-iphonesimulator/Her.app build/apple-smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Her-Apple-preview
+          path: |
+            build/apple-mac/Build/Products/Debug/Her.app
+            build/apple-ios/Build/Products/Debug-iphonesimulator/Her.app
+            build/apple-device/Build/Products/Debug-iphoneos/Her.app
+            build/apple-smoke
