@@ -26,6 +26,7 @@ jobs:
       - name: iOS Simulator first-run smoke test
         run: bash apple/scripts/smoke-ios.sh build/apple-ios/Build/Products/Debug-iphonesimulator/Her.app build/apple-smoke
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Her-Apple-preview
           path: |

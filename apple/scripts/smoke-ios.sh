@@ -12,7 +12,7 @@ xcrun simctl launch "$device_id" org.her.apple.preview
 sleep 5
 xcrun simctl io "$device_id" screenshot "$output_dir/ios-first-run.png"
 xcrun simctl spawn "$device_id" launchctl list > "$output_dir/processes.txt"
-if ! rg -q 'org\.her\.apple\.preview' "$output_dir/processes.txt"; then
+if ! grep -Fq 'org.her.apple.preview' "$output_dir/processes.txt"; then
   printf 'Her did not remain running after launch.\n' >&2
   exit 1
 fi
