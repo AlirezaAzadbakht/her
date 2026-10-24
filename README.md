@@ -51,8 +51,11 @@ Core principles:
 
 ## Features
 
+Except for the explicitly marked Apple preview, the table below describes Android. See the [Apple client's current limits](wiki/Apple-client.md) before building.
+
 | Feature | What she does |
 |---|---|
+| **Apple preview (experimental)** | Native iOS/macOS conversation and device-local memory foundation; no calendar, reminders, sync or background checks yet. [Build and limitations](apple/README.md) |
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |

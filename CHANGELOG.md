@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Experimental iOS/macOS client foundation: one continuous conversation, device-local source-backed memory and work notes, queued retries, and Keychain credentials. Apple calendar, reminders, sync and autonomous follow-ups are not yet available; see `apple/README.md` for build and signing requirements.
 - No API key? The first screen and Settings link to Her Cloud, where you can buy credit. Then tap Paste settings or Scan QR code to connect with what it gives you.
 - Executive delegation extends waiting-on records with owned outcomes, dependencies, reported progress, blockers and decisions needed. Ask “what needs me today?” for an evidence-grounded exception briefing; missing updates remain unknown.
 - Moving to a new phone? On the first screen, tap Restore from Google Drive to bring back your conversation and everything she knows.
