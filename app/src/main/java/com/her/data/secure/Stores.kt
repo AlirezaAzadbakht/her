@@ -10,6 +10,7 @@ import com.her.core.newId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONObject
 
 data class LlmSettings(
     val baseUrl: String,
@@ -18,6 +19,14 @@ data class LlmSettings(
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank()
+
+    companion object {
+        /** Reads the settings Her Cloud gives out, as copied text or as the QR code of the same JSON. */
+        fun fromJson(text: String): LlmSettings? = runCatching {
+            val json = JSONObject(text.trim())
+            LlmSettings(json.getString("base_url"), json.getString("api_key"), json.getString("model_name"))
+        }.getOrNull()?.takeIf { it.isConfigured }
+    }
 }
 
 class SecureSettingsStore(context: Context) {
