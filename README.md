@@ -24,7 +24,8 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 [**Changelog**](CHANGELOG.md) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
-[**Scenarios**](wiki/Scenario-engine.md)
+[**Scenarios**](wiki/Scenario-engine.md) ·
+[**Contribute**](CONTRIBUTING.md)
 
 <br/>
 
@@ -205,6 +206,10 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 ## Credits
 
 The loading orbs are [thinking-orbs](https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/thinking-orbs) by Jakub Antalik (MIT), ported to Kotlin and checked against its golden vectors. See [`third_party/thinking-orbs`](third_party/thinking-orbs/README.md).
+
+## Contributing
+
+Pull requests are welcome anytime, no issue needed first. See [CONTRIBUTING.md](CONTRIBUTING.md) for why and when to help, the product rules every change keeps, and how to test it.
 
 ## License
 

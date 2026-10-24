@@ -18,6 +18,8 @@ This folder is the working map of the repo: what the product is, how the code is
 | [Scenario engine](Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
 
+Want to help? Start with [Contributing](../CONTRIBUTING.md).
+
 ## One-line architecture
 
 ```
