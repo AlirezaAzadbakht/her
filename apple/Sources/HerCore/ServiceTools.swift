@@ -142,6 +142,7 @@ public enum ServiceTools {
             var events = internalEntries(from, to)
             if let device { events += (try? await device.calendarEntries(from: from, to: to)) ?? [] }
             guard let event = events.first(where: { $0.id == args["id"] }), event.writable else { throw HerError.invalidTool("Writable system event not found. Google events are read-only.") }
+            snapshot.services!.pendingDeletes.removeAll { now.timeIntervalSince($0.createdAt) >= 15 * 60 }
             if !snapshot.services!.pendingDeletes.contains(where: { $0.eventID == event.id }) {
                 snapshot.services!.pendingDeletes.append(PendingCalendarDelete(eventID: event.id, title: event.title, sourceNoteID: note.id.uuidString, start: event.start))
             }

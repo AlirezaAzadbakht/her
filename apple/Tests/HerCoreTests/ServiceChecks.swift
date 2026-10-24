@@ -87,6 +87,10 @@ import HerCore
         let deletion = call("request_calendar_delete", ["id": "event-1", "evidence": "Meet Sara tomorrow."])
         _ = try await ServiceTools.execute(deletion, note: note, snapshot: &state, device: device)
         try expect(state.services!.pendingDeletes.count == 1 && device.changes.count == 1, "Model may request, never execute, external deletion")
+        let expiredID = state.services!.pendingDeletes[0].id
+        state.services!.pendingDeletes[0].createdAt = Date().addingTimeInterval(-901)
+        _ = try await ServiceTools.execute(deletion, note: note, snapshot: &state, device: device)
+        try expect(state.services!.pendingDeletes.count == 1 && state.services!.pendingDeletes[0].id != expiredID, "A fresh deletion request must replace an expired confirmation")
         device.events[0].writable = false
         do { _ = try await ServiceTools.execute(deletion, note: note, snapshot: &state, device: device); throw CheckError.failed("Read-only calendar delete must fail") }
         catch HerError.invalidTool {}
