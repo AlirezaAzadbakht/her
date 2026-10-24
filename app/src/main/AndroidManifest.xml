@@ -51,6 +51,12 @@
             </intent-filter>
         </activity>
 
+        <!-- The QR scanner for Her Cloud settings; the library locks it to landscape. -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="screenOrientation" />
+
         <receiver
             android:name=".work.BootReceiver"
             android:exported="true">

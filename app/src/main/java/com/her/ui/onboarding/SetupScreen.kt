@@ -1,5 +1,7 @@
 package com.her.ui.onboarding
 
+import android.content.ClipboardManager
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,8 +13,10 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -33,6 +37,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,10 +55,14 @@ import com.her.ui.theme.HerMotion
 import com.her.ui.theme.rememberEntrance
 import com.her.ui.theme.rememberHerHaptics
 import com.her.ui.theme.rise
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.delay
 
 // HerViewModel.saveAndTest reports success with exactly this message.
 private const val Connected = "Connected."
+
+private const val HerCloudUrl = "https://cloud.her-project.ir/"
 
 @Composable
 fun NameOnboarding(
@@ -189,7 +199,7 @@ fun SetupScreen(
         StaggeredText("Hi.", style = GreetingStyle, color = scheme.onBackground)
         Spacer(Modifier.height(12.dp))
         StaggeredText(
-            "Before we talk, I need a place to think. An OpenAI-compatible endpoint is enough.",
+            "Before we talk, I need a place to think.",
             style = QuestionStyle,
             color = scheme.onSurfaceVariant,
             startDelayMillis = 240,
@@ -197,6 +207,16 @@ fun SetupScreen(
         )
         Spacer(Modifier.height(36.dp))
         Column(Modifier.rise(form, 16.dp)) {
+            HerCloudConnect { cloud ->
+                base = cloud.baseUrl
+                key = cloud.apiKey
+                model = cloud.model
+                attempted = true
+                onSave(cloud)
+            }
+            Spacer(Modifier.height(28.dp))
+            Text("Or use your own OpenAI-compatible endpoint.", color = scheme.onSurfaceVariant, fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
             HerTextField("Base URL", base, error = failed, shakeTrigger = shake) { base = it }
             HerTextField("API key", key, secret = true, error = failed, shakeTrigger = shake) { key = it }
             HerTextField("Model", model, error = failed, shakeTrigger = shake) { model = it }
@@ -224,6 +244,68 @@ fun SetupScreen(
                     modifier = Modifier.padding(top = 14.dp),
                 )
             }
+        }
+    }
+}
+
+/** For people without a key: buy credit on Her Cloud, then paste or scan the settings it gives out. */
+@Composable
+fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val scheme = MaterialTheme.colorScheme
+    var invalid by remember { mutableStateOf(false) }
+    val accept = { text: String? ->
+        val settings = text?.let(LlmSettings::fromJson)
+        invalid = settings == null
+        if (settings != null) onImport(settings)
+    }
+    // No contents means they backed out of the scanner.
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { result -> result.contents?.let(accept) }
+    Column {
+        Text(
+            "No API key? Buy credit on Her Cloud, then paste or scan the settings it gives you.",
+            color = scheme.onSurfaceVariant,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        Spacer(Modifier.height(10.dp))
+        HerButton("Get credit on Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            HerButton(
+                "Paste settings",
+                tone = HerButtonTone.Quiet,
+                onClick = {
+                    val clip = context.getSystemService(ClipboardManager::class.java)?.primaryClip
+                    accept(clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString())
+                },
+            )
+            HerButton(
+                "Scan QR code",
+                tone = HerButtonTone.Quiet,
+                onClick = {
+                    scanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("Point at the QR code on Her Cloud")
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(false),
+                    )
+                },
+            )
+        }
+        AnimatedVisibility(
+            visible = invalid,
+            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+        ) {
+            Text(
+                "That isn't Her Cloud settings. Copy them again from the site.",
+                color = scheme.error,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }

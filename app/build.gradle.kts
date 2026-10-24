@@ -131,6 +131,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     implementation(libs.play.services.auth)
+    implementation(libs.zxing.android.embedded)
 
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.core)

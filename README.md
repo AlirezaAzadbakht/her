@@ -73,6 +73,7 @@ Core principles:
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |
 | 🔎 **Web search** | Optional, when she needs current information |
 | 🗄️ **Memory SQL navigator** | Inspect exactly what she has stored |
+| 🔑 **Her Cloud** | No API key? Buy credit on [Her Cloud](https://cloud.her-project.ir/), then paste or scan the settings it gives you, on the first screen or in Settings |
 | 🔐 **Private by design** | API keys in Android Keystore-backed storage; never written to the database, never synced |
 
 ## Getting started
@@ -84,7 +85,7 @@ Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed 
 ### First run
 
 1. Open the app. Give your name, then hers.
-2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**.
+2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. No key? Tap **Get credit on Her Cloud**, then **Paste settings** or **Scan QR code** with what [Her Cloud](https://cloud.her-project.ir/) gives you.
 3. Continue. She greets you by those names once the connection works.
 4. *Optional:* grant calendar permission, tap Connect Google for Drive/Calendar, enable web search.
 5. *Optional:* Settings → Advanced → Experimental to hide the Memory SQL navigator (shown by default).

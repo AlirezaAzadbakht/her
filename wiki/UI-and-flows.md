@@ -54,6 +54,7 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
 2. On the first name screen they can instead tap **Restore from Google Drive**. Play Services consent (Drive only) runs if needed, then one `sync`. `driveEnabled` turns on only after a token is granted. A summary such as "Restored 1,240 items" or "Nothing to restore in this Google account" stays on that screen; if both names come back, HerApp skips the rest of this step and opens the API form.
 3. Then `SetupScreen` until `apiConfiguredOnce` is true.
 4. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
+   - Without a key, `HerCloudConnect` (also in Settings → Her mind) links to [Her Cloud](https://cloud.her-project.ir/) to buy credit. **Paste settings** reads the clipboard and **Scan QR code** opens the ZXing scanner (it asks for the camera). Both take Her Cloud's `{base_url, model_name, api_key}` JSON through `LlmSettings.fromJson`, fill the fields, and run `saveAndTest()` at once. Anything else shows "That isn't Her Cloud settings."
 5. `saveAndTest()` writes the credentials, then runs `LlmClient.ping()` (a short chat request with a ~35s timeout) on a background thread. The button becomes a `connecting` orb with a shimmering **Checking…**. On failure, the fields shake, a reject haptic plays, and the message slides in.
 6. On success, the button draws a check, the halo flares, `apiConfiguredOnce = true`, and `seedOnboardingIfNeeded()` runs:
    - Assistant: *“Hi, {user}. I'm {her}.”*
