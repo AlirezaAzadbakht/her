@@ -20,6 +20,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you ask her to forget something, she confirms briefly without repeating the details.
 - If two calendar events could match what you asked to move, she asks which one instead of changing either.
 - Saying “resume” on a draft she postponed gets the missing part written right away.
+- When she saves a birthday or anniversary, she names the day, so you can catch a misheard date.
 - Connecting Google Drive and Calendar no longer asks for a client ID; just tap Connect Google.
 - Saving reminders and work drafts automatically contributes evidence of Her's work without assuming it benefited you. Marking your own task done no longer gives her credit for doing it.
 - Repeated reports linked to the same emotional outcome no longer refresh its age or reward it again; corrections and forgetting also reach derived lessons and their feedback.
