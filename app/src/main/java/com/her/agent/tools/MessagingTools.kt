@@ -7,7 +7,7 @@ import com.her.domain.AgentRunType
 import org.json.JSONObject
 
 internal fun ToolRegistry.registerMessagingTools() {
-    register("web_search", "Search the public web for current external facts. Do not use for personal memory.", objSchema("query" to str(), required = listOf("query"))) { args ->
+    register("web_search", "Search the public web for current facts, not personal memory.", objSchema("query" to str(), required = listOf("query"))) { args ->
         val profile = repo.getProfile()
         JSONObject(
             webSearch.search(

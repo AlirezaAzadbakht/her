@@ -614,6 +614,11 @@ class HerRepository(
             PendingConfirmation(it.id, it.kind, it.summary, it.payloadJson, it.createdAt)
         }
 
+    suspend fun pendingConfirmations(): List<PendingConfirmation> =
+        db.confirmationDao().all().map {
+            PendingConfirmation(it.id, it.kind, it.summary, it.payloadJson, it.createdAt)
+        }
+
     suspend fun deleteConfirmation(id: String) = db.confirmationDao().delete(id)
 
     suspend fun pendingSyncOps(): List<SyncOp> = db.syncDao().pending().map { it.toDomain() }

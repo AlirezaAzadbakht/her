@@ -42,9 +42,9 @@ internal fun ToolRegistry.registerMemoryTools() {
         "search_memory",
         "Search short-term and long-term memories using text relevance, importance, confidence, and recency.",
         objSchema(
-            "query" to str("Search query"),
+            "query" to str(),
             "memoryTypes" to arr("Optional: short_term, long_term"),
-            "limit" to num("Max results"),
+            "limit" to num(),
             required = listOf("query"),
         ),
     ) { args ->
@@ -75,15 +75,15 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "remember",
-        "Store a fact, preference, or household spec. Use short_term for temporary/uncertain context; long_term for durable facts. Do not use this for todos — that is create_task or add_grocery.",
+        "Store a fact they asked you to remember, including where they work. Not a todo, and not a profile field.",
         objSchema(
-            "content" to str("Memory text"),
+            "content" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
-            "type" to str("Optional type/category"),
+            "type" to str(),
             "confidence" to num("0-1"),
             "importance" to num("0-1"),
             "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you inferred it", "USER_EXPLICIT", "AGENT_INFERENCE"),
-            "sourceMessageId" to str("Origin message id"),
+            "sourceMessageId" to str(),
             "expiresAt" to num("Optional expiry epoch millis"),
             required = listOf("content"),
         ),
@@ -140,11 +140,11 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "update_memory",
-        "Update an existing short-term or long-term memory. Use status=HISTORICAL instead of deleting old facts. scope=long_term on a short-term memory promotes it to long-term.",
+        "Update a memory; HISTORICAL keeps the old fact, and long_term promotes a short-term one.",
         objSchema(
-            "id" to str("Memory id"),
+            "id" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
-            "content" to str("Replacement text"),
+            "content" to str(),
             "confidence" to num(),
             "importance" to num(),
             "status" to enumField<MemoryStatus>(),
@@ -215,7 +215,7 @@ internal fun ToolRegistry.registerMemoryTools() {
         "forget_memory",
         "Forget one memory, or request bulk forget (requires confirmation).",
         objSchema(
-            "id" to str("Memory id"),
+            "id" to str(),
             "everything" to bool("If true, request confirmation to forget all personal knowledge"),
             "confirmId" to str("Confirmation id from a previous request"),
             required = emptyList(),

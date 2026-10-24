@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "a7488ebad1e04e91",
+          "fingerprint": "4abbd2de22e815f2",
           "summary": "tools=93 [user(Our wedding anniversary )]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "d034f45e781eae65",
+          "fingerprint": "2d4adf94485171ca",
           "summary": "tools=93 [user(Our wedding anniversary ) assistant->create_important_date tool:create_important_date]",
           "response": {
             "role": "assistant",

@@ -19,7 +19,7 @@ internal val emotionalToolNames = setOf("get_emotional_state", "record_emotional
 
 internal fun ToolRegistry.registerEmotionalTools() {
     registerExperienceTools()
-    register("get_emotional_state", "Read modeled feelings, purpose, and evidence. Page history with offset; use id for one record before correcting it. query ranks support lessons by the current situation.", objSchema("offset" to num(), "id" to str(), "query" to str("Situation text used to rank understandings and reflections"))) { a ->
+    register("get_emotional_state", "Read modeled feelings, purpose, and evidence.", objSchema("offset" to num(), "id" to str(), "query" to str("Ranks support lessons for this situation"))) { a ->
         val rows = repo.companionRecords().filter { it.kind in emotionalKinds }
         val now = nowMillis()
         val offset = a.optInt("offset", 0)
@@ -42,13 +42,13 @@ internal fun ToolRegistry.registerEmotionalTools() {
             "learningProgress" to JSONArray(repo.learningRecords().filter { showsLearningProgress(it) }.sortedByDescending { it.updatedAt }.take(5)
                 .map { jsonObjectOf("id" to it.id, "kind" to it.kind, "result" to it.data().optString("result"), "status" to it.data().optString("status")) }))
     }
-    val common = arrayOf("id" to str("Stable ID, reuse when correcting"), "expectedVersion" to num(),
-        "sourceMessageId" to str("Copy an actual UUID from context or get_emotional_state.recentUserMessages. Never use current/latest or invent an ID."), "evidence" to str("Exact contiguous substring copied from the source. Do not add quotation marks or punctuation."), "confidence" to num("0 to 1"))
-    register("record_emotional_experience", "Record an evidence-backed experience. Same source/event is counted only once. experienceId is OPTIONAL: omit or use empty string for standalone events. To link an ongoing experience, FIRST save_emotional_thread and copy its returned full ID; never invent one. ACTION_SUCCEEDED requires a completed task, fired reminder, or learning progress; other events require a user quote. Interpretations remain tentative.",
-        objSchema(*common, "experienceId" to str("OPTIONAL. Omit/empty for standalone events. Otherwise FIRST call save_emotional_thread and copy its returned full EMOTION_EXPERIENCE:... ID. Never invent a link."),
+    val common = arrayOf("id" to str("Reuse when correcting"), "expectedVersion" to num(),
+        "sourceMessageId" to str("User message id from context"), "evidence" to str("Exact substring of that message"), "confidence" to num("0 to 1"))
+    register("record_emotional_experience", "Record the event itself, such as help that worked (BENEFIT_REPORTED), before reflecting.",
+        objSchema(*common, "experienceId" to str("Full id from save_emotional_thread, or omit"),
             "goalProgress" to num("-1 to 1"), "contribution" to num("0 to 1; share attributable to Her"), "expectedness" to num("0 to 1"), "uncertainty" to num("0 to 1"), "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION", "USER_SHARED"),
-            "actionKind" to oneOf("task, reminder, or learning", "task", "reminder", "learning"), "actionId" to str("Copy from get_emotional_state.completedTasks, firedReminders, or learningProgress"),
-            "taskId" to str("Completed task id; still accepted for actionKind task"), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
+            "actionKind" to oneOf("", "task", "reminder", "learning"), "actionId" to str("Id from completedTasks, firedReminders, or learningProgress"),
+            "taskId" to str("Completed task id"), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
             required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
         repo.learningTransaction {
             val event = a.requiredString("event")
@@ -71,8 +71,8 @@ internal fun ToolRegistry.registerEmotionalTools() {
             saveEmotion(id, "EMOTION_EVENT", data, a)
         }
     }
-    register("save_emotional_understanding", "Save or correct a situation-specific understanding. Their stated feeling, interpretation and support approach remain separate; include exceptions. Updates require expectedVersion and fresh quoted evidence.",
-        objSchema(*common, "situation" to str(), "userFeeling" to str("Copy a short exact substring such as sad or anxious from the source; no added punctuation, quotation marks or paraphrase."), "interpretation" to str(), "supportApproach" to str(), "exceptions" to str(),
+    register("save_emotional_understanding", "Save what they feel, your reading, and the approach as separate fields; pass expectedVersion when updating.",
+        objSchema(*common, "situation" to str(), "userFeeling" to str("Short exact substring, such as sad"), "interpretation" to str(), "supportApproach" to str(), "exceptions" to str(),
             required = listOf("id", "sourceMessageId", "evidence", "confidence", "situation", "userFeeling", "interpretation", "supportApproach", "exceptions"))) { a ->
         repo.learningTransaction {
             val message = emotionalEvidence(a)
@@ -80,17 +80,17 @@ internal fun ToolRegistry.registerEmotionalTools() {
             saveEmotion("EMOTION_UNDERSTANDING:${a.requiredString("id").removePrefix("EMOTION_UNDERSTANDING:")}", "EMOTION_UNDERSTANDING", JSONObject(a.toString()), a)
         }
     }
-    register("save_emotional_reflection", "Quiet evidence-linked reflection. Reuse the daily ID on retry. This records learning, never awards emotional points or sends messages.",
-        objSchema("id" to str(), "expectedVersion" to num(), "eventIds" to arr(), "helped" to str("What helped, or Unknown; never empty"), "misunderstood" to str("What was misunderstood, or None observed; never empty"), "uncertain" to str("What remains uncertain, or None identified; never empty"), "adjustment" to str("A future adjustment, or Continue current approach; never empty"),
+    register("save_emotional_reflection", "Reflect on event ids returned by record_emotional_experience; this sends nothing.",
+        objSchema("id" to str(), "expectedVersion" to num(), "eventIds" to arr(), "helped" to str("What helped, or Unknown"), "misunderstood" to str("What was misunderstood, or None observed"), "uncertain" to str("What remains uncertain, or None identified"), "adjustment" to str("Next adjustment, or Continue current approach"),
             required = listOf("id", "eventIds", "helped", "misunderstood", "uncertain", "adjustment"))) { a ->
         repo.learningTransaction {
             val ids = a.getJSONArray("eventIds")
             if (ids.length() !in 1..8) throw ToolValidationException("Cite 1 to 8 events")
+            val resolved = org.json.JSONArray()
             for (i in 0 until ids.length()) {
-                repo.getCompanionRecord(ids.getString(i))?.takeIf { it.kind == "EMOTION_EVENT" && it.deletedAt == null && !it.data().optBoolean("stale") }
-                    ?: throw ToolValidationException("Unavailable event")
+                resolved.put(requireEmotionalRecord(ids.getString(i), "EMOTION_EVENT").id)
             }
-            saveEmotion("EMOTION_REFLECTION:${a.requiredString("id").removePrefix("EMOTION_REFLECTION:")}", "EMOTION_REFLECTION", JSONObject(a.toString()).put("relatedIds", ids), a)
+            saveEmotion("EMOTION_REFLECTION:${a.requiredString("id").removePrefix("EMOTION_REFLECTION:")}", "EMOTION_REFLECTION", JSONObject(a.toString()).put("relatedIds", resolved).put("eventIds", resolved), a)
         }
     }
 }

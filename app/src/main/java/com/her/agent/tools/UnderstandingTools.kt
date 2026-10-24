@@ -8,7 +8,7 @@ import org.json.JSONObject
 internal val understandingToolNames = setOf("inspect_understanding", "correct_memory")
 
 internal fun ToolRegistry.registerUnderstandingTools() {
-    register("inspect_understanding", "Explain stored understanding of one topic, with source, date, confidence and historical status. Present facts versus interpretations in plain language. Ask which record if correction or forgetting is ambiguous. Page before broad changes; never promise physical erasure of chat or uploaded logs.",
+    register("inspect_understanding", "Explain what is stored about one topic, with source, date, and confidence.",
         objSchema("query" to str(), "id" to str(), "offset" to num())) { a ->
         val query = a.optString("query").trim()
         val id = a.optString("id")
@@ -31,7 +31,7 @@ internal fun ToolRegistry.registerUnderstandingTools() {
         jsonObjectOf("ok" to true, "records" to JSONArray(page), "nextOffset" to if (offset + page.size < rows.size) offset + page.size else null,
             "scope" to "Stored memories and user understanding. Use get_life_context for linked situations; absence is not proof a fact is false.")
     }
-    register("correct_memory", "Supersede one specific durable fact or understanding with quoted user evidence. Keeps the old fact historical and invalidates linked summaries. Inspect first; clarify ambiguous targets. Stable replacementId makes retries safe. This does not modify unrelated profile fields.",
+    register("correct_memory", "Replace one durable fact they corrected and keep the old one as history. Do not use remember or update_user_profile for that correction.",
         objSchema("id" to str(), "replacementId" to str(), "expectedVersion" to num(), "content" to str(), "sourceMessageId" to str(), "evidence" to str(),
             required = listOf("id", "replacementId", "expectedVersion", "content", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {

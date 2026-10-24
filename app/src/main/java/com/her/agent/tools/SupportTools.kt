@@ -10,19 +10,19 @@ import org.json.JSONObject
 internal val supportToolNames = setOf("suggest_daily_plan", "accept_daily_plan", "manage_occurrence", "get_situation_briefing", "get_executive_briefing")
 
 internal fun ToolRegistry.registerSupportTools() {
-    register("get_executive_briefing", "What needs the user's attention: decisions, reported blockers, dependency risks and overdue delegated outcomes. Read-only, on-demand; no external monitoring or messages. Missing updates never mean failure or on-track. Results are ranked, paginated and include evidence timestamps. Retrieve full WAITING records before edits.",
+    register("get_executive_briefing", "List decisions, blockers, dependency risks, and overdue delegated outcomes.",
         objSchema("offset" to num("Nonnegative integer"))) { a ->
         val offset = a.optInt("offset", 0)
         if (offset < 0 || (a.has("offset") && a.getDouble("offset") != offset.toDouble())) throw ToolValidationException("Invalid offset")
         executiveBriefing(repo, offset)
     }
-    register("suggest_daily_plan", "Suggest at most three achievable actions using saved conservative estimates, dependencies, stated energy, priorities and locally known calendar conflicts. Refresh calendar first. Unknown estimates are reported, never guessed. Replanning changes no obligations and creates no daily backlog. Ask only for estimates that affect the choice.",
+    register("suggest_daily_plan", "Suggest at most three actions that fit their stated time and energy. Unknown durations stay unknown.",
         objSchema("minutes" to num("1..480"), "energy" to oneOf("User-stated only", "LOW", "MEDIUM", "HIGH"), required = listOf("minutes"))) { a ->
         val minutes = a.getInt("minutes")
         if (minutes !in 1..480) throw ToolValidationException("minutes must be 1..480")
         capacityPlan(repo, minutes, a.optString("energy"))
     }
-    register("accept_daily_plan", "Record only explicitly accepted actions from a current capacity suggestion. Rechecks capacity and dependencies; expires at the end of the time window. Does not complete tasks or move deadlines/events. Use save_work_session to begin an accepted action. Stable ID is required for retries.",
+    register("accept_daily_plan", "Record only the actions they explicitly accept from the current suggestion.",
         objSchema("id" to str(), "minutes" to num(), "energy" to oneOf("", "LOW", "MEDIUM", "HIGH"), "actionIds" to arr(), "sourceMessageId" to str(), "evidence" to str(),
             required = listOf("id", "minutes", "actionIds", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {
@@ -48,8 +48,8 @@ internal fun ToolRegistry.registerSupportTools() {
             jsonObjectOf("ok" to true, "id" to id, "created" to true, "externalActionPerformed" to false)
         }
     }
-    register("manage_occurrence", "Complete, skip or postpone exactly one occurrence of an existing responsibility schedule. Pass its scheduledAt epoch (not a future occurrence for late completion). A skip leaves the schedule intact. Pausing/resuming or changing cadence uses save_responsibility_schedule. Postponement must remain before the next occurrence. No streaks or escalation.",
-        objSchema("id" to str("Schedule ID"), "scheduledAt" to num(), "action" to oneOf("", "SKIPPED", "COMPLETED", "POSTPONED"), "until" to num(), "sourceMessageId" to str(), "evidence" to str(),
+    register("manage_occurrence", "Complete, skip, or postpone one occurrence of an existing schedule.",
+        objSchema("id" to str("Schedule id from save_responsibility_schedule"), "scheduledAt" to num("Epoch of this occurrence, not a later one"), "action" to oneOf("", "SKIPPED", "COMPLETED", "POSTPONED"), "until" to num(), "sourceMessageId" to str(), "evidence" to str(),
             required = listOf("id", "scheduledAt", "action", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {
             requireUserEvidence(a)
@@ -86,8 +86,8 @@ internal fun ToolRegistry.registerSupportTools() {
             jsonObjectOf("ok" to true, "id" to id, "created" to (old == null), "externalActionPerformed" to false)
         }
     }
-    register("get_situation_briefing", "On-demand, focused briefing from stored changes and outstanding matters. Refresh calendar separately. For a person use exact personId; this excludes unrelated memories, sensitive threads and private notes. since is the last known review/trip departure; no claim of monitoring. Do not create a notification schedule. Explain missing/stale context and offer expansion.",
-        objSchema("query" to str(), "personId" to str(), "since" to num(), "until" to num())) { a ->
+    register("get_situation_briefing", "Catch them up on what changed, including after time away. The reply must say external changes may be missing and that no inbox or trip monitoring occurred.",
+        objSchema("query" to str(), "personId" to str(), "since" to num("Epoch millis; the window must contain now"), "until" to num("Epoch millis; within 400 days of since"))) { a ->
         val now = nowMillis()
         // Providers fill unused numbers with 0 (unspecified), and an until read from the clock a moment ago is already past; neither should fail.
         val since = a.optLong("since").takeIf { it > 0 }?.let { minOf(it, now) } ?: (now - 7 * 86_400_000L)

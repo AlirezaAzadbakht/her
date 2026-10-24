@@ -270,14 +270,16 @@ class PersonalSupportTest {
         assertEquals(0, db.embeddingDao().count())
     }
 
-    @Test fun decisionRejectsInventedRationaleAndCreationUndoUsesExistingCascade() = runBlocking {
+    @Test fun decisionDropsInventedRationaleAndCreationUndoUsesExistingCascade() = runBlocking {
         val a = evidence("I chose the smaller apartment for lower rent").put("id", "apartment").put("summary", "Chose apartment").put("status", "DECIDED").put("reasons", "Better neighbors")
-        assertFalse(tools.execute("save_decision", a.toString()).ok)
-        val result = call("save_decision", a.put("reasons", "lower rent"))
-        val receipt = com.her.agent.runner.Receipts.describe("save_decision", a.toString(), result.toString())!!
+        val created = call("save_decision", a)
+        assertFalse(repo.getCompanionRecord(created.getString("id"))!!.data().has("reasons"))
+        val quoted = call("save_decision", evidence("I chose the smaller apartment for lower rent").put("id", "quoted").put("summary", "Chose apartment").put("status", "DECIDED").put("reasons", "lower rent"))
+        assertEquals("lower rent", repo.getCompanionRecord(quoted.getString("id"))!!.data().getString("reasons"))
+        val receipt = com.her.agent.runner.Receipts.describe("save_decision", a.toString(), created.toString())!!
         assertTrue(receipt.undoable)
         assertTrue(tools.undo(receipt.entityType, receipt.entityId))
-        assertNotNull(repo.getCompanionRecord(result.getString("id"))!!.deletedAt)
+        assertNotNull(repo.getCompanionRecord(created.getString("id"))!!.deletedAt)
     }
 
     @Test fun scheduleAndAcceptedPlanRoundTripThroughSyncWithoutEcho() = runBlocking {

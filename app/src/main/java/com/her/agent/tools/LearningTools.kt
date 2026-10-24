@@ -12,7 +12,7 @@ import org.json.JSONObject
 import java.time.LocalTime
 
 internal fun ToolRegistry.registerLearningTools() {
-    register("get_learning", "Read saved paths, roadmaps, lessons, exercises and progress. No pathId lists paths. Load before resuming, grading or editing. Includes recent user message IDs for answer attribution. Use recordId for a specific exercise/lesson, or offset to page through records.",
+    register("get_learning", "Read saved paths, lessons, exercises, and progress.",
         objSchema("pathId" to str(), "recordId" to str(), "offset" to num())) { a ->
         val rows = a.optStringOrNull("recordId")?.let { id -> listOfNotNull(repo.getLearningRecord(id)?.takeIf { it.deletedAt == null }) } ?: a.optStringOrNull("pathId")?.let { repo.learningPathRecords(it) } ?: repo.learningRecords().filter { it.kind == "PATH" }
         val progressRows = if (a.has("recordId") && rows.firstOrNull()?.kind == "LESSON") repo.learningPathRecords(rows.first().pathId) else rows
@@ -44,7 +44,7 @@ internal fun ToolRegistry.registerLearningTools() {
         response.put("progressTruncated", progress.length() < response.getInt("progressTotal"))
         response
     }
-    register("save_learning_path", "Create a learning path after the user accepts a roadmap, or edit it. Reuse a stable id on retries. Updates require expectedVersion from get_learning. Reminders are opt-in; reminderTime is local HH:mm and runs approximately via background passes, not an exact alarm.",
+    register("save_learning_path", "Create or edit a learning path after they accept a roadmap.",
         objSchema("id" to str(), "expectedVersion" to num(), "title" to str(), "goal" to str(), "level" to str(), "language" to str(),
             "minutesPerDay" to num(), "status" to oneOf("", "ACTIVE", "PAUSED", "ARCHIVED", "COMPLETED"),
             "remindersEnabled" to bool(), "reminderTime" to str(), required = listOf("id"))) { a ->
@@ -64,7 +64,7 @@ internal fun ToolRegistry.registerLearningTools() {
             saveLearning(id, id, "PATH", data, old)
         }
     }
-    register("save_learning_lesson", "Save one roadmap stage or lesson, including its outcome, order and optional teaching content. Create stages after path creation. Edits preserve exercise history. COMPLETED means covered, not mastered. SKIPPED only at the user's request. Updates require expectedVersion.",
+    register("save_learning_lesson", "Save one roadmap stage; COMPLETED means covered, not mastered.",
         objSchema("id" to str(), "pathId" to str(), "expectedVersion" to num(), "title" to str(), "outcome" to str(), "order" to num(),
             "content" to str(), "status" to oneOf("", "PLANNED", "IN_PROGRESS", "COMPLETED", "SKIPPED"), required = listOf("id", "pathId"))) { a ->
         repo.learningTransaction {
@@ -81,7 +81,7 @@ internal fun ToolRegistry.registerLearningTools() {
             saveLearning(id, path.id, "LESSON", data, old)
         }
     }
-    register("set_learning_exercise", "Persist an exercise BEFORE asking it. Reuse id on retry; exercises are immutable. EXACT supports explicit acceptedAnswers; OPEN uses a rubric for reasoned evaluation. Supply lessonId; use a new exercise for review or a harder/easier variant. Do not expose accepted answers before the user tries.",
+    register("set_learning_exercise", "Save an exercise before asking it, and do not reveal accepted answers first.",
         objSchema("id" to str(), "lessonId" to str(), "prompt" to str(), "mode" to oneOf("", "EXACT", "OPEN"),
             "acceptedAnswers" to arr("Exact acceptable answers, including choice labels if applicable"), "rubric" to str(), required = listOf("id", "lessonId", "prompt", "mode"))) { a ->
         repo.learningTransaction {
@@ -102,8 +102,8 @@ internal fun ToolRegistry.registerLearningTools() {
             } else saveLearning(id, lesson.pathId, "EXERCISE", data, null)
         }
     }
-    register("record_learning_answer", "Record an actual user answer once per exercise and source message. EXACT is graded by the app; OPEN requires a rubric-based result and feedback. Use UNCERTAIN if grading is unreliable, and ask a clarifying question. Never record hints or unrelated messages as answers.",
-        objSchema("exerciseId" to str(), "sourceMessageId" to str(), "answer" to str("Answer extracted from the source user message"),
+    register("record_learning_answer", "Record one real answer from their message for that exercise.",
+        objSchema("exerciseId" to str(), "sourceMessageId" to str(), "answer" to str("Text from the source message"),
             "result" to oneOf("OPEN only", "CORRECT", "PARTIAL", "INCORRECT", "UNCERTAIN"), "feedback" to str(),
             required = listOf("exerciseId", "sourceMessageId", "answer", "feedback"))) { a ->
         repo.learningTransaction {
@@ -129,7 +129,7 @@ internal fun ToolRegistry.registerLearningTools() {
             saved.put("result", result)
         }
     }
-    register("send_learning_reminder", "Send an opted-in study nudge when due. App enforces active path, local study time, quiet hours, and once per local day. Use this instead of send_user_message for learning nudges. Do not create exact reminders for routine study nudges.",
+    register("send_learning_reminder", "Send an opted-in study nudge; the app enforces timing and once per day.",
         objSchema("pathId" to str(), "content" to str(), required = listOf("pathId", "content"))) { a ->
         val path = requireLearning(a.requiredString("pathId"), "PATH")
         val now = repo.now()

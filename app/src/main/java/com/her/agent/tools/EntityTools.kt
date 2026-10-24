@@ -91,13 +91,13 @@ internal fun ToolRegistry.registerEntityTools() {
             ?: args.optStringOrNull("name")?.let { n -> repo.searchProjects(n).firstOrNull() }
         jsonObjectOf("ok" to true, "project" to project?.let { JSONObject(it.toJson()) })
     }
-    register("search_projects", "Search projects by name, description or summary. Omit query or leave it blank to list all remembered projects.",
+    register("search_projects", "Search projects; a blank query lists them.",
         objSchema("query" to str("Optional search text; blank lists projects"))) { args ->
         val query = args.optStringOrNull("query")?.trim()?.takeIf { it.isNotEmpty() }
         val projects = if (query == null) repo.projects() else repo.searchProjects(query)
         jsonObjectOf("ok" to true, "projects" to JSONArray(projects.map { JSONObject(it.toJson()) }))
     }
-    register("update_project", "Create or update a project. Ideas can live in description/summary or related memories.", objSchema("id" to str(), "name" to str(), "description" to str(), "summary" to str(), "status" to enumField<ProjectStatus>(), "importance" to num())) { args ->
+    register("update_project", "Create or update a project.", objSchema("id" to str(), "name" to str(), "description" to str(), "summary" to str(), "status" to enumField<ProjectStatus>(), "importance" to num())) { args ->
         val now = nowMillis()
         val existing = args.optStringOrNull("id")?.let { repo.getProject(it) }
             ?: args.optStringOrNull("name")?.let { n -> repo.projects().firstOrNull { it.name.equals(n, true) } }
@@ -137,7 +137,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
 
     register("get_tasks", "List tasks.", objSchema()) { jsonObjectOf("ok" to true, "tasks" to JSONArray(repo.tasks().map { JSONObject(it.toJson()) })) }
-    register("create_task", "Create a task only when they intend to do something. Household facts and specs belong in remember, not here.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "relatedProjectId" to str(), "relatedGoalId" to str(), required = listOf("title"))) { args ->
+    register("create_task", "Create a task only when they intend to do something.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "relatedProjectId" to str(), "relatedGoalId" to str(), required = listOf("title"))) { args ->
         val now = nowMillis()
         val id = newId()
         repo.saveTask(TaskItem(id, args.requiredString("title"), args.optStringOrNull("description"), TaskStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedProjectId"), args.optStringOrNull("relatedGoalId"), now, now, repo.deviceId, 1, null))
@@ -145,7 +145,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
     register(
         "update_task",
-        "Update a task. id may be the task id from context or the exact title. status: OPEN, DONE, DROPPED. cancelled/canceled maps to DROPPED. Pass dueAt to move its deadline instead of dropping and recreating it.",
+        "Update a task by id or exact title, including moving its due time.",
         objSchema("id" to str("Task id or title"), "status" to enumField<TaskStatus>(), "title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), required = listOf("id")),
     ) { args ->
         val existing = requireTask(args.requiredString("id"))
@@ -176,7 +176,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
     register(
         "update_commitment",
-        "Update a commitment. id may be the commitment id from context or the exact title. Pass dueAt to renegotiate the deadline instead of dropping and recreating it.",
+        "Update a commitment by id or exact title, including moving its due time.",
         objSchema(
             "id" to str("Commitment id or title"),
             "status" to enumField<CommitmentStatus>(),
@@ -204,7 +204,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
 
     register("get_open_loops", "List unfinished threads.", objSchema()) { jsonObjectOf("ok" to true, "openLoops" to JSONArray(repo.openLoops().map { JSONObject(it.toJson()) })) }
-    register("create_open_loop", "Record an unfinished thread. Use importance and confidence; skip trivial unfinished sentences.", objSchema("description" to str(), "importance" to num(), "confidence" to num(), "relatedEntityType" to str("Optional: person, project, task, commitment"), "relatedEntityId" to str(), required = listOf("description"))) { args ->
+    register("create_open_loop", "Record an unfinished thread worth keeping.", objSchema("description" to str(), "importance" to num(), "confidence" to num(), "relatedEntityType" to str("Optional: person, project, task, commitment"), "relatedEntityId" to str(), required = listOf("description"))) { args ->
         val now = nowMillis()
         val id = newId()
         repo.saveOpenLoop(OpenLoop(id, args.requiredString("description"), OpenLoopStatus.OPEN, args.optDoubleOr("importance", 0.5), args.optDoubleOr("confidence", 0.6), args.optStringOrNull("relatedEntityType"), args.optStringOrNull("relatedEntityId"), now, now, repo.deviceId, 1, null))
@@ -222,7 +222,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
 
     register("get_routines", "List routines.", objSchema()) { jsonObjectOf("ok" to true, "routines" to JSONArray(repo.routines().map { JSONObject(it.toJson()) })) }
-    register("create_routine", "Create a routine. Inferred routines should have lower confidence.", objSchema("title" to str(), "description" to str(), "schedule" to str(), "confidence" to num(), "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you noticed a pattern", "USER_EXPLICIT", "AGENT_INFERENCE"), required = listOf("title"))) { args ->
+    register("create_routine", "Create a routine; an inferred one should have lower confidence.", objSchema("title" to str(), "description" to str(), "schedule" to str(), "confidence" to num(), "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you noticed a pattern", "USER_EXPLICIT", "AGENT_INFERENCE"), required = listOf("title"))) { args ->
         val now = nowMillis()
         val id = newId()
         val source = parseEnum<MemorySource>(args.optStringOrNull("source")) ?: MemorySource.AGENT_INFERENCE
@@ -236,7 +236,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
 
     register("get_groceries", "List groceries.", objSchema()) { jsonObjectOf("ok" to true, "groceries" to JSONArray(repo.groceries().map { JSONObject(it.toJson()) })) }
-    register("add_grocery", "Add a grocery item. Use for statements like 'we're out of rice'.", objSchema("name" to str(), "quantity" to str(), "category" to str(), "reason" to str(), required = listOf("name"))) { args ->
+    register("add_grocery", "Add a grocery, including when they say they are out of something.", objSchema("name" to str(), "quantity" to str(), "category" to str(), "reason" to str(), required = listOf("name"))) { args ->
         val now = nowMillis()
         val name = args.requiredString("name")
         val existing = repo.groceries().firstOrNull { it.name.equals(name, true) && it.status == GroceryStatus.ACTIVE }
@@ -261,7 +261,7 @@ internal fun ToolRegistry.registerEntityTools() {
         repo.saveGrocery(existing.copy(status = GroceryStatus.DROPPED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = existing.version + 1))
         jsonObjectOf("ok" to true)
     }
-    register("clear_purchased_groceries", "Mark active groceries purchased, optionally keeping some. Use for 'I bought everything except eggs'.", objSchema("except" to arr("Names to keep"))) { args ->
+    register("clear_purchased_groceries", "Mark active groceries purchased, optionally keeping some, as in bought everything except eggs.", objSchema("except" to arr("Names to keep"))) { args ->
         repo.markGroceriesPurchased(args.optStringList("except"))
         jsonObjectOf("ok" to true)
     }

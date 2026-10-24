@@ -58,9 +58,11 @@ object Checks {
             )
         }
         if (expect.noToolErrors) {
-            val failed = toolCalls.filter { call ->
-                !call.ok && !JSONObject(call.payloadJson).optBoolean("needsConfirmation", false)
-            }
+            val failed = toolCalls.withIndex().filter { (index, call) ->
+                val needsConfirmation = runCatching { JSONObject(call.payloadJson).optBoolean("needsConfirmation", false) }.getOrDefault(false)
+                val recovered = toolCalls.drop(index + 1).any { it.name == call.name && it.ok }
+                !call.ok && !needsConfirmation && !recovered
+            }.map { it.value }
             results += CheckResult(
                 name = "no_tool_errors",
                 passed = failed.isEmpty(),

@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "ad264ff8317cf6a5",
+          "fingerprint": "5c13a7bdb6174ac9",
           "summary": "tools=93 [user(Forget everything you kn)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "e4e9a5e20c31d2b4",
+          "fingerprint": "73672c8331e6b2e5",
           "summary": "tools=93 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
           "response": {
             "role": "assistant",

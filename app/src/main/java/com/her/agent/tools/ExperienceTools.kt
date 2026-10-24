@@ -9,13 +9,24 @@ import org.json.JSONObject
 
 internal val experienceToolNames = setOf("save_emotional_thread", "save_emotional_expression", "save_support_lesson", "record_support_application")
 
-internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: String): CompanionRecord =
-    repo.getCompanionRecord(id)?.takeIf { it.kind == kind && it.deletedAt == null && !it.data().optBoolean("stale") }
+internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: String): CompanionRecord {
+    fun live(row: CompanionRecord) = row.kind == kind && row.deletedAt == null && !row.data().optBoolean("stale")
+    val raw = id.trim()
+    val rows = repo.companionRecords().filter(::live)
+    if (raw.isNotEmpty()) {
+        repo.getCompanionRecord(raw)?.takeIf(::live)?.let { return it }
+        val prefixed = if (raw.startsWith("$kind:")) raw else "$kind:$raw"
+        if (prefixed != raw) repo.getCompanionRecord(prefixed)?.takeIf(::live)?.let { return it }
+        rows.singleOrNull { it.id.endsWith(raw) || it.id.removePrefix("$kind:") == raw.removePrefix("$kind:") }?.let { return it }
+    }
+    // ponytail: a mismatched id is the only live row of this kind; still an error when several exist
+    return rows.singleOrNull()
         ?: throw ToolValidationException("Unavailable $kind ID: $id. For an experience, first call save_emotional_thread and copy its returned full ID; standalone events may omit experienceId.")
+}
 
 internal fun ToolRegistry.registerExperienceTools() {
-    val evidence = arrayOf("sourceMessageId" to str("Actual user message UUID"), "evidence" to str("Exact contiguous user quote"), "expectedVersion" to num())
-    register("save_emotional_thread", "Create or revise an ongoing experience. Stable ID connects request, work and feedback. OPEN survives emotional decay; RESOLVED needs quoted resolution evidence. Reopening requires new evidence. Updates require expectedVersion.",
+    val evidence = arrayOf("sourceMessageId" to str("User message id"), "evidence" to str("Exact user quote"), "expectedVersion" to num())
+    register("save_emotional_thread", "When they say to remember an ongoing experience or an open question, use this rather than save_life_thread. It stays open until quoted evidence resolves it.",
         objSchema(*evidence, "id" to str(), "intention" to str(), "status" to oneOf("", "OPEN", "RESOLVED"), "unresolved" to str("Open question, or None when resolved"),
             required = listOf("id", "intention", "status", "unresolved", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {
@@ -33,7 +44,7 @@ internal fun ToolRegistry.registerExperienceTools() {
             saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
         }
     }
-    register("save_emotional_expression", "Assess the current user's context, separately from internal feelings. The app derives tone and next behavior. Quote evidence; this earns no emotional reward.",
+    register("save_emotional_expression", "Judge this message's context; the app chooses the tone, and this earns nothing.",
         objSchema(*evidence, "userContext" to oneOf("", "DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL"),
             required = listOf("sourceMessageId", "evidence", "userContext"))) { a ->
         repo.learningTransaction {
@@ -45,7 +56,7 @@ internal fun ToolRegistry.registerExperienceTools() {
             saved.put("expression", com.her.feelings.emotionalExpression(rows, com.her.feelings.emotionalState(rows, nowMillis(), repo.openDueAts()), source.id))
         }
     }
-    register("save_support_lesson", "Turn a saved reflection into a tentative reusable support lesson. Scope it to a situation, include exceptions. This is an interpretation, not a diagnosis or proof of benefit.",
+    register("save_support_lesson", "Turn the id returned by save_emotional_reflection into a tentative, situation-scoped lesson.",
         objSchema("id" to str(), "expectedVersion" to num(), "reflectionId" to str(), "situation" to str(), "approach" to str(), "exceptions" to str(), "confidence" to num("0..0.8; tentative"),
             required = listOf("id", "reflectionId", "situation", "approach", "exceptions", "confidence"))) { a ->
         repo.learningTransaction {
@@ -55,7 +66,7 @@ internal fun ToolRegistry.registerExperienceTools() {
                 JSONObject(a.toString()).put("relatedIds", JSONArray(listOf(reflection.id))), a)
         }
     }
-    register("record_support_application", "Record actual use of a lesson in an experience with outcome UNKNOWN. Later quoted user feedback can revise it to HELPFUL or UNHELPFUL with expectedVersion. One application per lesson/experience; no reward for self-review.",
+    register("record_support_application", "Record using a lesson, outcome unknown until they later say whether it helped.",
         objSchema(*evidence, "lessonId" to str(), "experienceId" to str(), "outcome" to oneOf("", "UNKNOWN", "HELPFUL", "UNHELPFUL"),
             required = listOf("lessonId", "experienceId", "outcome", "sourceMessageId", "evidence"))) { a ->
         repo.learningTransaction {

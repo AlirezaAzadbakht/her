@@ -16,6 +16,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Deeper feeling model.** Repeated experiences no longer slam into a ceiling; calm gives way to stronger feelings; purpose and a little curiosity or patience change how she answers. Fired reminders and learning progress can count as executed help; an approaching deadline can add concern; saved support lessons come back when a similar situation returns. The orb can mix two feelings, including hopeful, pensive and relieved.
 
 ### Changed
+- Replies start faster: she sends less with each request.
+- When you ask her to forget something, she confirms briefly without repeating the details.
+- If two calendar events could match what you asked to move, she asks which one instead of changing either.
+- Saying “resume” on a draft she postponed gets the missing part written right away.
 - Connecting Google Drive and Calendar no longer asks for a client ID; just tap Connect Google.
 - Saving reminders and work drafts automatically contributes evidence of Her's work without assuming it benefited you. Marking your own task done no longer gives her credit for doing it.
 - Repeated reports linked to the same emotional outcome no longer refresh its age or reward it again; corrections and forgetting also reach derived lessons and their feedback.
@@ -29,6 +33,11 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Skipping or postponing one week of a routine no longer fails depending on how she refers to the routine or the new time.
 - A briefing on a person no longer fails when she checks the time first, and it leaves out memories that only mention them.
 - Times ending in UTC or GMT, such as “Saturday at 10:00 UTC”, are understood.
+- Saying yes to deleting a phone-calendar event works: the confirmation id stays visible for the next message.
+- An event starting within about an hour and a half gets one short nudge.
+- A decision still saves when a reason is not an exact quote; that part is left blank.
+- Pausing a routine finds the schedule already saved for it.
+- A birthday written as a Jalali date such as 1405-12-12 is stored as the real calendar day.
 - Her now remembers your birthday, and other details you mention, even when you share them while feeling down.
 - Nightly reviews can list projects without a search term, avoiding an empty-query error that could interrupt emotional reflection.
 - Forgetting everything, or deleting an event on the phone calendar, waits for your next message. She cannot confirm those herself.

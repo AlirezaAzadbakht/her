@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "fc40e0001436287e",
+          "fingerprint": "ebb59211543d4232",
           "summary": "tools=93 [user(I want to run a half mar)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "1b2eb19e6c21b869",
+          "fingerprint": "c193916507bde3e0",
           "summary": "tools=93 [user(I want to run a half mar) assistant->create_goal tool:create_goal]",
           "response": {
             "role": "assistant",

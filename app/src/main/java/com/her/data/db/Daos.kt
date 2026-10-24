@@ -445,6 +445,9 @@ interface ConfirmationDao {
     @Query("SELECT * FROM pending_confirmations WHERE id = :id LIMIT 1")
     suspend fun get(id: String): PendingConfirmationEntity?
 
+    @Query("SELECT * FROM pending_confirmations")
+    suspend fun all(): List<PendingConfirmationEntity>
+
     @Query("DELETE FROM pending_confirmations WHERE id = :id")
     suspend fun delete(id: String)
 }

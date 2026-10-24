@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "d79599c73bb56579",
+          "fingerprint": "6c30935f21ec06ff",
           "summary": "tools=93 [user(Want to grab coffee this)]",
           "response": {
             "role": "assistant",

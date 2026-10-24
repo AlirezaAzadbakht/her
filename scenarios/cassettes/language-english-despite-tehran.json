@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "36e0874b511ecd10",
+          "fingerprint": "ae9879f74e308f75",
           "summary": "tools=93 [user(Can you add eggs to the )]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "f79807499896dfb0",
+          "fingerprint": "caeabd5f835d5e84",
           "summary": "tools=93 [user(Can you add eggs to the ) assistant->add_grocery tool:add_grocery]",
           "response": {
             "role": "assistant",

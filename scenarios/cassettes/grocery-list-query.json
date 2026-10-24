@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "addda56e3526ec77",
+          "fingerprint": "48c29223a6b31fae",
           "summary": "tools=93 [user(What's on the shopping l)]",
           "response": {
             "role": "assistant",

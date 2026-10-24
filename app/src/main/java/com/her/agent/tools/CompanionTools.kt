@@ -14,7 +14,7 @@ internal val companionToolNames = setOf("get_life_context", "save_life_thread", 
     "save_checkin_preferences", "save_event_preparation", "save_work_session", "send_companion_checkin", "dismiss_companion_checkin", "save_decision", "save_action_capacity", "save_responsibility_schedule")
 
 internal fun ToolRegistry.registerCompanionTools() {
-    register("get_life_context", "Retrieve evolving situations, waiting-on details, preferences, event preparation or unfinished work. Search before creating; load full records before editing/resuming. Closed records remain searchable. Results include user message IDs for provenance. Page using nextOffset.",
+    register("get_life_context", "Retrieve situations, waiting-on, preferences, preparation, or unfinished work before editing them.",
         objSchema("id" to str(), "query" to str(), "kind" to oneOf("", "THREAD", "DEVELOPMENT", "WAITING", "PREFERENCES", "PREPARATION", "SESSION", "DECISION", "CAPACITY", "PLAN", "SCHEDULE", "OCCURRENCE"), "offset" to num())) { a ->
         val offset = a.optInt("offset", 0)
         if (offset < 0) throw ToolValidationException("offset must be nonnegative")
@@ -38,19 +38,28 @@ internal fun ToolRegistry.registerCompanionTools() {
             "recentUserMessages" to JSONArray(repo.recentMessages(12).filter { it.role == MessageRole.USER }.takeLast(3)
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(300)) }))
     }
-    val common = arrayOf("id" to str("Stable ID; reuse on retry"), "expectedVersion" to num(),
-        "sourceMessageId" to str("Actual user message supporting this write"), "evidence" to str("One exact contiguous substring of the source message. Never join separate excerpts. Use the whole message if supporting multiple facts."),
-        "basis" to oneOf("Distinguish fact from interpretation", "EXPLICIT", "TENTATIVE"),
+    val common = arrayOf("id" to str("Reuse on retry"), "expectedVersion" to num(),
+        "sourceMessageId" to str(), "evidence" to str("Exact contiguous substring of that message"),
+        "basis" to oneOf("", "EXPLICIT", "TENTATIVE"),
         "dismissed" to bool("False only when the user explicitly requests resuming this topic"),
-        "relatedIds" to arr("Existing person, project, goal, memory, commitment, task, open-loop or companion IDs"))
+        "relatedIds" to arr("Existing record ids"))
     fun save(name: String, kind: String, description: String, vararg fields: Pair<String, Field>) {
-        register(name, description + " Read first; updates require expectedVersion. Provide sourceMessageId and evidence. Null clears optional fields. Never fabricate evidence.",
-            objSchema(*common, *fields, required = (if (kind == "WAITING") emptyList() else listOf("id")) + listOf("sourceMessageId", "evidence", "basis"))) { a ->
+        register(name, "$description Pass expectedVersion on update; null clears an optional field.",
+            objSchema(*common, *fields, required = (if (kind == "WAITING" || kind == "SCHEDULE") emptyList() else listOf("id")) + listOf("sourceMessageId", "evidence", "basis"))) { a ->
             repo.learningTransaction {
-                val rawId = if (kind == "PREFERENCES") "preferences" else a.optStringOrNull("id") ?: if (kind == "WAITING") {
-                    val parentId = a.requiredString("openLoopId")
-                    repo.companionRecords().firstOrNull { it.kind == "WAITING" && it.parentId == parentId }?.id ?: parentId
-                } else a.requiredString("id")
+                val rawId = if (kind == "PREFERENCES") "preferences" else a.optStringOrNull("id") ?: when (kind) {
+                    "WAITING" -> {
+                        val parentId = a.requiredString("openLoopId")
+                        repo.companionRecords().firstOrNull { it.kind == "WAITING" && it.parentId == parentId }?.id ?: parentId
+                    }
+                    "SCHEDULE" -> {
+                        val parent = a.optStringOrNull("responsibilityId")
+                        parent?.let { p ->
+                            repo.companionRecords().firstOrNull { it.kind == "SCHEDULE" && it.deletedAt == null && it.parentId == p }?.id
+                        } ?: parent ?: a.requiredString("id")
+                    }
+                    else -> a.requiredString("id")
+                }
                 val id = if (kind == "PREFERENCES") "companion:preferences" else "$kind:${rawId.removePrefix("$kind:")}"
                 if (id.length > 180) throw ToolValidationException("ID too long")
                 val previous = repo.getCompanionRecord(id)
@@ -107,7 +116,8 @@ internal fun ToolRegistry.registerCompanionTools() {
                 if (kind == "WAITING") com.her.companion.validateDelegation(repo, id, data, a, source.content)
                 if (kind == "DECISION") for (key in listOf("reasons", "alternatives", "constraints", "assumptions", "outcome")) {
                     val claim = a.optStringOrNull(key)
-                    if (claim != null && !source.content.contains(claim, ignoreCase = true)) throw ToolValidationException("$key must quote the user's actual words; leave unknown information empty")
+                    // An unquoted claim never replaces a saved one, so a paraphrased outcome update keeps the original rationale.
+                    if (claim != null && !source.content.contains(claim, ignoreCase = true)) old?.data()?.opt(key)?.let { data.put(key, it) } ?: data.remove(key)
                 }
                 if (a.has("dismissed") && a.getString("basis") != "EXPLICIT") throw ToolValidationException("Resuming check-ins requires explicit evidence")
                 if (kind == "CAPACITY") {
@@ -119,14 +129,7 @@ internal fun ToolRegistry.registerCompanionTools() {
                 }
                 val links = data.optJSONArray("relatedIds")
                 if (links != null) for (i in 0 until links.length()) {
-                    val link = links.getString(i)
-                    val exists = repo.getPerson(link)?.let { it.deletedAt == null } == true ||
-                        repo.getProject(link)?.let { it.deletedAt == null } == true || repo.getGoal(link)?.let { it.deletedAt == null } == true ||
-                        repo.getTask(link)?.let { it.deletedAt == null } == true || repo.getCommitment(link)?.let { it.deletedAt == null } == true ||
-                        repo.getOpenLoop(link)?.let { it.deletedAt == null } == true ||
-                        repo.getLong(link)?.let { it.deletedAt == null } == true || repo.getShort(link)?.let { it.deletedAt == null } == true ||
-                        repo.getCompanionRecord(link)?.let { it.deletedAt == null } == true
-                    if (!exists) throw ToolValidationException("Linked record not found: $link")
+                    if (!linkedRecordExists(links.getString(i))) throw ToolValidationException("Linked record not found: ${links.getString(i)}")
                 }
                 if (kind == "PREPARATION") {
                     val event = repo.getCalendarEvent(data.requiredString("eventId"))?.takeIf { it.deletedAt == null }
@@ -188,42 +191,42 @@ internal fun ToolRegistry.registerCompanionTools() {
             }
         }
     }
-    save("save_life_thread", "THREAD", "Save a meaningful evolving situation, not every casual mention. Correct summary in place; CLOSED can reopen as ACTIVE. Use relatedIds to associate existing records.",
+    save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. An emotional experience is save_emotional_thread.",
         "title" to str(), "summary" to str(), "decisions" to str(), "questions" to str(), "nextSteps" to str(),
         "status" to oneOf("", "ACTIVE", "PAUSED", "CLOSED"), "sensitive" to bool())
-    save("save_thread_development", "DEVELOPMENT", "Save a separate development with provenance. Correct mistaken entries in place rather than repeating them in summaries.",
+    save("save_thread_development", "DEVELOPMENT", "Save one development, and correct a mistaken entry in place.",
         "threadId" to str(), "summary" to str(), "status" to oneOf("", "ACTIVE", "SUPERSEDED"))
-    save("save_waiting_on", "WAITING", "Extend an existing open loop for something another person owes. Empty id derives a stable ID from the open loop; reuse the returned ID on updates. The user's own obligations remain tasks/commitments. RESOLVED requires an explicit reported response. Follow-ups are draft offers, never sent messages.",
-        "openLoopId" to str("Existing open-loop ID; create first"), "personId" to str("Existing owner person ID; search_people/update_person FIRST, never empty on creation"), "expectedOutcome" to str(), "deadline" to num("Epoch millis or null"),
-        "deadlineText" to str("Preferred: exact date/time phrase from the source, e.g. tomorrow at 4pm. App converts it relative to that message; overrides deadline. Empty if unknown or not changing it."),
-        "followUpAt" to num("Earliest eligible epoch millis or null"), "followUpEnabled" to bool(),
+    save("save_waiting_on", "WAITING", "Record what another person owes on an existing open loop.",
+        "openLoopId" to str("Existing open loop; create it first"), "personId" to str("Existing person id; look them up first"), "expectedOutcome" to str(), "deadline" to num("Epoch millis, or omit"),
+        "deadlineText" to str("Date/time phrase quoted from the source; overrides deadline"),
+        "followUpAt" to num("Earliest epoch millis, or omit"), "followUpEnabled" to bool(),
         "status" to oneOf("", "OPEN", "RESOLVED", "CANCELLED"),
-        "delegated" to bool("True for work assigned to an owner; reuse the existing waiting record"),
-        "priority" to num("User-stated impact: 0 low, 1 normal, 2 high, 3 critical; omit if unknown"),
-        "progress" to str("Exact quotation of actual progress, not an assignment. Empty string means no report."),
-        "blocker" to str("Exact quotation of a reported blocker; empty string clears a resolved blocker or means unknown"),
-        "decisionNeeded" to str("Exact quotation of what the user must decide; empty string clears it or means unknown"),
-        "dependencies" to arr("Existing WAITING record or open-loop IDs that must resolve first; never person IDs"))
-    save("save_checkin_preferences", "PREFERENCES", "Inspect/change/pause/disable check-ins. Singleton ID preferences. Social reconnection must be explicitly opted into. Topic IDs are exact companion IDs; empty topics disables contextual check-ins. Sensitive topics require inclusion in sensitiveTopicIds.",
+        "delegated" to bool("True when the work is assigned to them"),
+        "priority" to num("0 low, 1 normal, 2 high, 3 critical"),
+        "progress" to str("Exact quote, or empty"),
+        "blocker" to str("Exact quote, or empty"),
+        "decisionNeeded" to str("Exact quote, or empty"),
+        "dependencies" to arr("Waiting or open-loop ids that must resolve first"))
+    save("save_checkin_preferences", "PREFERENCES", "Change check-in preferences; social reconnection needs an explicit opt-in.",
         "status" to oneOf("", "ACTIVE", "PAUSED", "DISABLED"), "socialEnabled" to bool(), "intervalHours" to num("24..720"),
         "localTime" to str("HH:mm"), "tone" to str(), "topicIds" to arr(), "sensitiveTopicIds" to arr(), "maxPerDay" to num("1..3"), "pauseUntil" to num())
-    save("save_event_preparation", "PREPARATION", "Save concise preparation from refreshed calendar and relevant people, threads, memories and promises. Use event ID as stable ID. Post-event prompt asks whether it happened; never presumes attendance. Refresh this record after rescheduling.",
+    save("save_event_preparation", "PREPARATION", "Save meeting preparation keyed by the calendar event id.",
         "eventId" to str(), "summary" to str(), "questions" to str(), "promises" to str(), "needed" to str(),
         "status" to oneOf("", "ACTIVE", "CANCELLED", "CAPTURED"), "postEventEnabled" to bool())
-    save("save_work_session", "SESSION", "Work on an existing task/commitment in chat. Adapt to time and stated energy. Save draft, progress and next step for resumption. DRAFT is never SENT; this tool cannot send or complete the linked obligation. COMPLETED requires explicit user confirmation of the work.",
+    save("save_work_session", "SESSION", "Work on an existing task or commitment in chat. When they say resume, write the postponed part now; do not leave it for later again. This does not send or complete the task.",
         "obligationId" to str(), "summary" to str(), "draft" to str(), "nextStep" to str(), "minutesAvailable" to num("1..240"),
         "energy" to str("Only the user's stated energy"), "status" to oneOf("", "IN_PROGRESS", "PAUSED", "DRAFT", "COMPLETED"))
-    save("save_decision", "DECISION", "Remember a choice and the user's actual rationale. EXPLORING is not DECIDED; agreement to a suggestion is not a decision. Fields reasons, alternatives, constraints, assumptions and outcome must each be one exact contiguous substring of the source message, with unchanged punctuation. Never join separate excerpts using semicolons, bullets or invented wording; quote the whole relevant source span when multiple reasons are needed; leave missing reasons/alternatives/assumptions empty. Link life threads, projects or goals. When the user reports how a decision turned out, update it with status REVIEWED and the quoted outcome. Review is opt-in through existing check-in preferences.",
-        "title" to str(), "summary" to str(), "alternatives" to str("Exact contiguous source substring, or empty if unknown"), "reasons" to str("One exact contiguous source substring; do not join separate quotes or change punctuation"), "constraints" to str("Exact source substring or empty"), "assumptions" to str("Exact source substring or empty"),
-        "outcome" to str("Exact source substring or empty"), "reviewAt" to num(), "reviewCondition" to str(), "status" to oneOf("", "EXPLORING", "DECIDED", "REVIEWED"), "sensitive" to bool())
-    save("save_action_capacity", "CAPACITY", "Attach user estimates to an existing task or commitment, never duplicate it. Use conservative maximum duration including uncertainty, stated energy requirement, priority and prerequisite task/commitment IDs. Missing estimates remain unknown.",
+    save("save_decision", "DECISION", "Only when they explicitly ask to save or remember a decision, including one still being explored. When they report how it turned out, set REVIEWED with the quoted outcome. Keeping track of an ongoing situation is save_life_thread, even if they call it a decision.",
+        "title" to str(), "summary" to str(), "alternatives" to str("Exact contiguous source substring, or empty if unknown"), "reasons" to str("One exact contiguous source substring; do not join separate quotes or change punctuation"), "constraints" to str("Exact source substring, or empty"), "assumptions" to str("Exact source substring, or empty"),
+        "outcome" to str("Exact source substring, or empty"), "reviewAt" to num(), "reviewCondition" to str(), "status" to oneOf("", "EXPLORING", "DECIDED", "REVIEWED"), "sensitive" to bool())
+    save("save_action_capacity", "CAPACITY", "Attach their time and energy estimates to an existing task or commitment.",
         "obligationId" to str(), "summary" to str(), "minutes" to num("1..480 conservative upper estimate"), "energy" to oneOf("", "LOW", "MEDIUM", "HIGH"),
         "priority" to num("0..3"), "dependencies" to arr(), "status" to oneOf("", "ACTIVE"))
-    save("save_responsibility_schedule", "SCHEDULE", "Extend an existing routine, recurring responsibility or repeating reminder. No new reminder is created. Bind an existing explicitly requested clock reminder with reminderId. Fixed obligations versus optional habits are recorded separately. Anchor is a local ISO date-time, zone is an IANA zone; PROFILE follows profile timezone, FIXED stays in anchor zone. Pausing retains future occurrences; pauseUntil resumes automatically. Updates change future scheduling only.",
-        "responsibilityId" to str(), "reminderId" to str(), "summary" to str(), "anchorLocal" to str(), "zone" to str(),
+    save("save_responsibility_schedule", "SCHEDULE", "Pause with status PAUSED and resume that same record; this creates no new reminder.",
+        "responsibilityId" to str("Existing routine, responsibility, or reminder id"), "reminderId" to str(), "summary" to str(), "anchorLocal" to str("Local ISO date-time"), "zone" to str("IANA zone id"),
         "zonePolicy" to oneOf("", "PROFILE", "FIXED"), "repeat" to oneOf("", "DAILY", "WEEKLY", "MONTHLY"), "interval" to num("1..52"),
         "obligationType" to oneOf("", "FIXED", "OPTIONAL"), "status" to oneOf("", "ACTIVE", "PAUSED"), "pauseUntil" to num())
-    register("dismiss_companion_checkin", "Stop further nudges on this topic until the user explicitly sets dismissed=false on this topic. Use preferences ID to stop social check-ins.",
+    register("dismiss_companion_checkin", "Stop further nudges on this topic until they ask to resume.",
         objSchema("id" to str(), required = listOf("id"))) { a ->
         repo.learningTransaction {
             val row = requireCompanion(a.requiredString("id"))
@@ -232,7 +235,7 @@ internal fun ToolRegistry.registerCompanionTools() {
         }
         jsonObjectOf("ok" to true, "id" to a.requiredString("id"))
     }
-    register("send_companion_checkin", "Only route for life-thread, waiting-on, social, meeting prep/post-event and work-session nudges. App checks consent, quiet hours, recent chat, dismissals, timing and limits. No fallback message if suppressed. Content must be grounded, brief and pressure-free.",
+    register("send_companion_checkin", "Send a life-thread, waiting-on, social, meeting, or work-session nudge; the app may suppress it.",
         objSchema("id" to str("Topic ID or companion:preferences for social"), "phase" to oneOf("", "CHECKIN", "PREPARE", "OUTCOME"), "content" to str(), required = listOf("id", "phase", "content"))) { a ->
         repo.learningTransaction {
             val row = requireCompanion(a.requiredString("id"))
@@ -248,6 +251,21 @@ internal fun ToolRegistry.registerCompanionTools() {
 }
 
 internal fun companionRecordId(kind: String, raw: String): String = "$kind:${raw.removePrefix("$kind:")}"
+
+private suspend fun ToolRegistry.linkedRecordExists(id: String): Boolean =
+    repo.getPerson(id)?.deletedAt == null && repo.getPerson(id) != null ||
+        repo.getProject(id)?.deletedAt == null && repo.getProject(id) != null ||
+        repo.getGoal(id)?.deletedAt == null && repo.getGoal(id) != null ||
+        repo.getTask(id)?.deletedAt == null && repo.getTask(id) != null ||
+        repo.getCommitment(id)?.deletedAt == null && repo.getCommitment(id) != null ||
+        repo.getOpenLoop(id)?.deletedAt == null && repo.getOpenLoop(id) != null ||
+        repo.getLong(id)?.deletedAt == null && repo.getLong(id) != null ||
+        repo.getShort(id)?.deletedAt == null && repo.getShort(id) != null ||
+        repo.getCompanionRecord(id)?.deletedAt == null && repo.getCompanionRecord(id) != null ||
+        repo.getRoutine(id)?.deletedAt == null && repo.getRoutine(id) != null ||
+        repo.getResponsibility(id)?.deletedAt == null && repo.getResponsibility(id) != null ||
+        repo.getReminder(id)?.deletedAt == null && repo.getReminder(id) != null ||
+        repo.getCalendarEvent(id)?.deletedAt == null && repo.getCalendarEvent(id) != null
 
 private suspend fun ToolRegistry.requireCompanion(id: String, kind: String? = null): CompanionRecord =
     repo.getCompanionRecord(id)?.takeIf { it.deletedAt == null && (kind == null || it.kind == kind) }

@@ -82,6 +82,7 @@ class JalaliDateTest {
     @Test
     fun `normalizes dates for storage`() {
         assertEquals("2027-03-03", normalizeDateIso("۱۲ اسفند", now))
+        assertEquals("2027-03-03", normalizeDateIso("1405-12-12", now))
         assertEquals("2027-09-23", normalizeDateIso("۱۴۰۶/۰۷/۰۱", now))
         assertEquals("--03-12", normalizeDateIso("March 12", now))
         assertEquals("--03-12", normalizeDateIso("12 March", now))
