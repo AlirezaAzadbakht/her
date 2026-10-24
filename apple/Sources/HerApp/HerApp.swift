@@ -229,9 +229,9 @@ private struct SettingsView: View {
                 }
                 Section(model.t("AI provider", "سرویس مدل")) {
                     TextField("Base URL · https://…/v1", text: $config.baseURL)
-                        .autocorrectionDisabled().environment(\.layoutDirection, .leftToRight)
-                    TextField("Model", text: $config.model).autocorrectionDisabled().environment(\.layoutDirection, .leftToRight)
-                    SecureField("API key", text: $key).autocorrectionDisabled().environment(\.layoutDirection, .leftToRight)
+                        .providerInput().environment(\.layoutDirection, .leftToRight)
+                    TextField("Model", text: $config.model).providerInput().environment(\.layoutDirection, .leftToRight)
+                    SecureField("API key", text: $key).providerInput().environment(\.layoutDirection, .leftToRight)
                     Text(model.t("Use an OpenAI-compatible provider with tool calling. Include /v1 if required by your provider. Keys stay in this device’s Keychain. Local notes, recent conversation and relevant memories are sent to the provider when you chat.", "سرویسی سازگار با OpenAI و دارای قابلیت فراخوانی ابزار انتخاب کنید. در صورت نیاز سرویس، مسیر /v1 را وارد کنید. کلید در Keychain همین دستگاه می‌ماند. هنگام گفت‌وگو، پیام‌ها، زمینهٔ اخیر و حافظهٔ مرتبط برای آن سرویس ارسال می‌شوند."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -257,5 +257,15 @@ private struct SettingsView: View {
                     catch { status = error.localizedDescription; canSave = false }
                 }
         }
+    }
+}
+
+private extension View {
+    @ViewBuilder func providerInput() -> some View {
+        #if os(iOS)
+        self.autocorrectionDisabled().textInputAutocapitalization(.never)
+        #else
+        self.autocorrectionDisabled()
+        #endif
     }
 }
