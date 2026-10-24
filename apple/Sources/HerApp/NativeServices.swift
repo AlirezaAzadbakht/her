@@ -42,6 +42,10 @@ import HerCore
     func requestNotifications() async throws {
         guard try await center.requestAuthorization(options: [.alert, .sound, .badge]) else { throw HerError.invalidTool("Notification permission denied. Enable it in system settings.") }
     }
+    func notificationsAllowed() async -> Bool {
+        let settings = await center.notificationSettings()
+        return [.authorized, .provisional].contains(settings.authorizationStatus)
+    }
     func calendarEntries(from: Date, to: Date) async throws -> [CalendarEntry] {
         var result: [CalendarEntry] = []
         if calendarGranted {

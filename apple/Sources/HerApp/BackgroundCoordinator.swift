@@ -78,7 +78,7 @@ import AppKit
             try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: agentURL, options: .atomic)
             do { try run(["bootstrap", domain, agentURL.path]) } catch { try? FileManager.default.removeItem(at: agentURL); throw error }
         } else if launchAgentInstalled {
-            try run(["bootout", domain + "/" + Self.refreshID])
+            if (try? run(["print", domain + "/" + Self.refreshID])) != nil { try run(["bootout", domain + "/" + Self.refreshID]) }
             try FileManager.default.removeItem(at: agentURL)
         }
     }

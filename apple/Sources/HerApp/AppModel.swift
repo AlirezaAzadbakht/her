@@ -121,7 +121,7 @@ import UIKit
             }
             try Task.checkCancellation()
             try await processPending()
-            if configured, let state = snapshot.services {
+            if configured, let state = snapshot.services, state.followUp.enabled, await device.notificationsAllowed() {
                 let key = try CredentialStore.read()
                 for pass in FollowUpPolicy.due(state: state, lowBattery: lowBattery) {
                     try Task.checkCancellation()
@@ -129,7 +129,7 @@ import UIKit
                     _ = try await FollowUpRunner.run(pass: pass, snapshot: snapshot, key: key, client: OpenAIClient(), device: device, persist: { [self] in try save($0) })
                 }
             }
-            serviceStatus = error == nil ? t("Local review completed", "بازبینی محلی انجام شد") : t("Local review completed; check the sync error", "بازبینی محلی انجام شد؛ خطای همگام‌سازی را بررسی کنید")
+            serviceStatus = error == nil ? t("Local checks completed", "بررسی محلی انجام شد") : t("Local checks completed; review the reported error", "بررسی محلی انجام شد؛ پیام خطا را بررسی کنید")
         }
     }
     private var lowBattery: Bool {
@@ -256,7 +256,7 @@ import UIKit
         do { try save(value) } catch { self.error = error.localizedDescription; return }
         actions.forEach { device.acknowledge($0) }
         let failures = await device.reconcile(snapshot)
-        if let failure = failures.first { serviceStatus = failure }
+        if let failure = failures.first { serviceStatus = failure; error = failure }
     }
     func kindName(_ kind: RecordKind) -> String {
         switch kind {
