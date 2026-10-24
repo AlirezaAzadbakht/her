@@ -57,6 +57,58 @@ class EmotionalExperienceTest {
         call("save_emotional_thread", source(text).put("id", id).put("intention", "Finish application").put("status", "OPEN").put("unresolved", "Whether the draft helps")).getString("id")
     private fun appraisal(a: JSONObject) = a.put("goalProgress", 0.8).put("contribution", 0.7).put("expectedness", 0.5).put("uncertainty", 0.2)
 
+    @Test fun situationTransitionsAreScopedDecayAndDoNotRewardRecall() = runBlocking {
+        val interview = thread("Worried about the interview", "interview")
+        val family = thread("Worried about family", "family")
+        call("record_emotional_experience", appraisal(event()).put("event", "USER_SHARED")
+            .put("goalProgress", -0.8).put("experienceId", interview))
+        call("record_emotional_experience", appraisal(event()).put("event", "UNRESOLVED_QUESTION")
+            .put("goalProgress", -0.8).put("experienceId", family))
+        clock.advance(1000)
+        val improvement = appraisal(event()).put("event", "USER_SHARED").put("goalProgress", 0.8).put("experienceId", interview)
+        call("record_emotional_experience", improvement)
+        val rows = repo.companionRecords()
+        val transition = com.her.feelings.experienceTransitions(rows).single()
+        assertEquals(interview, transition.experienceId)
+        assertEquals(Feeling.RELIEVED, transition.feeling)
+        val state = emotionalState(rows, clock.nowMillis())
+        assertTrue(state.emotions.getValue(Feeling.RELIEVED) > 0)
+        assertEquals(0.5, state.purpose.getValue("fulfillment"), 0.0)
+        val situations = call("get_emotional_state", JSONObject()).getJSONArray("situationFeelings")
+        val familyState = (0 until situations.length()).map { situations.getJSONObject(it) }.single { it.getString("experienceId") == family }
+        assertTrue(familyState.isNull("latestTransition"))
+        assertFalse(familyState.getJSONObject("state").getJSONObject("immediate").has("RELIEVED"))
+        repeat(2) { call("get_emotional_state", JSONObject()) }
+        assertEquals(state, emotionalState(repo.companionRecords(), clock.nowMillis()))
+        clock.advance(1000)
+        val beforeRepeat = emotionalState(repo.companionRecords(), clock.nowMillis())
+        call("record_emotional_experience", appraisal(event()).put("event", "USER_SHARED").put("experienceId", interview))
+        assertEquals(beforeRepeat, emotionalState(repo.companionRecords(), clock.nowMillis()))
+        clock.advance(100L * 24 * 3_600_000)
+        assertEquals(Feeling.CALM, emotionalState(repo.companionRecords(), clock.nowMillis()).dominant)
+        repo.forgetCompanion(interview)
+        assertTrue(com.her.feelings.experienceTransitions(repo.companionRecords()).isEmpty())
+        assertEquals(1, com.her.feelings.situationFeelings(repo.companionRecords(), clock.nowMillis()).size)
+    }
+
+    @Test fun transitionsRequireOrderedEvidenceAndRespectCorrections() = runBlocking {
+        val id = thread()
+        call("record_emotional_experience", appraisal(event()).put("event", "UNRESOLVED_QUESTION").put("goalProgress", -0.8).put("experienceId", id))
+        val positive = appraisal(event()).put("event", "USER_SHARED").put("experienceId", id)
+        call("record_emotional_experience", positive)
+        assertTrue(com.her.feelings.experienceTransitions(repo.companionRecords()).isEmpty())
+        val orderedId = thread("Track a separate outcome", "ordered")
+        call("record_emotional_experience", appraisal(event()).put("event", "USER_SHARED").put("experienceId", orderedId))
+        clock.advance(1000)
+        val negative = appraisal(event()).put("event", "MISUNDERSTANDING").put("goalProgress", -0.8).put("experienceId", orderedId)
+        call("record_emotional_experience", negative)
+        assertEquals(Feeling.WISTFUL, com.her.feelings.experienceTransitions(repo.companionRecords()).single().feeling)
+        call("record_emotional_experience", negative.put("expectedVersion", 1).put("goalProgress", 0.8))
+        assertTrue(com.her.feelings.experienceTransitions(repo.companionRecords()).isEmpty())
+        call("record_emotional_experience", negative.put("expectedVersion", 2).put("goalProgress", 0.9))
+        assertEquals(Feeling.HOPEFUL, com.her.feelings.experienceTransitions(repo.companionRecords()).single().feeling)
+    }
+
     @Test fun assessmentDerivesMixedFeelingsRegardlessOfLabelAndRejectsPartialInputs() = runBlocking {
         val a = appraisal(event()).put("feeling", "CURIOUS").put("intensity", 0.01)
         call("record_emotional_experience", a)

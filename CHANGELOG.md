@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her keeps feelings tied to individual situations and can recognize relief, hope, or disappointment as linked experiences change. Recalling a change does not count it again.
 - No API key? The first screen and Settings link to Her Cloud, where you can buy credit. Then tap Paste settings or Scan QR code to connect with what it gives you.
 - Executive delegation extends waiting-on records with owned outcomes, dependencies, reported progress, blockers and decisions needed. Ask “what needs me today?” for an evidence-grounded exception briefing; missing updates remain unknown.
 - Moving to a new phone? On the first screen, tap Restore from Google Drive to bring back your conversation and everything she knows.

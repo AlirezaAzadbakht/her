@@ -30,6 +30,7 @@ internal fun ToolRegistry.registerEmotionalTools() {
         val state = emotionalState(rows, now, repo.openDueAts())
         jsonObjectOf("state" to state.toJson(), "guidance" to JSONArray(state.guidance()), "records" to JSONArray(selected.drop(offset).take(6).map { JSONObject(it.toJson()) }),
             "nextOffset" to if (offset + 6 < selected.size) offset + 6 else null,
+            "situationFeelings" to JSONArray(com.her.feelings.situationFeelings(rows, now, query).filter { requestedId == null || it.optString("experienceId") == requestedId }.drop(offset).take(6)),
             "openExperiences" to JSONArray(com.her.feelings.openExperiences(rows).take(8).map { JSONObject(it.toJson()) }),
             "applicableLessons" to JSONArray(com.her.feelings.applicableLessons(rows, query, now).map { JSONObject(it.toJson()).put("effectiveConfidence", com.her.feelings.lessonConfidence(it, rows)) }),
             "expression" to com.her.feelings.emotionalExpression(rows, state, repo.recentMessages(12).lastOrNull { it.role == MessageRole.USER }?.id),
