@@ -55,7 +55,7 @@ Except for the explicitly marked Apple preview, the table below describes Androi
 
 | Feature | What she does |
 |---|---|
-| **Apple preview (experimental)** | Native iOS/macOS conversation and device-local memory foundation; no calendar, reminders, sync or background checks yet. [Build and limitations](apple/README.md) |
+| **Apple preview (experimental)** | Native iOS/macOS conversation, source-backed records, calendars, reminders, optional background review and Android-compatible Drive sync transport. Google access requires owner OAuth setup; iOS background timing is system-controlled. [Build and limitations](apple/README.md) |
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |

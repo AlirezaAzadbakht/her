@@ -14,6 +14,9 @@ swiftc -sdk "$sdk" -target "${arch}-apple-macosx14.0" -swift-version 5 \
   -parse-as-library -I .build/bundle -L .build/bundle -lHerCore \
   Sources/HerApp/*.swift -o dist/Her.app/Contents/MacOS/Her
 cp Resources/Info.plist dist/Her.app/Contents/Info.plist
+plutil -replace GIDClientID -string '' dist/Her.app/Contents/Info.plist
+plutil -replace CFBundleURLTypes.0.CFBundleURLSchemes.0 -string org.her.apple.preview.oauth-unconfigured dist/Her.app/Contents/Info.plist
 codesign --force --sign - --identifier org.her.apple.preview dist/Her.app
 codesign --verify --deep --strict dist/Her.app
 printf 'Built local preview: %s/dist/Her.app\n' "$PWD"
+printf 'Google Sign-In is included by the Xcode build; direct swiftc builds only validate native/local features.\n'

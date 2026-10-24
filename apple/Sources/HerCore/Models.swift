@@ -32,6 +32,10 @@ public struct Record: Codable, Identifiable, Equatable, Sendable {
     public var sourceMessageID: UUID
     public var createdAt: Date
     public var done: Bool
+    public var modifiedAt: Date?
+    public var dueAt: Date?
+    public var syncType: String?
+    public var syncID: String?
     public init(kind: RecordKind, text: String, evidence: String, sourceMessageID: UUID) {
         self.id = UUID(); self.kind = kind; self.text = text; self.evidence = evidence
         self.sourceMessageID = sourceMessageID; self.createdAt = Date(); self.done = false
@@ -43,6 +47,10 @@ public struct Note: Codable, Identifiable, Equatable, Sendable {
     public var text: String
     public var createdAt: Date
     public var reply: String?
+    public var replyAt: Date?
+    public var remote: Bool?
+    public var syncID: String?
+    public var receipts: [String: String]?
     public init(text: String) { id = UUID(); self.text = text; createdAt = Date() }
 }
 
@@ -51,6 +59,7 @@ public struct Snapshot: Codable, Equatable, Sendable {
     public var records: [Record] = []
     public var notes: [Note] = []
     public var latestReply = ""
+    public var services: ServiceState? = ServiceState()
     public init() {}
 
     /// Clear conversation copies as well as all records derived from the same note.
@@ -58,6 +67,8 @@ public struct Snapshot: Codable, Equatable, Sendable {
     public mutating func forget(_ record: Record) {
         records.removeAll { $0.sourceMessageID == record.sourceMessageID }
         notes.removeAll { $0.id == record.sourceMessageID || $0.reply != nil }
+        services?.reminders.removeAll { $0.sourceID.lowercased() == record.sourceMessageID.uuidString.lowercased() }
+        services?.pendingDeletes.removeAll { $0.sourceNoteID.lowercased() == record.sourceMessageID.uuidString.lowercased() }
         latestReply = ""
     }
 }

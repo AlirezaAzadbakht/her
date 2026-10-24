@@ -127,6 +127,7 @@ enum CheckError: Error { case failed(String) }
         forgotten.forget(forgotten.records[0])
         try expect(forgotten.records.isEmpty && forgotten.latestReply.isEmpty && forgotten.notes == [unrelated], "Forgetting must remove conversation copies without requeuing delivered notes")
         passed.append("Explicit forgetting clears source records and recent context while preserving unrelated queue")
+        passed += try await ServiceChecks.run()
         return passed
     }
 }

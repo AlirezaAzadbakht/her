@@ -5,14 +5,38 @@ import AppKit
 #endif
 
 @main struct HerAppleApp: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model = AppModel.shared
+    @Environment(\.scenePhase) private var scenePhase
+    init() {
+        AppModel.shared.background.register()
+        #if os(macOS)
+        if ProcessInfo.processInfo.arguments.contains("--background-once") { NSApp.setActivationPolicy(.prohibited) }
+        #endif
+    }
     var body: some Scene {
         WindowGroup("Her") {
             RootView().environmentObject(model)
                 .environment(\.layoutDirection, model.persian ? .rightToLeft : .leftToRight)
+                .onOpenURL { model.google.handle($0) }
+                .task {
+                    #if os(macOS)
+                    if ProcessInfo.processInfo.arguments.contains("--background-once") {
+                        NSApp.windows.forEach { $0.orderOut(nil) }
+                        do { try await model.wakeup() } catch { /* Retry on the next scheduled launch. */ }
+                        NSApp.terminate(nil)
+                    }
+                    #endif
+                    do { try await model.wakeup() } catch { model.error = error.localizedDescription }
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { do { try await model.wakeup() } catch { model.error = error.localizedDescription } } }
+                    if phase == .background { model.background.schedule(enabled: model.shouldWake) }
+                }
                 #if os(macOS)
                 .frame(minWidth: 520, minHeight: 640)
-                .onAppear { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true) }
+                .onAppear {
+                    if !ProcessInfo.processInfo.arguments.contains("--background-once") { NSApp.setActivationPolicy(.regular); NSApp.activate(ignoringOtherApps: true) }
+                }
                 #endif
         }
         #if os(macOS)
@@ -27,6 +51,8 @@ private struct RootView: View {
         TabView {
             ConversationView().tabItem { Label(model.t("Her", "گفت‌وگو"), systemImage: "bubble.left") }
             MemoryView().tabItem { Label(model.t("Memory", "حافظه"), systemImage: "tray.full") }
+            CalendarView().tabItem { Label(model.t("Calendar", "تقویم"), systemImage: "calendar") }
+            RemindersView().tabItem { Label(model.t("Reminders", "یادآورها"), systemImage: "bell") }
             SettingsView().tabItem { Label(model.t("Settings", "تنظیمات"), systemImage: "gearshape") }
         }
         .tint(.primary)
@@ -75,7 +101,7 @@ private struct ConversationView: View {
                         Label(model.t("Set your provider and model in Settings first.", "ابتدا سرویس مدل و کلید دسترسی را در تنظیمات وارد کنید."), systemImage: "key")
                             .font(.callout).foregroundStyle(.secondary)
                     }
-                    Text(model.t("Device-local memory. No background reminders or device sync in this preview.", "حافظه روی همین دستگاه ذخیره می‌شود. این نسخه یادآور پس‌زمینه و همگام‌سازی ندارد."))
+                    Text(model.t("Calendar and reminders use system permissions. Enable automatic review and Google sync in Settings.", "تقویم و یادآورها به مجوز سیستم نیاز دارند. بازبینی خودکار و همگام‌سازی Google را از تنظیمات فعال کنید."))
                         .font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: 580).padding(.horizontal, 24).padding(.bottom, 24)
                     .frame(maxWidth: .infinity)
@@ -218,11 +244,13 @@ private struct SettingsView: View {
                     }.disabled(!model.available || model.busy || !canSave).frame(minHeight: 44)
                     if !status.isEmpty { Text(status).font(.callout).textSelection(.enabled) }
                 }
-                Section(model.t("Preview limitations", "محدودیت‌های نسخهٔ آزمایشی")) {
-                    Text(model.t("This is an initial Apple contribution, not Android feature parity. No Google Drive sync, calendar integration, notifications, autonomous checks, learning engine or emotional model. Data stays on this device and is excluded from app backup. Uninstalling may lose it. Store records are not encrypted by this app; use device encryption. No analytics are included.", "این نسخه شروع پیاده‌سازی Apple است و همهٔ قابلیت‌های Android را ندارد. همگام‌سازی Google Drive، اتصال تقویم، اعلان، پیگیری خودکار، موتور یادگیری و مدل احساسات پیاده‌سازی نشده‌اند. داده فقط روی همین دستگاه است و در پشتیبان برنامه قرار نمی‌گیرد؛ با حذف برنامه ممکن است از بین برود. فایل اطلاعات در خود برنامه رمزگذاری نمی‌شود؛ از رمزگذاری دستگاه استفاده کنید. ابزار تحلیل رفتار کاربر در این نسخه وجود ندارد."))
+                IntegrationsSettings()
+                Section(model.t("Data and platform limits", "داده و محدودیت‌های سیستم")) {
+                    Text(model.t("Timed reminders run through system notifications without the model or network. iOS chooses when background reviews/sync run; exact hourly execution is not guaranteed. Google sync requires a maintainer-configured OAuth build. Android learning, emotional and executive-delegation engines are not yet ported. Local records are not app-encrypted and are excluded from backup. Use device encryption. No analytics are included.", "یادآور زمان‌دار را سیستم بدون مدل و اینترنت اجرا می‌کند. زمان اجرای بازبینی و همگام‌سازی پس‌زمینه در iOS را سیستم تعیین می‌کند؛ اجرای دقیق ساعتی تضمین نمی‌شود. اتصال Google به نسخه‌ای با شناسهٔ OAuth ثبت‌شده توسط صاحب پروژه نیاز دارد. موتورهای یادگیری، احساسات و واگذاری اجرایی Android هنوز منتقل نشده‌اند. فایل محلی در خود برنامه رمزگذاری نمی‌شود و در پشتیبان قرار نمی‌گیرد. از رمزگذاری دستگاه استفاده کنید. ابزار تحلیل رفتار کاربر در این نسخه وجود ندارد."))
                         .font(.callout).foregroundStyle(.secondary)
                 }
             }.formStyle(.grouped).navigationTitle(model.t("Settings", "تنظیمات"))
+                .safeAreaInset(edge: .bottom) { if let error = model.error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled).padding() } }
                 .onAppear {
                     config = model.snapshot.configuration
                     do { key = try CredentialStore.read(); canSave = true }
