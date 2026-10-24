@@ -29,6 +29,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Forgetting Apple memory also excludes old synced conversation copies and late-arriving source-dependent records from future model context.
 - With hourly checks allowed during quiet hours, a nudge held overnight now reaches your phone in the morning instead of sitting silently in chat.
 - Telling her how a decision turned out keeps the reasons you first gave and marks the decision reviewed.
 - Saying “OK, I'll do that” to one of her suggested actions now counts as accepting today's plan.

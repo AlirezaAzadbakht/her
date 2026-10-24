@@ -52,7 +52,7 @@ Quiet hours suppress proactive notices; explicit timed reminders retain the chos
 - Acknowledgements/cursors persist atomically. Malformed, mismatched or gapped logs stop without cursor advancement.
 - Tombstones prevent resurrection. Concurrent grocery purchase wins over add. Learning/companion documents merge atomically; unknown properties survive.
 - Typed projections cover memories, tasks, commitments, groceries, waiting-on items, profile names, reminders, chat and internal calendar. Other JSON is preserved without implementing its tools.
-- Remote pending chat is history, never a local outbox request. Unchanged imported rows do not echo.
+- Remote pending chat is history, never a local outbox request. Unchanged imported rows do not echo. Forgetting establishes a conversation boundary; tombstones and Android FORGOTTEN/source-dependency links suppress late descendants from projection and model context.
 - API/Google credentials, OS/Google calendar mirrors, permissions, notification action receipts and device review settings never sync.
 - The creator owns reminder delivery. A remote change cannot affect that device before it syncs.
 - A local profile is bound to its Google account. Another account is rejected to prevent cross-account data disclosure.

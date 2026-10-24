@@ -72,6 +72,11 @@ public enum SyncMerge {
     }
     public static func project(into snapshot: inout Snapshot) {
         guard var state = snapshot.services else { return }
+        let blocked = SyncSuppression.blockedIDs(state)
+        for row in state.syncRows.values where row["kind"]?.text == "FORGOTTEN" {
+            let date = Date(timeIntervalSince1970: (row["updatedAt"]?.number ?? 0) / 1000)
+            if date > (state.contextFloor ?? .distantPast) { state.contextFloor = date; snapshot.latestReply = "" }
+        }
         for (key, row) in state.syncRows {
             let type = String(key.split(separator: "/").first ?? "")
             guard let id = row["id"]?.text else { continue }
@@ -97,7 +102,7 @@ public enum SyncMerge {
             }
             if type == "chat_messages" {
                 // Remote PENDING is history only. Never enqueue another device's note.
-                if deleted { snapshot.notes.removeAll { $0.id == uuid }; continue }
+                if deleted || blocked.contains(id) { snapshot.notes.removeAll { $0.id == uuid }; continue }
                 guard row["deviceId"]?.text != state.deviceID, let content = row["content"]?.text else { continue }
                 if row["role"]?.text == "USER", !snapshot.notes.contains(where: { $0.id == uuid }) {
                     var note = Note(text: content); note.id = uuid; note.createdAt = date; note.remote = true; note.syncID = id
@@ -115,7 +120,11 @@ public enum SyncMerge {
             default: kind = nil
             }
             guard let kind else { continue } // All other domains remain losslessly available as raw rows.
-            if deleted || ["DROPPED", "ARCHIVED", "HISTORICAL"].contains(row["status"]?.text ?? "") {
+            if deleted || blocked.contains(id) || ["DROPPED", "ARCHIVED", "HISTORICAL"].contains(row["status"]?.text ?? "") {
+                if let deletion = row["deletedAt"]?.number {
+                    let boundary = Date(timeIntervalSince1970: deletion / 1000)
+                    if boundary > (state.contextFloor ?? .distantPast) { state.contextFloor = boundary; snapshot.latestReply = "" }
+                }
                 snapshot.records.removeAll { $0.id == uuid }; continue
             }
             guard let text = row["title"]?.text ?? row["content"]?.text ?? row["name"]?.text ?? row["description"]?.text else { continue }
@@ -128,7 +137,7 @@ public enum SyncMerge {
             snapshot.records.removeAll { $0.id == uuid }; snapshot.records.append(record)
         }
         snapshot.records.sort { $0.createdAt < $1.createdAt }; snapshot.notes.sort { $0.createdAt < $1.createdAt }
-        if let latest = state.syncRows.filter({ $0.key.hasPrefix("chat_messages/") && $0.value["role"]?.text == "ASSISTANT" && $0.value["deletedAt"]?.number == nil }).values.max(by: { ($0["createdAt"]?.number ?? 0) < ($1["createdAt"]?.number ?? 0) }),
+        if let latest = state.syncRows.filter({ $0.key.hasPrefix("chat_messages/") && $0.value["role"]?.text == "ASSISTANT" && $0.value["deletedAt"]?.number == nil && !blocked.contains($0.value["id"]?.text ?? "") && ($0.value["createdAt"]?.number ?? 0) >= (state.contextFloor ?? .distantPast).timeIntervalSince1970 * 1000 }).values.max(by: { ($0["createdAt"]?.number ?? 0) < ($1["createdAt"]?.number ?? 0) }),
            (latest["createdAt"]?.number ?? 0) >= (snapshot.notes.filter { $0.reply != nil }.map { ($0.replyAt ?? $0.createdAt).timeIntervalSince1970 * 1000 }.max() ?? 0), let reply = latest["content"]?.text { snapshot.latestReply = reply }
         snapshot.services = state
     }
@@ -204,8 +213,11 @@ public enum SyncContext {
     public static func encoded(_ snapshot: Snapshot, byteLimit: Int = 32000) throws -> String {
         let encoder = JSONEncoder()
         var rows: [SyncRow] = [], used = 2
+        let blocked = SyncSuppression.blockedIDs(snapshot.services ?? ServiceState())
         for (key, value) in (snapshot.services?.syncRows ?? [:]).sorted(by: { ($0.value["updatedAt"]?.number ?? 0) > ($1.value["updatedAt"]?.number ?? 0) }) {
             guard value["deletedAt"]?.number == nil else { continue }
+            if let id = value["id"]?.text, blocked.contains(id) { continue }
+            if key.hasPrefix("chat_messages/"), (value["createdAt"]?.number ?? 0) < (snapshot.services?.contextFloor ?? .distantPast).timeIntervalSince1970 * 1000 { continue }
             var row = value; row["entityType"] = .string(String(key.split(separator: "/").first ?? ""))
             let data = try encoder.encode(row)
             guard data.count < byteLimit / 2, used + data.count + 1 <= byteLimit else { continue }
@@ -213,6 +225,40 @@ public enum SyncContext {
             if rows.count >= 60 { break }
         }
         return String(decoding: try encoder.encode(rows), as: UTF8.self)
+    }
+}
+
+public enum SyncSuppression {
+    /// Android's content-free FORGOTTEN markers and source links also cover late descendants.
+    /// Preserve opaque storage, but never project or send suppressed content to the model.
+    public static func blockedIDs(_ state: ServiceState) -> Set<String> {
+        var blocked = Set<String>(), dependents: [String: Set<String>] = [:]
+        func object(_ value: JSONValue?) -> SyncRow {
+            if case .object(let object) = value { return object }
+            guard let text = value?.text else { return [:] }
+            return (try? JSONDecoder().decode(SyncRow.self, from: Data(text.utf8))) ?? [:]
+        }
+        func strings(_ value: JSONValue?) -> [String] {
+            if case .array(let array) = value { return array.compactMap(\.text) }
+            guard let text = value?.text else { return [] }
+            return (try? JSONDecoder().decode([String].self, from: Data(text.utf8))) ?? []
+        }
+        for row in state.syncRows.values {
+            guard let id = row["id"]?.text else { continue }
+            if row["deletedAt"]?.number != nil { blocked.insert(id) }
+            let content = object(row["content"])
+            if row["kind"]?.text == "FORGOTTEN", let target = content["targetId"]?.text { blocked.insert(target) }
+            var sources = strings(row["derivedFromJson"]) + strings(content["relatedIds"])
+            sources += [row["sourceMessageId"]?.text, row["parentId"]?.text, content["sourceMessageId"]?.text].compactMap { $0 }
+            for quote in object(content["sourceQuotes"]).values { if let source = object(quote)["sourceMessageId"]?.text { sources.append(source) } }
+            for source in sources where source != id { dependents[source, default: []].insert(id) }
+        }
+        var queue = Array(blocked), index = 0
+        while index < queue.count {
+            let id = queue[index]; index += 1
+            for child in dependents[id] ?? [] where blocked.insert(child).inserted { queue.append(child) }
+        }
+        return blocked
     }
 }
 public protocol DriveTransport {

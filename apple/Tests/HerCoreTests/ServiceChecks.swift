@@ -123,6 +123,17 @@ import HerCore
         try expect(forgetState.services!.reminders.isEmpty && forgetState.services!.pendingOps.contains(where: { $0.entityType == "reminders" && $0.opType == "DELETE" }), "Forgetting source-derived reminders must create sync tombstones")
         passed.append("Forgetting removes derived reminders and propagates their deletion")
 
+        var oldConversation = Snapshot()
+        oldConversation.services!.syncRows["chat_messages/old"] = ["id": .string("old"), "role": .string("ASSISTANT"), "content": .string("Private old quotation"), "createdAt": .number(1)]
+        oldConversation.services!.contextFloor = now
+        try expect(!(try SyncContext.encoded(oldConversation)).contains("Private old quotation"), "Old synced chat must not bypass the forgetting boundary")
+        passed.append("Forgotten conversation cannot return to model context through synced chat copies")
+        oldConversation.services!.syncRows["long_term_memories/root"] = ["id": .string("root"), "deletedAt": .number(now.timeIntervalSince1970 * 1000)]
+        oldConversation.services!.syncRows["long_term_memories/late"] = ["id": .string("late"), "content": .string("Late private derivative"), "derivedFromJson": .string("[\"root\"]"), "updatedAt": .number(now.addingTimeInterval(100).timeIntervalSince1970 * 1000)]
+        SyncMerge.project(into: &oldConversation)
+        try expect(oldConversation.records.isEmpty && !(try SyncContext.encoded(oldConversation)).contains("Late private derivative"), "A newer derivative cannot bypass its deleted dependency")
+        passed.append("Late-arriving memory descendants remain suppressed after source deletion")
+
         var follow = Snapshot(); follow.configuration = CoreChecks.configuration(); follow.services!.followUp.enabled = true
         follow.services!.followUp.timeZone = "Asia/Tehran"
         let due = FollowUpPolicy.due(state: follow.services!, now: now)

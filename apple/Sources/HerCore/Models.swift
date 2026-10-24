@@ -65,6 +65,8 @@ public struct Snapshot: Codable, Equatable, Sendable {
     /// Clear conversation copies as well as all records derived from the same note.
     /// Other pending notes remain queued. Other structured records remain searchable.
     public mutating func forget(_ record: Record) {
+        if services == nil { services = ServiceState() }
+        services!.contextFloor = Date()
         records.removeAll { $0.sourceMessageID == record.sourceMessageID }
         notes.removeAll { $0.id == record.sourceMessageID || $0.reply != nil }
         services?.reminders.removeAll { $0.sourceID.lowercased() == record.sourceMessageID.uuidString.lowercased() }

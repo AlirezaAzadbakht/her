@@ -159,7 +159,7 @@ public enum RecordTools {
         Additional synced context, capped at 60 rows/32KB; large/old rows may be omitted (JSON): \(try SyncContext.encoded(snapshot))
         """
         )]
-        for prior in snapshot.notes.filter({ $0.reply != nil }).suffix(12) {
+        for prior in snapshot.notes.filter({ $0.reply != nil && $0.createdAt >= (snapshot.services?.contextFloor ?? .distantPast) }).suffix(12) {
             messages.append(ChatMessage(role: "user", content: "[Sent \(ISO8601DateFormatter().string(from: prior.createdAt))] \(prior.text)"))
             messages.append(ChatMessage(role: "assistant", content: prior.reply))
         }
