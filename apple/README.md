@@ -43,7 +43,7 @@ Recurring notifications use the native repeat trigger when its first match is no
 
 The optional macOS login job attempts a wake every 15 minutes; policy gates hourly reviews and six-hour sync. Sleep is not bypassed and Keychain must be accessible. UI and helper processes share an exclusive lock over whole runs.
 
-Quiet hours suppress proactive notices; explicit timed reminders retain the chosen time. The nightly pass is a quiet read-only review, not Android's full consolidation/emotional engine. Successful passes are stamped only after success; repeated/near-duplicate notices are suppressed.
+Quiet hours suppress proactive notices; explicit timed reminders retain the chosen time. The nightly pass retains a private, explicitly tentative digest; it does not mutate user records or implement Android's full consolidation/emotional engine. Successful passes are stamped only after success; repeated/near-duplicate notices are suppressed.
 
 ## Sync semantics
 
@@ -93,6 +93,6 @@ The [Apple workflow](../.github/workflows/apple.yml) runs core checks, builds ma
 
 HerCore contains models, validated tools, sync, dates and policy. HerApp contains EventKit/UserNotifications, Google SDK, UI and background coordination. Google SDK is pinned at 9.0.0; Android code is unchanged.
 
-State stays in Application Support/HerApple/state.json with atomic writes, owner-only access and backup exclusion. Earlier snapshots migrate. iOS protection is completeUntilFirstUserAuthentication; there is no extra database encryption. API Keychain access is WhenUnlockedThisDeviceOnly; Google manages its tokens in its SDK. Notification actions are durably queued and deduplicated locally.
+State stays in Application Support/HerApple/state.json with atomic writes, owner-only access and backup exclusion. Earlier snapshots migrate. iOS protection is completeUntilFirstUserAuthentication; there is no extra database encryption. API Keychain access is AfterFirstUnlockThisDeviceOnly for permitted locked-device background work; Google manages its tokens in its SDK. Notification actions are durably queued and deduplicated locally.
 
 The chosen model receives conversation and relevant memory/calendar during chat/review. Keychain does not make processing local. Google sync uploads the operation log to the user's appDataFolder. No analytics or hidden server is included. There is no cross-account reset/export UI; keep another copy of important records.

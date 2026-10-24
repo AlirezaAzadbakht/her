@@ -156,6 +156,11 @@ import HerCore
         try expect(!FollowUpPolicy.mayNotify(noticeText, state: follow.services!, now: now.addingTimeInterval(3600)), "Duplicate notice cooldown")
         try expect(!FollowUpPolicy.due(state: follow.services!, now: now).contains(.briefing), "At most one successful daily briefing")
         passed.append("Grounded follow-up delivery, latest-message continuity and duplicate suppression")
+        let nightly = ScriptedClient([.success(.init(role: "assistant", content: "Private tentative digest of recorded open work."))])
+        let noticesBeforeNight = device.notices.count
+        follow = try await FollowUpRunner.run(pass: .nightly, snapshot: follow, key: "", client: nightly, device: device, now: now) { _ in }
+        try expect(follow.services!.digestSummary != nil && device.notices.count == noticesBeforeNight, "Nightly digest is private, never a user notification")
+        passed.append("Nightly review saves a tentative private digest without messaging the user")
 
         var source = Snapshot(); source.configuration = CoreChecks.configuration()
         source.configuration.userName = "Test user"

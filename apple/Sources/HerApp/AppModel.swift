@@ -165,7 +165,7 @@ import UIKit
     func updateSettings(_ settings: FollowUpSettings) async {
         do {
             guard (0..<1440).contains(settings.quietStart), (0..<1440).contains(settings.quietEnd), TimeZone(identifier: settings.timeZone) != nil else { throw HerError.invalidTool("Invalid quiet hours or timezone.") }
-            if settings.enabled { try await device.requestNotifications() }
+            if settings.enabled { try await device.requestNotifications(); try CredentialStore.enableBackgroundAccess() }
             try mutate { $0.services!.followUp = settings }
         } catch { self.error = error.localizedDescription }
     }

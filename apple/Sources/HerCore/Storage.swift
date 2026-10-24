@@ -55,16 +55,20 @@ public enum CredentialStore {
             }
             return
         }
-        let attributes: [String: Any] = [kSecValueData as String: Data(key.utf8)]
+        let attributes: [String: Any] = [kSecValueData as String: Data(key.utf8), kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
         let update = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if update == errSecItemNotFound {
             var item = query
             item.merge(attributes) { _, value in value }
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
             let status = SecItemAdd(item as CFDictionary, nil)
             guard status == errSecSuccess else { throw HerError.storage("Keychain could not save the key (\(status)).") }
         } else if update != errSecSuccess {
             throw HerError.storage("Keychain could not save the key (\(update)).")
         }
+    }
+    public static func enableBackgroundAccess() throws {
+        let status = SecItemUpdate(query as CFDictionary, [kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly] as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw HerError.storage("Keychain background access could not be configured (\(status)).") }
     }
 }

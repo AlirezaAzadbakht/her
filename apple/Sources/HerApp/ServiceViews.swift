@@ -110,6 +110,8 @@ struct IntegrationsSettings: View {
                 }.disabled(model.busy).frame(minHeight: 44)
                 Text(model.t("Hourly review is usually silent. A morning briefing runs after quiet hours. Missed runs catch up on the next allowed wake; exact iOS timing is not guaranteed. Each review can use your provider credit.", "بازبینی ساعتی معمولاً ساکت است. خلاصهٔ صبح پس از ساعات سکوت اجرا می‌شود. نوبت‌های ازدست‌رفته در بیدارباش مجاز بعدی بررسی می‌شوند؛ زمان دقیق در iOS تضمین نمی‌شود. هر بازبینی ممکن است از اعتبار سرویس مدل استفاده کند."))
                     .font(.caption).foregroundStyle(.secondary)
+                Text(model.t("After the first unlock following a restart, the model key can be used for permitted background work while iPhone is locked. It stays on this device. Nightly review keeps a private tentative digest rather than sending a notification.", "پس از اولین بازشدن قفل بعد از راه‌اندازی گوشی، کلید مدل برای کار مجاز پس‌زمینه هنگام قفل‌بودن آیفون هم قابل استفاده است و روی همین دستگاه می‌ماند. بازبینی شبانه خلاصه‌ای خصوصی و غیرقطعی نگه می‌دارد و اعلان نمی‌فرستد."))
+                    .font(.caption).foregroundStyle(.secondary)
                 #if os(macOS)
                 Button(model.background.launchAgentInstalled ? model.t("Disable closed-app background work", "غیرفعال‌کردن اجرا هنگام بسته‌بودن برنامه") : model.t("Enable closed-app background work", "فعال‌کردن اجرا هنگام بسته‌بودن برنامه")) {
                     do { try model.background.setLaunchAgent(!model.background.launchAgentInstalled); model.serviceStatus = model.t("Login background setting updated", "تنظیم اجرای پس‌زمینه به‌روز شد") } catch { model.error = error.localizedDescription }

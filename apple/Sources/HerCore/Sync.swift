@@ -73,9 +73,10 @@ public enum SyncMerge {
     public static func project(into snapshot: inout Snapshot) {
         guard var state = snapshot.services else { return }
         let blocked = SyncSuppression.blockedIDs(state)
+        if !(state.digestSources ?? []).allSatisfy({ !blocked.contains($0) }) { state.digestSummary = nil; state.digestSources = nil }
         for row in state.syncRows.values where row["kind"]?.text == "FORGOTTEN" {
             let date = Date(timeIntervalSince1970: (row["updatedAt"]?.number ?? 0) / 1000)
-            if date > (state.contextFloor ?? .distantPast) { state.contextFloor = date; snapshot.latestReply = "" }
+            if date > (state.contextFloor ?? .distantPast) { state.contextFloor = date; state.digestSummary = nil; state.digestSources = nil; snapshot.latestReply = "" }
         }
         for (key, row) in state.syncRows {
             let type = String(key.split(separator: "/").first ?? "")
@@ -123,7 +124,7 @@ public enum SyncMerge {
             if deleted || blocked.contains(id) || ["DROPPED", "ARCHIVED", "HISTORICAL"].contains(row["status"]?.text ?? "") {
                 if let deletion = row["deletedAt"]?.number {
                     let boundary = Date(timeIntervalSince1970: deletion / 1000)
-                    if boundary > (state.contextFloor ?? .distantPast) { state.contextFloor = boundary; snapshot.latestReply = "" }
+                    if boundary > (state.contextFloor ?? .distantPast) { state.contextFloor = boundary; state.digestSummary = nil; state.digestSources = nil; snapshot.latestReply = "" }
                 }
                 snapshot.records.removeAll { $0.id == uuid }; continue
             }

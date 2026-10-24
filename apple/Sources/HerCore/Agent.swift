@@ -155,6 +155,8 @@ public enum RecordTools {
         Current UTC time: \(now). Device timezone: \(TimeZone.current.identifier).
         Current note was sent at \(sent); relative dates refer to that time, not processing time.
         Saved local records (JSON): \(records)
+        Tentative machine-generated private digest, not verified facts; source quotes outrank it:
+        \(snapshot.services?.digestSummary ?? "No private digest available.")
         Reminder state (JSON): \(String(decoding: try encoder.encode(snapshot.services?.reminders ?? []), as: UTF8.self))
         Additional synced context, capped at 60 rows/32KB; large/old rows may be omitted (JSON): \(try SyncContext.encoded(snapshot))
         """

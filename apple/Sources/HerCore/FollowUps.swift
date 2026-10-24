@@ -42,7 +42,7 @@ public enum FollowUpPolicy {
         let prompt: String
         switch pass {
         case .hourly: prompt = "Review urgent open matters. Usually reply exactly NO_NOTIFICATION. Only speak about a concrete recorded time-sensitive matter, not generic motivation. Do not repeat clock reminders: the OS delivers them."
-        case .nightly: prompt = "Quiet nightly review. Return exactly NO_NOTIFICATION. Do not manufacture progress, feelings, outcomes or user facts."
+        case .nightly: prompt = "Write a private digest under 150 words, using only the listed source records. Distinguish pending work and unknown progress. No feelings, inferred outcomes or new user facts. If there is nothing useful, return exactly NO_NOTIFICATION. This digest is not a message to the user."
         case .briefing: prompt = "Write one short morning briefing of recorded commitments, deadlines and visible calendar events. Missing updates stay unknown. If no useful grounded briefing exists, return exactly NO_NOTIFICATION."
         }
         let request = ChatMessage(role: "system", content: """
@@ -68,6 +68,10 @@ public enum FollowUpPolicy {
         case .hourly: state.lastHourly = now
         case .nightly: state.lastNightly = day
         case .briefing: state.lastBriefing = day
+        }
+        if pass == .nightly, text.trimmingCharacters(in: .whitespacesAndNewlines) != "NO_NOTIFICATION" {
+            state.digestSummary = String(text.prefix(3000))
+            state.digestSources = working.records.map { $0.syncID ?? $0.id.uuidString } + calendarEvents.map(\.id)
         }
         let notify = pass != .nightly && FollowUpPolicy.mayNotify(text, state: state, now: now, briefing: pass == .briefing)
         if notify {

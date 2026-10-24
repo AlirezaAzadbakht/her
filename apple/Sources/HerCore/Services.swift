@@ -118,6 +118,8 @@ public struct ServiceState: Codable, Equatable, Sendable {
     public var googleAccountID: String?
     public var notificationActionReceipts: [String]?
     public var contextFloor: Date?
+    public var digestSummary: String?
+    public var digestSources: [String]?
     public init() {}
 }
 
