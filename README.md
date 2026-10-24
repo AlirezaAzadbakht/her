@@ -192,6 +192,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 |------|----------------|
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
+| [Apple client preview](wiki/Apple-client.md) | Experimental iOS/macOS scope, builds, signing and current limitations |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
 | [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
