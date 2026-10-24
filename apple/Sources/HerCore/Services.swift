@@ -68,8 +68,10 @@ public struct CalendarEntry: Codable, Identifiable, Sendable {
     public var end: Date
     public var location: String?
     public var writable: Bool
-    public init(id: String, title: String, start: Date, end: Date, location: String?, writable: Bool) {
+    public var writeReceipt: String?
+    public init(id: String, title: String, start: Date, end: Date, location: String?, writable: Bool, writeReceipt: String? = nil) {
         self.id = id; self.title = title; self.start = start; self.end = end; self.location = location; self.writable = writable
+        self.writeReceipt = writeReceipt
     }
 }
 
@@ -91,8 +93,9 @@ public struct PendingCalendarDelete: Codable, Identifiable, Sendable {
     public var eventID: String
     public var title: String
     public var sourceNoteID: String
+    public var start: Date?
     public var createdAt = Date()
-    public init(eventID: String, title: String, sourceNoteID: String) { self.eventID = eventID; self.title = title; self.sourceNoteID = sourceNoteID }
+    public init(eventID: String, title: String, sourceNoteID: String, start: Date? = nil) { self.eventID = eventID; self.title = title; self.sourceNoteID = sourceNoteID; self.start = start }
 }
 
 public struct ServiceState: Codable, Equatable, Sendable {

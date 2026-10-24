@@ -89,6 +89,7 @@ public enum ServiceTools {
             if let when = args["when"] { r.fireAt = try Dates.parse(when) }
             if let rule = args["repeat"] { guard ["NONE", "DAILY", "WEEKLY", "MONTHLY"].contains(rule) else { throw HerError.invalidTool("Invalid repeat rule.") }; r.repeatRule = rule }
             if let status = args["status"] { guard ["SCHEDULED", "CANCELLED"].contains(status) else { throw HerError.invalidTool("Invalid reminder status.") }; r.status = status }
+            if r.status == "SCHEDULED", r.trigger == "TIME", r.repeatRule == "NONE", (r.fireAt ?? .distantPast) <= Date() { throw HerError.invalidTool("The reminder time has passed. Ask for a new time.") }
             r.updatedAt = Date()
             if r.status == "CANCELLED" { device.cancelReminder(id: r.id) }
             else if r.deviceID == snapshot.services!.deviceID { try await device.schedule(r) }
@@ -108,7 +109,7 @@ public enum ServiceTools {
         case "create_calendar_event", "update_calendar_event":
             let start = try Dates.parse(args["start"]!), end = try Dates.parse(args["end"]!)
             guard end > start, end.timeIntervalSince(start) <= 400 * 86400 else { throw HerError.invalidTool("Invalid event duration.") }
-            let key = note.id.uuidString + ":" + call.function.name + ":" + args["evidence"]!
+            let key = note.id.uuidString + ":" + call.function.name + ":" + args["evidence"]! + ":" + (args["id"] ?? "") + ":" + Dates.string(start) + ":" + Dates.string(end) + ":" + (args["target"] ?? "SYSTEM")
             if let id = snapshot.services!.calendarJournal[key] { return "Previously saved event ID: \(id). Do not recreate it." }
             let internalTarget = args["target"] == "INTERNAL" || args["id"]?.hasPrefix("internal:") == true
             if let target = args["target"], !["INTERNAL", "SYSTEM"].contains(target) { throw HerError.invalidTool("Invalid calendar target.") }
@@ -117,6 +118,10 @@ public enum ServiceTools {
                 do { events += try await device.calendarEntries(from: start, to: end) }
                 catch { if !internalTarget { throw error } }
             } else if !internalTarget { throw HerError.invalidTool("Calendar access unavailable.") }
+            if let recovered = events.first(where: { $0.writeReceipt == StableID.hash(key) && $0.start == start && $0.end == end }) {
+                snapshot.services!.calendarJournal[key] = recovered.id
+                return "Previously saved calendar occurrence recovered: \(recovered.id). No duplicate was created."
+            }
             guard !events.contains(where: { $0.id != args["id"] && $0.start < end && $0.end > start }) else { throw HerError.invalidTool("Calendar conflict. Ask the user which event should move; no change was made.") }
             let creating = call.function.name == "create_calendar_event"
             if creating { guard let title = args["title"], !title.isEmpty, title.count <= 1000 else { throw HerError.invalidTool("A valid title is required.") } }
@@ -138,7 +143,7 @@ public enum ServiceTools {
             if let device { events += (try? await device.calendarEntries(from: from, to: to)) ?? [] }
             guard let event = events.first(where: { $0.id == args["id"] }), event.writable else { throw HerError.invalidTool("Writable system event not found. Google events are read-only.") }
             if !snapshot.services!.pendingDeletes.contains(where: { $0.eventID == event.id }) {
-                snapshot.services!.pendingDeletes.append(PendingCalendarDelete(eventID: event.id, title: event.title, sourceNoteID: note.id.uuidString))
+                snapshot.services!.pendingDeletes.append(PendingCalendarDelete(eventID: event.id, title: event.title, sourceNoteID: note.id.uuidString, start: event.start))
             }
             return "Deletion requested, NOT executed. Tell the user to confirm the named event in Calendar → Pending deletions. You cannot confirm it yourself."
         case "update_record":

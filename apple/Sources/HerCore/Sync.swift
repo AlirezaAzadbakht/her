@@ -122,7 +122,7 @@ public enum SyncMerge {
             let source = row["sourceMessageId"]?.text ?? id
             var record = Record(kind: kind, text: text, evidence: row["appleEvidence"]?.text ?? "Imported from synced Android record", sourceMessageID: UUID(uuidString: source) ?? StableID.uuid(source))
             record.id = uuid; record.createdAt = date; record.modifiedAt = Date(timeIntervalSince1970: (row["updatedAt"]?.number ?? 0) / 1000)
-            record.done = ["DONE", "PURCHASED", "RESOLVED"].contains(row["status"]?.text ?? "")
+            record.done = ["DONE", "PURCHASED", "CLOSED", "RESOLVED"].contains(row["status"]?.text ?? "")
             record.dueAt = row["dueAt"]?.number.map { Date(timeIntervalSince1970: $0 / 1000) }
             record.syncType = type; record.syncID = id
             snapshot.records.removeAll { $0.id == uuid }; snapshot.records.append(record)
@@ -171,9 +171,9 @@ public enum SyncJournal {
             if previous.records.first(where: { $0.id == record.id }) == record, state.syncRows[type + "/" + id] != nil { continue }
             let titleKey = type.contains("memories") || type == "user_understandings" ? "content" : (type == "groceries" ? "name" : (type == "open_loops" ? "description" : "title"))
             var fields: SyncRow = [titleKey: .string(record.text), "sourceMessageId": state.syncRows[type + "/" + id]?["sourceMessageId"] ?? .string(record.sourceMessageID.uuidString), "createdAt": ms(record.createdAt), "appleEvidence": .string(record.evidence)]
-            fields["status"] = .string(record.done ? (type == "groceries" ? "PURCHASED" : (type == "open_loops" ? "RESOLVED" : "DONE")) : (type == "groceries" || type.contains("memories") || type == "user_understandings" ? "ACTIVE" : "OPEN"))
+            fields["status"] = .string(record.done ? (type == "groceries" ? "PURCHASED" : (type == "open_loops" ? "CLOSED" : "DONE")) : (type == "groceries" || type.contains("memories") || type == "user_understandings" ? "ACTIVE" : "OPEN"))
             if type == "tasks" || type == "commitments" { fields["dueAt"] = record.dueAt.map(ms) ?? .null }
-            if type.contains("memories"), state.syncRows[type + "/" + id] == nil { fields["source"] = .string("USER_STATED"); fields["category"] = .string(record.kind == .decision ? "decision" : "general") }
+            if type.contains("memories"), state.syncRows[type + "/" + id] == nil { fields["source"] = .string("USER_EXPLICIT"); fields["category"] = .string(record.kind == .decision ? "decision" : "general") }
             try append(type, id, fields)
         }
         for removed in previous.records where !next.records.contains(where: { $0.id == removed.id }) { try append(type(removed), removed.syncID ?? removed.id.uuidString, [:], deleted: true) }
@@ -198,6 +198,23 @@ public enum SyncJournal {
 }
 
 public struct DriveFile: Codable, Sendable { public var id: String; public var name: String; public init(id: String, name: String) { self.id = id; self.name = name } }
+
+public enum SyncContext {
+    /// Keep opaque storage lossless while bounding what is sent to a model.
+    public static func encoded(_ snapshot: Snapshot, byteLimit: Int = 32000) throws -> String {
+        let encoder = JSONEncoder()
+        var rows: [SyncRow] = [], used = 2
+        for (key, value) in (snapshot.services?.syncRows ?? [:]).sorted(by: { ($0.value["updatedAt"]?.number ?? 0) > ($1.value["updatedAt"]?.number ?? 0) }) {
+            guard value["deletedAt"]?.number == nil else { continue }
+            var row = value; row["entityType"] = .string(String(key.split(separator: "/").first ?? ""))
+            let data = try encoder.encode(row)
+            guard data.count < byteLimit / 2, used + data.count + 1 <= byteLimit else { continue }
+            rows.append(row); used += data.count + 1
+            if rows.count >= 60 { break }
+        }
+        return String(decoding: try encoder.encode(rows), as: UTF8.self)
+    }
+}
 public protocol DriveTransport {
     func list(token: String) async throws -> [DriveFile]
     func download(token: String, id: String) async throws -> String

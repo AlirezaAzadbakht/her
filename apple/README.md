@@ -33,6 +33,8 @@ Examples: “Remind me tomorrow at 9 to send the proposal”; “Remind me every
 
 Inspect saved records and calendar/reminder status; a reply alone is not a receipt. Device tool timestamps require an offset. Ambiguous times require clarification. Jalali conversion currently depends on the chosen model; tools validate the resulting timestamp rather than the original natural-language interpretation.
 
+System event writes retain a small Her receipt marker in event notes to recover interrupted writes. Recurring event references include their original occurrence time; updates/deletes resolve that exact instance rather than EventKit's first occurrence.
+
 ## Background and delivery limits
 
 iOS does **not** guarantee hourly/exact-time background model or sync execution. earliestBeginDate is only a lower bound. Force quit, low power, usage patterns and system discretion can defer work. Clock notifications already submitted do not wait for these passes or the network. Permission, Focus, power and system policy can still affect presentation; this is not an alarm-clock guarantee.

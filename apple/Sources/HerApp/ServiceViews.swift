@@ -24,6 +24,7 @@ struct CalendarView: View {
                         ForEach(requests) { request in
                             VStack(alignment: .leading) {
                                 Text(request.title)
+                                if let date = request.start { Text(date.formatted()).font(.caption) }
                                 HStack {
                                     Button(model.t("Confirm deletion…", "تأیید حذف…"), role: .destructive) { deleting = request }
                                     Spacer()
@@ -49,7 +50,7 @@ struct CalendarView: View {
                 .alert(model.t("Delete this occurrence?", "این نوبت رویداد حذف شود؟"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
                     Button(model.t("Delete", "حذف"), role: .destructive) { if let request = deleting { Task { await model.confirmDelete(request) } }; deleting = nil }
                     Button(model.t("Cancel", "انصراف"), role: .cancel) { deleting = nil }
-                } message: { Text(deleting?.title ?? "") }
+                } message: { Text((deleting?.title ?? "") + "\n" + (deleting?.start?.formatted() ?? "")) }
         }
     }
 }
@@ -69,7 +70,7 @@ struct RemindersView: View {
                 ForEach((model.snapshot.services?.reminders ?? []).sorted { ($0.fireAt ?? .distantFuture) < ($1.fireAt ?? .distantFuture) }) { reminder in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(reminder.message).font(.headline).textSelection(.enabled)
-                        if let date = reminder.fireAt { Text(date, format: .dateTime.year().month().day().hour().minute()) }
+                        if let date = Dates.nextFire(reminder, after: Date(), zone: reminder.timeZone ?? TimeZone.current.identifier) ?? reminder.fireAt { Text(date, format: .dateTime.year().month().day().hour().minute()) }
                         Text(reminder.status + " · " + reminder.repeatRule).font(.caption).foregroundStyle(.secondary)
                         Text(reminder.deviceID == model.snapshot.services?.deviceID ? model.t("Delivered by this device", "دستگاه مسئول: همین دستگاه") : model.t("Delivered by the creating device after sync", "دستگاه مسئول: دستگاه سازنده، پس از همگام‌سازی"))
                             .font(.caption).foregroundStyle(.secondary)

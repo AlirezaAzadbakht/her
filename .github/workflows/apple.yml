@@ -18,7 +18,7 @@ jobs:
       - name: Core contract checks
         run: bash apple/scripts/check.sh
       - name: macOS application
-        run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=macOS' -derivedDataPath build/apple-mac CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=macOS' -derivedDataPath build/apple-mac ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO build
       - name: iOS Simulator application
         run: xcodebuild -project apple/HerApple.xcodeproj -scheme HerApple -destination 'generic/platform=iOS Simulator' -derivedDataPath build/apple-ios CODE_SIGNING_ALLOWED=NO build
       - name: iOS device compilation (unsigned)

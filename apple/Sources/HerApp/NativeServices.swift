@@ -19,6 +19,22 @@ import HerCore
         center.setNotificationCategories([UNNotificationCategory(identifier: "HER_REMINDER", actions: [done, later], intentIdentifiers: [], options: [])])
     }
     var calendarGranted: Bool { EKEventStore.authorizationStatus(for: .event) == .fullAccess }
+    private func occurrenceID(_ event: EKEvent) -> String? {
+        guard let id = event.eventIdentifier else { return nil }
+        return "system:" + Data(id.utf8).base64EncodedString() + ":" + String(Int64(event.startDate.timeIntervalSince1970 * 1000))
+    }
+    private func writeReceipt(_ event: EKEvent) -> String? {
+        guard let line = event.notes?.components(separatedBy: "\n").last(where: { $0.hasPrefix("[Her write ") && $0.hasSuffix("]") }) else { return nil }
+        return String(line.dropFirst(11).dropLast())
+    }
+    private func occurrence(_ reference: String) -> EKEvent? {
+        let parts = reference.split(separator: ":", maxSplits: 2)
+        guard parts.count == 3, parts[0] == "system", let bytes = Data(base64Encoded: String(parts[1])),
+              let id = String(data: bytes, encoding: .utf8), let ms = Double(parts[2]), ms.isFinite else { return nil }
+        let date = Date(timeIntervalSince1970: ms / 1000)
+        return eventStore.events(matching: eventStore.predicateForEvents(withStart: date.addingTimeInterval(-1), end: date.addingTimeInterval(1), calendars: nil))
+            .first { $0.eventIdentifier == id && abs($0.startDate.timeIntervalSince(date)) < 0.01 }
+    }
     func requestCalendar() async throws {
         guard try await eventStore.requestFullAccessToEvents() else { throw HerError.invalidTool("Calendar permission denied. You can change it in system settings.") }
         eventStore.reset()
@@ -31,8 +47,8 @@ import HerCore
         if calendarGranted {
             let events = eventStore.events(matching: eventStore.predicateForEvents(withStart: from, end: to, calendars: nil))
             result = events.compactMap { e in
-                guard let id = e.eventIdentifier else { return nil }
-                return CalendarEntry(id: id, title: e.title ?? "", start: e.startDate, end: e.endDate, location: e.location, writable: e.calendar.allowsContentModifications)
+                guard let id = occurrenceID(e) else { return nil }
+                return CalendarEntry(id: id, title: e.title ?? "", start: e.startDate, end: e.endDate, location: e.location, writable: e.calendar.allowsContentModifications, writeReceipt: writeReceipt(e))
             }
         }
         if let googleEvents {
@@ -48,7 +64,7 @@ import HerCore
     func changeCalendar(_ change: CalendarChange) async throws -> String {
         guard calendarGranted else { throw HerError.invalidTool("Enable system Calendar access in Settings first.") }
         if change.action == "delete" {
-            guard let id = change.eventID, !id.hasPrefix("google:"), let event = eventStore.event(withIdentifier: id), event.calendar.allowsContentModifications else { throw HerError.invalidTool("Writable system event not found.") }
+            guard let id = change.eventID, let event = occurrence(id), event.calendar.allowsContentModifications else { throw HerError.invalidTool("Writable system occurrence not found. Read the current calendar before retrying.") }
             // Explicitly affect this occurrence, never the whole recurring series.
             try eventStore.remove(event, span: .thisEvent, commit: true)
             return id
@@ -60,11 +76,11 @@ import HerCore
             // Recovers a successful EventKit write if the app died before persisting its receipt.
             let existing = eventStore.events(matching: eventStore.predicateForEvents(withStart: start.addingTimeInterval(-86400), end: end.addingTimeInterval(86400), calendars: nil))
                 .first { $0.notes?.contains(marker) == true }
-            if let existing, let id = existing.eventIdentifier { return id }
+            if let existing, let id = occurrenceID(existing) { return id }
             guard let calendar = eventStore.defaultCalendarForNewEvents, calendar.allowsContentModifications else { throw HerError.invalidTool("No writable default calendar is configured.") }
             event = EKEvent(eventStore: eventStore); event.calendar = calendar
         } else {
-            guard let id = change.eventID, !id.hasPrefix("google:"), let existing = eventStore.event(withIdentifier: id), existing.calendar.allowsContentModifications else { throw HerError.invalidTool("Writable system event not found; Google Calendar is read-only.") }
+            guard let id = change.eventID, let existing = occurrence(id), existing.calendar.allowsContentModifications else { throw HerError.invalidTool("Writable system occurrence not found; Google Calendar is read-only. Read the current calendar before retrying.") }
             event = existing
         }
         if let title = change.title { event.title = title }
@@ -72,7 +88,7 @@ import HerCore
         if let location = change.location { event.location = location }
         if event.notes?.contains(marker) != true { event.notes = (event.notes ?? "") + "\n" + marker }
         try eventStore.save(event, span: .thisEvent, commit: true)
-        guard let id = event.eventIdentifier else { throw HerError.invalidTool("Calendar saved but returned no identifier. Inspect Calendar before retrying.") }
+        guard let id = occurrenceID(event) else { throw HerError.invalidTool("Calendar saved but returned no identifier. Inspect Calendar before retrying.") }
         return id
     }
     func schedule(_ reminder: ReminderItem) async throws {
@@ -143,8 +159,8 @@ import HerCore
         let owned = state.reminders.filter { $0.deviceID == state.deviceID && $0.status == "SCHEDULED" && $0.trigger == "TIME" }
         let eligible = owned.filter { r in
             guard let type = r.onlyIfType, let id = r.onlyIfID else { return true }
-            let row = state.syncRows[type + "/" + id]
-            return !["DONE", "DROPPED", "PURCHASED", "RESOLVED"].contains(row?["status"]?.text ?? "") && row?["deletedAt"]?.number == nil
+            guard let row = state.syncRows[type + "/" + id], row["deletedAt"]?.number == nil else { return false }
+            return type == "tasks" ? row["status"]?.text == "OPEN" : ["OPEN", "MISSED"].contains(row["status"]?.text ?? "")
         }
         let ids = Set(eligible.map { "reminder:" + $0.id })
         let pending = await center.pendingNotificationRequests()

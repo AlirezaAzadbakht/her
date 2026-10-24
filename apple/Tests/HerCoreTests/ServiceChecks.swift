@@ -77,6 +77,12 @@ import HerCore
         try expect(device.changes.count == 1, "Calendar retry must replay persisted receipt")
         passed.append("Calendar conflicts reject writes and persisted receipts prevent duplicate creates")
 
+        var recoveredState = Snapshot()
+        device.events = [.init(id: "recovered-instance", title: "Meet Sara", start: device.changes[0].start!, end: device.changes[0].end!, location: nil, writable: true, writeReceipt: device.changes[0].journalID)]
+        _ = try await ServiceTools.execute(eventCall, note: note, snapshot: &recoveredState, device: device)
+        try expect(device.changes.count == 1 && recoveredState.services!.calendarJournal.values.contains("recovered-instance"), "A platform write that survived a disk failure must recover before overlap rejection")
+        passed.append("Calendar receipt recovery survives a platform-success/local-persistence failure")
+
         device.events = [.init(id: "event-1", title: "Meet Sara", start: start, end: end, location: nil, writable: true)]
         let deletion = call("request_calendar_delete", ["id": "event-1", "evidence": "Meet Sara tomorrow."])
         _ = try await ServiceTools.execute(deletion, note: note, snapshot: &state, device: device)
@@ -157,6 +163,15 @@ import HerCore
         try SyncJournal.capture(previous: before, next: &target, now: now.addingTimeInterval(100))
         try expect(!target.services!.pendingOps.contains(where: { $0.entityType == "tasks" }), "Unchanged imported records must not reupload")
         passed.append("Android-compatible NDJSON, credential exclusion, task projection and no-echo journaling")
+
+        var enumState = Snapshot()
+        var waiting = Record(kind: .waiting, text: "Waiting on Sara", evidence: "Waiting on Sara", sourceMessageID: UUID()); waiting.done = true
+        let memory = Record(kind: .memory, text: "Prefers short replies", evidence: "Short replies", sourceMessageID: UUID())
+        enumState.records = [waiting, memory]
+        try SyncJournal.capture(previous: Snapshot(), next: &enumState, now: now)
+        try expect(enumState.services!.syncRows["open_loops/" + waiting.id.uuidString]?["status"]?.text == "CLOSED", "Android OpenLoopStatus uses CLOSED, not RESOLVED")
+        try expect(enumState.services!.syncRows["long_term_memories/" + memory.id.uuidString]?["source"]?.text == "USER_EXPLICIT", "Android MemorySource uses USER_EXPLICIT")
+        passed.append("Wire enums match Android CLOSED and USER_EXPLICIT exactly")
 
         let base: SyncRow = ["id": .string("rice"), "name": .string("Rice"), "status": .string("ACTIVE"), "updatedAt": .number(100), "deviceId": .string("a"), "unknownField": .string("retain")]
         var purchased = base; purchased["status"] = .string("PURCHASED"); purchased["deviceId"] = .string("b")

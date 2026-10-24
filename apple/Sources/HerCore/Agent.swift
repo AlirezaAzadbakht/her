@@ -140,6 +140,7 @@ public enum RecordTools {
         For dates: resolve relative phrases against note sent time, use an explicit ISO 8601 UTC offset,
         and convert Jalali dates to the actual Gregorian instant. Ask if ambiguous; never guess a time.
         Check calendar overlaps before booking or moving. Google calendar is read-only.
+        If more than one event could match the user's description, ask which occurrence before changing one.
         External calendar deletes require the user's separate in-app confirmation; you cannot confirm them.
         Proactive review and Google Drive sync work only when enabled; iOS background timing is discretionary.
         You cannot browse, contact anyone, or claim changes on another device before it has synchronized.
@@ -155,7 +156,7 @@ public enum RecordTools {
         Current note was sent at \(sent); relative dates refer to that time, not processing time.
         Saved local records (JSON): \(records)
         Reminder state (JSON): \(String(decoding: try encoder.encode(snapshot.services?.reminders ?? []), as: UTF8.self))
-        Additional synced context, potentially partial (JSON): \(String(decoding: try encoder.encode(Array((snapshot.services?.syncRows ?? [:]).sorted { $0.key < $1.key }.prefix(60)).map(\.value)), as: UTF8.self))
+        Additional synced context, capped at 60 rows/32KB; large/old rows may be omitted (JSON): \(try SyncContext.encoded(snapshot))
         """
         )]
         for prior in snapshot.notes.filter({ $0.reply != nil }).suffix(12) {
