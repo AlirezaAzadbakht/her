@@ -68,6 +68,7 @@ internal object SyncCodec {
             "agent_state" -> repo.getAgentState(id)?.toJson()
             "agent_queue" -> repo.getAgentQueue(id)?.toJson()
             "reminders" -> repo.getReminder(id)?.toJson()
+            "wondering" -> repo.getWondering(id)?.toJson()
             "companion_records" -> repo.getCompanionRecord(id)?.toJson()
             "learning_records" -> repo.getLearningRecord(id)?.toJson()
             "feelings" -> repo.getFeeling(id)?.toJson()
@@ -111,6 +112,7 @@ internal object SyncCodec {
                 if (row.kind == "FORGOTTEN") repo.forgetKnowledge(row.data().getString("targetId"))
                 if (row.deletedAt != null) repo.forgetCompanion(row.id)
             }
+            "wondering" -> repo.saveWondering(com.her.data.db.WonderingRecord.fromJson(json))
             "learning_records" -> repo.saveLearningRecord(com.her.data.db.LearningRecord.fromJson(json))
             "feelings" -> repo.saveFeeling(feeling(json))
             else -> return false

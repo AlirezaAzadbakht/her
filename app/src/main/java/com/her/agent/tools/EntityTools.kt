@@ -39,8 +39,8 @@ internal fun ToolRegistry.registerEntityTools() {
             ?: args.optStringOrNull("name")?.let { q -> repo.searchPeople(q).firstOrNull() }
         jsonObjectOf("ok" to true, "person" to person?.let { JSONObject(it.toJson()) })
     }
-    register("search_people", "Search people.", objSchema("query" to str(), required = listOf("query"))) { args ->
-        jsonObjectOf("ok" to true, "people" to JSONArray(repo.searchPeople(args.requiredString("query")).map { JSONObject(it.toJson()) }))
+    register("search_people", "Search people; omit query or leave it empty to list up to 30 people.", objSchema("query" to str())) { args ->
+        jsonObjectOf("ok" to true, "people" to JSONArray(repo.searchPeople(args.optString("query").trim()).take(30).map { JSONObject(it.toJson()) }))
     }
     register(
         "update_person",

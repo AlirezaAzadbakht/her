@@ -70,9 +70,13 @@ class PersonalSupportTest {
         val id = memory("I work at OldCo")
         val old = repo.getLong(id)!!
         val thread = call("save_life_thread", evidence("My work is at OldCo").put("id", "work").put("title", "Work").put("summary", "Works at OldCo").put("relatedIds", JSONArray().put(id))).getString("id")
+        call("save_wondering", JSONObject().put("sourceId", id).put("status", "OPEN").put("observation", "Work outcome unknown").put("question", "How is work going?"))
         val correction = evidence("I now work at NewCo").put("id", id).put("replacementId", "job-change").put("expectedVersion", 1).put("content", "I work at NewCo")
         correction.remove("basis")
         val result = call("correct_memory", correction)
+        val retired = result.getJSONArray("wonderings").getJSONObject(0)
+        assertEquals("OBSOLETE", retired.getString("status"))
+        assertEquals(2, retired.getInt("version"))
         assertFalse(call("correct_memory", correction).getBoolean("created"))
         assertEquals(MemoryStatus.HISTORICAL, repo.getLong(id)!!.status)
         assertTrue(repo.getCompanionRecord(thread)!!.data().getBoolean("stale"))

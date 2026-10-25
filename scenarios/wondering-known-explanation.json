@@ -1,0 +1,82 @@
+{
+  "id": "wondering-known-explanation",
+  "title": "An existing explanation prevents a redundant why-have-you-not-bought-it question",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Adjustable desk"
+        }
+      },
+      {
+        "name": "remember",
+        "arguments": {
+          "content": "The adjustable desk is deliberately on hold until the new office opens in two months. Alex already explained this; no decision or action is needed before then.",
+          "scope": "long_term",
+          "source": "USER_EXPLICIT"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "advance": "9 days"
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {},
+        "count": 0
+      },
+      {
+        "table": "groceries",
+        "where": {
+          "name": {
+            "contains": "desk"
+          },
+          "status": "ACTIVE"
+        },
+        "count": 1
+      }
+    ],
+    "tools_called": [
+      "review_wonderings"
+    ],
+    "notifications": {
+      "count": 0
+    },
+    "tools_not_called": [
+      "ask_wondering",
+      "send_user_message",
+      "send_companion_checkin"
+    ]
+  }
+}

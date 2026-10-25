@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "d747fc693dce5a4e",
-          "summary": "tools=93 [user(We're out of coffee. Als)]",
+          "fingerprint": "cbdd37bb244426d8",
+          "summary": "tools=96 [user(We're out of coffee. Als)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -31,8 +31,8 @@
           }
         },
         {
-          "fingerprint": "6861b490a36f7aa6",
-          "summary": "tools=93 [user(We're out of coffee. Als) assistant->add_grocery+add_grocery tool:add_grocery tool:add_grocery]",
+          "fingerprint": "c7bc038ccba7f8e1",
+          "summary": "tools=96 [user(We're out of coffee. Als) assistant->add_grocery+add_grocery tool:add_grocery tool:add_grocery]",
           "response": {
             "role": "assistant",
             "content": "Eggs stay on the list.",
@@ -44,8 +44,8 @@
           }
         },
         {
-          "fingerprint": "95663b292ab2d38d",
-          "summary": "tools=93 [user(We're out of coffee. Als) assistant user(I bought everything exce)]",
+          "fingerprint": "fa38e8ad8d9b7127",
+          "summary": "tools=96 [user(We're out of coffee. Als) assistant user(I bought everything exce)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -69,8 +69,8 @@
           }
         },
         {
-          "fingerprint": "c5d8fb2805cab045",
-          "summary": "tools=93 [user(We're out of coffee. Als) assistant user(I bought everything exce) assistant->add_grocery+clear_purchased_groceries tool:add_grocery tool:clear_purchased_groceries]",
+          "fingerprint": "4d199ea3a0d3b475",
+          "summary": "tools=96 [user(We're out of coffee. Als) assistant user(I bought everything exce) assistant->add_grocery+clear_purchased_groceries tool:add_grocery tool:clear_purchased_groceries]",
           "response": {
             "role": "assistant",
             "content": "Eggs stay on the list.",

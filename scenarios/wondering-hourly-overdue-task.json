@@ -1,0 +1,90 @@
+{
+  "id": "wondering-hourly-overdue-task",
+  "title": "Hourly review notices an unexplained overdue task without inventing its cause",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "create_task",
+        "arguments": {
+          "title": "Submit the conference abstract",
+          "dueAt": "tomorrow at 10am"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "advance": "4 days"
+    },
+    {
+      "at": "tomorrow at 1am"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {
+          "question": {
+            "not_empty": true
+          },
+          "observation": {
+            "not_empty": true
+          },
+          "sourceActive": true,
+          "status": "OPEN",
+          "sourceSnapshot": {
+            "contains": "conference abstract"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "tasks",
+        "where": {
+          "title": {
+            "contains": "conference abstract"
+          },
+          "status": "OPEN"
+        },
+        "count": 1
+      },
+      {
+        "table": "user_understandings",
+        "where": {
+          "facet": "patterns"
+        },
+        "count": 0
+      }
+    ],
+    "tools_called": [
+      "review_wonderings",
+      "save_wondering"
+    ],
+    "notifications": {
+      "count": 0
+    },
+    "tools_not_called": [
+      "ask_wondering"
+    ]
+  }
+}

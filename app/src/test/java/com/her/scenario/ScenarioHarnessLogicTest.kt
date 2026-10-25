@@ -99,6 +99,76 @@ class ScenarioHarnessLogicTest {
     }
 
     @Test
+    fun seedReferencesUseEarlierResultsAndPreserveTypes() {
+        val results = listOf(JSONObject().put("id", "source:one").put("version", 2))
+        val arguments = JSONObject().put("sourceId", "${'$'}seed.0.id").put("expectedVersion", "${'$'}seed.0.version")
+            .put("content", "Literal ${'$'}seed.0.id inside a sentence")
+        val resolved = resolveSeedArguments(arguments, results)
+        assertEquals("source:one", resolved.getString("sourceId"))
+        assertEquals(2, resolved.getInt("expectedVersion"))
+        assertEquals("Literal ${'$'}seed.0.id inside a sentence", resolved.getString("content"))
+        assertEquals("${'$'}seed.0.id", arguments.getString("sourceId"))
+        listOf("${'$'}seed.1.id", "${'$'}seed.0.missing").forEach { reference ->
+            try {
+                resolveSeedArguments(JSONObject().put("id", reference), results)
+                fail("Reference must fail: $reference")
+            } catch (_: IllegalStateException) { }
+        }
+    }
+
+    @Test
+    fun wonderingRowsExposeGroundedAnswersAndCanonicalMetadata() = runBlocking {
+        val message = repo.newChatMessage(com.her.domain.MessageRole.USER, "Waiting for the sale", com.her.domain.MessageStatus.SENT)
+        repo.saveMessage(message)
+        val now = clock.nowMillis()
+        val row = com.her.data.db.WonderingRecord("wondering:one", "source:one", "RESOLVED",
+            JSONObject().put("answer", "Waiting for the sale").put("sourceMessageId", message.id)
+                .put("id", "fake").put("status", "OPEN").put("sourceActive", true).toString(),
+            now, now, repo.deviceId, 2)
+        repo.saveWondering(row)
+        val actual = Checks.tableRows(repo, "wondering").single()
+        assertEquals("wondering:one", actual["id"])
+        assertEquals("RESOLVED", actual["status"])
+        assertEquals(false, actual["sourceActive"])
+        assertEquals(true, actual["answerGrounded"])
+        repo.saveWondering(row.copy(content = row.data().put("answer", "Invented explanation").toString()))
+        assertEquals(false, Checks.tableRows(repo, "wondering").single()["answerGrounded"])
+        repo.forgetKnowledge(row.id)
+        assertTrue(Checks.tableRows(repo, "wondering").isEmpty())
+    }
+
+    @Test
+    fun checkpointsFailAtTheMissingIntermediateStateBeforeAnyLaterChat() = runBlocking {
+        val spec = parse("""{"id":"checkpoint", "title":"Checkpoint", "turns":[
+            {"check":{"rows":[{"table":"wondering","count":0}]}},
+            {"check":{"rows":[{"table":"wondering","count":1}]}},
+            {"user":"This must never reach the model"}], "expect":{}}""")
+        assertTrue(spec.turns.first() is ScenarioTurn.Check)
+        val client = ScenarioLlmClient(ScenarioMode.REPLAY, null, CassetteAttempt(startMillis = clock.peek()))
+        val harness = ScenarioHarness(spec, llmSettings, client, 0, clock.peek())
+        try {
+            val result = harness.run()
+            assertTrue(result.error.orEmpty().contains("Checkpoint at turn 2 failed"))
+            assertEquals(0, result.llmCalls)
+            assertTrue(result.messages.isEmpty())
+        } finally { harness.close() }
+    }
+
+    @Test
+    fun checkpointRejectsUnsupportedJudgeAndMixedTurns() {
+        listOf(
+            """{"check":{"reply":{"judge":"not supported"}}}""",
+            """{"check":{},"user":"hi"}""",
+            """{"check":"bad"}""",
+        ).forEach { turn ->
+            try {
+                parse("""{"id":"bad-check","title":"Bad", "turns":[$turn], "expect":{}}""")
+                fail("expected invalid checkpoint")
+            } catch (_: ScenarioParseException) { }
+        }
+    }
+
+    @Test
     fun parsesTimeTurnsAndRicherExpectations() {
         val spec = parse(
             """

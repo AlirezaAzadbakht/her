@@ -230,6 +230,7 @@ internal fun ToolRegistry.registerMemoryTools() {
             }
             val pending = consumeConfirmation(confirmId, ConfirmationKind.BULK_FORGET)
             repo.companionRecords().filter { it.kind !in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") }.forEach { repo.forgetCompanion(it.id) }
+            repo.wonderings().forEach { repo.forgetKnowledge(it.id) }
             repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.allShort().forEach { repo.deleteShort(it.id) }
             repo.allUserUnderstandings().forEach { repo.forgetKnowledge(it.id) }
@@ -238,6 +239,7 @@ internal fun ToolRegistry.registerMemoryTools() {
         }
         val id = args.requiredString("id")
         when {
+            repo.getWondering(id) != null -> repo.forgetKnowledge(id)
             repo.getUserUnderstanding(id) != null -> repo.forgetKnowledge(id)
             repo.getCompanionRecord(id)?.kind in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") -> throw ToolValidationException("Internal deletion/delivery marker cannot be removed")
             repo.getCompanionRecord(id) != null -> repo.forgetCompanion(id)

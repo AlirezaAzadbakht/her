@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her revisits memories, overdue tasks and lingering purchases, keeps unanswered questions in a separate wondering memory, and occasionally asks during chat to understand your patterns without repeated nudges.
 - Her keeps feelings tied to individual situations and can recognize relief, hope, or disappointment as linked experiences change. Recalling a change does not count it again.
 - No API key? The first screen and Settings link to Her Cloud, where you can buy credit. Then tap Paste settings or Scan QR code to connect with what it gives you.
 - Executive delegation extends waiting-on records with owned outcomes, dependencies, reported progress, blockers and decisions needed. Ask “what needs me today?” for an evidence-grounded exception briefing; missing updates remain unknown.
@@ -29,6 +30,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Emotional state is a saturating projection with tone hints in context, rather than a capped running total and unused purpose scores.
 
 ### Fixed
+- Hourly review saves unexplained questions before considering a nudge. Memory corrections report retired questions, and asking accepts either the saved question ID or its source ID while retaining version and cooldown checks.
+- Nightly reflection now explicitly saves unanswered questions about unfinished items and past decisions, while keeping intentionally deferred purchases on the list.
 - With hourly checks allowed during quiet hours, a nudge held overnight now reaches your phone in the morning instead of sitting silently in chat.
 - Telling her how a decision turned out keeps the reasons you first gave and marks the decision reviewed.
 - Saying “OK, I'll do that” to one of her suggested actions now counts as accepting today's plan.

@@ -88,7 +88,7 @@ open class ToolRegistry(
         return try {
             validateRequired(spec.first, args)
             validateTypes(spec.first, args)
-            if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) validateCompanionSchema(spec.first, args)
+            if (name in companionToolNames || name in wonderingToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) validateCompanionSchema(spec.first, args)
             if (name in emotionalToolNames) {
                 args.keys().forEach { key ->
                     val v = args.get(key)
@@ -105,7 +105,7 @@ open class ToolRegistry(
                 catch (_: Exception) { repo.logActivity("emotion", "Could not capture work evidence", null) }
             }
             if (name == "update_user_profile") reminderAlarms.rearmAll(repo)
-            repo.logActivity("tool", name, if (name in companionToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) null else payload.toString().take(2000))
+            repo.logActivity("tool", name, if (name in companionToolNames || name in wonderingToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) null else payload.toString().take(2000))
             ToolResult(name, payload.optBoolean("ok", true), payload.toString())
         } catch (e: ToolValidationException) {
             ToolResult(name, false, jsonObjectOf("ok" to false, "error" to e.message).toString())
@@ -203,6 +203,7 @@ open class ToolRegistry(
         registerLearningTools()
         registerCompanionTools()
         registerUnderstandingTools()
+        registerWonderingTools()
         registerSupportTools()
         registerEmotionalTools()
     }
@@ -318,4 +319,4 @@ open class ToolRegistry(
     }
 }
 
-internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile")
+internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering")

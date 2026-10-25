@@ -66,7 +66,9 @@ internal fun ToolRegistry.registerUnderstandingTools() {
             repo.upsertLong(LongTermMemory(replacementId, content, old?.category ?: "correction", 1.0, old?.importance ?: 0.7,
                 now, now, now, MemorySource.USER_EXPLICIT, source.id, null, now, null, MemoryStatus.ACTIVE,
                 jsonObjectOf("supersedes" to id, "evidence" to a.getString("evidence")).toString(), repo.deviceId, 1, null))
-            jsonObjectOf("ok" to true, "id" to replacementId, "historicalId" to id, "created" to true, "externalActionPerformed" to false)
+            jsonObjectOf("ok" to true, "id" to replacementId, "historicalId" to id, "created" to true, "externalActionPerformed" to false,
+                "wonderingEffect" to "Linked open or asked questions are already OBSOLETE. Do not resolve them using their previous versions.",
+                "wonderings" to JSONArray(repo.wonderings().filter { it.sourceId == id }.map { JSONObject(it.toJson()) }))
         }
     }
 }

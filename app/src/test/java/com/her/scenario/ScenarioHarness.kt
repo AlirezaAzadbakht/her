@@ -138,8 +138,16 @@ class ScenarioHarness(
         try {
             seed()
             tools.clear()
-            for (turn in spec.turns) {
+            for ((turnIndex, turn) in spec.turns.withIndex()) {
                 val result = when (turn) {
+                    is ScenarioTurn.Check -> {
+                        val messages = repo.recentMessages(200)
+                        val snapshot = HarnessOutcome(tools.calls, notifier.notifications, messages,
+                            Checks.lastAssistantReply(messages, lastReply), "", "", llm.inputTokens, llm.outputTokens, llm.calls, error)
+                        val failures = Checks.evaluate(spec.copy(expect = turn.expect), repo, snapshot, extraTables()).filterNot { it.passed }
+                        check(failures.isEmpty()) { "Checkpoint at turn ${turnIndex + 1} failed: " + failures.joinToString("; ") { "${it.name}: ${it.detail}" } }
+                        null
+                    }
                     is ScenarioTurn.User -> {
                         orchestrator.enqueueUserMessage(turn.text)
                         if (turn.queued) null else orchestrator.processOutbox()
@@ -266,11 +274,14 @@ class ScenarioHarness(
                 google.seed(event.title, start, start + 60 * 60 * 1000, event.notes)
             }
         }
+        val seedResults = mutableListOf<JSONObject>()
         spec.seed.tools.forEach { call ->
-            val result = tools.execute(call.name, call.argumentsJson)
+            val arguments = resolveSeedArguments(JSONObject(call.argumentsJson), seedResults)
+            val result = tools.execute(call.name, arguments.toString())
             if (!result.ok && !JSONObject(result.payloadJson).optBoolean("ok", false)) {
                 error("Seed tool ${call.name} failed: ${result.payloadJson}")
             }
+            seedResults += JSONObject(result.payloadJson)
         }
     }
 
@@ -278,4 +289,20 @@ class ScenarioHarness(
         raw.toLongOrNull()?.let { return it }
         return RelativeTimeParser.parse(raw, repo.now())?.toInstant()?.toEpochMilli()
     }
+}
+
+/** Exact, top-level references only; seed results never become model instructions. */
+internal fun resolveSeedArguments(arguments: JSONObject, results: List<JSONObject>): JSONObject {
+    val resolved = JSONObject(arguments.toString())
+    val reference = Regex("""^\${'$'}seed\.(\d+)\.([A-Za-z][A-Za-z0-9_]*)$""")
+    arguments.keys().forEach { key ->
+        val value = arguments.opt(key) as? String ?: return@forEach
+        val match = reference.matchEntire(value) ?: return@forEach
+        val index = match.groupValues[1].toIntOrNull() ?: error("Invalid seed reference: $value")
+        val result = results.getOrNull(index) ?: error("Seed reference must point to an earlier result: $value")
+        val field = match.groupValues[2]
+        check(result.has(field) && !result.isNull(field)) { "Missing seed result field: $value" }
+        resolved.put(key, result.get(field))
+    }
+    return resolved
 }

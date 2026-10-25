@@ -53,11 +53,14 @@ class ScenarioPoolValidationTest {
             spec.seed.tools.forEach { call ->
                 if (call.name !in knownTools) unknown += "${spec.id} seed ${call.name}"
             }
-            spec.expect.toolsCalled.forEach { name ->
-                if (name !in knownTools) unknown += "${spec.id} tools_called $name"
-            }
-            spec.expect.toolsNotCalled.forEach { name ->
-                if (name !in knownTools) unknown += "${spec.id} tools_not_called $name"
+            val expectations = listOf(spec.expect) + spec.turns.filterIsInstance<ScenarioTurn.Check>().map { it.expect }
+            expectations.forEach { expect ->
+                expect.toolsCalled.forEach { name ->
+                    if (name !in knownTools) unknown += "${spec.id} tools_called $name"
+                }
+                expect.toolsNotCalled.forEach { name ->
+                    if (name !in knownTools) unknown += "${spec.id} tools_not_called $name"
+                }
             }
         }
         if (unknown.isNotEmpty()) {

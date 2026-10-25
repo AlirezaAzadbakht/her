@@ -236,6 +236,9 @@ class HerRepository(
                 JSONObject().put("targetId", id).toString(), at, at, deviceId, 1))
         }
         forgetCompanion(id)
+        wonderings().filter { it.id == id || it.sourceId == id || id in it.sourceIds() }.forEach {
+            saveWondering(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+        }
         getLong(id)?.takeIf { it.deletedAt == null }?.let {
             memoryDao.upsertLong(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
             enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
@@ -254,6 +257,9 @@ class HerRepository(
 
     /** Keep evidence, but remove stale derived summaries from current answers until refreshed. */
     suspend fun invalidateKnowledge(id: String): Unit = db.withTransaction {
+        wonderings().filter { it.sourceId == id && it.status in setOf("OPEN", "ASKED") }.forEach {
+            saveWondering(it.copy(status = "OBSOLETE", updatedAt = nowMillis(), version = it.version + 1))
+        }
         allLong().filter { it.status == MemoryStatus.ACTIVE && id in memoryDependencies(it) }.forEach {
             upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
             invalidateKnowledge(it.id)
@@ -448,6 +454,29 @@ class HerRepository(
     suspend fun saveAgentState(item: AgentStateEntry) {
         db.agentDao().upsertState(item.toEntity())
         enqueue("agent_state", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
+    /** Current source evidence for a question; elapsed time never completes an item. */
+    suspend fun wonderingSource(id: String): String? {
+        getTask(id)?.takeIf { it.deletedAt == null && it.status == TaskStatus.OPEN }?.let { return it.title }
+        getGrocery(id)?.takeIf { it.deletedAt == null && it.status == GroceryStatus.ACTIVE }?.let { return it.name }
+        getLong(id)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let { return it.content }
+        getShort(id)?.takeIf { it.deletedAt == null && (it.expiresAt == null || it.expiresAt > nowMillis()) }?.let { return it.content }
+        return null
+    }
+
+    suspend fun wonderings() = db.wonderingDao().all()
+    suspend fun getWondering(id: String) = db.wonderingDao().get(id)
+    suspend fun saveWondering(item: com.her.data.db.WonderingRecord) = db.withTransaction {
+        val forgotten = knowledgeForgotten(item.id) || knowledgeForgotten(item.sourceId) ||
+            item.sourceIds().any { knowledgeForgotten(it) } || getWondering(item.id)?.deletedAt != null
+        val row = when {
+            forgotten -> item.copy(content = "{}", deletedAt = item.deletedAt ?: nowMillis())
+            item.status in setOf("OPEN", "ASKED") && wonderingSource(item.sourceId) == null -> item.copy(status = "OBSOLETE")
+            else -> item
+        }
+        db.wonderingDao().upsert(row)
+        enqueue("wondering", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun companionRecords() = db.companionDao().all()

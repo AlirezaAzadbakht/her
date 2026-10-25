@@ -57,7 +57,12 @@ class ScenarioEngineTest {
                 pool.map { spec ->
                     async(Dispatchers.IO) {
                         gate.withPermit {
-                            runScenario(spec, settings, live, mode, requestedAttempts)
+                            runScenario(spec, settings, live, mode, requestedAttempts).also { result ->
+                                ScenarioReport.write(listOf(result),
+                                    java.io.File(ScenarioPaths.reportsDir(), "completed/${spec.id}"),
+                                    judgeSameAsAgent = Judge.isSelfJudge(settings.model))
+                                println("Finished ${spec.id}: ${result.passCount}/${result.attempts.size}")
+                            }
                         }
                     }
                 }.awaitAll()

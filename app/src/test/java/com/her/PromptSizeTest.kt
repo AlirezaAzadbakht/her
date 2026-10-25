@@ -46,7 +46,7 @@ class PromptSizeTest {
         val built = contextBuilder.build("hello")
         val system = built.messages.first().content.orEmpty()
         println("promptSize tools=${specs.size} toolChars=$toolChars systemChars=${system.length} bundleChars=${built.systemBundle.length}")
-        assertEquals(93, specs.size)
+        assertEquals(96, specs.size)
         assertTrue("tool schemas grew to $toolChars", toolChars <= TOOL_CHARS)
         assertTrue("system prompt grew to ${system.length}", system.length <= SYSTEM_CHARS)
         assertTrue("context bundle grew to ${built.systemBundle.length}", built.systemBundle.length <= BUNDLE_CHARS)
@@ -59,8 +59,8 @@ class PromptSizeTest {
 
     private companion object {
         // Just above the trimmed sizes (tools 38159, system 27410, empty bundle 776).
-        const val TOOL_CHARS = 39_000
-        const val SYSTEM_CHARS = 28_000
+        const val TOOL_CHARS = 42_000
+        const val SYSTEM_CHARS = 30_000
         const val BUNDLE_CHARS = 1_100
     }
 }

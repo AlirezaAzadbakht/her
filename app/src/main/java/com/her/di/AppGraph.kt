@@ -38,7 +38,7 @@ class AppGraph(context: Context) {
     val secure = SecureSettingsStore(appContext)
     val connectivity = ConnectivityObserver(appContext)
     val db: HerDatabase = Room.databaseBuilder(appContext, HerDatabase::class.java, "her.db")
-        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7)
+        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8)
         .build()
     val repo = HerRepository(db, settings)
     val sqlBrowser = SqlBrowser(db)

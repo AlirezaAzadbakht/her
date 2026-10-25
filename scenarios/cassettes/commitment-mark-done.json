@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "18e3a4241e8474b3",
-          "summary": "tools=93 [user(Just sent Mina the invoi)]",
+          "fingerprint": "9b043e9b5f4b8d81",
+          "summary": "tools=96 [user(Just sent Mina the invoi)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "aa761f7d26662a51",
-          "summary": "tools=93 [user(Just sent Mina the invoi) assistant->update_commitment tool:update_commitment]",
+          "fingerprint": "149175f521c1953b",
+          "summary": "tools=96 [user(Just sent Mina the invoi) assistant->update_commitment tool:update_commitment]",
           "response": {
             "role": "assistant",
             "content": "Marked the invoice to Mina as done.",

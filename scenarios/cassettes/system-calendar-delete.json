@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "fb764222d6c22ba9",
-          "summary": "tools=93 [user(Cancel the dentist tomor)]",
+          "fingerprint": "fcbba8da738a8ded",
+          "summary": "tools=96 [user(Cancel the dentist tomor)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "ec093f3bbd4289da",
-          "summary": "tools=93 [user(Cancel the dentist tomor) assistant->delete_calendar_event tool:delete_calendar_event]",
+          "fingerprint": "c9e880453721c2f6",
+          "summary": "tools=96 [user(Cancel the dentist tomor) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",
             "content": "The dentist appointment is deleted.",
@@ -39,8 +39,8 @@
           }
         },
         {
-          "fingerprint": "a2699074bde8b641",
-          "summary": "tools=93 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
+          "fingerprint": "69c307cb6e449fe1",
+          "summary": "tools=96 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -59,8 +59,8 @@
           }
         },
         {
-          "fingerprint": "ab9d41fda4a5a148",
-          "summary": "tools=93 [user(Cancel the dentist tomor) assistant user(Yes, delete it.) assistant->delete_calendar_event tool:delete_calendar_event]",
+          "fingerprint": "266282c42e99dd61",
+          "summary": "tools=96 [user(Cancel the dentist tomor) assistant user(Yes, delete it.) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",
             "content": "The dentist appointment is deleted.",

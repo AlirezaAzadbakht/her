@@ -208,6 +208,17 @@ object Checks {
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000
         return when (table) {
+            "wondering" -> repo.wonderings().map { row ->
+                val data = row.data()
+                val answerSource = data.optString("sourceMessageId").takeIf { it.isNotBlank() }?.let { repo.getMessage(it) }
+                val answer = data.optString("answer")
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "sourceId" to row.sourceId, "status" to row.status,
+                        "version" to row.version, "createdAt" to row.createdAt, "updatedAt" to row.updatedAt,
+                        "sourceActive" to (repo.wonderingSource(row.sourceId) != null),
+                        "answerGrounded" to (answer.isNotBlank() && answerSource?.role == MessageRole.USER &&
+                            answerSource.deletedAt == null && answerSource.content.contains(answer)))
+            }
             "learning_records" -> repo.learningRecords().map { row ->
                 val data = row.data()
                 data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
@@ -377,6 +388,7 @@ object Checks {
                     "source" to it.source.name,
                 )
             }
+            "user_knowledge" -> tableRows(repo, "memories_long") + tableRows(repo, "user_understandings")
             "user_understandings" -> repo.activeUserUnderstandings().map {
                 mapOf(
                     "id" to it.id,

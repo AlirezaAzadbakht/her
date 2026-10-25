@@ -64,6 +64,9 @@ sealed class ScenarioTurn {
 
     /** Jump the harness clock to a future moment, e.g. `"next monday at 8am"`. */
     data class At(val phrase: String) : ScenarioTurn()
+
+    /** Assert cumulative behavior and current storage without showing assertions to the model. */
+    data class Check(val expect: ScenarioExpect) : ScenarioTurn()
 }
 
 enum class AutonomousRun {
@@ -150,11 +153,13 @@ object ScenarioTables {
         "memories_short",
         "profile",
         "user_understandings",
+        "user_knowledge",
         "reminders",
         "alarms",
         "companion_records",
         "emotional_state",
         "learning_records",
+        "wondering",
     )
 }
 
@@ -172,7 +177,7 @@ object ScenarioLoader {
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
     )
     private val seedToolKeys = setOf("name", "arguments")
-    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued")
+    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued", "check")
     private val faultKeys = setOf("call", "type")
     val faultTypes = setOf("http_500", "http_429", "malformed_json", "truncated_stream")
     private val expectKeys = setOf(
@@ -367,9 +372,15 @@ object ScenarioLoader {
             return ScenarioTurn.Run(AutonomousRun.valueOf(raw.uppercase()), concurrent)
         }
         if (present.size != 1) {
-            throw ScenarioParseException(file, "$path must have exactly one of user, run, advance, at")
+            throw ScenarioParseException(file, "$path must have exactly one of user, run, advance, at, check")
         }
         return when (present.single()) {
+            "check" -> {
+                val check = obj.optJSONObject("check") ?: throw ScenarioParseException(file, "$path.check must be an object")
+                val expect = parseExpect(file, check, "$path.check")
+                if (expect.reply?.judge != null) throw ScenarioParseException(file, "$path.check does not support a reply judge; use deterministic checks here and a final judge")
+                ScenarioTurn.Check(expect)
+            }
             "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path), obj.optBoolean("queued", false))
             "run" -> {
                 val raw = obj.requiredString(file, "run", path).lowercase()

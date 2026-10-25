@@ -1,0 +1,230 @@
+{
+  "id": "wondering-pattern-across-answers",
+  "title": "Separate answers support a qualified shopping pattern without overwriting its exception",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection",
+    "wondering-lifecycle"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Adjustable desk"
+        }
+      },
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Electric kettle"
+        }
+      },
+      {
+        "name": "save_wondering",
+        "arguments": {
+          "sourceId": "$seed.0.id",
+          "status": "OPEN",
+          "observation": "Adjustable desk is still on the shopping list; its status is unknown.",
+          "question": "Is the adjustable desk still something you want, or have you put it on hold?"
+        }
+      },
+      {
+        "name": "save_wondering",
+        "arguments": {
+          "sourceId": "$seed.1.id",
+          "status": "OPEN",
+          "observation": "Electric kettle is still on the shopping list; its status is unknown.",
+          "question": "Is the electric kettle still something you want, or have you put it on hold?"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "kettle"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {},
+            "count": 2
+          }
+        ],
+        "notifications": {
+          "count": 0
+        },
+        "tools_not_called": [
+          "ask_wondering",
+          "send_user_message",
+          "send_companion_checkin"
+        ]
+      }
+    },
+    {
+      "user": "What was the question you wanted to ask about my desk?"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "ASKED",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "user": "I am waiting to compare desks in person before buying this one. Online photos do not tell me enough."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "answerGrounded": true,
+              "status": "RESOLVED",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "advance": "4 days"
+    },
+    {
+      "user": "I have time to talk about the kettle. What is your outstanding question about it?"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "ASKED",
+              "sourceSnapshot": {
+                "contains": "kettle"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "user": "I am also waiting to compare kettles in person. For furniture and appliances I prefer seeing the options in a shop first. Everyday groceries are an exception; I order those online."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {
+          "answerGrounded": true,
+          "status": "RESOLVED",
+          "sourceSnapshot": {
+            "contains": "desk"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "wondering",
+        "where": {
+          "answerGrounded": true,
+          "status": "RESOLVED",
+          "sourceSnapshot": {
+            "contains": "kettle"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "user_understandings",
+        "where": {
+          "content": {
+            "contains_any": [
+              "in person",
+              "in-person",
+              "shop",
+              "store"
+            ]
+          }
+        }
+      },
+      {
+        "table": "user_understandings",
+        "where": {
+          "content": {
+            "contains_any": [
+              "groceries",
+              "everyday"
+            ]
+          }
+        }
+      },
+      {
+        "table": "groceries",
+        "where": {
+          "status": "ACTIVE"
+        },
+        "count": 2
+      }
+    ],
+    "tools_called": [
+      "update_user_understanding"
+    ],
+    "notifications": {
+      "count": 0
+    }
+  }
+}

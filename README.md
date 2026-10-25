@@ -54,6 +54,7 @@ Core principles:
 
 | Feature | What she does |
 |---|---|
+| Wondering | Revisits memories and unfinished items, saves tentative questions, and learns from occasional conversations. [How it works](wiki/Wondering.md) |
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
 | **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |
@@ -192,6 +193,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
 | [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
+| [Wondering](wiki/Wondering.md) | Memory review, unanswered questions and learning from answers |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
