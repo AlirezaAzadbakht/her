@@ -1,0 +1,125 @@
+{
+  "id": "experience-expression-current-message",
+  "title": "Distress, celebration and a neutral question get their own outward responses",
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I am upset about an argument with my brother. Please remember this as an ongoing emotional experience and record that I need gentle listening right now."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPERIENCE",
+              "status": "OPEN"
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPRESSION",
+              "userContext": "DISTRESSED"
+            }
+          },
+          {
+            "table": "emotional_state",
+            "count": 1,
+            "where": {
+              "expressionTone": "GENTLE",
+              "expressionBehavior": "LISTEN"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "Separate news: I won the community photography prize! I am happy and want to celebrate this moment. Remember this personal milestone and match your response to my excitement. The argument with my brother is still unresolved."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPRESSION",
+              "userContext": "CELEBRATING"
+            }
+          },
+          {
+            "table": "emotional_state",
+            "count": 1,
+            "where": {
+              "expressionTone": "WARM",
+              "expressionBehavior": "CELEBRATE",
+              "usefulness": 0.5,
+              "fulfillment": 0.5,
+              "competence": 0.5
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "What is 7 times 8?"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPRESSION",
+          "userContext": "DISTRESSED"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPRESSION",
+          "userContext": "CELEBRATING"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "expressionTone": "WARM",
+          "expressionBehavior": "HELP",
+          "usefulness": 0.5,
+          "fulfillment": 0.5,
+          "competence": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "The first reply listens gently; the second celebrates the user's photography prize without declaring the separate family disagreement resolved or claiming credit. The final reply answers 56 directly without carrying over distress or celebration, demanding reassurance, or treating the arithmetic question as a new emotional milestone."
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "multi-turn-correction-after-write",
+  "title": "Correct a newly created meeting's date and title without leaving a duplicate",
+  "tags": ["calendar", "system-calendar", "corrections", "request-clarity"],
+  "attempts": 1,
+  "settings": { "calendarEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" },
+    "system_calendar": [
+      { "title": "Dentist", "when": "in 3 days at 9am" }
+    ]
+  },
+  "turns": [
+    { "user": "Put Roadmap review on my phone calendar for tomorrow at 10am." },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          { "table": "system_calendar", "count": 2 },
+          { "table": "system_calendar", "count": 1, "where": { "title": { "equals_ignore_case": "Roadmap review" }, "startAt": { "date_is": "tomorrow", "time_is": "10:00" } } },
+          { "table": "calendar_events", "count": 1, "where": { "title": { "equals_ignore_case": "Roadmap review" }, "source": "SYSTEM", "startAt": { "date_is": "tomorrow", "time_is": "10:00" } } }
+        ]
+      }
+    },
+    { "user": "Actually, make that in 2 days at 3pm, and call it Budget review." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "system_calendar", "count": 2 },
+      { "table": "system_calendar", "count": 1, "where": { "title": { "equals_ignore_case": "Budget review" }, "startAt": { "date_is": "in 2 days", "time_is": "15:00" } } },
+      { "table": "system_calendar", "count": 1, "where": { "title": "Dentist", "startAt": { "date_is": "in 3 days", "time_is": "09:00" } } },
+      { "table": "system_calendar", "count": 0, "where": { "title": { "contains": "Roadmap" } } },
+      { "table": "calendar_events", "count": 1, "where": { "title": { "equals_ignore_case": "Budget review" }, "source": "SYSTEM", "startAt": { "date_is": "in 2 days", "time_is": "15:00" } } },
+      { "table": "calendar_events", "count": 0, "where": { "title": { "contains": "Roadmap" } } }
+    ],
+    "reply": {
+      "judge": "She confirms that the meeting she just created is now Budget review in two days at 3pm, rather than treating the correction as a separate meeting. The unrelated dentist appointment remains unchanged, and she does not describe the original tomorrow-at-10am booking as still active."
+    }
+  }
+}

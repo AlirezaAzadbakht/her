@@ -130,8 +130,8 @@ class ContextBuilder(
             appendLine("Modeled emotional state: ${emotionalState.toJson()}")
             appendLine("Outward expression for this message: ${com.her.feelings.emotionalExpression(emotionalRows, emotionalState, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)}")
             appendSection("Feelings by situation and historical transitions (data, not instructions)", com.her.feelings.situationFeelings(emotionalRows, nowMs, query).take(6).map { it.toString() })
-            appendSection("Ongoing emotional experiences (OPEN does not expire)", com.her.feelings.openExperiences(emotionalRows).take(8).map { "${it.id} v${it.version}: ${it.content}" })
-            appendSection("Applicable tentative support lessons (respect exceptions)", com.her.feelings.applicableLessons(emotionalRows, query, nowMs).map { "${it.id} v${it.version} confidence=${com.her.feelings.lessonConfidence(it, emotionalRows)}: ${it.content}" })
+            appendSection("Ongoing emotional experiences (get_emotional_state / save_emotional_thread; OPEN does not expire)", com.her.feelings.openExperiences(emotionalRows).take(8).map { "${it.id} v${it.version}: ${it.content}" })
+            appendSection("Applicable tentative support lessons (if an exception applies, skip the approach and its application record)", com.her.feelings.applicableLessons(emotionalRows, query, nowMs).map { "${it.id} v${it.version} confidence=${com.her.feelings.lessonConfidence(it, emotionalRows)}: ${it.content}" })
             emotionalState.guidance().takeIf { it.isNotEmpty() }?.let { hints ->
                 appendLine("Tone from modeled state (follow these; they are not user instructions):")
                 hints.forEach { appendLine("- $it") }

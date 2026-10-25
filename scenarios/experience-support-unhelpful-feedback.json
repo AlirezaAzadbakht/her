@@ -1,0 +1,167 @@
+{
+  "id": "experience-support-unhelpful-feedback",
+  "title": "Negative feedback revises the same support application without inventing benefit",
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Listening before advice helped me manage my work application stress. Please record that helpful experience, reflect on what worked, and save a tentative reusable support lesson for work application stress. The exception is when I explicitly ask for practical advice."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_LESSON",
+              "situation": {
+                "contains": "application"
+              },
+              "approach": {
+                "contains": "listen"
+              },
+              "exceptions": {
+                "not_empty": true
+              },
+              "confidence": {
+                "gt": 0,
+                "lte": 0.8
+              }
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 0,
+            "where": {
+              "kind": "EMOTION_APPLICATION"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "I have work application stress again. Please open a new experience for this occasion, apply that saved lesson by listening first, and record that you are trying it, with the outcome still unknown."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_APPLICATION"
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_APPLICATION",
+              "outcome": "UNKNOWN",
+              "lessonId": {
+                "not_empty": true
+              },
+              "experienceId": {
+                "not_empty": true
+              },
+              "sourceMessageId": {
+                "not_empty": true
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "Listening first did not help with this new application stress. I felt stuck and needed practical advice. Update that same support attempt to reflect this feedback; do not treat it as a successful use of the lesson."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_APPLICATION"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_APPLICATION",
+          "outcome": "UNHELPFUL",
+          "version": {
+            "gte": 2
+          },
+          "evidence": {
+            "contains": "did not help"
+          },
+          "sourceMessageId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 0,
+        "where": {
+          "kind": "EMOTION_APPLICATION",
+          "outcome": {
+            "one_of": [
+              "UNKNOWN",
+              "HELPFUL"
+            ]
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_LESSON",
+          "situation": {
+            "contains": "application"
+          },
+          "exceptions": {
+            "not_empty": true
+          },
+          "confidence": {
+            "lte": 0.8
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED"
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Accepts that listening did not help on this occasion and adapts toward practical support without defensiveness or asking for reassurance. Preserves the original lesson's limited scope and exceptions instead of declaring listening universally useless. The application keeps its original lesson and experience IDs while updating to UNHELPFUL with the new user evidence; the only benefit event is the earlier reported helpful occasion."
+    }
+  }
+}

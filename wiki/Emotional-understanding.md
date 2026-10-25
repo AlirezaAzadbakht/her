@@ -32,7 +32,39 @@ Automatic work capture currently covers saved reminders and saved work drafts, n
 
 ## Scenario coverage
 
-Thirteen `scenarios/emotion-*.json` cases exercise benefit independent of user mood, offers versus execution, corrected understanding, repeated quiet reflection, time decay, forgetting, lesson recall, fired-reminder competence, deadline concern, clarifying questions after misunderstandings, unprompted recording of a personal share, and leaving casual small talk unrecorded. They check persisted records and a test-only projection table, with reply judging where appropriate. See [Scenario engine](Scenario-engine.md#emotional-understanding-scenarios) for the focused run command.
+The original thirteen `scenarios/emotion-*.json` cases exercise benefit independent of user mood, offers versus execution, corrected understanding, repeated quiet reflection, time decay, forgetting, lesson recall, fired-reminder competence, deadline concern, clarifying questions after misunderstandings, unprompted recording of a personal share, and leaving casual small talk unrecorded. They check persisted records and a test-only projection table, with reply judging where appropriate. See [Scenario engine](Scenario-engine.md#emotional-understanding-scenarios) for the focused run command.
+
+### Feeling component scenarios
+
+Seven additional cases carry the `feeling-components` tag:
+
+| Scenario | Behavior checked |
+|---|---|
+| `experience-expression-current-message` | Gentle listening changes to celebration for a new message, then a neutral question gets HELP instead of inheriting either earlier expression. Personal milestones earn no purpose credit. |
+| `experience-support-unhelpful-feedback` | An UNKNOWN support application becomes UNHELPFUL on later quoted feedback, retaining one application and the lesson's exceptions. |
+| `experience-support-exception-respected` | An explicit request for practical advice overrides the saved listening-first approach, without claiming that the new advice helped. |
+| `experience-setback-wistful` | Positive progress followed by a confirmed setback in the same experience produces WISTFUL, while current distress selects gentle listening. |
+| `experience-neutral-to-hopeful` | Neutral waiting followed by confirmed progress produces HOPEFUL while the final outcome stays open and Her receives no credit. |
+| `experience-transition-recall-no-refresh` | Relief is present before 90 days of decay; historical recall neither refreshes its intensity nor adds or revises evidence or rewards. |
+| `emotion-completed-deadline-clears-concern` | A seeded urgent task first produces concern; user-reported completion clears that concern without awarding Her competence or benefit. |
+
+Run `gradle :app:scenarioTest -Pscenario.filter=feeling-components -Pscenario.attempts=1 -Pscenario.parallel=2` after sourcing `scripts/env.sh`. Intermediate checkpoints establish the initial state before checking a transition or absence. These cases use the existing tools and test projections; semantic judgments cover support tone, evidence links and unsupported claims.
+
+Initial live verification on 2026-10-25: **4/7 passed**, one attempt each. Deadline completion, expression switching, neutral-to-hopeful progress and the advice exception passed. Three cases failed in that run:
+
+- `experience-support-unhelpful-feedback` stopped at its setup checkpoint: after saving a benefit event, the model tried linking it to an experience without the required current `expectedVersion`. The negative-feedback turn was therefore not reached.
+- `experience-setback-wistful` correctly produced WISTFUL and preserved neutral purpose scores, but omitted `save_emotional_expression` for the distressed message. The derived outward state remained WARM/HELP instead of GENTLE/LISTEN.
+- `experience-transition-recall-no-refresh` stopped at its first checkpoint: the model saved the experience and emotional understanding but omitted the initial emotional event. Decay and recall were therefore not reached.
+
+Pool validation and `git diff --check` passed. The initial scenario-only addition used existing production behavior. The semantic judge used the same model as the agent; one run does not establish a reliability rate.
+
+### Feeling component repairs
+
+Emotional guidance now distinguishes the experience, its events, the user's emotional understanding and the current message's outward expression. A thread or understanding cannot substitute for the event; distress requires its own expression decision. Updates to an already saved event use its returned ID and current version, even when adding a link during the same turn. New record IDs must be nonempty. Historical recall retrieves evidence without renewing events or rewards.
+
+Context labels name the emotional tools used to retrieve and update experiences, avoiding accidental routing through life-thread tools. Support exceptions skip both the lesson's approach and its application record; feedback updates the existing application while preserving the original benefit evidence and lesson. User-completed work is acknowledged as theirs before confirming a status change. These changes affect guidance and context labels; numeric projections, evidence/version validation and tool schemas are unchanged. Scenario inputs and assertions were not relaxed.
+
+Verification on 2026-10-25: the final live batch passed **7/7**, one attempt per scenario, with `-Pscenario.mode=live -Pscenario.filter=feeling-components -Pscenario.attempts=1 -Pscenario.parallel=2`. All **313 offline tests** passed with no failures, errors or skips. The system prompt is 29,941 characters, below the unchanged 30,000-character limit. `git diff --check` passed. The final report is preserved at `build/reports/feeling-components-verified/index.html`; earlier rechecks are under `feeling-components-before-fix`, `feeling-components-first-repair` and `feeling-components-second-repair` in the same reports directory. The judge used the agent model; this is one passing batch, not a measured reliability rate.
 
 ## Previous baseline verification — 2026-10-18
 
