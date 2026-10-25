@@ -4,6 +4,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-25
+
 ### Added
 - Her revisits memories, overdue tasks and lingering purchases, keeps unanswered questions in a separate wondering memory, and occasionally asks during chat to understand your patterns without repeated nudges.
 - Her keeps feelings tied to individual situations and can recognize relief, hope, or disappointment as linked experiences change. Recalling a change does not count it again.
@@ -165,7 +167,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.5...v0.1.6
