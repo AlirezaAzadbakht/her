@@ -60,9 +60,20 @@ At `edadb09` the branch passed 26/30, 25 of the 28 shared scenarios against main
 - `experience-support-exception-respected` and `experience-transition-recall-no-refresh`: the review called `save_thread_development` on an emotional experience. Once it used the ID without its `EMOTION_EXPERIENCE:` prefix, which gets the generic not-found error.
 - `held-concern-follow-up`: the judge found the milk confirmed but no question about their mother. It passed in three earlier runs.
 
+Fixes after the `edadb09` run:
+- A correction needs the user's own words saying Her got something wrong. The appraisal gives them as `herError`, and they must appear in the message. Without them, CORRECTING reads as NEUTRAL, so a clarification made in advance ("I have not said that it benefited me") no longer lowers understanding and competence. The quote is checked against the message rather than against Her's earlier replies: a scenario like `emotion-low-understanding-asks` corrects things not in the transcript, and an English word check would fail Persian.
+- `save_thread_development` with an emotional experience's ID, full or bare, links that message's unlinked fast event to the experience. It returns `created: false` and saves no life-thread entry.
+- Write receipts skip emotional records. Otherwise that redirect would have shown "saved ongoing support" with an undo that forgets the experience.
+
+A parallel rerun of the eight affected scenarios passed 8/8:
+- `emotion-reminder-competence`: no MISUNDERSTANDING, competence 0.57.
+- `emotion-low-understanding-asks`: its corrections were still recorded.
+- `experience-support-exception-respected`, `experience-transition-recall-no-refresh`, `emotion-understanding-correction`, `experience-neutral-to-hopeful`, `experience-situation-transition` and `experience-unresolved-after-decay`.
+
+No live run called `save_thread_development` on an emotional experience, so the redirect is covered by unit tests only. In those runs chat created ordinary life threads for the emotional updates instead, without errors.
+
 Known gaps:
-- The review sometimes calls life-thread tools (`save_thread_development`) on an emotional experience.
-- The appraisal sometimes reads a clarification made in advance as a correction.
+- Chat sometimes keeps an emotional update as an ordinary life thread as well, duplicating what the experience tracks.
 - Scenario messages that tell chat to "record" an update in an experience push chat toward life-thread tools.
 - The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run and none in the `3914ea7` run.
 

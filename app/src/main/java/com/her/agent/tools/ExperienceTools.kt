@@ -24,6 +24,20 @@ internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: Strin
         ?: throw ToolValidationException("Unavailable $kind ID: $id. For an experience, first call save_emotional_thread and copy its returned full ID; standalone events may omit experienceId.")
 }
 
+/** A live experience by full or bare ID. Never a guess, so a life thread is not mistaken for one. */
+internal suspend fun ToolRegistry.emotionalExperience(id: String): CompanionRecord? =
+    listOf(id, "EMOTION_EXPERIENCE:${id.removePrefix("EMOTION_EXPERIENCE:")}").firstNotNullOfOrNull { repo.getCompanionRecord(it) }
+        ?.takeIf { it.kind == "EMOTION_EXPERIENCE" && it.deletedAt == null }
+
+/** Links one message's unlinked fast events to an experience, the link the review most often skipped; returns them as "id vN". */
+internal suspend fun ToolRegistry.adoptFastEvents(experienceId: String, messageId: String): List<String> =
+    repo.companionRecords().filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && it.data().optString("origin") == "FAST" &&
+        it.data().optString("sourceMessageId") == messageId && it.data().optString("experienceId").isEmpty() }.map { event ->
+        val data = event.data().put("experienceId", experienceId).put("relatedIds", JSONArray(listOf(messageId, experienceId)))
+        repo.saveCompanionRecord(event.copy(content = data.toString(), updatedAt = nowMillis(), version = event.version + 1))
+        "${event.id} v${event.version + 1}"
+    }
+
 internal fun ToolRegistry.registerExperienceTools() {
     val evidence = arrayOf("sourceMessageId" to str("User message id"), "evidence" to str("Exact user quote"), "expectedVersion" to num())
     register("save_emotional_thread", "When they say to remember an ongoing experience or an open question, use this rather than save_life_thread. It stays open until quoted evidence resolves it.",
@@ -47,15 +61,9 @@ internal fun ToolRegistry.registerExperienceTools() {
             old?.data()?.optJSONArray("relatedIds")?.let { array -> (0 until array.length()).forEach { links.add(array.getString(it)) } }
             val saved = saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList()))
                 .put("statusSourceMessageId", if (old == null || statusChanged) source.id else statusSource), a)
-            // A new thread adopts the unlinked fast events of its own source message, the link the review most often skipped.
             if (old != null) return@learningTransaction saved
-            val adopted = repo.companionRecords().filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && it.data().optString("origin") == "FAST" &&
-                it.data().optString("sourceMessageId") == source.id && it.data().optString("experienceId").isEmpty() }
-            adopted.forEach { event ->
-                val data = event.data().put("experienceId", id).put("relatedIds", JSONArray(listOf(source.id, id)))
-                repo.saveCompanionRecord(event.copy(content = data.toString(), updatedAt = nowMillis(), version = event.version + 1))
-            }
-            if (adopted.isEmpty()) saved else saved.put("linkedEvents", JSONArray(adopted.map { "${it.id} v${it.version + 1}" }))
+            val adopted = adoptFastEvents(id, source.id)
+            if (adopted.isEmpty()) saved else saved.put("linkedEvents", JSONArray(adopted))
         }
     }
     register("save_support_lesson", "Turn the id returned by save_emotional_reflection into a tentative, situation-scoped lesson.",

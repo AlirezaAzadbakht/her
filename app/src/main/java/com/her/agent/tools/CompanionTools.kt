@@ -159,7 +159,12 @@ internal fun ToolRegistry.registerCompanionTools() {
                     else -> id
                 }
                 when (kind) {
-                    "DEVELOPMENT" -> requireCompanion(parent, "THREAD")
+                    // A feeling's developments are linked events, not life-thread entries; the review kept reaching for this tool.
+                    "DEVELOPMENT" -> emotionalExperience(parent)?.let { experience ->
+                        val linked = a.optString("sourceMessageId").takeIf { it.isNotBlank() }?.let { adoptFastEvents(experience.id, it) }.orEmpty()
+                        return@learningTransaction jsonObjectOf("ok" to true, "id" to experience.id, "created" to false, "linkedEvents" to JSONArray(linked),
+                            "note" to "${experience.id} is an emotional experience: its developments are linked events, so nothing else was saved")
+                    } ?: requireCompanion(parent, "THREAD")
                     "WAITING" -> {
                         val loop = repo.getOpenLoop(parent)?.takeIf { it.deletedAt == null } ?: throw ToolValidationException("Existing open loop required")
                         val person = repo.getPerson(data.requiredString("personId"))?.takeIf { it.deletedAt == null }

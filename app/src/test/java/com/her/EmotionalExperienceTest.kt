@@ -242,6 +242,23 @@ class EmotionalExperienceTest {
         assertTrue(com.her.feelings.openExperiences(repo.companionRecords()).isEmpty())
     }
 
+    @Test fun aLifeThreadDevelopmentOnAFeelingLinksItsFastEventInstead() = runBlocking {
+        val interview = thread("Worried about the interview", "interview")
+        val news = source("The interview went better than expected")
+        val messageId = news.getString("sourceMessageId")
+        val eventId = "EMOTION_EVENT:USER_SHARED:$messageId"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(eventId, eventId, "EMOTION_EVENT", JSONObject().put("event", "USER_SHARED").put("origin", "FAST")
+            .put("sourceMessageId", messageId).put("goalProgress", 0.8).put("occurredAt", now).toString(), now, now, repo.deviceId, 1))
+        val development = JSONObject(news.toString()).put("id", "went-better").put("threadId", "interview").put("basis", "EXPLICIT")
+            .put("summary", "It went better").put("status", "ACTIVE")
+        val result = tools.execute("save_thread_development", development.toString())
+        assertTrue(result.payloadJson, result.ok)
+        assertEquals(interview, repo.getCompanionRecord(eventId)!!.data().getString("experienceId"))
+        assertTrue(repo.companionRecords().none { it.kind == "DEVELOPMENT" })
+        assertNull(com.her.agent.runner.Receipts.describe("save_thread_development", development.toString(), result.payloadJson))
+    }
+
     @Test fun aReportedBenefitNeedsSomeContributionFromHer() = runBlocking {
         val none = tools.execute("record_emotional_experience", appraisal(event()).put("contribution", 0.0).toString())
         assertTrue(none.payloadJson, !none.ok && none.payloadJson.contains("contribution above 0"))

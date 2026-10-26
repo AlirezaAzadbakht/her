@@ -77,13 +77,21 @@ class FastAppraisalTest {
 
     @Test fun correctionLowersUnderstandingAndSmallTalkWritesNothing() = runBlocking {
         val correction = user("No, that is not what I meant at all")
-        appraise(correction, """{"userContext":"CORRECTING","personal":false,"goalProgress":-0.2,"expectedness":0.4,"uncertainty":0.3,"confidence":0.9,"evidence":"never said this"}""")
+        appraise(correction, """{"userContext":"CORRECTING","personal":false,"goalProgress":-0.2,"expectedness":0.4,"uncertainty":0.3,"confidence":0.9,"evidence":"never said this","herError":"that is not what I meant"}""")
         val event = repo.getCompanionRecord("EMOTION_EVENT:MISUNDERSTANDING:${correction.id}")!!.data()
         assertFalse(event.has("evidence"))
         assertTrue(emotionalState(repo.companionRecords(), clock.nowMillis()).purpose.getValue("understanding") < 0.5)
         val before = repo.companionRecords().size
         appraise(user("haha nice, what's for lunch?"), """{"userContext":"NEUTRAL","personal":false,"goalProgress":0,"expectedness":0.9,"uncertainty":0.1,"confidence":0.9}""")
         assertEquals(before, repo.companionRecords().size)
+    }
+
+    @Test fun aClarificationWithoutWordsAboutHerMistakeIsNotACorrection() = runBlocking {
+        val clarification = user("The reminder fired. I have not said that it benefited me.")
+        appraise(clarification, """{"userContext":"CORRECTING","personal":false,"goalProgress":0,"expectedness":0.8,"uncertainty":0.2,"confidence":0.8,"herError":""}""")
+        appraise(user("Note it fired. To be clear, I did not drink it."),
+            """{"userContext":"CORRECTING","personal":false,"goalProgress":0,"expectedness":0.8,"uncertainty":0.2,"confidence":0.8,"herError":"you got it wrong"}""")
+        assertTrue(repo.companionRecords().none { it.kind == "EMOTION_EVENT" || it.kind == "EMOTION_EXPRESSION" })
     }
 
     @Test fun aFailedOrEmptyAppraisalWritesNothingAndNeverThrows() = runBlocking {

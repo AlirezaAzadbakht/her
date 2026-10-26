@@ -28,13 +28,14 @@ internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest messa
     "confidence" to num("0 to 1, how sure this reading is"),
     "experienceId" to str("An id from openExperiences when this continues that situation, else empty"),
     "evidence" to str("A few exact words from their latest message"),
+    "herError" to str("For CORRECTING: their exact words saying Her got something wrong; empty when they only clarify their own position"),
     "note" to str("One short line on what happened"),
     required = listOf("userContext", "personal", "goalProgress", "expectedness", "uncertainty", "confidence"),
 ))
 
 private val APPRAISE_SYSTEM = """
 You appraise one moment in a conversation between a person and Her, their assistant. Call appraise exactly once, about their latest message only.
-userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, not when they head off a misreading in advance; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
+userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, quoted in herError; heading off a misreading in advance ("I have not said X", "to be clear") is not a correction; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
 personal is true only for a meaningful development in their life or the life of someone close to them: health, work, relationships, milestones, setbacks, worries. Never for small talk, logistics or questions.
 goalProgress is how things moved for them: negative for a setback or worry, positive for progress, 0 when unclear. Do not judge whether Her helped.
 experienceId: copy an id from openExperiences only when this message continues that same situation.
@@ -82,7 +83,9 @@ class FastAppraiser(
 
     /** Anything malformed is dropped, not rejected: a missing link or quote is the nightly review's to fill in. */
     private suspend fun save(message: ChatMessage, a: JSONObject) {
-        val context = a.optString("userContext").takeIf { it in CONTEXTS } ?: "NEUTRAL"
+        val claimed = a.optString("userContext").takeIf { it in CONTEXTS } ?: "NEUTRAL"
+        // A correction costs her understanding, so it needs their own words saying she got something wrong.
+        val context = if (claimed == "CORRECTING" && a.optString("herError").trim().let { it.isEmpty() || !message.content.contains(it) }) "NEUTRAL" else claimed
         val event = when {
             context == "CORRECTING" -> "MISUNDERSTANDING"
             a.optBoolean("personal") -> "USER_SHARED"
