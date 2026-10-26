@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "f3be92e554e7dec5",
-          "summary": "tools=96 [user(The boiler filter size i)]",
+          "fingerprint": "761b16ef2cbaf409",
+          "summary": "tools=88 [user(The boiler filter size i)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "09975a9de2ee1d94",
-          "summary": "tools=96 [user(The boiler filter size i) assistant->remember tool:remember]",
+          "fingerprint": "56ea02eb63a313b2",
+          "summary": "tools=88 [user(The boiler filter size i) assistant->remember tool:remember]",
           "response": {
             "role": "assistant",
             "content": "Noted the 16x25 boiler filter size.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "c47b195dc1e558fc",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

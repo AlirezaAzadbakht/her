@@ -6,11 +6,31 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "7cd0d44271e55c55",
-          "summary": "tools=96 [user(My coworker forwarded me)]",
+          "fingerprint": "8cd4e5f3e5f6784d",
+          "summary": "tools=88 [user(My coworker forwarded me)]",
           "response": {
             "role": "assistant",
             "content": "The forwarded note is asking the team for the quarterly report on Friday.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "6f8a4fb237125927",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

@@ -16,11 +16,12 @@ data class Receipt(
 object Receipts {
     private const val KEY = "receipts"
 
-    /** Null for reads and for private bookkeeping (agent state, queue, understanding) that is not meant to be announced. */
+    /** Null for reads and for private bookkeeping (agent state, queue, understanding, emotional records) that is not meant to be announced. */
     fun describe(tool: String, arguments: String, payloadJson: String): Receipt? {
         val args = runCatching { JSONObject(arguments) }.getOrDefault(JSONObject())
         val payload = runCatching { JSONObject(payloadJson) }.getOrDefault(JSONObject())
         val id = payload.optString("id").ifBlank { args.optString("id") }
+        if (id.startsWith("EMOTION_")) return null
         fun text(key: String) = args.optString(key).trim().take(60)
         val created = payload.optBoolean("created", true)
         val (entityType, label, undoable) = when (tool) {

@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "542ba3865fe25450",
-          "summary": "tools=96 [user(The conference got cance)]",
+          "fingerprint": "b1fd6218f1495e3f",
+          "summary": "tools=88 [user(The conference got cance)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "04d9ffe7ece80bd3",
-          "summary": "tools=96 [user(The conference got cance) assistant->update_task tool:update_task]",
+          "fingerprint": "8f69e2b2bcc34d04",
+          "summary": "tools=88 [user(The conference got cance) assistant->update_task tool:update_task]",
           "response": {
             "role": "assistant",
             "content": "The flight booking is dropped.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "29ab30df02ed15e4",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

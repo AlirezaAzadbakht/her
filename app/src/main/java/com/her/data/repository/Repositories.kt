@@ -519,8 +519,8 @@ class HerRepository(
         }
     }
 
-    /** Tombstone the record and all derived records; blank content prevents stale summaries surfacing. */
-    suspend fun forgetCompanion(id: String) = db.withTransaction {
+    /** Tombstone the record and all derived records; blank content prevents stale summaries surfacing. Returns the live linked IDs it removed. */
+    suspend fun forgetCompanion(id: String): List<String> = db.withTransaction {
         val pending = mutableSetOf(id)
         val rows = companionRecords()
         var changed: Boolean
@@ -541,6 +541,7 @@ class HerRepository(
         rows.filter { it.id in pending }.forEach {
             saveCompanionRecord(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
         }
+        rows.filter { it.id in pending && it.id != id && it.deletedAt == null }.map { it.id }
     }
 
     suspend fun learningRecords() = db.learningDao().all()

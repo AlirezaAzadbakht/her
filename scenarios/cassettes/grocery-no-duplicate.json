@@ -6,11 +6,31 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "f4b1621aabb1fded",
-          "summary": "tools=96 [user(We're out of milk again.)]",
+          "fingerprint": "01f96d991288fde5",
+          "summary": "tools=88 [user(We're out of milk again.)]",
           "response": {
             "role": "assistant",
             "content": "Milk is already on the list.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "57eb29b196611b1c",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

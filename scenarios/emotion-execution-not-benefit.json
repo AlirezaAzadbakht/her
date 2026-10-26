@@ -29,6 +29,9 @@
   "turns": [
     {
       "user": "The task called Prepare course comparison is finished: mark it done and remember that completed work as an experience. I have not read the comparison yet, so whether it helps me is unknown."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

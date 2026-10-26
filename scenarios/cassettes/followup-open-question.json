@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "aceea7faa53b2498",
-          "summary": "tools=96 [user(I still need to ask Mina)]",
+          "fingerprint": "cceb9934b369a1c7",
+          "summary": "tools=88 [user(I still need to ask Mina)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "5e72add9f565aa93",
-          "summary": "tools=96 [user(I still need to ask Mina) assistant->create_open_loop tool:create_open_loop]",
+          "fingerprint": "07ffc27f45e0c8c6",
+          "summary": "tools=88 [user(I still need to ask Mina) assistant->create_open_loop tool:create_open_loop]",
           "response": {
             "role": "assistant",
             "content": "I'll keep the missing payment with Mina open.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "ef3f21b11bbe2398",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

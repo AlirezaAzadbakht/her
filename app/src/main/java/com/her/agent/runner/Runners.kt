@@ -73,6 +73,7 @@ class AgentOrchestrator(
     private val notifier: Notifier,
     private val policy: NotificationPolicy,
     private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
+    private val appraiser: com.her.feelings.FastAppraiser? = null,
 ) {
     // ponytail: one lock for every run; a waiting chat makes a background run stop at its next round,
     // so chat waits at most one background call. Cancel that in-flight call too if one round is still too long.
@@ -119,6 +120,8 @@ class AgentOrchestrator(
         )
         if (!result.failed) {
             repo.markSent(pending.map { it.id })
+            // The reply is already on screen; feeling how the message landed comes after it.
+            result.assistantText?.let { appraiser?.appraise(pending, it) }
         }
         return result
     }

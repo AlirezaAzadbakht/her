@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "c65c85ee3cf2e072",
-          "summary": "tools=96 [user(I want to run a half mar)]",
+          "fingerprint": "4e8141c2d91a0cec",
+          "summary": "tools=88 [user(I want to run a half mar)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "0b99619860b8b4d4",
-          "summary": "tools=96 [user(I want to run a half mar) assistant->create_goal tool:create_goal]",
+          "fingerprint": "0d7eea9ba418e34b",
+          "summary": "tools=88 [user(I want to run a half mar) assistant->create_goal tool:create_goal]",
           "response": {
             "role": "assistant",
             "content": "I'll keep the half marathon as a goal for March.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "30bc65a3be843e25",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

@@ -25,20 +25,24 @@
   ],
   "expect": {
     "no_tool_errors": true,
-    "tools_called": [
-      {
-        "name": "record_emotional_experience",
-        "args": {
-          "event": "USER_SHARED"
-        }
-      }
-    ],
     "rows": [
       {
         "table": "companion_records",
         "where": {
           "kind": "EMOTION_EVENT",
           "event": "USER_SHARED"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "immediate_glad": {
+            "gt": 0
+          },
+          "usefulness": 0.5,
+          "fulfillment": 0.5,
+          "competence": 0.5
         }
       }
     ],

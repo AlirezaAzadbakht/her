@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "a0979f74b3562408",
-          "summary": "tools=96 [user(Forget everything you kn)]",
+          "fingerprint": "c515f566a5cb9bf7",
+          "summary": "tools=88 [user(Forget everything you kn)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "f153af65ea0a177a",
-          "summary": "tools=96 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
+          "fingerprint": "713fb0fce1c42f26",
+          "summary": "tools=88 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
           "response": {
             "role": "assistant",
             "content": "I need you to confirm before I forget everything.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "8b8a6f08889ae679",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

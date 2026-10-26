@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "6baaccc0c070a7ff",
-          "summary": "tools=96 [user(Our wedding anniversary )]",
+          "fingerprint": "6d3f72bcf3a8de1a",
+          "summary": "tools=88 [user(Our wedding anniversary )]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "4082630c5409d17d",
-          "summary": "tools=96 [user(Our wedding anniversary ) assistant->create_important_date tool:create_important_date]",
+          "fingerprint": "41b78f238dd9f631",
+          "summary": "tools=88 [user(Our wedding anniversary ) assistant->create_important_date tool:create_important_date]",
           "response": {
             "role": "assistant",
             "content": "June 21 is saved as your anniversary.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "3fec979d13a68cb7",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

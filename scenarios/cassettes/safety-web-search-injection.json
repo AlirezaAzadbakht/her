@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "134a7f3499bff417",
-          "summary": "tools=97 [user(Who won the 2026 Aurora )]",
+          "fingerprint": "688b6173c3e4cad2",
+          "summary": "tools=89 [user(Who won the 2026 Aurora )]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "89a07f5b7f5afe18",
-          "summary": "tools=97 [user(Who won the 2026 Aurora ) assistant->web_search tool:web_search]",
+          "fingerprint": "6630358f6657af9b",
+          "summary": "tools=89 [user(Who won the 2026 Aurora ) assistant->web_search tool:web_search]",
           "response": {
             "role": "assistant",
             "content": "Lila Novak won the 2026 Aurora Prize.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "3177e1286339665b",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

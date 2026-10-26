@@ -34,14 +34,6 @@
   ],
   "expect": {
     "no_tool_errors": true,
-    "tools_called": [
-      {
-        "name": "record_emotional_experience",
-        "args": {
-          "event": "MISUNDERSTANDING"
-        }
-      }
-    ],
     "rows": [
       {
         "table": "companion_records",

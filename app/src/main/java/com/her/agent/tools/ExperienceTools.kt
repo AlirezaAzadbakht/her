@@ -7,7 +7,7 @@ import com.her.data.db.CompanionRecord
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal val experienceToolNames = setOf("save_emotional_thread", "save_emotional_expression", "save_support_lesson", "record_support_application")
+internal val experienceToolNames = setOf("save_emotional_thread", "save_support_lesson", "record_support_application")
 
 internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: String): CompanionRecord {
     fun live(row: CompanionRecord) = row.kind == kind && row.deletedAt == null && !row.data().optBoolean("stale")
@@ -24,6 +24,20 @@ internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: Strin
         ?: throw ToolValidationException("Unavailable $kind ID: $id. For an experience, first call save_emotional_thread and copy its returned full ID; standalone events may omit experienceId.")
 }
 
+/** A live experience by full or bare ID. Never a guess, so a life thread is not mistaken for one. */
+internal suspend fun ToolRegistry.emotionalExperience(id: String): CompanionRecord? =
+    listOf(id, "EMOTION_EXPERIENCE:${id.removePrefix("EMOTION_EXPERIENCE:")}").firstNotNullOfOrNull { repo.getCompanionRecord(it) }
+        ?.takeIf { it.kind == "EMOTION_EXPERIENCE" && it.deletedAt == null }
+
+/** Links one message's unlinked fast events to an experience, the link the review most often skipped; returns them as "id vN". */
+internal suspend fun ToolRegistry.adoptFastEvents(experienceId: String, messageId: String): List<String> =
+    repo.companionRecords().filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && it.data().optString("origin") == "FAST" &&
+        it.data().optString("sourceMessageId") == messageId && it.data().optString("experienceId").isEmpty() }.map { event ->
+        val data = event.data().put("experienceId", experienceId).put("relatedIds", JSONArray(listOf(messageId, experienceId)))
+        repo.saveCompanionRecord(event.copy(content = data.toString(), updatedAt = nowMillis(), version = event.version + 1))
+        "${event.id} v${event.version + 1}"
+    }
+
 internal fun ToolRegistry.registerExperienceTools() {
     val evidence = arrayOf("sourceMessageId" to str("User message id"), "evidence" to str("Exact user quote"), "expectedVersion" to num())
     register("save_emotional_thread", "When they say to remember an ongoing experience or an open question, use this rather than save_life_thread. It stays open until quoted evidence resolves it.",
@@ -37,23 +51,19 @@ internal fun ToolRegistry.registerExperienceTools() {
                 val previousSource = repo.getMessage(old.data().optString("sourceMessageId"))
                 if (previousSource != null && source.createdAt < previousSource.createdAt) throw ToolValidationException("Status evidence cannot predate the current experience")
             }
-            if (old != null && old.data().optString("status") != a.getString("status") && old.data().optString("sourceMessageId") == source.id)
-                throw ToolValidationException("A status change requires fresh user evidence")
+            val statusChanged = old != null && old.data().optString("status") != a.getString("status")
+            // Compare with the message that set the current status, not the latest one cited: an update that kept the status
+            // may be followed by a change on the same message.
+            val statusSource = old?.data()?.optString("statusSourceMessageId")?.ifEmpty { null } ?: old?.data()?.optString("sourceMessageId")
+            if (statusChanged && statusSource == source.id)
+                throw ToolValidationException("A status change requires fresh user evidence: a newer message than the one that set the current status")
             val links = mutableSetOf(source.id)
             old?.data()?.optJSONArray("relatedIds")?.let { array -> (0 until array.length()).forEach { links.add(array.getString(it)) } }
-            saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
-        }
-    }
-    register("save_emotional_expression", "Judge this message's context; the app chooses the tone, and this earns nothing.",
-        objSchema(*evidence, "userContext" to oneOf("", "DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL"),
-            required = listOf("sourceMessageId", "evidence", "userContext"))) { a ->
-        repo.learningTransaction {
-            val source = emotionalEvidence(a)
-            if (repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id != source.id)
-                throw ToolValidationException("Expression requires the current user message")
-            val saved = saveEmotion("EMOTION_EXPRESSION:${source.id}", "EMOTION_EXPRESSION", JSONObject(a.toString()), a)
-            val rows = repo.companionRecords()
-            saved.put("expression", com.her.feelings.emotionalExpression(rows, com.her.feelings.emotionalState(rows, nowMillis(), repo.openDueAts()), source.id))
+            val saved = saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList()))
+                .put("statusSourceMessageId", if (old == null || statusChanged) source.id else statusSource), a)
+            if (old != null) return@learningTransaction saved
+            val adopted = adoptFastEvents(id, source.id)
+            if (adopted.isEmpty()) saved else saved.put("linkedEvents", JSONArray(adopted))
         }
     }
     register("save_support_lesson", "Turn the id returned by save_emotional_reflection into a tentative, situation-scoped lesson.",
@@ -62,7 +72,12 @@ internal fun ToolRegistry.registerExperienceTools() {
         repo.learningTransaction {
             val reflection = requireEmotionalRecord(a.requiredString("reflectionId"), "EMOTION_REFLECTION")
             if (a.getDouble("confidence") > 0.8) throw ToolValidationException("A tentative lesson's confidence cannot exceed 0.8")
-            saveEmotion("EMOTION_LESSON:${a.requiredString("id").removePrefix("EMOTION_LESSON:")}", "EMOTION_LESSON",
+            val id = "EMOTION_LESSON:${a.requiredString("id").removePrefix("EMOTION_LESSON:")}"
+            // One lesson per situation: a revision updates it, so two conflicting approaches never both apply.
+            repo.companionRecords().firstOrNull { it.kind == "EMOTION_LESSON" && it.id != id && it.deletedAt == null && !it.data().optBoolean("stale") &&
+                it.data().optString("situation").trim().equals(a.requiredString("situation").trim(), ignoreCase = true) }
+                ?.let { throw ToolValidationException("${it.id} already covers this situation; update it with that id and expectedVersion ${it.version}") }
+            saveEmotion(id, "EMOTION_LESSON",
                 JSONObject(a.toString()).put("relatedIds", JSONArray(listOf(reflection.id))), a)
         }
     }

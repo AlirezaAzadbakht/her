@@ -159,7 +159,12 @@ internal fun ToolRegistry.registerCompanionTools() {
                     else -> id
                 }
                 when (kind) {
-                    "DEVELOPMENT" -> requireCompanion(parent, "THREAD")
+                    // A feeling's developments are linked events, not life-thread entries; the review kept reaching for this tool.
+                    "DEVELOPMENT" -> emotionalExperience(parent)?.let { experience ->
+                        val linked = a.optString("sourceMessageId").takeIf { it.isNotBlank() }?.let { adoptFastEvents(experience.id, it) }.orEmpty()
+                        return@learningTransaction jsonObjectOf("ok" to true, "id" to experience.id, "created" to false, "linkedEvents" to JSONArray(linked),
+                            "note" to "${experience.id} is an emotional experience: its developments are linked events, so nothing else was saved")
+                    } ?: requireCompanion(parent, "THREAD")
                     "WAITING" -> {
                         val loop = repo.getOpenLoop(parent)?.takeIf { it.deletedAt == null } ?: throw ToolValidationException("Existing open loop required")
                         val person = repo.getPerson(data.requiredString("personId"))?.takeIf { it.deletedAt == null }
@@ -191,10 +196,10 @@ internal fun ToolRegistry.registerCompanionTools() {
             }
         }
     }
-    save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. An emotional experience is save_emotional_thread.",
+    save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. Feelings about a situation are tracked automatically; do not use this just to track them.",
         "title" to str(), "summary" to str(), "decisions" to str(), "questions" to str(), "nextSteps" to str(),
         "status" to oneOf("", "ACTIVE", "PAUSED", "CLOSED"), "sensitive" to bool())
-    save("save_thread_development", "DEVELOPMENT", "Save one development, and correct a mistaken entry in place.",
+    save("save_thread_development", "DEVELOPMENT", "Save one development of a life thread, and correct a mistaken entry in place. Not for emotional experiences, which are tracked automatically.",
         "threadId" to str(), "summary" to str(), "status" to oneOf("", "ACTIVE", "SUPERSEDED"))
     save("save_waiting_on", "WAITING", "Record what another person owes on an existing open loop.",
         "openLoopId" to str("Existing open loop; create it first"), "personId" to str("Existing person id; look them up first"), "expectedOutcome" to str(), "deadline" to num("Epoch millis, or omit"),
@@ -269,7 +274,8 @@ private suspend fun ToolRegistry.linkedRecordExists(id: String): Boolean =
 
 private suspend fun ToolRegistry.requireCompanion(id: String, kind: String? = null): CompanionRecord =
     repo.getCompanionRecord(id)?.takeIf { it.deletedAt == null && (kind == null || it.kind == kind) }
-        ?: throw ToolValidationException("Record not found; retrieve life context first")
+        ?: throw ToolValidationException(if (id.startsWith("EMOTION_")) "$id is an emotional record, not a life thread; save_emotional_thread and record_emotional_experience keep its developments"
+            else "Record not found; retrieve life context first")
 
 private fun validateCompanion(kind: String, data: JSONObject) {
     val statuses = when (kind) {

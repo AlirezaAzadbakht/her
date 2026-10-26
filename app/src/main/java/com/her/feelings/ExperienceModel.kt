@@ -2,7 +2,12 @@ package com.her.feelings
 
 import com.her.data.db.CompanionRecord
 import com.her.domain.Feeling
+import kotlin.math.exp
 import org.json.JSONObject
+
+// Gladness for their good news needs no part of hers, as concern for bad news never did.
+private const val EMPATHY = 0.6
+private const val HOLD = 0.3
 
 /** Assessments describe evidence, not additional rewards. Legacy events remain readable. */
 fun appraisedFeelings(data: JSONObject): Map<Feeling, Double> {
@@ -13,7 +18,7 @@ fun appraisedFeelings(data: JSONObject): Map<Feeling, Double> {
     val uncertainty = data.optDouble("uncertainty").coerceIn(0.0, 1.0)
     val surprise = 1.0 - data.optDouble("expectedness").coerceIn(0.0, 1.0)
     return mapOf(
-        Feeling.GLAD to progress.coerceAtLeast(0.0) * contribution * (1.0 - uncertainty * 0.5),
+        Feeling.GLAD to progress.coerceAtLeast(0.0) * maxOf(contribution, EMPATHY) * (1.0 - uncertainty * 0.5),
         Feeling.CONCERNED to (-progress).coerceAtLeast(0.0) * 0.6,
         Feeling.CURIOUS to uncertainty * 0.5 + surprise * 0.2,
         Feeling.TENDER to if (data.optString("event") == "BENEFIT_REPORTED") 0.25 * contribution else 0.0,
@@ -31,6 +36,18 @@ fun distinctEmotionalEvents(rows: List<CompanionRecord>): List<CompanionRecord> 
 fun openExperiences(rows: List<CompanionRecord>): List<CompanionRecord> = rows.filter {
     it.kind == "EMOTION_EXPERIENCE" && it.deletedAt == null && !it.data().optBoolean("stale") && it.data().optString("status") == "OPEN"
 }.sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id })
+
+/** An open situation whose latest news was bad stays on her mind, fading over weeks rather than hours. */
+fun heldConcerns(rows: List<CompanionRecord>, now: Long): List<Pair<CompanionRecord, Double>> = openExperiences(rows).mapNotNull { experience ->
+    val latest = rows.filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && !it.data().optBoolean("stale") &&
+        it.data().optString("experienceId") == experience.id && it.data().has("goalProgress") }
+        .maxWithOrNull(compareBy<CompanionRecord> { it.data().optLong("occurredAt", it.createdAt) }.thenBy { it.id }) ?: return@mapNotNull null
+    val d = latest.data()
+    val progress = d.optDouble("goalProgress").coerceIn(-1.0, 1.0)
+    if (progress >= 0) return@mapNotNull null
+    val ageHours = (now - d.optLong("occurredAt", latest.createdAt)).coerceAtLeast(0) / 3_600_000.0
+    experience to HOLD * -progress * d.optDouble("confidence", 0.5).coerceIn(0.0, 1.0) * exp(-ageHours / 168.0)
+}
 
 /** Expression is a decision for this user message; it never edits internal emotion scores. */
 fun emotionalExpression(rows: List<CompanionRecord>, state: EmotionalState, sourceMessageId: String?): JSONObject {

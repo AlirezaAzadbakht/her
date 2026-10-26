@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "0d3cf9915e0ba95b",
-          "summary": "tools=96 [user(Mina got back to me, the)]",
+          "fingerprint": "b924dd8cff1237eb",
+          "summary": "tools=88 [user(Mina got back to me, the)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "fd660b782f0741da",
-          "summary": "tools=96 [user(Mina got back to me, the) assistant->close_open_loop tool:close_open_loop]",
+          "fingerprint": "a54d120e770bf3b0",
+          "summary": "tools=88 [user(Mina got back to me, the) assistant->close_open_loop tool:close_open_loop]",
           "response": {
             "role": "assistant",
             "content": "The payment with Mina is resolved.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "eefd00470cfbbf36",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

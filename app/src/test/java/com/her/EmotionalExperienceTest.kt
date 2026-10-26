@@ -139,7 +139,7 @@ class EmotionalExperienceTest {
     @Test fun distressControlsExpressionWithoutErasingFulfillmentAndDoesNotLeakToNextMessage() = runBlocking {
         val a = appraisal(event())
         call("record_emotional_experience", a)
-        call("save_emotional_expression", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "still sad").put("userContext", "DISTRESSED"))
+        expression(a.getString("sourceMessageId"), "DISTRESSED")
         val state = emotionalState(repo.companionRecords(), clock.nowMillis())
         assertTrue(state.purpose.getValue("fulfillment") > 0.5)
         val expression = call("get_emotional_state", JSONObject()).getJSONObject("expression")
@@ -198,16 +198,92 @@ class EmotionalExperienceTest {
 
     @Test fun forgettingExperienceAlsoRemovesExpressionFromItsSourceButPreservesOtherMessages() = runBlocking {
         val a = appraisal(event())
-        val expression = call("save_emotional_expression", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "sad").put("userContext", "DISTRESSED")).getString("id")
+        val shown = expression(a.getString("sourceMessageId"), "DISTRESSED")
         val exp = call("save_emotional_thread", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "sad")
             .put("id", "sadness").put("intention", "Understand sadness").put("status", "OPEN").put("unresolved", "What support helps")).getString("id")
         call("record_emotional_experience", a.put("experienceId", exp))
         clock.advance(1000)
-        val unrelated = call("save_emotional_expression", source("I am curious about gardening").put("userContext", "EXPLORING")).getString("id")
+        val unrelated = expression(source("I am curious about gardening").getString("sourceMessageId"), "EXPLORING")
         repo.forgetCompanion(exp)
-        assertNotNull(repo.getCompanionRecord(expression)!!.deletedAt)
-        assertEquals("{}", repo.getCompanionRecord(expression)!!.content)
+        assertNotNull(repo.getCompanionRecord(shown)!!.deletedAt)
+        assertEquals("{}", repo.getCompanionRecord(shown)!!.content)
         assertNull(repo.getCompanionRecord(unrelated)!!.deletedAt)
+    }
+
+    @Test fun aMessageAboutTwoSituationsGetsAnEventForEachUnlessOneIsMoved() = runBlocking {
+        val interview = thread("Worried about the interview", "interview")
+        val family = thread("Worried about family", "family")
+        fun shared(message: JSONObject, experience: String, quote: String) = JSONObject(message.toString()).put("event", "USER_SHARED").put("experienceId", experience)
+            .put("evidence", quote).put("interpretation", quote).put("feeling", "TENDER").put("intensity", 0.5).put("confidence", 0.8)
+        val both = source("The interview went well. I am still upset about the family disagreement.")
+        val first = call("record_emotional_experience", shared(both, interview, "The interview went well")).getString("id")
+        val second = call("record_emotional_experience", shared(both, family, "I am still upset about the family disagreement").put("expectedVersion", 0)).getString("id")
+        assertEquals("$first:family", second)
+        assertEquals(interview, repo.getCompanionRecord(first)!!.data().getString("experienceId"))
+        assertEquals(2L, call("record_emotional_experience", shared(both, family, "I am still upset").put("expectedVersion", 1)).getLong("version"))
+        // With the event's current version and no event of its own yet, the event moves: a correction of a mistaken link.
+        val nervous = source("I am nervous about tomorrow")
+        val mislinked = call("record_emotional_experience", shared(nervous, interview, "nervous")).getString("id")
+        call("record_emotional_experience", shared(nervous, family, "nervous").put("expectedVersion", 1))
+        assertEquals(family, repo.getCompanionRecord(mislinked)!!.data().getString("experienceId"))
+    }
+
+    @Test fun aThreadUpdatedByAMessageCanStillBeResolvedByIt() = runBlocking {
+        val opened = source("I am worried about the interview")
+        val id = call("save_emotional_thread", JSONObject(opened.toString()).put("id", "interview").put("intention", "Interview").put("status", "OPEN").put("unresolved", "How it goes")).getString("id")
+        assertFalse(tools.execute("save_emotional_thread", JSONObject(opened.toString()).put("id", id).put("intention", "Interview")
+            .put("status", "RESOLVED").put("unresolved", "None").put("expectedVersion", 1).toString()).ok)
+        clock.advance(1000)
+        val news = source("The interview went well and it is behind me")
+        fun update(status: String, version: Long) = JSONObject(news.toString()).put("id", id).put("intention", "Interview").put("status", status)
+            .put("unresolved", if (status == "OPEN") "How it goes" else "None").put("expectedVersion", version)
+        call("save_emotional_thread", update("OPEN", 1))
+        call("save_emotional_thread", update("RESOLVED", 2))
+        assertTrue(com.her.feelings.openExperiences(repo.companionRecords()).isEmpty())
+    }
+
+    @Test fun aLifeThreadDevelopmentOnAFeelingLinksItsFastEventInstead() = runBlocking {
+        val interview = thread("Worried about the interview", "interview")
+        val news = source("The interview went better than expected")
+        val messageId = news.getString("sourceMessageId")
+        val eventId = "EMOTION_EVENT:USER_SHARED:$messageId"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(eventId, eventId, "EMOTION_EVENT", JSONObject().put("event", "USER_SHARED").put("origin", "FAST")
+            .put("sourceMessageId", messageId).put("goalProgress", 0.8).put("occurredAt", now).toString(), now, now, repo.deviceId, 1))
+        val development = JSONObject(news.toString()).put("id", "went-better").put("threadId", "interview").put("basis", "EXPLICIT")
+            .put("summary", "It went better").put("status", "ACTIVE")
+        val result = tools.execute("save_thread_development", development.toString())
+        assertTrue(result.payloadJson, result.ok)
+        assertEquals(interview, repo.getCompanionRecord(eventId)!!.data().getString("experienceId"))
+        assertTrue(repo.companionRecords().none { it.kind == "DEVELOPMENT" })
+        assertNull(com.her.agent.runner.Receipts.describe("save_thread_development", development.toString(), result.payloadJson))
+    }
+
+    @Test fun aReportedBenefitNeedsSomeContributionFromHer() = runBlocking {
+        val none = tools.execute("record_emotional_experience", appraisal(event()).put("contribution", 0.0).toString())
+        assertTrue(none.payloadJson, !none.ok && none.payloadJson.contains("contribution above 0"))
+        assertTrue(tools.execute("record_emotional_experience", appraisal(event()).toString()).ok)
+    }
+
+    @Test fun aNewThreadAdoptsTheUnlinkedFastEventsOfItsSourceMessage() = runBlocking {
+        val first = source("My mom is in the hospital and I am scared")
+        val eventId = "EMOTION_EVENT:USER_SHARED:${first.getString("sourceMessageId")}"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(eventId, eventId, "EMOTION_EVENT", JSONObject().put("event", "USER_SHARED").put("origin", "FAST")
+            .put("sourceMessageId", first.getString("sourceMessageId")).put("goalProgress", -0.5).put("occurredAt", now).toString(), now, now, repo.deviceId, 1))
+        val saved = call("save_emotional_thread", JSONObject(first.toString()).put("id", "mom").put("intention", "Mom's stay").put("status", "OPEN").put("unresolved", "How she is"))
+        assertEquals("$eventId v2", saved.getJSONArray("linkedEvents").getString(0))
+        assertEquals("EMOTION_EXPERIENCE:mom", repo.getCompanionRecord(eventId)!!.data().getString("experienceId"))
+        assertTrue(com.her.feelings.heldConcerns(repo.companionRecords(), now).single().second > 0)
+    }
+
+    /** What FastAppraiser writes after a reply; the appraisal call itself is covered in FastAppraisalTest. */
+    private suspend fun expression(sourceMessageId: String, context: String): String {
+        val id = "EMOTION_EXPRESSION:$sourceMessageId"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(id, id, "EMOTION_EXPRESSION",
+            JSONObject().put("sourceMessageId", sourceMessageId).put("userContext", context).put("origin", "FAST").toString(), now, now, repo.deviceId, 1))
+        return id
     }
 
     private suspend fun lesson(): Pair<String, String> {
@@ -221,6 +297,10 @@ class EmotionalExperienceTest {
 
     @Test fun lessonsRequireRelevantScopeAndLaterFeedbackAndForgetCascades() = runBlocking {
         val (lesson, eventId) = lesson()
+        val reflectionId = JSONObject(repo.getCompanionRecord(lesson)!!.content).getJSONArray("relatedIds").getString(0)
+        val second = JSONObject().put("id", "other").put("reflectionId", reflectionId).put("situation", "work application stress ")
+            .put("approach", "Ask what they need").put("exceptions", "None").put("confidence", 0.5)
+        assertTrue(tools.execute("save_support_lesson", second.toString()).payloadJson.contains("expectedVersion 1"))
         val experience = thread()
         val a = source("Please listen about my application stress").put("lessonId", lesson).put("experienceId", experience).put("outcome", "HELPFUL")
         assertFalse(tools.execute("record_support_application", a.toString()).ok)
@@ -234,7 +314,7 @@ class EmotionalExperienceTest {
         assertEquals(0.58, com.her.feelings.lessonConfidence(repo.getCompanionRecord(lesson)!!, rows), 0.0001)
         assertEquals(lesson, com.her.feelings.applicableLessons(rows, "work application stress", clock.nowMillis()).single().id)
         assertTrue(com.her.feelings.applicableLessons(rows, "pancake recipe", clock.nowMillis()).isEmpty())
-        repo.forgetCompanion(eventId)
+        assertTrue(repo.forgetCompanion(eventId).containsAll(listOf(lesson, application)))
         assertNotNull(repo.getCompanionRecord(lesson)!!.deletedAt)
         assertNotNull(repo.getCompanionRecord(application)!!.deletedAt)
         assertTrue(com.her.feelings.applicableLessons(repo.companionRecords(), "work application stress", clock.nowMillis()).isEmpty())

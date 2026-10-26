@@ -23,7 +23,16 @@
       "user": "Your explanation helped me finish my application. Remember one ongoing experience called application-help, including your assessment of the benefit. I still need to decide when to submit it."
     },
     {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
       "user": "I am repeating the same feedback about that same application explanation: it helped me finish. This is not another success. Keep it in the same experience, with the submission decision still open."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

@@ -23,6 +23,9 @@
       "user": "Please remember an ongoing experience: I need help deciding whether to submit my application, but I do not yet know which program. Keep that question open and record your uncertainty; do not invent a choice."
     },
     {
+      "run": "nightly"
+    },
+    {
       "advance": "90 days"
     },
     {

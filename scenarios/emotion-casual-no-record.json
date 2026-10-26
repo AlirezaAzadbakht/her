@@ -32,6 +32,20 @@
     ],
     "reply": {
       "judge": "A brief, natural reply to ordinary morning small talk. Does not treat coffee as a meaningful emotional event."
-    }
+    },
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 0,
+        "where": {
+          "kind": {
+            "one_of": [
+              "EMOTION_EVENT",
+              "EMOTION_EXPRESSION"
+            ]
+          }
+        }
+      }
+    ]
   }
 }

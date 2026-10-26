@@ -24,6 +24,9 @@
       "user": "My community art exhibition has been accepted by the gallery, and I am pleased. Please remember this personal update as an ongoing exhibition experience, with clear positive progress. You did not help arrange it. The opening has not happened yet."
     },
     {
+      "run": "nightly"
+    },
+    {
       "check": {
         "no_tool_errors": true,
         "rows": [
@@ -63,10 +66,13 @@
       }
     },
     {
-      "advance": "1 hour"
+      "advance": "1 day"
     },
     {
       "user": "The gallery has now cancelled my exhibition because the venue is closing. This is a confirmed setback, not just a worry. Remember this personal update in the same exhibition experience and assess the negative progress. I am disappointed and only want you to listen gently right now."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

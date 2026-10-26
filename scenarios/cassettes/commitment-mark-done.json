@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "9b043e9b5f4b8d81",
-          "summary": "tools=96 [user(Just sent Mina the invoi)]",
+          "fingerprint": "3daede8f1112ef31",
+          "summary": "tools=88 [user(Just sent Mina the invoi)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,11 +26,31 @@
           }
         },
         {
-          "fingerprint": "149175f521c1953b",
-          "summary": "tools=96 [user(Just sent Mina the invoi) assistant->update_commitment tool:update_commitment]",
+          "fingerprint": "4302fa3596bb10bf",
+          "summary": "tools=88 [user(Just sent Mina the invoi) assistant->update_commitment tool:update_commitment]",
           "response": {
             "role": "assistant",
             "content": "Marked the invoice to Mina as done.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "5c760702386a952c",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,
