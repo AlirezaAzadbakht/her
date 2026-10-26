@@ -34,7 +34,7 @@ internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest messa
 
 private val APPRAISE_SYSTEM = """
 You appraise one moment in a conversation between a person and Her, their assistant. Call appraise exactly once, about their latest message only.
-userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING when they say Her misunderstood or got something wrong; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests.
+userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, not when they head off a misreading in advance; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. Good news alongside ongoing sadness or worry is DISTRESSED.
 personal is true only for a meaningful development in their life or the life of someone close to them: health, work, relationships, milestones, setbacks, worries. Never for small talk, logistics or questions.
 goalProgress is how things moved for them: negative for a setback or worry, positive for progress, 0 when unclear. Do not judge whether Her helped.
 experienceId: copy an id from openExperiences only when this message continues that same situation.

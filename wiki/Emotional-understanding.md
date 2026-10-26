@@ -14,13 +14,15 @@ The IDs are the same ones `record_emotional_experience` produces, so a later rev
 Chat files nothing itself. `record_emotional_experience`, `save_emotional_understanding`, `save_emotional_reflection`, `save_emotional_thread`, `save_support_lesson`, `record_support_application` and the legacy `set_feeling` are offered only to the nightly pass (`REFLECTION_ONLY_TOOLS` in `ToolRegistry`). Chat keeps the read-only `get_emotional_state` and `forget_memory`. The tools still execute if called, so scenario seeds work. The chat instructions (`EMOTIONAL_INSTRUCTIONS`) now only cover expression, prohibitions, read-only recall, tentative lessons and forgetting. The filing procedure lives in `EMOTIONAL_REFLECTION`, appended to the nightly prompt. It asks the nightly pass to:
 
 1. Group today's FAST events into experiences and link each event to its experience with its current version.
-2. Record credit only with quoted evidence.
+2. Record credit only with quoted evidence. A reported benefit is its own `BENEFIT_REPORTED` event next to the fast `USER_SHARED` one for the same message; the fast event never stands in for credit.
 3. Record lesson applications and feedback.
 4. Reflect and save lessons.
 
-In the nightly run, `get_emotional_state.recentUserMessages` covers the last 24 hours (up to 20 messages) instead of the latest three, so the review can quote the day. A version error names the current version. `record_emotional_experience` stores the experience's full ID even when it was matched from a shorter one. This moved about 4,300 characters out of the chat system prompt (29,941 → 25,618) and 8 tools out of the chat tool list (96 → 88). The `save_emotional_expression` tool is gone; the app writes `EMOTION_EXPRESSION` records itself.
+In the nightly run, `get_emotional_state.recentUserMessages` covers the last 24 hours (up to 20 messages) instead of the latest three, so the review can quote the day. A version error names the current version. `record_emotional_experience` stores the experience's full ID even when it was matched from a shorter one. This moved about 4,300 characters out of the chat system prompt (29,941 → 25,871) and 8 tools out of the chat tool list (96 → 88). The `save_emotional_expression` tool is gone; the app writes `EMOTION_EXPRESSION` records itself.
 
-A fast event the appraisal could not tie to an open experience stands alone until the nightly pass links it: they give immediate feeling and mood but no situation projection, transition or held concern. Chat context no longer shows an "Outward expression for this message" line, since no expression exists yet when context is built; Her reads the current message herself.
+A fast event the appraisal could not tie to an open experience stands alone until the nightly pass links it: they give immediate feeling and mood but no situation projection, transition or held concern. Chat context no longer shows an "Outward expression for this message" line, since no expression exists yet when context is built; Her reads the current message herself. When asked to remember a feeling or what helped, chat says it will keep it in mind and does not copy it into memories or About them; the nightly review files it.
+
+The appraisal treats good news alongside ongoing sadness or worry as DISTRESSED, so Her stays gentle. It counts a message as a correction only when an earlier reply or action was wrong, not when the user heads off a misreading in advance.
 
 ## Experiences and outcomes
 
