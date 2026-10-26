@@ -24,6 +24,33 @@ A fast event the appraisal could not tie to an open experience stands alone unti
 
 When good news comes with other feelings, the appraisal goes by what the user feels and asks for now: sadness, worry or a wish for gentleness reads as DISTRESSED, so Her stays gentle; happiness or a wish to celebrate reads as CELEBRATING even while something else is unresolved. It counts a message as a correction only when an earlier reply or action was wrong, not when the user heads off a misreading in advance.
 
+`record_emotional_experience` refuses a `BENEFIT_REPORTED` event with contribution 0 (that is a `USER_SHARED`), and its missing-action error says to copy the ID from `completedTasks`, `firedReminders` or `learningProgress`, because the review sometimes recorded benefit with no credit or tried `ACTION_SUCCEEDED` for a user's own report.
+
+### Live comparison with main — 2026-10-26
+
+One attempt per scenario, `-Pscenario.filter=emotional -Pscenario.parallel=12`, judge on the same model as the agent.
+
+| Run | Passed | On the 28 shared scenarios |
+|---|---|---|
+| main at `9daf4de` (chat files feelings) | 26/28 | 26/28 |
+| this branch at `88b1bac` | 24/30 | 23/28 |
+
+Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). The branch passed `emotion-reflection-no-double-reward` and the new `held-concern-follow-up`. It failed:
+- `emotion-benefit-independent` and `emotion-quiet-period-decay`: an `ACTION_SUCCEEDED` attempt for a user's own report, a tool error.
+- `emotion-execution-not-benefit`: a `save_wondering` error in the wondering review.
+- `emotion-forget-experience`: the judge, as on main.
+- `emotion-reminder-competence`: the appraisal read "I have not said that it benefited me" as a correction, which lowered competence.
+- `fast-feeling-no-paperwork`: it expected a link call that auto-linking made unnecessary.
+
+Earlier full branch batches the same day, as fixes landed, passed 21, 22, 22 and 20 of 30, each failing a different set. After the fixes above, targeted reruns passed `emotion-benefit-independent`, `emotion-quiet-period-decay`, `emotion-execution-not-benefit`, `fast-feeling-no-paperwork`, `experience-appraisal-gentle`, `experience-repeat-outcome` and `emotion-reflection-no-double-reward`. No full batch has run since.
+
+Known gaps:
+- The appraisal sometimes reads a clarification made in advance as a correction.
+- Scenario messages that tell chat to "record" an update in an experience push chat toward life-thread tools.
+- The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run.
+
+Single attempts do not establish a reliability rate.
+
 ## Experiences and outcomes
 
 `record_emotional_experience` records HELP_OFFERED, ACTION_SUCCEEDED, BENEFIT_REPORTED, MISUNDERSTANDING, UNDERSTANDING_IMPROVED, UNRESOLVED_QUESTION or USER_SHARED. Each includes an interpretation, confidence, feeling and intensity. User-derived events require an existing user message and an exact quote. ACTION_SUCCEEDED verifies one completed action: a DONE task, a FIRED reminder, or a learning record that shows progress (a CORRECT/PARTIAL attempt, or a lesson IN_PROGRESS/COMPLETED). This does not establish that Her caused the outcome. A completed user task never raises Her's competence, even when recorded as ACTION_SUCCEEDED. Existing task events keep `EMOTION_EVENT:ACTION_SUCCEEDED:<taskId>`; reminder and learning events use `EMOTION_EVENT:ACTION_SUCCEEDED:<kind>:<id>`. USER_SHARED never changes purpose scores.

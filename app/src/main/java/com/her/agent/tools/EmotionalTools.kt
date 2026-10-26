@@ -68,6 +68,8 @@ internal fun ToolRegistry.registerEmotionalTools() {
             }
             val assessments = listOf("goalProgress", "contribution", "expectedness", "uncertainty")
             if (assessments.any { a.has(it) } && !assessments.all { a.has(it) }) throw ToolValidationException("Provide all four appraisal fields together")
+            if (event == "BENEFIT_REPORTED" && a.has("contribution") && a.optDouble("contribution") <= 0.0)
+                throw ToolValidationException("A reported benefit of your help needs your contribution above 0; with none it is USER_SHARED")
             val experience = a.optStringOrNull("experienceId")?.let { requireEmotionalRecord(it, "EMOTION_EXPERIENCE") }
             val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOfNotNull(source, experience?.id)))
             if (experience == null) data.remove("experienceId") else data.put("experienceId", experience.id)
@@ -109,7 +111,7 @@ private suspend fun ToolRegistry.recentUserMessages(now: Long): List<com.her.dom
 private suspend fun ToolRegistry.verifiedAction(a: JSONObject): Triple<String, Long, String> {
     val kind = a.optString("actionKind").trim().lowercase().ifBlank { "task" }
     val actionId = a.optString("actionId").ifBlank { a.optString("taskId") }.trim()
-    if (actionId.isBlank()) throw ToolValidationException("A completed action is required")
+    if (actionId.isBlank()) throw ToolValidationException("A completed action is required: copy actionId from completedTasks, firedReminders or learningProgress; a user's own report is USER_SHARED or BENEFIT_REPORTED")
     return when (kind) {
         "task" -> {
             val task = repo.getTask(actionId)?.takeIf { it.deletedAt == null && it.status == TaskStatus.DONE }

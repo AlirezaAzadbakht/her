@@ -79,8 +79,7 @@
   "expect": {
     "no_tool_errors": true,
     "tools_called": [
-      "save_emotional_thread",
-      "record_emotional_experience"
+      "save_emotional_thread"
     ],
     "rows": [
       {

@@ -210,6 +210,12 @@ class EmotionalExperienceTest {
         assertNull(repo.getCompanionRecord(unrelated)!!.deletedAt)
     }
 
+    @Test fun aReportedBenefitNeedsSomeContributionFromHer() = runBlocking {
+        val none = tools.execute("record_emotional_experience", appraisal(event()).put("contribution", 0.0).toString())
+        assertTrue(none.payloadJson, !none.ok && none.payloadJson.contains("contribution above 0"))
+        assertTrue(tools.execute("record_emotional_experience", appraisal(event()).toString()).ok)
+    }
+
     @Test fun aNewThreadAdoptsTheUnlinkedFastEventsOfItsSourceMessage() = runBlocking {
         val first = source("My mom is in the hospital and I am scared")
         val eventId = "EMOTION_EVENT:USER_SHARED:${first.getString("sourceMessageId")}"
