@@ -198,6 +198,56 @@ class EmotionalStateTest {
         assertNull(repo.observeFeeling().first())
     }
 
+    @Test fun openSetbackStaysOnHerMindUntilBetterNewsOrResolutionAndFadesOverWeeks() = runBlocking {
+        val day = 24 * 3_600_000L
+        val start = clock.nowMillis()
+        val mom = openSetback("mom", "My mom is in the hospital and I am scared", "Mom's hospital stay")
+        val job = openSetback("job", "I lost my job today and I am worried", "Losing the job")
+        val rows = repo.companionRecords()
+        assertTrue(emotionalState(rows, start + 3 * day).emotions.getValue(Feeling.CONCERNED) > 0.05)
+        assertEquals(0.0, emotionalState(rows, start + 60 * day).emotions[Feeling.CONCERNED] ?: 0.0, 0.01)
+        clock.advance(day)
+        val home = source("She is home now and recovering well")
+        call("save_emotional_thread", JSONObject(home.toString()).put("id", "mom").put("intention", "Mom's hospital stay")
+            .put("status", "RESOLVED").put("unresolved", "None").put("expectedVersion", mom.getLong("version")))
+        call("record_emotional_experience", shared(source("I got an offer from another company"), job.getString("id"), 0.6))
+        assertTrue(com.her.feelings.heldConcerns(repo.companionRecords(), start + 3 * day).isEmpty())
+    }
+
+    @Test fun gladForTheirGoodNewsWithoutTakingCredit() = runBlocking {
+        call("record_emotional_experience", shared(source("I got the job!"), null, 0.8))
+        val state = emotionalState(repo.companionRecords(), clock.nowMillis())
+        assertTrue(state.emotions.getValue(Feeling.GLAD) > 0.2)
+        assertEquals(setOf(0.5), state.purpose.values.toSet())
+    }
+
+    @Test fun afterAGapAnOpenWorryIsOfferedAsAFollowUp() = runBlocking {
+        openSetback("mom", "My mom is in the hospital and I am scared", "Mom's hospital stay")
+        val builder = com.her.agent.prompt.ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context))
+        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, "I'm here with you.", MessageStatus.SENT))
+        clock.advance(3_600_000L)
+        source("Can you add milk to the list?")
+        assertFalse(builder.build("Can you add milk to the list?").systemBundle.contains("Still on your mind"))
+        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, "Added milk.", MessageStatus.SENT))
+        clock.advance(8 * 3_600_000L)
+        source("Morning! Any plans for today?")
+        val bundle = builder.build("Morning! Any plans for today?").systemBundle
+        assertTrue(bundle, bundle.contains("Still on your mind") && bundle.contains("Mom's hospital stay"))
+    }
+
+    private suspend fun openSetback(id: String, text: String, intention: String): JSONObject {
+        val message = source(text)
+        val thread = call("save_emotional_thread", JSONObject(message.toString()).put("id", id).put("intention", intention)
+            .put("status", "OPEN").put("unresolved", "How it turns out"))
+        call("record_emotional_experience", shared(message, thread.getString("id"), -0.7))
+        return thread
+    }
+
+    private fun shared(message: JSONObject, experienceId: String?, progress: Double) = JSONObject(message.toString())
+        .put("event", "USER_SHARED").apply { experienceId?.let { put("experienceId", it) } }
+        .put("goalProgress", progress).put("contribution", 0.0).put("expectedness", 0.3).put("uncertainty", 0.4)
+        .put("interpretation", "A personal development").put("feeling", "CALM").put("intensity", 0.5).put("confidence", 0.8)
+
     @Test fun supportLessonsRankBySituationAndQuery() = runBlocking {
         val listen = source("For this work presentation I feel sad. Please listen first.").put("id", "work")
             .put("confidence", 0.8).put("situation", "Work presentation").put("userFeeling", "sad")

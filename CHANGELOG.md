@@ -4,6 +4,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
+- Her is glad for your good news even when she had no part in it.
+
 ### Fixed
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
 - Emotional updates keep their evidence and versions, setbacks receive gentle listening, and recalling an old experience does not record it as a new outcome.

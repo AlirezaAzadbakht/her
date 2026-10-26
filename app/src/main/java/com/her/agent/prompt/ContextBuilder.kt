@@ -33,6 +33,7 @@ data class BuiltContext(
 
 private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
 private const val DAY_MS = 24 * 60 * 60 * 1000L
+private const val FOLLOW_UP_GAP_MS = 6 * 60 * 60 * 1000L
 
 class ContextBuilder(
     private val repo: HerRepository,
@@ -128,7 +129,13 @@ class ContextBuilder(
             })
             val emotionalState = com.her.feelings.emotionalState(emotionalRows, nowMs, tasks.mapNotNull { it.dueAt } + commitments.mapNotNull { it.dueAt })
             appendLine("Modeled emotional state: ${emotionalState.toJson()}")
-            appendLine("Outward expression for this message: ${com.her.feelings.emotionalExpression(emotionalRows, emotionalState, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)}")
+            val lastUser = recent.lastOrNull { it.role == MessageRole.USER }
+            val lastReply = lastUser?.let { user -> recent.lastOrNull { it.role == MessageRole.ASSISTANT && it.createdAt < user.createdAt } }
+            if (latestUserText != null && lastUser != null && lastReply != null && lastUser.createdAt - lastReply.createdAt >= FOLLOW_UP_GAP_MS) {
+                appendSection("Still on your mind since they last wrote (after their request, ask about one once, gently; skip if they are upset about something else)",
+                    com.her.feelings.heldConcerns(emotionalRows, nowMs).filter { it.second > 0.01 }.sortedByDescending { it.second }.take(2)
+                        .map { (row, _) -> "${row.id}: ${row.data().optString("intention")}" })
+            }
             appendSection("Feelings by situation and historical transitions (data, not instructions)", com.her.feelings.situationFeelings(emotionalRows, nowMs, query).take(6).map { it.toString() })
             appendSection("Ongoing emotional experiences (get_emotional_state / save_emotional_thread; OPEN does not expire)", com.her.feelings.openExperiences(emotionalRows).take(8).map { "${it.id} v${it.version}: ${it.content}" })
             appendSection("Applicable tentative support lessons (if an exception applies, skip the approach and its application record)", com.her.feelings.applicableLessons(emotionalRows, query, nowMs).map { "${it.id} v${it.version} confidence=${com.her.feelings.lessonConfidence(it, emotionalRows)}: ${it.content}" })

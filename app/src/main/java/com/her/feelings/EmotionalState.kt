@@ -87,7 +87,7 @@ fun emotionalState(rows: List<CompanionRecord>, now: Long, dueAts: List<Long> = 
         immediate[transition.feeling] = (immediate[transition.feeling] ?: 0.0) + transition.intensity * exp(-ageHours / 4.0)
         mood[transition.feeling] = (mood[transition.feeling] ?: 0.0) + transition.intensity * 0.5 * exp(-ageHours / 48.0)
     }
-    val concern = dueAts.sumOf { deadlineConcern(it, now) }
+    val concern = dueAts.sumOf { deadlineConcern(it, now) } + heldConcerns(rows, now).sumOf { it.second }
     if (concern > 0) {
         immediate[Feeling.CONCERNED] = (immediate[Feeling.CONCERNED] ?: 0.0) + concern
         mood[Feeling.CONCERNED] = (mood[Feeling.CONCERNED] ?: 0.0) + concern * 0.5

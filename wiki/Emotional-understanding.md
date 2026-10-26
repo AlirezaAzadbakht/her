@@ -14,6 +14,10 @@ A deterministic projection derives mixed immediate emotions, a slower mood, four
 
 Open tasks and commitments due within 24 hours add a small CONCERNED contribution that grows as the deadline approaches and stops when the item is done. No record is written. Silence still creates no inference about the user's feelings.
 
+An OPEN experience whose latest appraised event has negative `goalProgress` also holds concern: `0.3 × −progress × confidence`, fading with a seven-day time constant from that event instead of the four-hour and 48-hour clocks. It is added like deadline concern, so it shows in the orb and in that situation's projection. A later event with non-negative progress, or resolving the experience, stops it. After about three weeks without news it falls below the follow-up threshold. When the user writes again at least six hours after Her's last reply, chat context lists up to two such experiences under "Still on your mind" and asks her to raise one once, after their request, and not while they are upset about something else.
+
+Gladness is empathic: for an appraised event it is `progress⁺ × max(contribution, 0.6) × (1 − 0.5 × uncertainty)`, so good news Her had no part in still gladdens her, just as bad news always raised concern. Purpose rewards are unchanged and still depend on contribution.
+
 The projection also emits short tone hints when understanding or competence is below 0.4, or when CONCERNED is dominant. Context injects those hints next to the modeled state. Values stay in 0–1. The orb blends the two strongest feelings; the dominant feeling is still immediate emotion plus a smaller mood contribution. Foreground observation recalculates every minute and when tasks, commitments or events change; context recalculates on reads. No extra model calls are required for decay.
 
 Existing feeling logs remain available as a fallback until emotional events exist. Reflection creates no reward, so rereading success cannot accumulate fulfillment. Several feelings can coexist, including fulfillment while responding gently to a sad user. Feelings show through tone and word choice; she does not announce them unless asked.
