@@ -112,6 +112,16 @@ class FastAppraisalTest {
         assertEquals(message.createdAt, events.single().data().getLong("occurredAt"))
     }
 
+    @Test fun theNightlyReviewSeesTheLastDayOfMessagesAndChatOnlyTheLatest() = runBlocking {
+        user("Two days ago")
+        clock.advance(2 * 24 * 3_600_000L)
+        repeat(5) { user("Today $it") }
+        fun seen() = runBlocking { JSONObject(tools.execute("get_emotional_state", "{}").payloadJson).getJSONArray("recentUserMessages").length() }
+        assertEquals(3, seen())
+        tools.runType = com.her.domain.AgentRunType.NIGHTLY
+        assertEquals(5, seen())
+    }
+
     private suspend fun user(text: String): ChatMessage =
         repo.newChatMessage(MessageRole.USER, text, MessageStatus.SENT).also { repo.saveMessage(it) }
 

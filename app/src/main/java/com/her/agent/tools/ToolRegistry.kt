@@ -70,7 +70,8 @@ open class ToolRegistry(
 
     fun specsFor(type: AgentRunType): List<ToolSpec> {
         val all = handlers.values.map { it.first }
-        val visible = if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" }
+        val visible = (if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" })
+            .filter { type == AgentRunType.NIGHTLY || it.name !in REFLECTION_ONLY_TOOLS }
         return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS }
     }
 
@@ -320,3 +321,6 @@ open class ToolRegistry(
 }
 
 internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering")
+
+/** Filing feelings is the nightly review's work; chat and the other passes only feel (after the reply) and recall. */
+internal val REFLECTION_ONLY_TOOLS = emotionalToolNames - "get_emotional_state" + "set_feeling"

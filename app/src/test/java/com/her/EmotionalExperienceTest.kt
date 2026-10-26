@@ -139,7 +139,7 @@ class EmotionalExperienceTest {
     @Test fun distressControlsExpressionWithoutErasingFulfillmentAndDoesNotLeakToNextMessage() = runBlocking {
         val a = appraisal(event())
         call("record_emotional_experience", a)
-        call("save_emotional_expression", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "still sad").put("userContext", "DISTRESSED"))
+        expression(a.getString("sourceMessageId"), "DISTRESSED")
         val state = emotionalState(repo.companionRecords(), clock.nowMillis())
         assertTrue(state.purpose.getValue("fulfillment") > 0.5)
         val expression = call("get_emotional_state", JSONObject()).getJSONObject("expression")
@@ -198,16 +198,25 @@ class EmotionalExperienceTest {
 
     @Test fun forgettingExperienceAlsoRemovesExpressionFromItsSourceButPreservesOtherMessages() = runBlocking {
         val a = appraisal(event())
-        val expression = call("save_emotional_expression", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "sad").put("userContext", "DISTRESSED")).getString("id")
+        val shown = expression(a.getString("sourceMessageId"), "DISTRESSED")
         val exp = call("save_emotional_thread", JSONObject().put("sourceMessageId", a.getString("sourceMessageId")).put("evidence", "sad")
             .put("id", "sadness").put("intention", "Understand sadness").put("status", "OPEN").put("unresolved", "What support helps")).getString("id")
         call("record_emotional_experience", a.put("experienceId", exp))
         clock.advance(1000)
-        val unrelated = call("save_emotional_expression", source("I am curious about gardening").put("userContext", "EXPLORING")).getString("id")
+        val unrelated = expression(source("I am curious about gardening").getString("sourceMessageId"), "EXPLORING")
         repo.forgetCompanion(exp)
-        assertNotNull(repo.getCompanionRecord(expression)!!.deletedAt)
-        assertEquals("{}", repo.getCompanionRecord(expression)!!.content)
+        assertNotNull(repo.getCompanionRecord(shown)!!.deletedAt)
+        assertEquals("{}", repo.getCompanionRecord(shown)!!.content)
         assertNull(repo.getCompanionRecord(unrelated)!!.deletedAt)
+    }
+
+    /** What FastAppraiser writes after a reply; the appraisal call itself is covered in FastAppraisalTest. */
+    private suspend fun expression(sourceMessageId: String, context: String): String {
+        val id = "EMOTION_EXPRESSION:$sourceMessageId"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(id, id, "EMOTION_EXPRESSION",
+            JSONObject().put("sourceMessageId", sourceMessageId).put("userContext", context).put("origin", "FAST").toString(), now, now, repo.deviceId, 1))
+        return id
     }
 
     private suspend fun lesson(): Pair<String, String> {

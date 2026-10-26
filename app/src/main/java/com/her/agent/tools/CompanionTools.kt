@@ -191,7 +191,7 @@ internal fun ToolRegistry.registerCompanionTools() {
             }
         }
     }
-    save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. An emotional experience is save_emotional_thread.",
+    save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. Feelings about a situation are tracked automatically; do not use this just to track them.",
         "title" to str(), "summary" to str(), "decisions" to str(), "questions" to str(), "nextSteps" to str(),
         "status" to oneOf("", "ACTIVE", "PAUSED", "CLOSED"), "sensitive" to bool())
     save("save_thread_development", "DEVELOPMENT", "Save one development, and correct a mistaken entry in place.",

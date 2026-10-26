@@ -7,7 +7,7 @@ import com.her.data.db.CompanionRecord
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal val experienceToolNames = setOf("save_emotional_thread", "save_emotional_expression", "save_support_lesson", "record_support_application")
+internal val experienceToolNames = setOf("save_emotional_thread", "save_support_lesson", "record_support_application")
 
 internal suspend fun ToolRegistry.requireEmotionalRecord(id: String, kind: String): CompanionRecord {
     fun live(row: CompanionRecord) = row.kind == kind && row.deletedAt == null && !row.data().optBoolean("stale")
@@ -42,18 +42,6 @@ internal fun ToolRegistry.registerExperienceTools() {
             val links = mutableSetOf(source.id)
             old?.data()?.optJSONArray("relatedIds")?.let { array -> (0 until array.length()).forEach { links.add(array.getString(it)) } }
             saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
-        }
-    }
-    register("save_emotional_expression", "Judge this message's context; the app chooses the tone, and this earns nothing.",
-        objSchema(*evidence, "userContext" to oneOf("", "DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL"),
-            required = listOf("sourceMessageId", "evidence", "userContext"))) { a ->
-        repo.learningTransaction {
-            val source = emotionalEvidence(a)
-            if (repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id != source.id)
-                throw ToolValidationException("Expression requires the current user message")
-            val saved = saveEmotion("EMOTION_EXPRESSION:${source.id}", "EMOTION_EXPRESSION", JSONObject(a.toString()), a)
-            val rows = repo.companionRecords()
-            saved.put("expression", com.her.feelings.emotionalExpression(rows, com.her.feelings.emotionalState(rows, nowMillis(), repo.openDueAts()), source.id))
         }
     }
     register("save_support_lesson", "Turn the id returned by save_emotional_reflection into a tentative, situation-scoped lesson.",

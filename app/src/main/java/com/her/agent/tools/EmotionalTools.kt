@@ -6,6 +6,7 @@ import com.her.core.requiredString
 import com.her.core.optStringOrNull
 import com.her.data.db.CompanionRecord
 import com.her.data.db.LearningRecord
+import com.her.domain.AgentRunType
 import com.her.domain.MessageRole
 import com.her.domain.ReminderStatus
 import com.her.domain.TaskStatus
@@ -34,7 +35,7 @@ internal fun ToolRegistry.registerEmotionalTools() {
             "openExperiences" to JSONArray(com.her.feelings.openExperiences(rows).take(8).map { JSONObject(it.toJson()) }),
             "applicableLessons" to JSONArray(com.her.feelings.applicableLessons(rows, query, now).map { JSONObject(it.toJson()).put("effectiveConfidence", com.her.feelings.lessonConfidence(it, rows)) }),
             "expression" to com.her.feelings.emotionalExpression(rows, state, repo.recentMessages(12).lastOrNull { it.role == MessageRole.USER }?.id),
-            "recentUserMessages" to JSONArray(repo.recentMessages(12).filter { it.role == MessageRole.USER && it.deletedAt == null }.takeLast(3)
+            "recentUserMessages" to JSONArray(recentUserMessages(now)
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(800)) }),
             "completedTasks" to JSONArray(repo.tasks().filter { it.status == TaskStatus.DONE && it.deletedAt == null }.sortedByDescending { it.updatedAt }.take(5)
                 .map { jsonObjectOf("id" to it.id, "title" to it.title, "updatedAt" to it.updatedAt) }),
@@ -68,7 +69,7 @@ internal fun ToolRegistry.registerEmotionalTools() {
             if (assessments.any { a.has(it) } && !assessments.all { a.has(it) }) throw ToolValidationException("Provide all four appraisal fields together")
             val experience = a.optStringOrNull("experienceId")?.let { requireEmotionalRecord(it, "EMOTION_EXPERIENCE") }
             val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOfNotNull(source, experience?.id)))
-            if (experience == null) data.remove("experienceId")
+            if (experience == null) data.remove("experienceId") else data.put("experienceId", experience.id)
             saveEmotion(id, "EMOTION_EVENT", data, a)
         }
     }
@@ -94,6 +95,14 @@ internal fun ToolRegistry.registerEmotionalTools() {
             saveEmotion("EMOTION_REFLECTION:${a.requiredString("id").removePrefix("EMOTION_REFLECTION:")}", "EMOTION_REFLECTION", JSONObject(a.toString()).put("relatedIds", resolved).put("eventIds", resolved), a)
         }
     }
+}
+
+/** The nightly review links and quotes the whole day; other runs only need the latest few. */
+private suspend fun ToolRegistry.recentUserMessages(now: Long): List<com.her.domain.ChatMessage> {
+    val nightly = runType == AgentRunType.NIGHTLY
+    return repo.recentMessages(if (nightly) 200 else 12)
+        .filter { it.role == MessageRole.USER && it.deletedAt == null && (!nightly || it.createdAt >= now - 24 * HOUR_MS) }
+        .takeLast(if (nightly) 20 else 3)
 }
 
 private suspend fun ToolRegistry.verifiedAction(a: JSONObject): Triple<String, Long, String> {

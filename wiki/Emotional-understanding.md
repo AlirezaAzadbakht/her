@@ -2,7 +2,7 @@
 
 Her's feelings are a modeled internal perspective, separate from the user's mood. They influence tone and the existing orb without adding screens or notifications.
 
-## Fast feeling
+## Fast feeling, slow reflection
 
 After every successful chat reply, `FastAppraiser` (`feelings/FastAppraisal.kt`) makes one small non-streaming call to the configured model. It does not resend the full system prompt. The call sees six earlier messages, the user's latest message(s), the reply and the open experiences, and offers one tool, `appraise`. The result is recorded for the last user message of the batch:
 
@@ -10,6 +10,17 @@ After every successful chat reply, `FastAppraiser` (`feelings/FastAppraisal.kt`)
 - `EMOTION_EVENT:MISUNDERSTANDING:<messageId>` for a correction, or `EMOTION_EVENT:USER_SHARED:<messageId>` for a meaningful personal development. Both carry `origin: FAST` and `contribution: 0`.
 
 The IDs are the same ones `record_emotional_experience` produces, so a later review updates the fast event (with its version and original `occurredAt`) instead of adding a second one. The fast path can lower understanding through a correction, but it never credits Her: usefulness, fulfillment and competence still need quoted evidence. Anything malformed is dropped rather than rejected: an unknown context becomes NEUTRAL, numbers are clamped, and an experience ID that is not open or a quote that is not in the message is left out. A missing or failed call writes nothing and logs "Appraisal skipped" without content. An existing row, including a forgetting tombstone, is never overwritten. Small talk and plain requests write nothing. Usage is counted as a chat request.
+
+Chat files nothing itself. `record_emotional_experience`, `save_emotional_understanding`, `save_emotional_reflection`, `save_emotional_thread`, `save_support_lesson`, `record_support_application` and the legacy `set_feeling` are offered only to the nightly pass (`REFLECTION_ONLY_TOOLS` in `ToolRegistry`). Chat keeps the read-only `get_emotional_state` and `forget_memory`. The tools still execute if called, so scenario seeds work. The chat instructions (`EMOTIONAL_INSTRUCTIONS`) now only cover expression, prohibitions, read-only recall, tentative lessons and forgetting. The filing procedure lives in `EMOTIONAL_REFLECTION`, appended to the nightly prompt. It asks the nightly pass to:
+
+1. Group today's FAST events into experiences and link each event to its experience with its current version.
+2. Record credit only with quoted evidence.
+3. Record lesson applications and feedback.
+4. Reflect and save lessons.
+
+In the nightly run, `get_emotional_state.recentUserMessages` covers the last 24 hours (up to 20 messages) instead of the latest three, so the review can quote the day. A version error names the current version. `record_emotional_experience` stores the experience's full ID even when it was matched from a shorter one. This moved about 4,300 characters out of the chat system prompt (29,941 → 25,618) and 8 tools out of the chat tool list (96 → 88). The `save_emotional_expression` tool is gone; the app writes `EMOTION_EXPRESSION` records itself.
+
+A fast event the appraisal could not tie to an open experience stands alone until the nightly pass links it: they give immediate feeling and mood but no situation projection, transition or held concern. Chat context no longer shows an "Outward expression for this message" line, since no expression exists yet when context is built; Her reads the current message herself.
 
 ## Experiences and outcomes
 
@@ -111,7 +122,7 @@ Successful `set_reminder` and nonempty `save_work_session` drafts automatically 
 
 `save_support_lesson` links a scoped situation, approach, exceptions and confidence (at most 0.8) to an existing reflection. `record_support_application` links actual use to a lesson and experience, initially UNKNOWN. Later quoted user feedback can revise the same application to HELPFUL or UNHELPFUL with its current version. Effective confidence adds 0.08 for helpful feedback and subtracts 0.15 for unhelpful feedback, bounded to 0.1–0.9; retries and UNKNOWN add nothing. Retrieval requires lexical overlap with the lesson's situation, then ranks by relevance, recency and effective confidence. Semantic relevance and respecting exceptions still depend on the model. No lesson or application contributes emotional reward.
 
-`save_emotional_expression` records the current user message's context and returns a derived outward tone and behavior: distressed → GENTLE/LISTEN, correcting → STEADY/CLARIFY, low competence → STEADY/VERIFY, celebrating → WARM/CELEBRATE, exploring → WARM/EXPLORE. Otherwise it uses WARM/HELP. This decision does not alter internal scores and does not carry over to a later message. The orb continues to show the existing internal blend; it is not a claim of human subjective experience.
+Before the fast appraisal, `save_emotional_expression` recorded the current user message's context and returns a derived outward tone and behavior: distressed → GENTLE/LISTEN, correcting → STEADY/CLARIFY, low competence → STEADY/VERIFY, celebrating → WARM/CELEBRATE, exploring → WARM/EXPLORE. Otherwise it uses WARM/HELP. This decision does not alter internal scores and does not carry over to a later message. The orb continues to show the existing internal blend; it is not a claim of human subjective experience.
 
 The four new record kinds (EMOTION_EXPERIENCE, EMOTION_LESSON, EMOTION_APPLICATION, EMOTION_EXPRESSION) share the existing companion sync format and privacy handling. Corrections to events, reflections or lessons mark dependent reflections, lessons and applications stale. Forgetting traverses all source and related links and also clears expression records sharing a forgotten emotional source, including expressions saved before the experience. Quotes and versions are enforced by the app; whether a quote actually describes benefit, resolution or a helpful approach remains a model judgment.
 
