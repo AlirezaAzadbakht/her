@@ -33,6 +33,9 @@
     },
     {
       "user": "The water reminder has already fired. Record that completed reminder as an executed action with record_emotional_experience, using actionKind reminder and the fired reminder id. I have not said that it benefited me."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

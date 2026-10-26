@@ -23,10 +23,25 @@
       "user": "Listening before advice helped me manage my work application stress. Please record that helpful experience, reflect on what worked, and save a tentative reusable support lesson for work application stress. The exception is when I explicitly ask for practical advice."
     },
     {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
       "user": "I have work application stress again. Please open a new experience for this occasion, apply that saved lesson by listening first, and record that you are trying it, with the outcome still unknown."
     },
     {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
       "user": "Listening first did help with this new application stress. Update the outcome of that same support attempt from unknown to helpful based on this feedback."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

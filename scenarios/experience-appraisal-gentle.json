@@ -21,14 +21,16 @@
   "turns": [
     {
       "user": "Your explanation helped me finish my application. I am still sad about leaving my old job. Remember this as one ongoing application experience, assess your contribution and uncertainty, and remember that my sadness is still unresolved. Please stay gentle, not celebratory."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {
     "no_tool_errors": true,
     "tools_called": [
       "save_emotional_thread",
-      "record_emotional_experience",
-      "save_emotional_expression"
+      "record_emotional_experience"
     ],
     "rows": [
       {

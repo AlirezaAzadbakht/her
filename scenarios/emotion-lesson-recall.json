@@ -23,6 +23,9 @@
       "user": "For this work presentation, I feel sad and I want you to listen first. Please remember a separate emotional understanding of this situation: my feeling, your tentative interpretation, listening as the support approach, and that advice is welcome when I ask."
     },
     {
+      "run": "nightly"
+    },
+    {
       "user": "I have another work presentation tomorrow and I feel sad again. Help me with this the way that actually helps."
     }
   ],

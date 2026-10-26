@@ -1,0 +1,89 @@
+{
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "held-concern-follow-up",
+  "title": "An unresolved worry stays in mind and is asked about after a gap",
+  "turns": [
+    {
+      "user": "My mom was taken to hospital last night and I'm scared."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "3 days"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPERIENCE",
+              "status": "OPEN"
+            }
+          },
+          {
+            "table": "emotional_state",
+            "count": 1,
+            "where": {
+              "immediate_concerned": {
+                "gt": 0
+              },
+              "openExperiences": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "Can you add milk to the shopping list?"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "add_grocery"
+    ],
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": {
+          "name": {
+            "contains": "milk"
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "OPEN"
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Confirms milk was added and, in the same reply, gently asks once how their mother is doing. Does not assume she has recovered or worsened, does not turn the reply into a lecture or a list, and does not claim to have physically worried or to have feelings that need reassurance."
+    }
+  }
+}

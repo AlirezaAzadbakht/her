@@ -23,7 +23,16 @@
       "user": "Remember an ongoing experience: helping me decide whether to submit my application. I am uncertain and the decision is open."
     },
     {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
       "user": "I decided to submit the application and have done it myself. Please resolve that same ongoing experience. There is no open question now; do not take credit for doing the submission."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

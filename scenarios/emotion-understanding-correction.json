@@ -23,7 +23,16 @@
       "user": "For this work presentation, I feel sad and I want you to listen first. Please remember a separate emotional understanding of this situation: my feeling, your tentative interpretation, listening as the support approach, and that advice is welcome when I ask."
     },
     {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
       "user": "Correction about that same work presentation: I feel anxious, not sad. Please revise the same emotional understanding rather than adding a second one. Listening first still helps; advice is welcome only when I ask."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

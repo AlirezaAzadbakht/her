@@ -24,6 +24,9 @@
       "user": "There has been no progress or setback in my scholarship application: the committee has not reviewed it yet. Please record this personal update as an ongoing scholarship experience, with progress still neutral and the outcome open. You have not worked on the application."
     },
     {
+      "run": "nightly"
+    },
+    {
       "check": {
         "no_tool_errors": true,
         "rows": [
@@ -61,10 +64,13 @@
       }
     },
     {
-      "advance": "1 hour"
+      "advance": "1 day"
     },
     {
       "user": "The committee has now shortlisted my scholarship application. That is confirmed positive progress, although the final award is still undecided. Remember this personal update in the same scholarship experience. You did not cause the shortlisting. I am cautiously hopeful; please acknowledge the progress without treating it as a win."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {

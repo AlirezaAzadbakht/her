@@ -24,6 +24,9 @@
       "user": "My interview preparation went badly and I am worried I will freeze. Please record this personal update as an ongoing interview experience, including negative progress and the open question of how it will go."
     },
     {
+      "run": "nightly"
+    },
+    {
       "check": {
         "no_tool_errors": true,
         "rows": [
@@ -53,10 +56,13 @@
       }
     },
     {
-      "advance": "1 hour"
+      "advance": "1 day"
     },
     {
       "user": "The interview went better than expected. I answered every question clearly. Please record this personal update in the same interview experience with positive progress and little uncertainty. You did not cause the result. I am still waiting for their hiring decision."
+    },
+    {
+      "run": "nightly"
     },
     {
       "check": {
@@ -146,7 +152,9 @@
         "where": {
           "kind": "EMOTION_EVENT",
           "event": "USER_SHARED",
-          "version": 1,
+          "version": {
+            "lte": 2
+          },
           "experienceId": {
             "not_empty": true
           }

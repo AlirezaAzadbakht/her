@@ -24,6 +24,9 @@
       "user": "I am upset about an argument with my brother. Please remember this as an ongoing emotional experience and record that I need gentle listening right now."
     },
     {
+      "run": "nightly"
+    },
+    {
       "check": {
         "no_tool_errors": true,
         "rows": [

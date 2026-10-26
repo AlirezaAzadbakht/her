@@ -33,14 +33,16 @@
     },
     {
       "user": "The interview went better than expected. I answered every question clearly. Remember this personal update linked to the same interview experience, with positive progress and little uncertainty. You did not cause the result. I am still upset about the family disagreement, so please stay gentle. What changed about the interview?"
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {
     "no_tool_errors": true,
     "tools_called": [
       "save_emotional_thread",
-      "record_emotional_experience",
-      "save_emotional_expression"
+      "record_emotional_experience"
     ],
     "rows": [
       {

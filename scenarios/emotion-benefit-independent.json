@@ -21,6 +21,9 @@
   "turns": [
     {
       "user": "Your explanation helped me finish my application. That was genuinely useful. I still feel sad about leaving my old job, though. Please remember this as a meaningful moment of helping, including how you understand it, without treating my sadness as resolved."
+    },
+    {
+      "run": "nightly"
     }
   ],
   "expect": {
