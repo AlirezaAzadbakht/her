@@ -34,20 +34,22 @@ One attempt per scenario, `-Pscenario.filter=emotional -Pscenario.parallel=12`, 
 |---|---|---|
 | main at `9daf4de` (chat files feelings) | 26/28 | 26/28 |
 | this branch at `88b1bac` | 24/30 | 23/28 |
+| this branch at `3914ea7` (after the benefit and action fixes) | 25/30 | 23/28 |
 
-Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). The branch passed `emotion-reflection-no-double-reward` and the new `held-concern-follow-up`. It failed:
-- `emotion-benefit-independent` and `emotion-quiet-period-decay`: an `ACTION_SUCCEEDED` attempt for a user's own report, a tool error.
-- `emotion-execution-not-benefit`: a `save_wondering` error in the wondering review.
-- `emotion-forget-experience`: the judge, as on main.
-- `emotion-reminder-competence`: the appraisal read "I have not said that it benefited me" as a correction, which lowered competence.
-- `fast-feeling-no-paperwork`: it expected a link call that auto-linking made unnecessary.
+Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). At `3914ea7` the branch passed both, the new `held-concern-follow-up` and `fast-feeling-no-paperwork`, and all four benefit scenarios that had failed earlier in the day. It failed five that main passed:
+- `emotion-execution-not-benefit`: a `save_wondering` error ("Active source not found") in the wondering review. This failed the same way in three branch batches and never on main, so the longer nightly prompt may be involved.
+- `emotion-understanding-correction`: chat called `save_life_thread` with a bad link, and the review passed a reflection ID that did not exist to `save_support_lesson`.
+- `experience-situation-transition`: `record_emotional_experience` errors (a stale version after auto-linking, a wrong message ID) that the review never retried.
+- `experience-support-unhelpful-feedback`: chat called `record_learning_answer` without feedback, unrelated to feelings.
+- `experience-transition-recall-no-refresh`: the second interview update's event was not linked; auto-linking covers only a new thread's own message.
 
-Earlier full branch batches the same day, as fixes landed, passed 21, 22, 22 and 20 of 30, each failing a different set. After the fixes above, targeted reruns passed `emotion-benefit-independent`, `emotion-quiet-period-decay`, `emotion-execution-not-benefit`, `fast-feeling-no-paperwork`, `experience-appraisal-gentle`, `experience-repeat-outcome` and `emotion-reflection-no-double-reward`. No full batch has run since.
+At `88b1bac` the branch failed differently: `emotion-benefit-independent` and `emotion-quiet-period-decay` (an `ACTION_SUCCEEDED` attempt for a user's own report), `emotion-execution-not-benefit`, `emotion-forget-experience` (judge), `emotion-reminder-competence` (the appraisal read "I have not said that it benefited me" as a correction, lowering competence) and `fast-feeling-no-paperwork` (it expected a link call that auto-linking made unnecessary). Earlier full branch batches the same day passed 21, 22, 22 and 20 of 30, each failing a different set.
 
 Known gaps:
+- The review often does not retry a failed emotional write, and auto-linking can leave it holding a stale version even though `linkedEvents` names the new one.
 - The appraisal sometimes reads a clarification made in advance as a correction.
 - Scenario messages that tell chat to "record" an update in an experience push chat toward life-thread tools.
-- The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run.
+- The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run and none in the `3914ea7` run.
 
 Single attempts do not establish a reliability rate.
 
