@@ -210,6 +210,38 @@ class EmotionalExperienceTest {
         assertNull(repo.getCompanionRecord(unrelated)!!.deletedAt)
     }
 
+    @Test fun aMessageAboutTwoSituationsGetsAnEventForEachUnlessOneIsMoved() = runBlocking {
+        val interview = thread("Worried about the interview", "interview")
+        val family = thread("Worried about family", "family")
+        fun shared(message: JSONObject, experience: String, quote: String) = JSONObject(message.toString()).put("event", "USER_SHARED").put("experienceId", experience)
+            .put("evidence", quote).put("interpretation", quote).put("feeling", "TENDER").put("intensity", 0.5).put("confidence", 0.8)
+        val both = source("The interview went well. I am still upset about the family disagreement.")
+        val first = call("record_emotional_experience", shared(both, interview, "The interview went well")).getString("id")
+        val second = call("record_emotional_experience", shared(both, family, "I am still upset about the family disagreement").put("expectedVersion", 0)).getString("id")
+        assertEquals("$first:family", second)
+        assertEquals(interview, repo.getCompanionRecord(first)!!.data().getString("experienceId"))
+        assertEquals(2L, call("record_emotional_experience", shared(both, family, "I am still upset").put("expectedVersion", 1)).getLong("version"))
+        // With the event's current version and no event of its own yet, the event moves: a correction of a mistaken link.
+        val nervous = source("I am nervous about tomorrow")
+        val mislinked = call("record_emotional_experience", shared(nervous, interview, "nervous")).getString("id")
+        call("record_emotional_experience", shared(nervous, family, "nervous").put("expectedVersion", 1))
+        assertEquals(family, repo.getCompanionRecord(mislinked)!!.data().getString("experienceId"))
+    }
+
+    @Test fun aThreadUpdatedByAMessageCanStillBeResolvedByIt() = runBlocking {
+        val opened = source("I am worried about the interview")
+        val id = call("save_emotional_thread", JSONObject(opened.toString()).put("id", "interview").put("intention", "Interview").put("status", "OPEN").put("unresolved", "How it goes")).getString("id")
+        assertFalse(tools.execute("save_emotional_thread", JSONObject(opened.toString()).put("id", id).put("intention", "Interview")
+            .put("status", "RESOLVED").put("unresolved", "None").put("expectedVersion", 1).toString()).ok)
+        clock.advance(1000)
+        val news = source("The interview went well and it is behind me")
+        fun update(status: String, version: Long) = JSONObject(news.toString()).put("id", id).put("intention", "Interview").put("status", status)
+            .put("unresolved", if (status == "OPEN") "How it goes" else "None").put("expectedVersion", version)
+        call("save_emotional_thread", update("OPEN", 1))
+        call("save_emotional_thread", update("RESOLVED", 2))
+        assertTrue(com.her.feelings.openExperiences(repo.companionRecords()).isEmpty())
+    }
+
     @Test fun aReportedBenefitNeedsSomeContributionFromHer() = runBlocking {
         val none = tools.execute("record_emotional_experience", appraisal(event()).put("contribution", 0.0).toString())
         assertTrue(none.payloadJson, !none.ok && none.payloadJson.contains("contribution above 0"))

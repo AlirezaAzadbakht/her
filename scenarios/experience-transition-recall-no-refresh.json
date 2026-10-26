@@ -153,7 +153,7 @@
           "kind": "EMOTION_EVENT",
           "event": "USER_SHARED",
           "version": {
-            "lte": 2
+            "lte": 3
           },
           "experienceId": {
             "not_empty": true

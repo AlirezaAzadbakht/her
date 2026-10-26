@@ -37,11 +37,16 @@ internal fun ToolRegistry.registerExperienceTools() {
                 val previousSource = repo.getMessage(old.data().optString("sourceMessageId"))
                 if (previousSource != null && source.createdAt < previousSource.createdAt) throw ToolValidationException("Status evidence cannot predate the current experience")
             }
-            if (old != null && old.data().optString("status") != a.getString("status") && old.data().optString("sourceMessageId") == source.id)
-                throw ToolValidationException("A status change requires fresh user evidence")
+            val statusChanged = old != null && old.data().optString("status") != a.getString("status")
+            // Compare with the message that set the current status, not the latest one cited: an update that kept the status
+            // may be followed by a change on the same message.
+            val statusSource = old?.data()?.optString("statusSourceMessageId")?.ifEmpty { null } ?: old?.data()?.optString("sourceMessageId")
+            if (statusChanged && statusSource == source.id)
+                throw ToolValidationException("A status change requires fresh user evidence: a newer message than the one that set the current status")
             val links = mutableSetOf(source.id)
             old?.data()?.optJSONArray("relatedIds")?.let { array -> (0 until array.length()).forEach { links.add(array.getString(it)) } }
-            val saved = saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
+            val saved = saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList()))
+                .put("statusSourceMessageId", if (old == null || statusChanged) source.id else statusSource), a)
             // A new thread adopts the unlinked fast events of its own source message, the link the review most often skipped.
             if (old != null) return@learningTransaction saved
             val adopted = repo.companionRecords().filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && it.data().optString("origin") == "FAST" &&

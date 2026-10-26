@@ -269,7 +269,8 @@ private suspend fun ToolRegistry.linkedRecordExists(id: String): Boolean =
 
 private suspend fun ToolRegistry.requireCompanion(id: String, kind: String? = null): CompanionRecord =
     repo.getCompanionRecord(id)?.takeIf { it.deletedAt == null && (kind == null || it.kind == kind) }
-        ?: throw ToolValidationException("Record not found; retrieve life context first")
+        ?: throw ToolValidationException(if (id.startsWith("EMOTION_")) "$id is an emotional record, not a life thread; save_emotional_thread and record_emotional_experience keep its developments"
+            else "Record not found; retrieve life context first")
 
 private fun validateCompanion(kind: String, data: JSONObject) {
     val statuses = when (kind) {

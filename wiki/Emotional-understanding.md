@@ -39,14 +39,23 @@ One attempt per scenario, `-Pscenario.filter=emotional -Pscenario.parallel=12`, 
 Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). At `3914ea7` the branch passed both, the new `held-concern-follow-up` and `fast-feeling-no-paperwork`, and all four benefit scenarios that had failed earlier in the day. It failed five that main passed:
 - `emotion-execution-not-benefit`: a `save_wondering` error ("Active source not found") in the wondering review. This failed the same way in three branch batches and never on main, so the longer nightly prompt may be involved.
 - `emotion-understanding-correction`: chat called `save_life_thread` with a bad link, and the review passed a reflection ID that did not exist to `save_support_lesson`.
-- `experience-situation-transition`: `record_emotional_experience` errors (a stale version after auto-linking, a wrong message ID) that the review never retried.
+- `experience-situation-transition`: the third message covers two situations. The review linked its `USER_SHARED` event to the interview, and a second event for the family was refused, since event IDs allowed one event of each type per message.
 - `experience-support-unhelpful-feedback`: chat called `record_learning_answer` without feedback, unrelated to feelings.
-- `experience-transition-recall-no-refresh`: the second interview update's event was not linked; auto-linking covers only a new thread's own message.
+- `experience-transition-recall-no-refresh`: both events were linked, but the first was at version 3 (automatic link, then a nightly revision), above the scenario's `lte 2` bound.
 
 At `88b1bac` the branch failed differently: `emotion-benefit-independent` and `emotion-quiet-period-decay` (an `ACTION_SUCCEEDED` attempt for a user's own report), `emotion-execution-not-benefit`, `emotion-forget-experience` (judge), `emotion-reminder-competence` (the appraisal read "I have not said that it benefited me" as a correction, lowering competence) and `fast-feeling-no-paperwork` (it expected a link call that auto-linking made unnecessary). Earlier full branch batches the same day passed 21, 22, 22 and 20 of 30, each failing a different set.
 
+Fixes after the `3914ea7` run:
+- A message about two situations gets one event per situation. If its event already belongs to another experience and the call does not pass that event's current version, the new experience gets its own event (`EMOTION_EVENT:<type>:<messageId>:<experience>`). Passing the current version still moves the event, to correct a mistaken link. Only the earliest event of each type per experience counts, so this cannot double-count.
+- A thread's status may change on a message that only updated it. The guard against one message both opening and resolving a thread now compares with the message that set the current status (`statusSourceMessageId`), not the latest one cited.
+- Open questions about an emotional situation stay in the thread's `unresolved` field. The review had tried `save_wondering` with an emotional experience or a chat message as the source; that error now names the valid sources (an open task, an active grocery item, a current memory).
+- An `EMOTION_*` ID passed to a life-thread tool gets an error that points to the emotional tools, instead of "retrieve life context first".
+- `experience-transition-recall-no-refresh` allows `lte 3`.
+
+Targeted reruns after these fixes passed `experience-situation-transition`, `emotion-execution-not-benefit`, `experience-unresolved-after-decay`, `experience-resolution`, `experience-neutral-to-hopeful`, `experience-setback-wistful`, `experience-repeat-outcome`, `held-concern-follow-up` and `emotion-understanding-correction`. `experience-transition-recall-no-refresh` passed twice and then failed once on a `save_thread_development` call from the review.
+
 Known gaps:
-- The review often does not retry a failed emotional write, and auto-linking can leave it holding a stale version even though `linkedEvents` names the new one.
+- The review sometimes calls life-thread tools (`save_thread_development`) on an emotional experience.
 - The appraisal sometimes reads a clarification made in advance as a correction.
 - Scenario messages that tell chat to "record" an update in an experience push chat toward life-thread tools.
 - The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run and none in the `3914ea7` run.

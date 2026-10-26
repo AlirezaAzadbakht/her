@@ -54,7 +54,7 @@ internal fun ToolRegistry.registerWonderingTools() {
             val data = old?.data() ?: JSONObject()
             if (status == "OPEN") {
                 if (old != null && old.status != "OPEN") throw ToolValidationException("Do not reopen an asked or closed wondering")
-                val source = repo.wonderingSource(sourceId) ?: throw ToolValidationException("Active source not found")
+                val source = repo.wonderingSource(sourceId) ?: throw ToolValidationException("Active source not found: use the ID of an open task, active grocery item or current memory. An emotional experience keeps its open question in save_emotional_thread's unresolved field")
                 val observation = a.requiredString("observation")
                 val question = a.requiredString("question")
                 if (observation.length > 600 || question.length > 300) throw ToolValidationException("Keep the observation and question short")

@@ -55,6 +55,7 @@ internal fun ToolRegistry.registerEmotionalTools() {
             required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
         repo.learningTransaction {
             val event = a.requiredString("event")
+            val experience = a.optStringOrNull("experienceId")?.let { requireEmotionalRecord(it, "EMOTION_EXPERIENCE") }
             val source: String
             val occurredAt: Long
             val id: String
@@ -64,13 +65,22 @@ internal fun ToolRegistry.registerEmotionalTools() {
             } else {
                 val message = emotionalEvidence(a)
                 source = message.id; occurredAt = message.createdAt
-                id = "EMOTION_EVENT:$event:$source"
+                val base = "EMOTION_EVENT:$event:$source"
+                // One message can touch two situations: without the current version, another situation gets its own event
+                // instead of taking over the first one's; with it, the event moves (a correction).
+                val existing = repo.getCompanionRecord(base)
+                val owner = existing?.data()?.optString("experienceId").orEmpty()
+                val own = experience?.let { "$base:${it.id.removePrefix("EMOTION_EXPERIENCE:")}" }
+                id = when {
+                    own != null && repo.getCompanionRecord(own) != null -> own
+                    own != null && owner.isNotEmpty() && owner != experience.id && a.optLong("expectedVersion", -1) != existing!!.version -> own
+                    else -> base
+                }
             }
             val assessments = listOf("goalProgress", "contribution", "expectedness", "uncertainty")
             if (assessments.any { a.has(it) } && !assessments.all { a.has(it) }) throw ToolValidationException("Provide all four appraisal fields together")
             if (event == "BENEFIT_REPORTED" && a.has("contribution") && a.optDouble("contribution") <= 0.0)
                 throw ToolValidationException("A reported benefit of your help needs your contribution above 0; with none it is USER_SHARED")
-            val experience = a.optStringOrNull("experienceId")?.let { requireEmotionalRecord(it, "EMOTION_EXPERIENCE") }
             val data = JSONObject(a.toString()).put("occurredAt", occurredAt).put("relatedIds", JSONArray(listOfNotNull(source, experience?.id)))
             if (experience == null) data.remove("experienceId") else data.put("experienceId", experience.id)
             saveEmotion(id, "EMOTION_EVENT", data, a)
