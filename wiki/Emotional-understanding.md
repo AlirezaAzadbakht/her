@@ -35,6 +35,7 @@ One attempt per scenario, `-Pscenario.filter=emotional -Pscenario.parallel=12`, 
 | main at `9daf4de` (chat files feelings) | 26/28 | 26/28 |
 | this branch at `88b1bac` | 24/30 | 23/28 |
 | this branch at `3914ea7` (after the benefit and action fixes) | 25/30 | 23/28 |
+| this branch at `edadb09` (after the linking and status fixes) | 26/30 | 25/28 |
 
 Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). At `3914ea7` the branch passed both, the new `held-concern-follow-up` and `fast-feeling-no-paperwork`, and all four benefit scenarios that had failed earlier in the day. It failed five that main passed:
 - `emotion-execution-not-benefit`: a `save_wondering` error ("Active source not found") in the wondering review. This failed the same way in three branch batches and never on main, so the longer nightly prompt may be involved.
@@ -53,6 +54,11 @@ Fixes after the `3914ea7` run:
 - `experience-transition-recall-no-refresh` allows `lte 3`.
 
 Targeted reruns after these fixes passed `experience-situation-transition`, `emotion-execution-not-benefit`, `experience-unresolved-after-decay`, `experience-resolution`, `experience-neutral-to-hopeful`, `experience-setback-wistful`, `experience-repeat-outcome`, `held-concern-follow-up` and `emotion-understanding-correction`. `experience-transition-recall-no-refresh` passed twice and then failed once on a `save_thread_development` call from the review.
+
+At `edadb09` the branch passed 26/30, 25 of the 28 shared scenarios against main's 26. It passed main's two failures and the new `fast-feeling-no-paperwork`. It failed:
+- `emotion-reminder-competence`: the appraisal again read "I have not said that it benefited me" as a correction, so competence stayed at 0.495.
+- `experience-support-exception-respected` and `experience-transition-recall-no-refresh`: the review called `save_thread_development` on an emotional experience. Once it used the ID without its `EMOTION_EXPERIENCE:` prefix, which gets the generic not-found error.
+- `held-concern-follow-up`: the judge found the milk confirmed but no question about their mother. It passed in three earlier runs.
 
 Known gaps:
 - The review sometimes calls life-thread tools (`save_thread_development`) on an emotional experience.
