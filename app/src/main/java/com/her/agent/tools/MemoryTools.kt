@@ -238,16 +238,17 @@ internal fun ToolRegistry.registerMemoryTools() {
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }
         val id = args.requiredString("id")
+        val linked = mutableListOf<String>()
         when {
             repo.getWondering(id) != null -> repo.forgetKnowledge(id)
             repo.getUserUnderstanding(id) != null -> repo.forgetKnowledge(id)
             repo.getCompanionRecord(id)?.kind in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") -> throw ToolValidationException("Internal deletion/delivery marker cannot be removed")
-            repo.getCompanionRecord(id) != null -> repo.forgetCompanion(id)
+            repo.getCompanionRecord(id) != null -> linked += repo.forgetCompanion(id)
             repo.getShort(id) != null -> repo.deleteShort(id)
             repo.getLong(id) != null -> repo.deleteLong(id)
             else -> throw ToolValidationException("Memory not found: $id")
         }
-        jsonObjectOf("ok" to true, "id" to id)
+        jsonObjectOf("ok" to true, "id" to id).apply { if (linked.isNotEmpty()) put("alsoForgotten", JSONArray(linked)) }
     }
 
     register("search_chat_history", "Search the lifetime conversation.", objSchema("query" to str(), "limit" to num(), required = listOf("query"))) { args ->

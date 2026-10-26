@@ -230,6 +230,10 @@ class EmotionalExperienceTest {
 
     @Test fun lessonsRequireRelevantScopeAndLaterFeedbackAndForgetCascades() = runBlocking {
         val (lesson, eventId) = lesson()
+        val reflectionId = JSONObject(repo.getCompanionRecord(lesson)!!.content).getJSONArray("relatedIds").getString(0)
+        val second = JSONObject().put("id", "other").put("reflectionId", reflectionId).put("situation", "work application stress ")
+            .put("approach", "Ask what they need").put("exceptions", "None").put("confidence", 0.5)
+        assertTrue(tools.execute("save_support_lesson", second.toString()).payloadJson.contains("expectedVersion 1"))
         val experience = thread()
         val a = source("Please listen about my application stress").put("lessonId", lesson).put("experienceId", experience).put("outcome", "HELPFUL")
         assertFalse(tools.execute("record_support_application", a.toString()).ok)
@@ -243,7 +247,7 @@ class EmotionalExperienceTest {
         assertEquals(0.58, com.her.feelings.lessonConfidence(repo.getCompanionRecord(lesson)!!, rows), 0.0001)
         assertEquals(lesson, com.her.feelings.applicableLessons(rows, "work application stress", clock.nowMillis()).single().id)
         assertTrue(com.her.feelings.applicableLessons(rows, "pancake recipe", clock.nowMillis()).isEmpty())
-        repo.forgetCompanion(eventId)
+        assertTrue(repo.forgetCompanion(eventId).containsAll(listOf(lesson, application)))
         assertNotNull(repo.getCompanionRecord(lesson)!!.deletedAt)
         assertNotNull(repo.getCompanionRecord(application)!!.deletedAt)
         assertTrue(com.her.feelings.applicableLessons(repo.companionRecords(), "work application stress", clock.nowMillis()).isEmpty())

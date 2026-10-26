@@ -20,7 +20,7 @@ import org.json.JSONObject
 private val CONTEXTS = setOf("DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL")
 
 internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest message lands.", objSchema(
-    "userContext" to oneOf("How their latest message reads", *CONTEXTS.toTypedArray()),
+    "userContext" to oneOf("What they feel and ask for now; a wish for gentleness is DISTRESSED", *CONTEXTS.toTypedArray()),
     "personal" to bool("A meaningful development in their life, not small talk or a request"),
     "goalProgress" to num("-1 setback to 1 progress, for them"),
     "expectedness" to num("0 surprising to 1 expected"),
@@ -34,7 +34,7 @@ internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest messa
 
 private val APPRAISE_SYSTEM = """
 You appraise one moment in a conversation between a person and Her, their assistant. Call appraise exactly once, about their latest message only.
-userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, not when they head off a misreading in advance; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. Good news alongside ongoing sadness or worry is DISTRESSED.
+userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, not when they head off a misreading in advance; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
 personal is true only for a meaningful development in their life or the life of someone close to them: health, work, relationships, milestones, setbacks, worries. Never for small talk, logistics or questions.
 goalProgress is how things moved for them: negative for a setback or worry, positive for progress, 0 when unclear. Do not judge whether Her helped.
 experienceId: copy an id from openExperiences only when this message continues that same situation.

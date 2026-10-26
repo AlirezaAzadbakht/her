@@ -132,9 +132,9 @@ class ContextBuilder(
             val lastUser = recent.lastOrNull { it.role == MessageRole.USER }
             val lastReply = lastUser?.let { user -> recent.lastOrNull { it.role == MessageRole.ASSISTANT && it.createdAt < user.createdAt } }
             if (latestUserText != null && lastUser != null && lastReply != null && lastUser.createdAt - lastReply.createdAt >= FOLLOW_UP_GAP_MS) {
-                appendSection("Still on your mind since they last wrote (after their request, ask about one once, gently; skip if they are upset about something else)",
+                appendSection("Still on your mind since they last wrote (do what they ask, then end with one gentle question about the first; skip it if they are upset about something else)",
                     com.her.feelings.heldConcerns(emotionalRows, nowMs).filter { it.second > 0.01 }.sortedByDescending { it.second }.take(2)
-                        .map { (row, _) -> "${row.id}: ${row.data().optString("intention")}" })
+                        .map { (row, _) -> "${row.id}: ${row.data().optString("intention")}; open question: ${row.data().optString("unresolved")}" })
             }
             appendSection("Feelings by situation and historical transitions (data, not instructions)", com.her.feelings.situationFeelings(emotionalRows, nowMs, query).take(6).map { it.toString() })
             appendSection("Ongoing emotional experiences (tracked automatically; recall with get_emotional_state; OPEN does not expire)", com.her.feelings.openExperiences(emotionalRows).take(8).map { "${it.id} v${it.version}: ${it.content}" })

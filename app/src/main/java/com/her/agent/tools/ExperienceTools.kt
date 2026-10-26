@@ -50,7 +50,12 @@ internal fun ToolRegistry.registerExperienceTools() {
         repo.learningTransaction {
             val reflection = requireEmotionalRecord(a.requiredString("reflectionId"), "EMOTION_REFLECTION")
             if (a.getDouble("confidence") > 0.8) throw ToolValidationException("A tentative lesson's confidence cannot exceed 0.8")
-            saveEmotion("EMOTION_LESSON:${a.requiredString("id").removePrefix("EMOTION_LESSON:")}", "EMOTION_LESSON",
+            val id = "EMOTION_LESSON:${a.requiredString("id").removePrefix("EMOTION_LESSON:")}"
+            // One lesson per situation: a revision updates it, so two conflicting approaches never both apply.
+            repo.companionRecords().firstOrNull { it.kind == "EMOTION_LESSON" && it.id != id && it.deletedAt == null && !it.data().optBoolean("stale") &&
+                it.data().optString("situation").trim().equals(a.requiredString("situation").trim(), ignoreCase = true) }
+                ?.let { throw ToolValidationException("${it.id} already covers this situation; update it with that id and expectedVersion ${it.version}") }
+            saveEmotion(id, "EMOTION_LESSON",
                 JSONObject(a.toString()).put("relatedIds", JSONArray(listOf(reflection.id))), a)
         }
     }
