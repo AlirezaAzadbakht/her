@@ -22,6 +22,7 @@ import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.SecureSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
+import com.her.feelings.FastAppraiser
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import com.her.reminders.AndroidReminderAlarms
@@ -73,6 +74,7 @@ class AppGraph(context: Context) {
     }
 
     val orchestrator: AgentOrchestrator by lazy {
-        AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy)
+        AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy,
+            appraiser = FastAppraiser(repo, llm) { secure.read() })
     }
 }

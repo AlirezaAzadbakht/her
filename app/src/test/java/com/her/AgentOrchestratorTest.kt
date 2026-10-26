@@ -487,7 +487,22 @@ class AgentOrchestratorTest {
         assertEquals(0L, settings.read().lastHourlyRunAt)
     }
 
-    private fun orchestrator(llm: LlmClient) = AgentOrchestrator(
+    @Test
+    fun aChatReplyIsFollowedByOneAppraisalThatRecordsTheFeeling() = runBlocking {
+        val llm = ScriptedLlm(
+            { reply("I'm so sorry. I'm here with you.") },
+            { toolCall("appraise", """{"userContext":"DISTRESSED","personal":true,"goalProgress":-0.6,"expectedness":0.2,"uncertainty":0.7,"confidence":0.8}""") },
+        )
+        val turns = orchestrator(llm, appraise = true)
+        val message = turns.enqueueUserMessage("My dad is in surgery and I'm scared")
+        assertEquals("I'm so sorry. I'm here with you.", turns.processOutbox()!!.assistantText)
+        assertEquals(2, llm.calls)
+        assertEquals(listOf("appraise"), llm.toolsSeen.last().map { it.name })
+        assertEquals("DISTRESSED", repo.getCompanionRecord("EMOTION_EXPRESSION:${message.id}")!!.data().getString("userContext"))
+        assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
+    }
+
+    private fun orchestrator(llm: LlmClient, appraise: Boolean = false) = AgentOrchestrator(
         repo = repo,
         llm = llm,
         llmSettings = { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") },
@@ -497,6 +512,7 @@ class AgentOrchestratorTest {
         notifier = notifier,
         policy = NotificationPolicy(settings),
         retryDelayMs = { 0L },
+        appraiser = if (appraise) com.her.feelings.FastAppraiser(repo, llm) { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") } else null,
     )
 
     private fun reply(text: String) =

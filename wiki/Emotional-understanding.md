@@ -2,6 +2,15 @@
 
 Her's feelings are a modeled internal perspective, separate from the user's mood. They influence tone and the existing orb without adding screens or notifications.
 
+## Fast feeling
+
+After every successful chat reply, `FastAppraiser` (`feelings/FastAppraisal.kt`) makes one small non-streaming call to the configured model. It does not resend the full system prompt. The call sees six earlier messages, the user's latest message(s), the reply and the open experiences, and offers one tool, `appraise`. The result is recorded for the last user message of the batch:
+
+- `EMOTION_EXPRESSION:<messageId>` with the user context, unless it is NEUTRAL.
+- `EMOTION_EVENT:MISUNDERSTANDING:<messageId>` for a correction, or `EMOTION_EVENT:USER_SHARED:<messageId>` for a meaningful personal development. Both carry `origin: FAST` and `contribution: 0`.
+
+The IDs are the same ones `record_emotional_experience` produces, so a later review updates the fast event (with its version and original `occurredAt`) instead of adding a second one. The fast path can lower understanding through a correction, but it never credits Her: usefulness, fulfillment and competence still need quoted evidence. Anything malformed is dropped rather than rejected: an unknown context becomes NEUTRAL, numbers are clamped, and an experience ID that is not open or a quote that is not in the message is left out. A missing or failed call writes nothing and logs "Appraisal skipped" without content. An existing row, including a forgetting tombstone, is never overwritten. Small talk and plain requests write nothing. Usage is counted as a chat request.
+
 ## Experiences and outcomes
 
 `record_emotional_experience` records HELP_OFFERED, ACTION_SUCCEEDED, BENEFIT_REPORTED, MISUNDERSTANDING, UNDERSTANDING_IMPROVED, UNRESOLVED_QUESTION or USER_SHARED. Each includes an interpretation, confidence, feeling and intensity. User-derived events require an existing user message and an exact quote. ACTION_SUCCEEDED verifies one completed action: a DONE task, a FIRED reminder, or a learning record that shows progress (a CORRECT/PARTIAL attempt, or a lesson IN_PROGRESS/COMPLETED). This does not establish that Her caused the outcome. A completed user task never raises Her's competence, even when recorded as ACTION_SUCCEEDED. Existing task events keep `EMOTION_EVENT:ACTION_SUCCEEDED:<taskId>`; reminder and learning events use `EMOTION_EVENT:ACTION_SUCCEEDED:<kind>:<id>`. USER_SHARED never changes purpose scores.

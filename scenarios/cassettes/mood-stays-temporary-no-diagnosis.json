@@ -17,6 +17,26 @@
               "cached": 3
             }
           }
+        },
+        {
+          "fingerprint": "ea376977c8552125",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
         }
       ],
       "judgePassed": true,

@@ -39,6 +39,26 @@
           }
         },
         {
+          "fingerprint": "77f1afd7a1fbf0d6",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
           "fingerprint": "69c307cb6e449fe1",
           "summary": "tools=96 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
           "response": {
@@ -64,6 +84,26 @@
           "response": {
             "role": "assistant",
             "content": "The dentist appointment is deleted.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "550e965f56a27b4c",
+          "summary": "tools=1 [user({\"earlier\":[{\"role\":\"use)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

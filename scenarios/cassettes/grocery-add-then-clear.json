@@ -44,6 +44,26 @@
           }
         },
         {
+          "fingerprint": "97615dc2e69c7cdd",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
           "fingerprint": "fa38e8ad8d9b7127",
           "summary": "tools=96 [user(We're out of coffee. Als) assistant user(I bought everything exce)]",
           "response": {
@@ -74,6 +94,26 @@
           "response": {
             "role": "assistant",
             "content": "Eggs stay on the list.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "d5a72bfcd09ade72",
+          "summary": "tools=1 [user({\"earlier\":[{\"role\":\"use)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
             "usage": {
               "input": 10,
               "output": 5,

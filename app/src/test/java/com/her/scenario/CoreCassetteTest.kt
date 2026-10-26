@@ -83,12 +83,15 @@ class CoreCassetteTest {
         private fun respond(messages: List<LlmMessage>, tools: List<ToolSpec>): LlmResponse {
             lastConfirmId(messages)?.let { seenConfirmId = it }
             if (tools.isEmpty() || messages.lastOrNull()?.role == "tool") return reply(closing(spec))
+            // The after-reply appraisal: these core cases are everyday requests, so nothing is felt or saved.
+            if (tools.singleOrNull()?.name == "appraise") return tools("appraise" to NEUTRAL_APPRAISAL)
             return opening(spec, messages, seenConfirmId)
         }
     }
 
     companion object {
         private const val START = 1_779_000_000_000L
+        private const val NEUTRAL_APPRAISAL = """{"userContext":"NEUTRAL","personal":false,"goalProgress":0,"expectedness":0.8,"uncertainty":0.2,"confidence":0.8}"""
 
         private fun opening(spec: ScenarioSpec, messages: List<LlmMessage>, confirmId: String?): LlmResponse {
             val user = messages.lastOrNull { it.role == "user" }?.content.orEmpty()

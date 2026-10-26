@@ -143,7 +143,7 @@ internal suspend fun ToolRegistry.saveEmotion(id: String, kind: String, data: JS
     if (kind == "EMOTION_EVENT" && previous != null) data.put("occurredAt", previous.getLong("occurredAt"))
     val canonical = data.keys().asSequence().sorted().joinToString("|") { "$it=${data.get(it)}" }
     if (previous != null && canonical == previous.keys().asSequence().sorted().joinToString("|") { "$it=${previous.get(it)}" }) return jsonObjectOf("ok" to true, "id" to id, "version" to old.version)
-    if (old != null && args.optLong("expectedVersion", -1) != old.version) throw ToolValidationException("Read record and provide expectedVersion")
+    if (old != null && args.optLong("expectedVersion", -1) != old.version) throw ToolValidationException("Record exists at version ${old.version}; pass expectedVersion ${old.version} to update it")
     val now = nowMillis()
     repo.saveCompanionRecord(CompanionRecord(id, id, kind, data.toString(), old?.createdAt ?: now, now, repo.deviceId, (old?.version ?: 0) + 1))
     if (old != null && kind in setOf("EMOTION_EVENT", "EMOTION_REFLECTION", "EMOTION_LESSON")) {
