@@ -36,6 +36,7 @@ One attempt per scenario, `-Pscenario.filter=emotional -Pscenario.parallel=12`, 
 | this branch at `88b1bac` | 24/30 | 23/28 |
 | this branch at `3914ea7` (after the benefit and action fixes) | 25/30 | 23/28 |
 | this branch at `edadb09` (after the linking and status fixes) | 26/30 | 25/28 |
+| this branch at `fcbf8f7` (after the correction and life-thread fixes) | 29/30 | 27/28 |
 
 Main failed `emotion-forget-experience` (the judge found a derived understanding left behind) and `emotion-reflection-no-double-reward` (no reflection saved). At `3914ea7` the branch passed both, the new `held-concern-follow-up` and `fast-feeling-no-paperwork`, and all four benefit scenarios that had failed earlier in the day. It failed five that main passed:
 - `emotion-execution-not-benefit`: a `save_wondering` error ("Active source not found") in the wondering review. This failed the same way in three branch batches and never on main, so the longer nightly prompt may be involved.
@@ -72,8 +73,11 @@ A parallel rerun of the eight affected scenarios passed 8/8:
 
 No live run called `save_thread_development` on an emotional experience, so the redirect is covered by unit tests only. In those runs chat created ordinary life threads for the emotional updates instead, without errors.
 
+At `fcbf8f7` the branch passed 29/30, 27 of the 28 shared scenarios against main's 26. It passed main's two failures and both new scenarios. Every scenario that had failed in earlier branch batches passed, including `emotion-reminder-competence`, `experience-situation-transition`, `experience-support-exception-respected` and `held-concern-follow-up`. The only failure was `experience-transition-recall-no-refresh`, on the judge. Asked to look up the old interview experience, chat searched life threads with `get_life_context`, found nothing, and answered correctly from context without editing anything. The judge wanted the saved emotional evidence retrieved with `get_emotional_state`. The batch took 38 minutes, against 9 to 13 minutes for earlier batches, with no provider errors.
+
 Known gaps:
 - Chat sometimes keeps an emotional update as an ordinary life thread as well, duplicating what the experience tracks.
+- To recall an emotional experience, chat sometimes searches life threads instead of calling `get_emotional_state`.
 - Scenario messages that tell chat to "record" an update in an experience push chat toward life-thread tools.
 - The provider sometimes rejected a request ("Function tools with reasoning_effort are not supported"): one or two scenarios in most branch batches, none in the main run and none in the `3914ea7` run.
 
