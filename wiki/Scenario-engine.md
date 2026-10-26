@@ -35,7 +35,7 @@ Gradle properties (passed through as system properties):
 
 | Property | Meaning |
 |----------|---------|
-| `scenario.only` | Run the scenario whose `id` equals this value |
+| `scenario.only` | Run the scenarios with these ids (comma-separated) |
 | `scenario.filter` | Substring match on id, title, or tags |
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |

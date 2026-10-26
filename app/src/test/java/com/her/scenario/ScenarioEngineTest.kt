@@ -30,11 +30,11 @@ class ScenarioEngineTest {
         val live = if (mode == ScenarioMode.REPLAY) null else LlmClient()
         val requestedAttempts = intProp("scenario.attempts")
         val parallel = (intProp("scenario.parallel") ?: 4).coerceAtLeast(1)
-        val only = stringProp("scenario.only")
+        val only = stringProp("scenario.only")?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }
         val filter = stringProp("scenario.filter")
         val pool = ScenarioLoader.loadPool().filter { spec ->
             when {
-                only != null -> spec.id == only
+                only != null -> spec.id in only
                 filter != null -> {
                     val needle = filter.lowercase()
                     spec.id.contains(needle) ||
@@ -44,8 +44,9 @@ class ScenarioEngineTest {
                 else -> true
             }
         }
-        if (only != null && pool.isEmpty()) {
-            error("No scenario with id '$only'")
+        val unknown = only.orEmpty() - pool.map { it.id }.toSet()
+        if (unknown.isNotEmpty()) {
+            error("No scenario with id ${unknown.joinToString()}")
         }
         if (pool.isEmpty()) {
             error("No scenarios matched the filter")
