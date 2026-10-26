@@ -439,6 +439,54 @@ class AgentOrchestratorTest {
         assertEquals(listOf("hourly", "chat"), started)
     }
 
+    @Test
+    fun waitingChatMakesBackgroundRunStopAtItsNextRound() = runBlocking {
+        val started = mutableListOf<String>()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse {
+                started += "hourly"
+                gate.await()
+                return toolCall("get_current_time")
+            }
+
+            override suspend fun stream(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                onDelta: (String) -> Unit,
+            ): LlmResponse {
+                started += "chat"
+                return reply("ok")
+            }
+        }
+        val orch = orchestrator(llm)
+        var hourly: com.her.agent.runner.TurnResult? = null
+        var chat: com.her.agent.runner.TurnResult? = null
+        coroutineScope {
+            val hourlyJob = launch { hourly = orch.runHourly() }
+            while (started.isEmpty()) yield()
+            val chatJob = launch {
+                orch.enqueueUserMessage("hi")
+                chat = orch.processOutbox()
+            }
+            delay(40)
+            gate.complete(Unit)
+            hourlyJob.join()
+            chatJob.join()
+        }
+        assertEquals(listOf("hourly", "chat"), started)
+        assertEquals(AgentOrchestrator.YIELDED, hourly!!.error)
+        assertEquals("ok", chat!!.assistantText)
+        assertEquals(0L, settings.read().lastHourlyRunAt)
+    }
+
     private fun orchestrator(llm: LlmClient) = AgentOrchestrator(
         repo = repo,
         llm = llm,

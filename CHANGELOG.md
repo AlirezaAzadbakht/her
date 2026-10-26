@@ -8,6 +8,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
 - Emotional updates keep their evidence and versions, setbacks receive gentle listening, and recalling an old experience does not record it as a new outcome.
 - Asking for practical advice overrides a saved listening-first approach without counting that approach as applied.
+- A message you send while Her is doing background work (an hourly check-in, the morning briefing, the nightly review) no longer waits for that work to finish. Your message goes first.
 
 ## [0.2.1] - 2026-10-25
 

@@ -12,7 +12,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
 
-Chat, hourly, nightly, and briefing share one lock. A pending user batch that already wrote rows (then failed) is told what was already done on retry, and those writes are not repeated. The composer Stop control cancels the in-flight HTTP call.
+Chat, hourly, nightly, and briefing share one lock. A chat message waiting for it makes a background run stop before its next call (run status `CANCELLED`), so the message waits for at most one background call. A run that already has a nudge to deliver finishes first. A stopped hourly runs again next period; nightly and briefing retry shortly. A pending user batch that already wrote rows (then failed) is told what was already done on retry, and those writes are not repeated. The composer Stop control cancels the in-flight HTTP call.
 
 The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
 

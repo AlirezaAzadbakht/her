@@ -24,6 +24,7 @@ import com.her.notify.NotifyDecision
 import com.her.notify.Notifier
 import com.her.notify.alreadySaidProactively
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -73,8 +74,10 @@ class AgentOrchestrator(
     private val policy: NotificationPolicy,
     private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
 ) {
-    // ponytail: one lock for every run; chat waits if hourly is in flight
+    // ponytail: one lock for every run; a waiting chat makes a background run stop at its next round,
+    // so chat waits at most one background call. Cancel that in-flight call too if one round is still too long.
     private val runMutex = Mutex()
+    private val chatWaiting = AtomicInteger(0)
     private val _turnState = MutableStateFlow<TurnState>(TurnState.Idle)
     val turnState: StateFlow<TurnState> = _turnState.asStateFlow()
 
@@ -86,7 +89,21 @@ class AgentOrchestrator(
         return message
     }
 
-    suspend fun processOutbox(): TurnResult? = runMutex.withLock {
+    suspend fun processOutbox(): TurnResult? {
+        chatWaiting.incrementAndGet()
+        try {
+            runMutex.lock()
+        } finally {
+            chatWaiting.decrementAndGet()
+        }
+        try {
+            return sendPending()
+        } finally {
+            runMutex.unlock()
+        }
+    }
+
+    private suspend fun sendPending(): TurnResult? {
         val pending = repo.pendingUserMessages()
         if (pending.isEmpty()) return null
         val joined = pending.joinToString("\n\n") { it.content }
@@ -103,7 +120,7 @@ class AgentOrchestrator(
         if (!result.failed) {
             repo.markSent(pending.map { it.id })
         }
-        result
+        return result
     }
 
     suspend fun runHourly(): TurnResult = runMutex.withLock {
@@ -191,6 +208,7 @@ class AgentOrchestrator(
         tools.runType = type
         val receipts = mutableListOf<Receipt>()
         try {
+            val buildStarted = nowMillis()
             val built = contextBuilder.build(latestUserText)
             val messages = built.messages.toMutableList()
             var anchor = writeAnchor
@@ -204,7 +222,7 @@ class AgentOrchestrator(
             if (systemExtra != null) {
                 messages.add(1, LlmMessage(role = "system", content = systemExtra))
             }
-            repo.logDebug("prompt", "contextChars=${built.systemBundle.length}")
+            repo.logDebug("prompt", "contextChars=${built.systemBundle.length} buildMs=${nowMillis() - buildStarted}")
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
             var lastText: String? = null
             var preamble = ""
@@ -215,6 +233,12 @@ class AgentOrchestrator(
             var companionKey: String? = null
             val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
+                // A message is waiting: stop here and let it go first. A run that already has a nudge to deliver finishes.
+                if (type != AgentRunType.CHAT && proactive == null && chatWaiting.get() > 0) {
+                    repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.CANCELLED, YIELDED, null))
+                    repo.logActivity(type.name.lowercase(), "Paused so your message could go first.")
+                    return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
+                }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
                 val roundTools = if (budget.isFinalCall()) emptyList() else tools.specsFor(type)
                 budget.consume()
@@ -234,7 +258,7 @@ class AgentOrchestrator(
                 repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
                 repo.logDebug(
                     "usage",
-                    "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens}",
+                    "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens} ms=${response.usage.latencyMs}",
                 )
                 repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
@@ -433,6 +457,7 @@ class AgentOrchestrator(
         const val MAX_TOOL_PAYLOAD_CHARS = 8_000
         const val MAX_CALLS_PER_ROUND = 8
         const val MAX_TURN_CHARS = 80_000
+        const val YIELDED = "yielded to chat"
 
         /** Rate limits, server errors, truncated streams, and malformed bodies are worth another try. */
         internal fun isRetryable(e: IOException): Boolean = when (e) {
