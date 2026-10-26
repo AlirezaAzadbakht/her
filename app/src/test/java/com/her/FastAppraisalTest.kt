@@ -112,6 +112,18 @@ class FastAppraisalTest {
         assertEquals(message.createdAt, events.single().data().getLong("occurredAt"))
     }
 
+    @Test fun aTurnThatForgotSomethingKeepsNoFeelingOrQuoteAboutIt() = runBlocking {
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(com.her.data.db.CompanionRecord("EMOTION_EXPERIENCE:breakup", "EMOTION_EXPERIENCE:breakup", "EMOTION_EXPERIENCE",
+            JSONObject().put("intention", "The breakup").put("status", "OPEN").toString(), now, now, repo.deviceId, 1))
+        val request = user("Please forget everything about my breakup, it still hurts")
+        repo.forgetKnowledge("EMOTION_EXPERIENCE:breakup")
+        answers += { error("the appraisal must not be asked") }
+        appraiser.appraise(listOf(request), "Done, it's forgotten.")
+        assertEquals(1, answers.size)
+        assertTrue(repo.companionRecords().none { it.kind in setOf("EMOTION_EXPRESSION", "EMOTION_EVENT") })
+    }
+
     @Test fun theNightlyReviewSeesTheLastDayOfMessagesAndChatOnlyTheLatest() = runBlocking {
         user("Two days ago")
         clock.advance(2 * 24 * 3_600_000L)
