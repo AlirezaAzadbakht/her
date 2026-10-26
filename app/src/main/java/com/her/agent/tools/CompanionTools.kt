@@ -194,7 +194,7 @@ internal fun ToolRegistry.registerCompanionTools() {
     save("save_life_thread", "THREAD", "Keep track of an ongoing situation they want followed, including an unresolved question. A choice they asked to save or remember is save_decision. Feelings about a situation are tracked automatically; do not use this just to track them.",
         "title" to str(), "summary" to str(), "decisions" to str(), "questions" to str(), "nextSteps" to str(),
         "status" to oneOf("", "ACTIVE", "PAUSED", "CLOSED"), "sensitive" to bool())
-    save("save_thread_development", "DEVELOPMENT", "Save one development, and correct a mistaken entry in place.",
+    save("save_thread_development", "DEVELOPMENT", "Save one development of a life thread, and correct a mistaken entry in place. Not for emotional experiences, which are tracked automatically.",
         "threadId" to str(), "summary" to str(), "status" to oneOf("", "ACTIVE", "SUPERSEDED"))
     save("save_waiting_on", "WAITING", "Record what another person owes on an existing open loop.",
         "openLoopId" to str("Existing open loop; create it first"), "personId" to str("Existing person id; look them up first"), "expectedOutcome" to str(), "deadline" to num("Epoch millis, or omit"),

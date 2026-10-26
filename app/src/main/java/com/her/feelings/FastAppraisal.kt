@@ -20,7 +20,7 @@ import org.json.JSONObject
 private val CONTEXTS = setOf("DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL")
 
 internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest message lands.", objSchema(
-    "userContext" to oneOf("What they feel and ask for now; a wish for gentleness is DISTRESSED", *CONTEXTS.toTypedArray()),
+    "userContext" to oneOf("What they feel and ask for now; a wish for gentleness is DISTRESSED; CORRECTING only when they say an earlier reply or action of Her's was wrong", *CONTEXTS.toTypedArray()),
     "personal" to bool("A meaningful development in their life, not small talk or a request"),
     "goalProgress" to num("-1 setback to 1 progress, for them"),
     "expectedness" to num("0 surprising to 1 expected"),

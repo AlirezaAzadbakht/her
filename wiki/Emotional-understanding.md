@@ -13,9 +13,9 @@ The IDs are the same ones `record_emotional_experience` produces, so a later rev
 
 Chat files nothing itself. `record_emotional_experience`, `save_emotional_understanding`, `save_emotional_reflection`, `save_emotional_thread`, `save_support_lesson`, `record_support_application` and the legacy `set_feeling` are offered only to the nightly pass (`REFLECTION_ONLY_TOOLS` in `ToolRegistry`). Chat keeps the read-only `get_emotional_state` and `forget_memory`. The tools still execute if called, so scenario seeds work. The chat instructions (`EMOTIONAL_INSTRUCTIONS`) now only cover expression, prohibitions, read-only recall, tentative lessons and forgetting. The filing procedure lives in `EMOTIONAL_REFLECTION`, appended to the nightly prompt. It asks the nightly pass to:
 
-1. Group today's FAST events into experiences and link each event to its experience with its current version.
-2. Record credit only with quoted evidence. A reported benefit is its own `BENEFIT_REPORTED` event next to the fast `USER_SHARED` one for the same message; the fast event never stands in for credit.
-3. Record lesson applications and feedback.
+1. Group today's FAST events into experiences and link each event to its experience with its current version. A newly created thread adopts the unlinked FAST events of its own source message and lists them as `linkedEvents`, because the review often saved the thread but skipped the link, which left no held concern.
+2. Record credit only with quoted evidence. A reported benefit or a completed action is its own `BENEFIT_REPORTED` or `ACTION_SUCCEEDED` event next to the fast `USER_SHARED` one for the same message; the fast event never stands in for either.
+3. Record lesson applications and feedback. In the nightly run, `get_emotional_state.applicableLessons` is matched against the day's user messages as well as the query, so a lesson tried today shows up.
 4. Reflect and save lessons.
 
 In the nightly run, `get_emotional_state.recentUserMessages` covers the last 24 hours (up to 20 messages) instead of the latest three, so the review can quote the day. A version error names the current version. `record_emotional_experience` stores the experience's full ID even when it was matched from a shorter one. This moved about 4,300 characters out of the chat system prompt (29,941 → 26,100) and 8 tools out of the chat tool list (96 → 88). The `save_emotional_expression` tool is gone; the app writes `EMOTION_EXPRESSION` records itself.

@@ -105,8 +105,8 @@ class FastAppraisalTest {
             .put("uncertainty", 0.7).put("interpretation", "Mother in hospital").put("feeling", "CONCERNED").put("intensity", 0.6).put("confidence", 0.8)
         val stale = tools.execute("record_emotional_experience", link.toString())
         assertFalse(stale.ok)
-        assertTrue(stale.payloadJson, stale.payloadJson.contains("expectedVersion 1"))
-        assertEquals(2L, tool("record_emotional_experience", link.put("expectedVersion", 1)).getLong("version"))
+        assertTrue(stale.payloadJson, stale.payloadJson.contains("expectedVersion 2"))
+        assertEquals(3L, tool("record_emotional_experience", link.put("expectedVersion", 2)).getLong("version"))
         val events = repo.companionRecords().filter { it.kind == "EMOTION_EVENT" }
         assertEquals(1, events.size)
         assertEquals(message.createdAt, events.single().data().getLong("occurredAt"))

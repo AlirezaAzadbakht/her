@@ -41,7 +41,16 @@ internal fun ToolRegistry.registerExperienceTools() {
                 throw ToolValidationException("A status change requires fresh user evidence")
             val links = mutableSetOf(source.id)
             old?.data()?.optJSONArray("relatedIds")?.let { array -> (0 until array.length()).forEach { links.add(array.getString(it)) } }
-            saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
+            val saved = saveEmotion(id, "EMOTION_EXPERIENCE", JSONObject(a.toString()).put("relatedIds", JSONArray(links.toList())), a)
+            // A new thread adopts the unlinked fast events of its own source message, the link the review most often skipped.
+            if (old != null) return@learningTransaction saved
+            val adopted = repo.companionRecords().filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && it.data().optString("origin") == "FAST" &&
+                it.data().optString("sourceMessageId") == source.id && it.data().optString("experienceId").isEmpty() }
+            adopted.forEach { event ->
+                val data = event.data().put("experienceId", id).put("relatedIds", JSONArray(listOf(source.id, id)))
+                repo.saveCompanionRecord(event.copy(content = data.toString(), updatedAt = nowMillis(), version = event.version + 1))
+            }
+            if (adopted.isEmpty()) saved else saved.put("linkedEvents", JSONArray(adopted.map { "${it.id} v${it.version + 1}" }))
         }
     }
     register("save_support_lesson", "Turn the id returned by save_emotional_reflection into a tentative, situation-scoped lesson.",

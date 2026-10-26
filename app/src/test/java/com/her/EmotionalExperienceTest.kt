@@ -210,6 +210,18 @@ class EmotionalExperienceTest {
         assertNull(repo.getCompanionRecord(unrelated)!!.deletedAt)
     }
 
+    @Test fun aNewThreadAdoptsTheUnlinkedFastEventsOfItsSourceMessage() = runBlocking {
+        val first = source("My mom is in the hospital and I am scared")
+        val eventId = "EMOTION_EVENT:USER_SHARED:${first.getString("sourceMessageId")}"
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(CompanionRecord(eventId, eventId, "EMOTION_EVENT", JSONObject().put("event", "USER_SHARED").put("origin", "FAST")
+            .put("sourceMessageId", first.getString("sourceMessageId")).put("goalProgress", -0.5).put("occurredAt", now).toString(), now, now, repo.deviceId, 1))
+        val saved = call("save_emotional_thread", JSONObject(first.toString()).put("id", "mom").put("intention", "Mom's stay").put("status", "OPEN").put("unresolved", "How she is"))
+        assertEquals("$eventId v2", saved.getJSONArray("linkedEvents").getString(0))
+        assertEquals("EMOTION_EXPERIENCE:mom", repo.getCompanionRecord(eventId)!!.data().getString("experienceId"))
+        assertTrue(com.her.feelings.heldConcerns(repo.companionRecords(), now).single().second > 0)
+    }
+
     /** What FastAppraiser writes after a reply; the appraisal call itself is covered in FastAppraisalTest. */
     private suspend fun expression(sourceMessageId: String, context: String): String {
         val id = "EMOTION_EXPRESSION:$sourceMessageId"

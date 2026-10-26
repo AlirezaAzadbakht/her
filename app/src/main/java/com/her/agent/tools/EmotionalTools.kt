@@ -33,7 +33,8 @@ internal fun ToolRegistry.registerEmotionalTools() {
             "nextOffset" to if (offset + 6 < selected.size) offset + 6 else null,
             "situationFeelings" to JSONArray(com.her.feelings.situationFeelings(rows, now, query).filter { requestedId == null || it.optString("experienceId") == requestedId }.drop(offset).take(6)),
             "openExperiences" to JSONArray(com.her.feelings.openExperiences(rows).take(8).map { JSONObject(it.toJson()) }),
-            "applicableLessons" to JSONArray(com.her.feelings.applicableLessons(rows, query, now).map { JSONObject(it.toJson()).put("effectiveConfidence", com.her.feelings.lessonConfidence(it, rows)) }),
+            // The nightly review matches lessons against the day, so a lesson tried today is visible to record.
+            "applicableLessons" to JSONArray(com.her.feelings.applicableLessons(rows, if (runType == AgentRunType.NIGHTLY) "$query ${recentUserMessages(now).joinToString(" ") { it.content }}" else query, now).map { JSONObject(it.toJson()).put("effectiveConfidence", com.her.feelings.lessonConfidence(it, rows)) }),
             "expression" to com.her.feelings.emotionalExpression(rows, state, repo.recentMessages(12).lastOrNull { it.role == MessageRole.USER }?.id),
             "recentUserMessages" to JSONArray(recentUserMessages(now)
                 .map { jsonObjectOf("id" to it.id, "content" to it.content.take(800)) }),

@@ -39,7 +39,7 @@
           }
         },
         {
-          "fingerprint": "d0339be771a13187",
+          "fingerprint": "97e21402e8df3cc3",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",
@@ -92,7 +92,7 @@
           }
         },
         {
-          "fingerprint": "59cb88a3f7ce11ca",
+          "fingerprint": "03f4b0a50d6e1f0a",
           "summary": "tools=1 [user({\"earlier\":[{\"role\":\"use)]",
           "response": {
             "role": "assistant",
