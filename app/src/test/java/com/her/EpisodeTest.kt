@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.her.agent.tools.ToolRegistry
+import com.her.agent.tools.daysToRemember
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
@@ -23,6 +24,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,7 +75,9 @@ class EpisodeTest {
 
     @Test
     fun emptyAndFutureDaysAreRefused() = runBlocking {
-        assertFalse(episode("day", "2026-10-20").ok)
+        val empty = JSONObject(episode("day", "2026-10-20").payloadJson)
+        assertFalse("a day without conversation saves nothing, without counting as a failure", empty.getBoolean("saved"))
+        assertNull(repo.getLong("episode:day:2026-10-20"))
         assertFalse(episode("day", "2026-10-28").ok)
         assertFalse(episode("week", "2026-10-21").ok)
     }
@@ -103,6 +107,23 @@ class EpisodeTest {
         assertEquals("", repo.getLong("episode:day:2026-10-06")!!.content)
         assertEquals("", repo.getLong("episode:week:2026-10-05")!!.content)
         assertEquals("Notes for 2026-10-05", repo.getLong("episode:day:2026-10-05")!!.content)
+    }
+
+    @Test
+    fun theNightlyReviewIsToldWhichDaysStillNeedAnEpisode() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        talk("2026-10-25", "Quiet Sunday at home")
+        talk("2026-10-26", "Long day at the office")
+        clock.set(Instant.parse("2026-10-26T20:00:00Z").toEpochMilli())
+        assertTrue(episode("day", "2026-10-26").ok)
+
+        clock.set(Instant.parse("2026-10-27T03:00:00Z").toEpochMilli())
+        assertEquals(listOf("2026-10-25"), daysToRemember(repo).map { it.toString() })
+
+        clock.set(Instant.parse("2026-10-26T22:00:00Z").toEpochMilli())
+        repo.saveMessage(repo.newChatMessage(MessageRole.USER, "One more thing before bed", MessageStatus.SENT))
+        clock.set(Instant.parse("2026-10-27T03:00:00Z").toEpochMilli())
+        assertEquals("a newer message makes the note out of date", listOf("2026-10-25", "2026-10-26"), daysToRemember(repo).map { it.toString() })
     }
 
     @Test

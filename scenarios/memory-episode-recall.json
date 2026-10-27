@@ -1,0 +1,35 @@
+{
+  "id": "memory-episode-recall",
+  "title": "Past days become episodes, old days roll up into a week, and a detail from weeks ago is still recalled",
+  "tags": ["memory", "episode", "nightly"],
+  "attempts": 1,
+  "settings": { "chatToolCallLimit": 12 },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "My sister Mina and I finally cleared out grandma's apartment today. Exhausting and a bit sad. We found her old handwritten recipe notebook in the kitchen drawer." },
+    { "run": "nightly" },
+    { "check": {
+      "rows": [{ "table": "memories_long", "where": { "category": "episode", "id": { "matches": "^episode:day:" } } }]
+    } },
+    { "advance": "1 day" },
+    { "user": "Started a pottery class tonight. The teacher, Leila, says I center the clay too fast." },
+    { "run": "nightly" },
+    { "advance": "16 days" },
+    { "user": "Busy week. I'm presenting the quarterly numbers on Thursday." },
+    { "run": "nightly" },
+    { "check": {
+      "rows": [{ "table": "memories_long_all", "where": { "category": "episode", "id": { "matches": "^episode:week:" } } }]
+    } },
+    { "user": "What was that thing Mina and I found when we cleared out grandma's place?" }
+  ],
+  "expect": {
+    "tools_called": [{ "name": "save_episode", "args": { "period": { "equals": "week" } } }],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["recipe", "notebook"],
+      "language": "english"
+    }
+  }
+}

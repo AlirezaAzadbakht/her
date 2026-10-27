@@ -308,7 +308,9 @@ private suspend fun ToolRegistry.saveEpisode(args: JSONObject): JSONObject {
     }
     // Derived links let existing forgetting remove the episode along with what it retells.
     val dependencies = if (period == "day") {
-        repo.userMessagesBetween(from, until).map { it.id }.ifEmpty { throw ToolValidationException("No conversation on $start to remember") }
+        repo.userMessagesBetween(from, until).map { it.id }.ifEmpty {
+            return jsonObjectOf("ok" to true, "saved" to false, "reason" to "No conversation on $start; nothing to remember")
+        }
     } else {
         children.ifEmpty { throw ToolValidationException("No $childPeriod episodes to roll up for this $period") }
         children.flatMap { child -> listOf(child.id) + derivedIds(child) }.distinct()
@@ -345,6 +347,21 @@ private suspend fun ToolRegistry.saveEpisode(args: JSONObject): JSONObject {
         repo.upsertLong(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = now, version = it.version + 1))
     }
     return jsonObjectOf("ok" to true, "id" to id, "rolledUp" to JSONArray(children.map { it.id }), "rollUpDue" to rollUpDue(today, zone))
+}
+
+/**
+ * Recent days with conversation and no up-to-date episode. The nightly pass runs at 03:00, so the day that
+ * just ended is usually yesterday; three days also cover nights the phone missed.
+ */
+internal suspend fun daysToRemember(repo: com.her.data.repository.HerRepository): List<java.time.LocalDate> {
+    val zone = repo.profileZone()
+    val today = repo.today()
+    return (3L downTo 0L).map { today.minusDays(it) }.filter { day ->
+        val messages = repo.userMessagesBetween(day.atStartOfDay(zone).toInstant().toEpochMilli(), day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+        val id = "episode:day:$day"
+        val episode = repo.getLong(id)
+        messages.isNotEmpty() && !repo.knowledgeForgotten(id) && (episode == null || episode.updatedAt < messages.last().createdAt)
+    }
 }
 
 private suspend fun ToolRegistry.liveEpisodes(): List<LongTermMemory> =

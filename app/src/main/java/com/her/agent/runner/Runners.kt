@@ -160,7 +160,8 @@ class AgentOrchestrator(
             type = AgentRunType.NIGHTLY,
             budget = CallBudget(50),
             latestUserText = null,
-            extraSystem = Identity.NIGHTLY_PROMPT,
+            extraSystem = Identity.NIGHTLY_PROMPT + com.her.agent.tools.daysToRemember(repo).takeIf { it.isNotEmpty() }
+                ?.let { days -> "\n\nDays to remember: ${days.joinToString(", ")}" }.orEmpty(),
             persistAssistant = false,
             allowNotify = false,
         )
