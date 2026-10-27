@@ -55,8 +55,9 @@ data class TurnResult(
     val error: String?,
     val callsUsed: Int,
     val runId: String,
-    /** Set when the account is out of credit: shown once, never saved to chat or sent to the model. */
-    val creditNotice: String? = null,
+    /** Why a chat turn failed, for the screen only: never saved to chat or sent to the model. */
+    val notice: String? = null,
+    val outOfCredit: Boolean = false,
 )
 
 sealed class TurnState {
@@ -397,13 +398,10 @@ class AgentOrchestrator(
             val error = redactSecrets(e.message ?: "Unknown error")
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
-            if (persistAssistant && !isOutOfCredit(e)) {
-                val language = runCatching { repo.getProfile().preferredLanguage }.getOrNull()
-                repo.saveMessage(
-                    repo.newChatMessage(MessageRole.ASSISTANT, failureReply(language), MessageStatus.FAILED, Receipts.toMetadata(receipts)),
-                )
-            }
-            TurnResult(null, true, error, budget.used, runId, creditNotice = if (isOutOfCredit(e)) creditNotice(latestUserText.orEmpty()) else null)
+            val credit = isOutOfCredit(e)
+            val lastText = latestUserText.orEmpty()
+            val notice = if (!persistAssistant) null else if (credit) creditNotice(lastText) else failureReply(lastText)
+            TurnResult(null, true, error, budget.used, runId, notice, credit)
         } finally {
             tools.runType = AgentRunType.CHAT
             if (streamToUi) _turnState.value = TurnState.Idle
@@ -529,15 +527,12 @@ class AgentOrchestrator(
             }
         }
 
-        internal fun failureReply(preferredLanguage: String?): String {
-            val language = preferredLanguage?.trim()?.lowercase().orEmpty()
-            val persian = language == "fa" || "persian" in language || "farsi" in language || "فارسی" in language
-            return if (persian) {
+        internal fun failureReply(lastUserText: String): String =
+            if (persianScript.containsMatchIn(lastUserText)) {
                 "الان نتوانستم به مدل وصل شوم. پیامت ذخیره شده — کمی بعد دوباره امتحان کن."
             } else {
                 "I couldn't reach the model just now. Your message is saved — try again in a moment."
             }
-        }
 
         internal fun forModel(payload: String): String =
             if (payload.length <= MAX_TOOL_PAYLOAD_CHARS) {

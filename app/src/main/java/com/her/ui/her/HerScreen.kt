@@ -134,7 +134,7 @@ fun HerScreen(vm: HerViewModel) {
     val latest by vm.latestAssistant.collectAsState()
     val turn by vm.turnState.collectAsState()
     val error by vm.sendError.collectAsState()
-    val creditNotice by vm.creditNotice.collectAsState()
+    val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
@@ -344,18 +344,21 @@ fun HerScreen(vm: HerViewModel) {
 
         // Not a chat message: it is never saved or sent to the model, and clears on the next send.
         AnimatedVisibility(
-            visible = creditNotice != null,
+            visible = notice != null,
             enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
             exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
         ) {
             val uriHandler = LocalUriHandler.current
+            var lastNotice by remember { mutableStateOf(notice) }
+            SideEffect { notice?.let { lastNotice = it } }
+            val shown = notice ?: lastNotice
             Column(
                 Modifier.fillMaxWidth().padding(bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(creditNotice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
-                HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                Text(shown?.notice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
+                if (shown?.outOfCredit == true) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
             }
         }
 

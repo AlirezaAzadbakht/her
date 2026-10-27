@@ -16,6 +16,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Things you bring up again stay fresh in Her's memory, while things nobody mentions gradually step back.
 
 ### Fixed
+- When Her can't reach the model, the "couldn't reach the model" note shows only on screen. It no longer stays in your chat or gets read back to the model later.
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
 - Emotional updates keep their evidence and versions, setbacks receive gentle listening, and recalling an old experience does not record it as a new outcome.
 - Asking for practical advice overrides a saved listening-first approach without counting that approach as applied.

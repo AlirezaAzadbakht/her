@@ -133,6 +133,9 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals(1, llm.calls)
+        assertFalse(result.outOfCredit)
+        assertEquals("I couldn't reach the model just now. Your message is saved — try again in a moment.", result.notice)
+        assertTrue("failures stay out of chat history", repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
     }
 
     @Test
@@ -144,8 +147,9 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals("credit errors are not retried", 1, llm.calls)
-        assertTrue(result.creditNotice!!.contains("Her Cloud"))
-        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.creditNotice!!))
+        assertTrue(result.outOfCredit)
+        assertTrue(result.notice!!.contains("Her Cloud"))
+        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice!!))
         assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
     }
 

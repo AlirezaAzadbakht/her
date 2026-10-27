@@ -46,7 +46,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val sqlBrowser = graph.sqlBrowser
 
     val sendError = MutableStateFlow<String?>(null)
-    val creditNotice = MutableStateFlow<String?>(null)
+    val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
@@ -74,7 +74,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun showFailure(result: TurnResult?) {
         if (result?.failed != true) return
-        if (result.creditNotice != null) creditNotice.value = result.creditNotice else sendError.value = result.error
+        if (result.notice != null) notice.value = result else sendError.value = result.error
     }
 
     fun saveUserName(name: String) {
@@ -140,7 +140,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         sendError.value = null
-        creditNotice.value = null
+        notice.value = null
         turnJob?.cancel()
         turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
