@@ -81,10 +81,12 @@ class HybridRanker(
         // One hop of association from what came to mind first, the way one memory brings up the next.
         val associated = associations(first.take(SEEDS), relatedIds, allShort + allLong)
         val pooled = first.map { it.id }.toSet()
-        val extra = (allShort + allLong).filter { it.id in associated && it.id !in pooled && visible(it, now) }
+        val extra = (allShort + allLong).filter { it.id in associated && it.id !in pooled }
+        // Recheck after the embedding request: a forget that landed meanwhile keeps the memory out.
         return (first + extra)
             .map { it.copy(score = score(query, context, it, now, it.id in associated, similarity[it.id])) }
             .sortedByDescending { it.score }
+            .filter { visible(it, now) }
             .take(limit)
     }
 
