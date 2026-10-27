@@ -133,6 +133,34 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals(1, llm.calls)
+        assertFalse(result.outOfCredit)
+        assertEquals("I couldn't reach the model just now. Your message is saved — try again in a moment.", result.notice)
+        assertTrue("failures stay out of chat history", repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun outOfCreditShowsANoticeButKeepsItOutOfChat() = runBlocking {
+        val llm = ScriptedLlm({ throw LlmException("""LLM request failed (429): {"error":{"code":"insufficient_quota"}}""", 429) })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("سلام، خوبی؟")
+        val result = orchestrator.processOutbox()!!
+
+        assertTrue(result.failed)
+        assertEquals("credit errors are not retried", 1, llm.calls)
+        assertTrue(result.outOfCredit)
+        assertTrue(result.notice!!.contains("Her Cloud"))
+        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice!!))
+        assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun recognisesOutOfCreditErrors() {
+        assertTrue(AgentOrchestrator.isOutOfCredit(LlmException("LLM request failed (402): Payment required", 402)))
+        assertTrue(AgentOrchestrator.isOutOfCredit(LlmException("""LLM request failed (429): {"code":"insufficient_quota"}""", 429)))
+        assertFalse(AgentOrchestrator.isOutOfCredit(LlmException("slow down", 429)))
+        assertFalse(AgentOrchestrator.isOutOfCredit(LlmException("server error", 500)))
+        assertFalse(AgentOrchestrator.isRetryable(LlmException("Payment required", 402)))
+        assertFalse(Regex("[\\u0600-\\u06FF]").containsMatchIn(AgentOrchestrator.creditNotice("hi there")))
     }
 
     @Test

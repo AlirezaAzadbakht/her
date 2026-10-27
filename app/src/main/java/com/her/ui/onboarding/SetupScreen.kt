@@ -62,7 +62,7 @@ import kotlinx.coroutines.delay
 // HerViewModel.saveAndTest reports success with exactly this message.
 private const val Connected = "Connected."
 
-private const val HerCloudUrl = "https://cloud.her-project.ir/"
+internal const val HerCloudUrl = "https://cloud.her-project.ir/"
 
 @Composable
 fun NameOnboarding(

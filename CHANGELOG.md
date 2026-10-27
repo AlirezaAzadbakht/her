@@ -6,6 +6,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Added
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
+- When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
 
 ### Changed
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
@@ -15,6 +16,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Things you bring up again stay fresh in Her's memory, while things nobody mentions gradually step back.
 
 ### Fixed
+- When Her can't reach the model, the "couldn't reach the model" note shows only on screen. It no longer stays in your chat or gets read back to the model later.
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
 - Emotional updates keep their evidence and versions, setbacks receive gentle listening, and recalling an old experience does not record it as a new outcome.
 - Asking for practical advice overrides a saved listening-first approach without counting that approach as applied.

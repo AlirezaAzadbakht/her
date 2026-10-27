@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
 import com.her.agent.runner.Receipt
 import com.her.agent.runner.Receipts
+import com.her.agent.runner.TurnResult
 import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
 import com.her.core.nowMillis
@@ -45,6 +46,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val sqlBrowser = graph.sqlBrowser
 
     val sendError = MutableStateFlow<String?>(null)
+    val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
@@ -65,9 +67,14 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect
                 val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
-                if (result?.failed == true) sendError.value = result.error
+                showFailure(result)
             }
         }
+    }
+
+    private fun showFailure(result: TurnResult?) {
+        if (result?.failed != true) return
+        if (result.notice != null) notice.value = result else sendError.value = result.error
     }
 
     fun saveUserName(name: String) {
@@ -133,6 +140,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         sendError.value = null
+        notice.value = null
         turnJob?.cancel()
         turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
@@ -143,7 +151,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                 pendingShare.value = null
                 if (graph.connectivity.online.value) {
                     val result = graph.orchestrator.processOutbox()
-                    if (result?.failed == true) sendError.value = result.error
+                    showFailure(result)
                 } else {
                     graph.scheduler.enqueueOutbox()
                 }
