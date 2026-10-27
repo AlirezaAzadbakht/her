@@ -6,6 +6,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Added
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
+- When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
 
 ### Changed
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.

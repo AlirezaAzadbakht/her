@@ -91,7 +91,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnState
+import androidx.compose.ui.platform.LocalUriHandler
 import com.her.ui.HerViewModel
+import com.her.ui.components.HerButton
+import com.her.ui.onboarding.HerCloudUrl
 import com.her.ui.components.GlassPill
 import com.her.ui.components.sharedPresence
 import com.her.ui.markdown.ContentDirection
@@ -131,6 +134,7 @@ fun HerScreen(vm: HerViewModel) {
     val latest by vm.latestAssistant.collectAsState()
     val turn by vm.turnState.collectAsState()
     val error by vm.sendError.collectAsState()
+    val creditNotice by vm.creditNotice.collectAsState()
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
@@ -335,6 +339,23 @@ fun HerScreen(vm: HerViewModel) {
                         .border(1.dp, scheme.error.copy(alpha = 0.35f), CircleShape)
                         .padding(horizontal = 14.dp, vertical = 6.dp),
                 )
+            }
+        }
+
+        // Not a chat message: it is never saved or sent to the model, and clears on the next send.
+        AnimatedVisibility(
+            visible = creditNotice != null,
+            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+        ) {
+            val uriHandler = LocalUriHandler.current
+            Column(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(creditNotice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
+                HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
             }
         }
 

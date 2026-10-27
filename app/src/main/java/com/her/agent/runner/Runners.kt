@@ -55,6 +55,8 @@ data class TurnResult(
     val error: String?,
     val callsUsed: Int,
     val runId: String,
+    /** Set when the account is out of credit: shown once, never saved to chat or sent to the model. */
+    val creditNotice: String? = null,
 )
 
 sealed class TurnState {
@@ -395,13 +397,13 @@ class AgentOrchestrator(
             val error = redactSecrets(e.message ?: "Unknown error")
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
-            if (persistAssistant) {
+            if (persistAssistant && !isOutOfCredit(e)) {
                 val language = runCatching { repo.getProfile().preferredLanguage }.getOrNull()
                 repo.saveMessage(
                     repo.newChatMessage(MessageRole.ASSISTANT, failureReply(language), MessageStatus.FAILED, Receipts.toMetadata(receipts)),
                 )
             }
-            TurnResult(null, true, error, budget.used, runId)
+            TurnResult(null, true, error, budget.used, runId, creditNotice = if (isOutOfCredit(e)) creditNotice(latestUserText.orEmpty()) else null)
         } finally {
             tools.runType = AgentRunType.CHAT
             if (streamToUi) _turnState.value = TurnState.Idle
@@ -466,7 +468,7 @@ class AgentOrchestrator(
 
         /** Rate limits, server errors, truncated streams, and malformed bodies are worth another try. */
         internal fun isRetryable(e: IOException): Boolean = when (e) {
-            is LlmException -> {
+            is LlmException -> if (isOutOfCredit(e)) false else {
                 val status = e.status
                 val msg = e.message.orEmpty()
                 status == 429 || (status != null && status >= 500) ||
@@ -476,6 +478,44 @@ class AgentOrchestrator(
             }
             else -> true
         }
+
+        private val creditMarkers = listOf("insufficient_quota", "insufficient credit", "insufficient balance", "insufficient funds", "out of credit", "credit balance")
+
+        /** 402, or a provider saying the balance is empty (OpenAI sends that as a 429). */
+        internal fun isOutOfCredit(e: Throwable): Boolean =
+            e is LlmException && (e.status == 402 || creditMarkers.any { e.message.orEmpty().contains(it, ignoreCase = true) })
+
+        private val englishCreditNotices = listOf(
+            "Your API credit has run out, so I can't answer right now. Recharge it or buy credit on Her Cloud — your message is saved and will send after.",
+            "I'm out of credit on your API key. Top it up, or get credit on Her Cloud, and I'll pick up your message right away.",
+            "Looks like the account behind me has no credit left. Charge it or move to Her Cloud — your message is waiting.",
+            "I can't think without credit, and the API balance just hit zero. Recharge it or buy some on Her Cloud; nothing you wrote is lost.",
+            "The model says the credit is used up. Add credit to your key, or switch to Her Cloud, and I'll reply to what you sent.",
+            "No credit left on the API, so I'm quiet for now. Top up or get credit on Her Cloud — I kept your message.",
+            "Your API account needs a recharge before I can answer. Her Cloud is the quickest way; your message will send once it's charged.",
+            "I hit the end of your API credit. Charge the account or buy credit on Her Cloud, and we'll carry on where we were.",
+            "Out of credit — I can't reach the model until it's recharged. You can buy credit on Her Cloud; your message is saved.",
+            "The balance on your API key is empty. Recharge it, or get credit on Her Cloud and paste the new settings — I'll answer then.",
+        )
+
+        private val persianCreditNotices = listOf(
+            "اعتبار API تمام شده و الان نمی‌توانم جواب بدهم. شارژش کن یا از Her Cloud اعتبار بخر — پیامت ذخیره شده و بعدش فرستاده می‌شود.",
+            "اعتبار کلید API تمام شده. شارژش کن یا از Her Cloud اعتبار بگیر، همان موقع پیامت را جواب می‌دهم.",
+            "حسابی که با آن کار می‌کنم دیگر اعتبار ندارد. شارژش کن یا به Her Cloud برو — پیامت منتظر است.",
+            "بدون اعتبار نمی‌توانم فکر کنم و موجودی API صفر شده. شارژش کن یا از Her Cloud بخر؛ چیزی از نوشته‌ات گم نشده.",
+            "مدل می‌گوید اعتبار تمام شده. به کلیدت اعتبار اضافه کن یا به Her Cloud برو تا جواب پیامت را بدهم.",
+            "اعتبار API تمام شده، برای همین فعلاً ساکتم. شارژ کن یا از Her Cloud اعتبار بگیر — پیامت را نگه داشته‌ام.",
+            "حساب API قبل از جواب دادن به شارژ نیاز دارد. سریع‌ترین راه Her Cloud است؛ بعد از شارژ پیامت فرستاده می‌شود.",
+            "به ته اعتبار API رسیدم. حساب را شارژ کن یا از Her Cloud اعتبار بخر تا از همان‌جا ادامه بدهیم.",
+            "اعتبار تمام شده — تا شارژ نشود به مدل دسترسی ندارم. می‌توانی از Her Cloud اعتبار بخری؛ پیامت ذخیره شده.",
+            "موجودی کلید API خالی است. شارژش کن یا از Her Cloud اعتبار بگیر و تنظیمات تازه را وارد کن — آن‌وقت جواب می‌دهم.",
+        )
+
+        private val persianScript = Regex("[\\u0600-\\u06FF]")
+
+        /** Persian if the person just wrote in Persian, English otherwise; a random line so it doesn't feel canned. */
+        internal fun creditNotice(lastUserText: String, random: kotlin.random.Random = kotlin.random.Random.Default): String =
+            (if (persianScript.containsMatchIn(lastUserText)) persianCreditNotices else englishCreditNotices).random(random)
 
         internal fun elideToolResults(messages: MutableList<LlmMessage>, maxChars: Int = MAX_TURN_CHARS) {
             fun total(): Int = messages.sumOf { (it.content?.length ?: 0) }
