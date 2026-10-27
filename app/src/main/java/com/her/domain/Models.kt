@@ -442,6 +442,7 @@ data class MemoryHit(
     val source: String?,
     val sourceMessageId: String?,
     val derivedFromJson: String?,
+    val lastConfirmedAt: Long? = null,
 )
 
 data class LlmUsage(

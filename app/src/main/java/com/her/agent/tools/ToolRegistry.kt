@@ -322,5 +322,5 @@ open class ToolRegistry(
 
 internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering")
 
-/** Filing feelings is the nightly review's work; chat and the other passes only feel (after the reply) and recall. */
-internal val REFLECTION_ONLY_TOOLS = emotionalToolNames - "get_emotional_state" + "set_feeling"
+/** Filing feelings and writing episodes is the nightly review's work; chat and the other passes only feel (after the reply) and recall. */
+internal val REFLECTION_ONLY_TOOLS = emotionalToolNames - "get_emotional_state" + "set_feeling" + "save_episode"

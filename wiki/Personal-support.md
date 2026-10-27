@@ -12,6 +12,12 @@ Scoped forgetting uses existing `forget_memory`. Broad forgetting retains its co
 
 This is logical deletion, not guaranteed complete erasure. Historical chat, previously uploaded Drive change logs, and legacy unlinked copies are not physically erased. The agent must not recreate forgotten information from old chat or copy summaries into unlinked agent notes. Stored quotes prove what was said, not whether a fact is objectively true.
 
+## Episodes
+
+The nightly review saves a short dated note of each day she was talked to with `save_episode` (nightly only). It records what happened, who was involved, how it went for them and what is still open, in at most 80 words, and never includes her own feelings. These are long-term memories in the `episode` category with ids `episode:<day|week|month>:<start>`, so retries replace the note and ordinary retrieval brings them back in chat. Day episodes older than 14 days roll up into a week starting Monday, and weeks older than 60 days roll up into a month. The tool's `rollUpDue` lists the next roll-ups with their source notes. Rolled-up notes become ARCHIVED: they leave everyday recall but remain inspectable. Empty days, future dates and unfinished periods are refused.
+
+An episode derives from that day's user messages, and a roll-up derives from its children and their messages. Forgetting a fact, temporary memory or understanding also forgets every episode that retells its source message, through to the week and month. A forgotten episode is never written again. Corrections do not hide episodes; they remain a record of what was said at the time.
+
 ## Capacity-aware planning
 
 `save_action_capacity` attaches conservative duration estimates, stated energy needs, priority and prerequisite IDs to an existing task or commitment. Uncertainty should be included in the upper duration estimate. Unknown estimates are returned as unknown, rather than assumed to fit.

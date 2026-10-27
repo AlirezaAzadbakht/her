@@ -251,6 +251,18 @@ internal fun ToolRegistry.registerMemoryTools() {
         jsonObjectOf("ok" to true, "id" to id).apply { if (linked.isNotEmpty()) put("alsoForgotten", JSONArray(linked)) }
     }
 
+    register(
+        "save_episode",
+        "Nightly: save a short dated note of one day, or roll up the episodes listed in rollUpDue. The same period and start replaces it.",
+        objSchema(
+            "period" to oneOf("day, or week/month for a roll-up", "day", "week", "month"),
+            "start" to str("yyyy-MM-dd: the day, the Monday of the week, or the 1st of the month"),
+            "content" to str("At most 80 words in their language: what happened, who was involved, how it went for them, what is still open. Not your own feelings."),
+            "importance" to num("0-1"),
+            required = listOf("period", "start", "content"),
+        ),
+    ) { args -> saveEpisode(args) }
+
     register("search_chat_history", "Search the lifetime conversation.", objSchema("query" to str(), "limit" to num(), required = listOf("query"))) { args ->
         val found = repo.searchChat(args.requiredString("query"), args.optInt("limit", 10))
         jsonObjectOf("ok" to true, "messages" to JSONArray().apply {
@@ -258,4 +270,106 @@ internal fun ToolRegistry.registerMemoryTools() {
         })
     }
 
+}
+
+private const val EPISODE_DAY_MS = 24L * 60 * 60 * 1000
+private const val DAYS_BEFORE_WEEKLY = 14L
+private const val DAYS_BEFORE_MONTHLY = 60L
+
+/** Recent days stay detailed; older ones are compressed into weeks, and weeks into months, like human memory. */
+private suspend fun ToolRegistry.saveEpisode(args: JSONObject): JSONObject {
+    val period = args.requiredString("period").lowercase()
+    if (period !in setOf("day", "week", "month")) throw ToolValidationException("period must be day, week or month")
+    val start = runCatching { java.time.LocalDate.parse(args.requiredString("start")) }.getOrNull()
+        ?: throw ToolValidationException("start must be yyyy-MM-dd")
+    val content = args.requiredString("content").trim()
+    if (content.isBlank()) throw ToolValidationException("content must not be empty")
+    if (content.split(Regex("\\s+")).size > 100) throw ToolValidationException("Keep an episode under 80 words")
+    val zone = repo.profileZone()
+    val today = java.time.LocalDate.now(java.time.Clock.fixed(Instant.ofEpochMilli(nowMillis()), zone))
+    val aligned = when (period) {
+        "week" -> start.with(java.time.DayOfWeek.MONDAY)
+        "month" -> start.withDayOfMonth(1)
+        else -> start
+    }
+    if (aligned != start) throw ToolValidationException("A $period starts on $aligned")
+    val end = when (period) {
+        "week" -> start.plusWeeks(1)
+        "month" -> start.plusMonths(1)
+        else -> start.plusDays(1)
+    }
+    if (start > today) throw ToolValidationException("Cannot save an episode for the future")
+    if (period != "day" && end > today) throw ToolValidationException("Roll up a $period only after it has ended")
+    val from = start.atStartOfDay(zone).toInstant().toEpochMilli()
+    val until = end.atStartOfDay(zone).toInstant().toEpochMilli()
+    val childPeriod = if (period == "month") "week" else "day"
+    val children = if (period == "day") emptyList() else liveEpisodes().filter {
+        episodePeriod(it) == childPeriod && it.validFrom != null && it.validFrom in from until until
+    }
+    // Derived links let existing forgetting remove the episode along with what it retells.
+    val dependencies = if (period == "day") {
+        repo.userMessagesBetween(from, until).map { it.id }.ifEmpty { throw ToolValidationException("No conversation on $start to remember") }
+    } else {
+        children.ifEmpty { throw ToolValidationException("No $childPeriod episodes to roll up for this $period") }
+        children.flatMap { child -> listOf(child.id) + derivedIds(child) }.distinct()
+    }
+    val id = "episode:$period:$start"
+    if (repo.knowledgeForgotten(id)) throw ToolValidationException("They asked you to forget part of this $period; do not write it again")
+    val existing = repo.getLong(id)
+    val now = nowMillis()
+    repo.upsertLong(
+        LongTermMemory(
+            id = id,
+            content = content,
+            category = com.her.data.repository.EPISODE_CATEGORY,
+            confidence = 0.7,
+            importance = clamp01(args.optDoubleOr("importance", 0.5)),
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+            lastConfirmedAt = existing?.lastConfirmedAt,
+            source = MemorySource.AGENT_INFERENCE,
+            sourceMessageId = null,
+            derivedFromJson = JSONArray(dependencies).toString(),
+            validFrom = from,
+            validUntil = until,
+            // A day already folded into a week stays folded.
+            status = if (existing?.status == MemoryStatus.ARCHIVED) MemoryStatus.ARCHIVED else MemoryStatus.ACTIVE,
+            metadataJson = JSONObject().put("period", period).put("start", start.toString()).toString(),
+            deviceId = repo.deviceId,
+            version = (existing?.version ?: 0) + 1,
+            deletedAt = null,
+        ),
+    )
+    // Archived children leave everyday recall but stay inspectable.
+    children.filter { it.status == MemoryStatus.ACTIVE }.forEach {
+        repo.upsertLong(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = now, version = it.version + 1))
+    }
+    return jsonObjectOf("ok" to true, "id" to id, "rolledUp" to JSONArray(children.map { it.id }), "rollUpDue" to rollUpDue(today, zone))
+}
+
+private suspend fun ToolRegistry.liveEpisodes(): List<LongTermMemory> =
+    repo.allLong().filter { it.deletedAt == null && it.category == com.her.data.repository.EPISODE_CATEGORY }
+
+private fun episodePeriod(memory: LongTermMemory): String =
+    runCatching { JSONObject(memory.metadataJson ?: "{}").optString("period") }.getOrDefault("")
+
+private fun derivedIds(memory: LongTermMemory): List<String> {
+    val array = runCatching { JSONArray(memory.derivedFromJson ?: "[]") }.getOrNull() ?: return emptyList()
+    return (0 until array.length()).map { array.optString(it) }
+}
+
+/** Up to two roll-ups to write next: active days older than two weeks, and weeks older than two months. */
+private suspend fun ToolRegistry.rollUpDue(today: java.time.LocalDate, zone: ZoneId): JSONArray {
+    val episodes = liveEpisodes().filter { it.status == MemoryStatus.ACTIVE && it.validFrom != null }
+    fun dayOf(memory: LongTermMemory) = Instant.ofEpochMilli(memory.validFrom!!).atZone(zone).toLocalDate()
+    val weeks = episodes.filter { episodePeriod(it) == "day" && dayOf(it) < today.minusDays(DAYS_BEFORE_WEEKLY) }
+        .groupBy { "week" to dayOf(it).with(java.time.DayOfWeek.MONDAY) }
+    val months = episodes.filter { episodePeriod(it) == "week" && dayOf(it) < today.minusDays(DAYS_BEFORE_MONTHLY) }
+        .groupBy { "month" to dayOf(it).withDayOfMonth(1) }
+    return JSONArray().apply {
+        (weeks + months).entries.sortedBy { it.key.second }.take(2).forEach { (key, items) ->
+            put(JSONObject().put("period", key.first).put("start", key.second.toString())
+                .put("episodes", JSONArray(items.sortedBy { it.validFrom }.map { "${it.id}: ${it.content}" })))
+        }
+    }
 }

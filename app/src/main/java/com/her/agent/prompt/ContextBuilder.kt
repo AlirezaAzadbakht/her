@@ -52,8 +52,16 @@ class ContextBuilder(
         val recent = repo.recentMessages(recentLimit)
         val query = latestUserText ?: recent.takeLast(3).joinToString(" ") { it.content }
         val companion = com.her.companion.companionContext(repo, settings, query)
-        val relatedIds = repo.relationships().flatMap { listOf(it.sourceId, it.targetId) }.toSet()
-        val memories = ranker.search(query, limit = 12, relatedIds = relatedIds)
+        // The turns just before this message keep the topic in mind; people it names seed associations.
+        val before = recent.dropLastWhile { latestUserText != null && it.role == MessageRole.USER && latestUserText.contains(it.content) }.takeLast(2)
+        val named = latestUserText?.let { text ->
+            repo.people().filter { person ->
+                val first = person.name.substringBefore(' ')
+                text.contains(person.name, ignoreCase = true) || (first.length >= 3 && text.contains(first, ignoreCase = true))
+            }.map { it.id }.toSet()
+        }.orEmpty()
+        val memories = ranker.search(query, limit = 12, relatedIds = named,
+            context = if (latestUserText != null) before.joinToString(" ") { it.content } else "")
         val understandings = repo.activeUserUnderstandings().take(16)
         val people = repo.people().take(12)
         val projects = repo.projects().take(10)
