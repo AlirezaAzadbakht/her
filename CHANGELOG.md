@@ -8,6 +8,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
 - Her is glad for your good news even when she had no part in it.
+- Short follow-ups like "and tomorrow?" now bring back what you were just talking about, and remembering one thing brings up what you told her alongside it or linked to the person you mention.
 
 ### Fixed
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.

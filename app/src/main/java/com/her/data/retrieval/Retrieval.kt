@@ -4,7 +4,9 @@ import com.her.core.lexicalOverlap
 import com.her.core.recencyScore
 import com.her.data.db.MemoryEmbeddingEntity
 import com.her.data.repository.HerRepository
+import com.her.domain.LongTermMemory
 import com.her.domain.MemoryHit
+import com.her.domain.ShortTermMemory
 import kotlin.coroutines.cancellation.CancellationException
 
 interface EmbeddingProvider {
@@ -20,11 +22,16 @@ class NoOpEmbeddingProvider : EmbeddingProvider {
 }
 
 interface MemoryRanker {
+    /**
+     * [context] is the conversation just before [query]; it keeps the topic alive for short follow-ups.
+     * [relatedIds] seed associations (e.g. people named in the message) besides the top hits.
+     */
     suspend fun search(
         query: String,
         memoryTypes: List<String> = emptyList(),
         relatedIds: Set<String> = emptySet(),
         limit: Int = 12,
+        context: String = "",
     ): List<MemoryHit>
 }
 
@@ -37,6 +44,7 @@ class HybridRanker(
         memoryTypes: List<String>,
         relatedIds: Set<String>,
         limit: Int,
+        context: String,
     ): List<MemoryHit> {
         val types = memoryTypes.map { it.lowercase() }.toSet()
         val wantShort = types.isEmpty() || types.any { it.contains("short") }
@@ -44,71 +52,83 @@ class HybridRanker(
         val now = repo.clock.nowMillis()
         // With embeddings, a paraphrase can match a memory that shares no words, so rank the wider pool too.
         val model = embeddings.model()?.takeIf { query.isNotBlank() }
+        // ponytail: loads every live memory per search; fine for one person's phone, index links if it grows large.
+        val allShort = if (wantShort) repo.activeShort().map { it.toHit() } else emptyList()
+        val allLong = if (wantLong) repo.activeLong().map { it.toHit() } else emptyList()
         val hits = mutableListOf<MemoryHit>()
 
         if (wantShort) {
-            val fts = if (query.isBlank()) emptyList() else repo.searchShort(query, 40)
-            val pool = when {
-                model != null -> (fts + repo.activeShort().take(POOL_PER_TYPE)).distinctBy { it.id }
-                fts.isEmpty() -> repo.activeShort()
+            val fts = (search(query) { repo.searchShort(it, 40) } + search(context) { repo.searchShort(it, 20) }).map { it.toHit() }
+            hits += when {
+                model != null -> fts + allShort.take(POOL_PER_TYPE)
+                fts.isEmpty() -> allShort
                 else -> fts
-            }
-            pool.forEach { mem ->
-                hits += MemoryHit(
-                    id = mem.id,
-                    memoryType = "short_term",
-                    content = mem.content,
-                    importance = mem.importance,
-                    confidence = mem.confidence,
-                    updatedAt = mem.updatedAt,
-                    score = 0.0,
-                    source = mem.source.name,
-                    sourceMessageId = mem.sourceMessageId,
-                    derivedFromJson = null,
-                )
             }
         }
         if (wantLong) {
-            val fts = if (query.isBlank()) emptyList() else repo.searchLong(query, 40)
-            val pool = when {
-                model != null -> (fts + repo.activeLong().take(POOL_PER_TYPE)).distinctBy { it.id }
-                fts.isEmpty() -> repo.activeLong()
+            val fts = (search(query) { repo.searchLong(it, 40) } + search(context) { repo.searchLong(it, 20) }).map { it.toHit() }
+            hits += when {
+                model != null -> fts + allLong.take(POOL_PER_TYPE)
+                fts.isEmpty() -> allLong
                 else -> fts
             }
-            pool.forEach { mem ->
-                hits += MemoryHit(
-                    id = mem.id,
-                    memoryType = "long_term",
-                    content = mem.content,
-                    importance = mem.importance,
-                    confidence = mem.confidence,
-                    updatedAt = mem.updatedAt,
-                    score = 0.0,
-                    source = mem.source.name,
-                    sourceMessageId = mem.sourceMessageId,
-                    derivedFromJson = mem.derivedFromJson,
-                )
-            }
         }
-        val unique = hits.distinctBy { it.id }
+        val unique = hits.distinctBy { it.id }.filter { visible(it, now) }
         val similarity = if (model != null) semanticSimilarity(model, query, unique) else emptyMap()
-        return unique.filter { hit ->
-            val short = repo.getShort(hit.id)
-            val long = repo.getLong(hit.id)
-            (short != null && short.deletedAt == null && short.content == hit.content && (short.expiresAt == null || short.expiresAt > repo.clock.nowMillis())) ||
-                (long != null && long.deletedAt == null && long.status == com.her.domain.MemoryStatus.ACTIVE && long.content == hit.content)
-        }
-            .map { it.copy(score = score(query, it, now, relatedIds, similarity[it.id])) }
+        val first = unique.map { it.copy(score = score(query, context, it, now, false, similarity[it.id])) }
+            .sortedByDescending { it.score }
+
+        // One hop of association from what came to mind first, the way one memory brings up the next.
+        val associated = associations(first.take(SEEDS), relatedIds, allShort + allLong)
+        val pooled = first.map { it.id }.toSet()
+        val extra = (allShort + allLong).filter { it.id in associated && it.id !in pooled && visible(it, now) }
+        return (first + extra)
+            .map { it.copy(score = score(query, context, it, now, it.id in associated, similarity[it.id])) }
             .sortedByDescending { it.score }
             .take(limit)
     }
 
-    private fun score(query: String, hit: MemoryHit, now: Long, relatedIds: Set<String>, cosine: Double?): Double {
-        val lexical = lexicalOverlap(query, hit.content)
+    private suspend fun <T> search(text: String, find: suspend (String) -> List<T>): List<T> =
+        if (text.isBlank()) emptyList() else find(text)
+
+    /** Memories learned in the same message, derived from one another, or explicitly related to a seed. */
+    private suspend fun associations(seeds: List<MemoryHit>, relatedIds: Set<String>, all: List<MemoryHit>): Set<String> {
+        val seedIds = seeds.map { it.id }.toSet() + relatedIds
+        if (seedIds.isEmpty()) return emptySet()
+        return buildSet {
+            repo.relationships().forEach {
+                if (it.sourceId in seedIds) add(it.targetId)
+                if (it.targetId in seedIds) add(it.sourceId)
+            }
+            seeds.forEach { seed ->
+                val derived = derivedIds(seed)
+                all.filter { it.id != seed.id }.forEach { other ->
+                    if ((seed.sourceMessageId != null && other.sourceMessageId == seed.sourceMessageId) ||
+                        other.id in derived || seed.id in derivedIds(other)) add(other.id)
+                }
+            }
+        }
+    }
+
+    private fun derivedIds(hit: MemoryHit): Set<String> {
+        val array = runCatching { org.json.JSONArray(hit.derivedFromJson ?: return emptySet()) }.getOrNull() ?: return emptySet()
+        return (0 until array.length()).map { array.optString(it) }.toSet()
+    }
+
+    /** Still live with the same content: a forget or correction since the pool was read keeps it out. */
+    private suspend fun visible(hit: MemoryHit, now: Long): Boolean {
+        val short = repo.getShort(hit.id)
+        val long = repo.getLong(hit.id)
+        return (short != null && short.deletedAt == null && short.content == hit.content && (short.expiresAt == null || short.expiresAt > now)) ||
+            (long != null && long.deletedAt == null && long.status == com.her.domain.MemoryStatus.ACTIVE && long.content == hit.content)
+    }
+
+    private fun score(query: String, context: String, hit: MemoryHit, now: Long, related: Boolean, cosine: Double?): Double {
+        // The current message leads; the turns before it only keep the topic in mind.
+        val lexical = maxOf(lexicalOverlap(query, hit.content), CONTEXT_WEIGHT * lexicalOverlap(context, hit.content))
         val semantic = cosine?.let { 0.35 * lexical + 0.65 * it.coerceIn(0.0, 1.0) } ?: lexical
         val recency = recencyScore(hit.updatedAt, now)
-        val related = if (hit.id in relatedIds) 1.0 else 0.0
-        return 0.40 * semantic + 0.20 * hit.importance + 0.15 * hit.confidence + 0.15 * recency + 0.10 * related
+        return 0.40 * semantic + 0.20 * hit.importance + 0.15 * hit.confidence + 0.15 * recency + 0.10 * (if (related) 1.0 else 0.0)
     }
 
     /**
@@ -132,12 +152,7 @@ class HybridRanker(
                 val now = repo.clock.nowMillis()
                 repo.learningTransaction {
                     // A concurrent forget/correction while the network request ran must not restore the cache.
-                    val current = fresh.filter { (hit, _) ->
-                        val short = repo.getShort(hit.id)
-                        val long = repo.getLong(hit.id)
-                        (short != null && short.deletedAt == null && short.content == hit.content && (short.expiresAt == null || short.expiresAt > now)) ||
-                            (long != null && long.deletedAt == null && long.status == com.her.domain.MemoryStatus.ACTIVE && long.content == hit.content)
-                    }
+                    val current = fresh.filter { (hit, _) -> visible(hit, now) }
                     dao.upsertAll(current.map { (hit, vector) ->
                         MemoryEmbeddingEntity(hit.id, model, hashes.getValue(hit.id), vector.size, vector.toBlob(), now)
                     })
@@ -157,5 +172,11 @@ class HybridRanker(
     private companion object {
         const val POOL_PER_TYPE = 200
         const val MAX_NEW_PER_SEARCH = 64
+        const val SEEDS = 3
+        const val CONTEXT_WEIGHT = 0.6
     }
 }
+
+private fun ShortTermMemory.toHit() = MemoryHit(id, "short_term", content, importance, confidence, updatedAt, 0.0, source.name, sourceMessageId, null)
+
+private fun LongTermMemory.toHit() = MemoryHit(id, "long_term", content, importance, confidence, updatedAt, 0.0, source.name, sourceMessageId, derivedFromJson)
