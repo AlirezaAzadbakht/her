@@ -197,6 +197,12 @@ class HerRepository(
         }
     }
 
+    /**
+     * Marks a memory as brought up again without touching its content, version or embedding.
+     * ponytail: device-local; the value travels whenever the row syncs for another reason. Enqueue a sync op if cross-device strength matters.
+     */
+    suspend fun confirmLong(id: String, at: Long) = memoryDao.confirmLong(id, at)
+
     suspend fun getShort(id: String) = memoryDao.getShort(id)?.toDomain()
     suspend fun getLong(id: String) = memoryDao.getLong(id)?.toDomain()
     suspend fun allShort() = memoryDao.allShort().map { it.toDomain() }

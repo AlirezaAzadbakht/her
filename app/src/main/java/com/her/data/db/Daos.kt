@@ -60,6 +60,9 @@ interface MemoryDao {
     @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL AND (expiresAt IS NULL OR expiresAt > :now) ORDER BY importance DESC, updatedAt DESC")
     suspend fun activeShort(now: Long): List<ShortTermMemoryEntity>
 
+    @Query("UPDATE long_term_memories SET lastConfirmedAt = :at WHERE id = :id AND deletedAt IS NULL")
+    suspend fun confirmLong(id: String, at: Long)
+
     @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL AND status = :status ORDER BY importance DESC, updatedAt DESC")
     suspend fun longByStatus(status: MemoryStatus): List<LongTermMemoryEntity>
 

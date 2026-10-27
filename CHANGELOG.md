@@ -9,6 +9,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
 - Her is glad for your good news even when she had no part in it.
 - Short follow-ups like "and tomorrow?" now bring back what you were just talking about, and remembering one thing brings up what you told her alongside it or linked to the person you mention.
+- Things you bring up again stay fresh in Her's memory, while things nobody mentions gradually step back.
 
 ### Fixed
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.

@@ -7,6 +7,7 @@ import com.her.core.FakeClock
 import com.her.data.db.HerDatabase
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
+import com.her.data.retrieval.strengthenRecalled
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.LongTermMemory
 import com.her.domain.MemoryRelationship
@@ -89,6 +90,36 @@ class MemoryAssociationTest {
         assertTrue("chess" in ranker.search(query, limit = 5, relatedIds = setOf("person-reza")).map { it.id })
     }
 
+    @Test
+    fun aMemoryBroughtUpAgainOutranksAnEqualForgottenOne() = runBlocking {
+        val monthAgo = repo.clock.nowMillis() - 30L * DAY
+        repo.upsertLong(memory("pottery", "Takes a pottery class on Tuesdays").copy(updatedAt = monthAgo))
+        repo.upsertLong(memory("climbing", "Takes a climbing class on Tuesdays").copy(updatedAt = monthAgo))
+        repo.confirmLong("climbing", repo.clock.nowMillis())
+
+        assertEquals("climbing", ranker.search("class on Tuesdays", limit = 2).first().id)
+    }
+
+    @Test
+    fun onlyTheirOwnMentionStrengthensAndAtMostDaily() = runBlocking {
+        repo.upsertLong(memory("pottery", "Takes a pottery class on Tuesdays"))
+        repo.upsertLong(memory("violin", "Plays violin in a small orchestra"))
+        val clock = repo.clock as FakeClock
+        suspend fun mention(text: String) = strengthenRecalled(repo, ranker.search(text, limit = 2), text)
+
+        mention("My pottery class on Tuesdays got cancelled")
+        val first = repo.getLong("pottery")!!.lastConfirmedAt!!
+        assertEquals(null, repo.getLong("violin")!!.lastConfirmedAt)
+
+        clock.advance(3_600_000)
+        mention("Pottery class on Tuesdays again")
+        assertEquals(first, repo.getLong("pottery")!!.lastConfirmedAt)
+
+        clock.advance(DAY)
+        mention("Pottery class on Tuesdays again")
+        assertTrue(repo.getLong("pottery")!!.lastConfirmedAt!! > first + DAY)
+    }
+
     private fun relation(memoryId: String, personId: String): MemoryRelationship {
         val now = repo.clock.nowMillis()
         return MemoryRelationship("rel-$memoryId", "memory", memoryId, "about", "person", personId, now, now, repo.deviceId, 1, null)
@@ -98,5 +129,9 @@ class MemoryAssociationTest {
         val now = repo.clock.nowMillis()
         return LongTermMemory(id, content, "general", 0.8, importance, now, now, null, MemorySource.USER_EXPLICIT, sourceMessageId,
             null, now, null, MemoryStatus.ACTIVE, null, repo.deviceId, 1, null)
+    }
+
+    private companion object {
+        const val DAY = 24L * 60 * 60 * 1000
     }
 }

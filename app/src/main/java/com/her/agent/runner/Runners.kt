@@ -213,6 +213,7 @@ class AgentOrchestrator(
         try {
             val buildStarted = nowMillis()
             val built = contextBuilder.build(latestUserText)
+            if (type == AgentRunType.CHAT && latestUserText != null) com.her.data.retrieval.strengthenRecalled(repo, built.retrieved, latestUserText)
             val messages = built.messages.toMutableList()
             var anchor = writeAnchor
             val priorWrites = TurnWrites.load(anchor?.metadataJson)

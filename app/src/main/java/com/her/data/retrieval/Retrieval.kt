@@ -127,7 +127,8 @@ class HybridRanker(
         // The current message leads; the turns before it only keep the topic in mind.
         val lexical = maxOf(lexicalOverlap(query, hit.content), CONTEXT_WEIGHT * lexicalOverlap(context, hit.content))
         val semantic = cosine?.let { 0.35 * lexical + 0.65 * it.coerceIn(0.0, 1.0) } ?: lexical
-        val recency = recencyScore(hit.updatedAt, now)
+        // Being brought up again keeps a memory as fresh as rewriting it would.
+        val recency = recencyScore(maxOf(hit.updatedAt, hit.lastConfirmedAt ?: 0L), now)
         return 0.40 * semantic + 0.20 * hit.importance + 0.15 * hit.confidence + 0.15 * recency + 0.10 * (if (related) 1.0 else 0.0)
     }
 
@@ -179,4 +180,19 @@ class HybridRanker(
 
 private fun ShortTermMemory.toHit() = MemoryHit(id, "short_term", content, importance, confidence, updatedAt, 0.0, source.name, sourceMessageId, null)
 
-private fun LongTermMemory.toHit() = MemoryHit(id, "long_term", content, importance, confidence, updatedAt, 0.0, source.name, sourceMessageId, derivedFromJson)
+private fun LongTermMemory.toHit() = MemoryHit(id, "long_term", content, importance, confidence, updatedAt, 0.0, source.name, sourceMessageId, derivedFromJson, lastConfirmedAt)
+
+private const val CONFIRM_EVERY_MS = 24L * 60 * 60 * 1000
+private const val CUE_OVERLAP = 0.5
+
+/**
+ * The person bringing a memory up again strengthens it; Her merely reading it does not.
+ * A retrieved long-term memory counts when most of its words appear in their message, at most once a day.
+ */
+suspend fun strengthenRecalled(repo: HerRepository, retrieved: List<MemoryHit>, userText: String) {
+    val now = repo.clock.nowMillis()
+    retrieved.filter {
+        it.memoryType == "long_term" && now - (it.lastConfirmedAt ?: 0L) >= CONFIRM_EVERY_MS &&
+            lexicalOverlap(it.content, userText) >= CUE_OVERLAP
+    }.forEach { repo.confirmLong(it.id, now) }
+}
