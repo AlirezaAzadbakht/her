@@ -91,6 +91,9 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 
+/** Long-term memory category for Her's dated notes of past days, weeks and months. */
+const val EPISODE_CATEGORY = "episode"
+
 class HerRepository(
     val db: HerDatabase,
     private val settings: AppSettingsStore,
@@ -156,6 +159,8 @@ class HerRepository(
         chatDao.recent(limit).reversed().map { it.toDomain() }
 
     suspend fun getMessage(id: String): ChatMessage? = chatDao.get(id)?.toDomain()
+
+    suspend fun userMessagesBetween(from: Long, to: Long): List<ChatMessage> = chatDao.between(from, to).map { it.toDomain() }
 
     suspend fun searchChat(query: String, limit: Int): List<ChatMessage> {
         val match = ftsQuery(query) ?: return emptyList()
@@ -235,6 +240,8 @@ class HerRepository(
 
     /** Synced, content-free markers also suppress descendants arriving after the deletion. */
     suspend fun forgetKnowledge(id: String): Unit = db.withTransaction {
+        // Episodes summarise whole messages, so forgetting a fact also forgets the episodes that retell its message.
+        val sourceMessage = getLong(id)?.sourceMessageId ?: getShort(id)?.sourceMessageId ?: getUserUnderstanding(id)?.sourceMessageId
         val markerId = "forgotten:$id"
         if (getCompanionRecord(markerId) == null) {
             val at = nowMillis()
@@ -256,6 +263,8 @@ class HerRepository(
         db.embeddingDao().deleteFor(id)
         allLong().filter { id in memoryDependencies(it) }.forEach { forgetKnowledge(it.id) }
         allShort().filter { it.sourceMessageId == id }.forEach { forgetKnowledge(it.id) }
+        if (sourceMessage != null) allLong().filter { it.deletedAt == null && it.category == EPISODE_CATEGORY && sourceMessage in memoryDependencies(it) }
+            .forEach { forgetKnowledge(it.id) }
         allUserUnderstandings().filter { it.id == id || it.sourceMessageId == id }.forEach {
             saveUserUnderstanding(it.copy(content = "", status = MemoryStatus.ARCHIVED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
         }

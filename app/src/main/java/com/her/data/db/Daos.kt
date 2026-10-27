@@ -29,6 +29,9 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun get(id: String): ChatMessageEntity?
 
+    @Query("SELECT * FROM chat_messages WHERE role = :role AND deletedAt IS NULL AND createdAt >= :from AND createdAt < :to ORDER BY createdAt ASC")
+    suspend fun between(from: Long, to: Long, role: MessageRole = MessageRole.USER): List<ChatMessageEntity>
+
     @Query(
         """
         SELECT chat_messages.* FROM chat_messages

@@ -4,6 +4,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
+
 ### Changed
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
