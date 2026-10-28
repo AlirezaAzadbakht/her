@@ -11,6 +11,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.her.ui.HerApp
 import com.her.ui.HerViewModel
 import com.her.ui.theme.HerTheme
+import com.her.notify.Notifier
 
 class MainActivity : ComponentActivity() {
     private val vm: HerViewModel by viewModels()
@@ -43,6 +44,11 @@ class MainActivity : ComponentActivity() {
                 HerApp(vm)
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Notifier.clearSeenNotifications(this)
     }
 
     override fun onNewIntent(intent: Intent) {

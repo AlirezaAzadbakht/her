@@ -163,6 +163,15 @@ open class Notifier(private val context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
 
     companion object {
+        /** Opening the conversation acknowledges its alerts, including reminders. */
+        fun clearSeenNotifications(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            // Cancel only conversation alerts; background work has its own channel.
+            manager.activeNotifications
+                .filter { it.notification.channelId == CHANNEL || it.notification.channelId == REMINDER_CHANNEL }
+                .forEach { manager.cancel(it.tag, it.id) }
+        }
+
         const val CHANNEL = "her"
         const val REMINDER_CHANNEL = "her-reminders"
         const val NOTIFICATION_ID = 17
