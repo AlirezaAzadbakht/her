@@ -12,3 +12,19 @@ Keep these in step with the code, in the same commit as the change:
   - a card in the "What she can do" section of [docs/index.html](docs/index.html) and [docs/fa/index.html](docs/fa/index.html), the website
   - its wiki page, if it has one, linked from the README Documentation table and [wiki/Home.md](wiki/Home.md)
 - **On release:** rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD`, start a new empty `[Unreleased]`, update the compare links at the bottom, commit, then push the tag (see [wiki/CI-and-release.md](wiki/CI-and-release.md)).
+
+## Development rules
+
+GitHub ruleset `basic-protection` on `main` (no bypass):
+
+- **No direct pushes to `main`.** Work on a branch and open a PR.
+- PRs are **squash-merge only**, with required status check `build` passing and all review threads resolved (0 approvals needed).
+- No force-push to `main`, no deleting it.
+- Tags (`v*`) are not covered; push them after the release commit has been merged to `main`.
+
+Working here:
+
+- Several sessions share this checkout: never switch branches in it. Use a worktree (`git worktree add ../her-<topic> -b <branch>`).
+- Once the branch is pushed and its PR is open, remove the worktree (`git worktree remove ../her-<topic>`). Only `her` stays on disk; branches live on GitHub.
+- Commit each verified step by explicit path (not `git add -A`), as you go.
+- Push over SSH port 443 if port 22 is blocked (see [wiki/CI-and-release.md](wiki/CI-and-release.md)).
