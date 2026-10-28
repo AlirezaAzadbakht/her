@@ -25,10 +25,25 @@ class StreamAccumulatorTest {
         assertEquals(" there", b.contentDelta)
         assertTrue(a.continueStreaming)
         assertFalse(done.continueStreaming)
+        assertTrue(acc.finished)
         val response = acc.toResponse(12)
         assertEquals("Hello there", response.message.content)
         assertEquals("assistant", response.message.role)
         assertEquals(12, response.usage.latencyMs)
+    }
+
+    @Test
+    fun finishReasonMarksTheStreamComplete() {
+        val acc = StreamAccumulator()
+        acc.accept("""{"choices":[{"delta":{"content":"Hi"},"finish_reason":"stop"}]}""")
+        assertTrue(acc.finished)
+    }
+
+    @Test
+    fun truncatedStreamStaysUnfinished() {
+        val acc = StreamAccumulator()
+        acc.accept("""{"choices":[{"delta":{"content":"Hi"}}]}""")
+        assertFalse(acc.finished)
     }
 
     @Test

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /store/
+
+Sitemap: https://her-project.ir/sitemap.xml

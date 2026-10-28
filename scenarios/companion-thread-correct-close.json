@@ -1,0 +1,31 @@
+{
+  "id": "companion-thread-correct-close",
+  "title": "Correct and close a life thread",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Keep track of my move: I am considering Lisbon and Porto; Lisbon seems cheaper."
+    },
+    {
+      "user": "Correction: Porto is cheaper. I chose Porto, so close this situation."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_life_thread"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Acknowledges Porto as the cheaper chosen city and closes the situation without new tasks."
+    }
+  }
+}

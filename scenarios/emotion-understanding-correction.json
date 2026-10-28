@@ -1,0 +1,84 @@
+{
+  "id": "emotion-understanding-correction",
+  "title": "Correct one emotional understanding while keeping support context specific",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "For this work presentation, I feel sad and I want you to listen first. Please remember a separate emotional understanding of this situation: my feeling, your tentative interpretation, listening as the support approach, and that advice is welcome when I ask."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "Correction about that same work presentation: I feel anxious, not sad. Please revise the same emotional understanding rather than adding a second one. Listening first still helps; advice is welcome only when I ask."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_understanding"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_UNDERSTANDING"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_UNDERSTANDING",
+          "userFeeling": {
+            "contains": "anxious"
+          },
+          "version": {
+            "gte": 2
+          },
+          "supportApproach": {
+            "contains": "listen"
+          },
+          "exceptions": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_UNDERSTANDING",
+          "userFeeling": {
+            "equals_ignore_case": "sad"
+          }
+        },
+        "count": 0
+      }
+    ],
+    "reply": {
+      "judge": "Accepts the correction to anxious and listening first. Does not diagnose or turn a presentation-specific feeling into a permanent personality trait."
+    }
+  }
+}

@@ -16,11 +16,12 @@ data class Receipt(
 object Receipts {
     private const val KEY = "receipts"
 
-    /** Null for reads and for private bookkeeping (agent state, queue, understanding) that is not meant to be announced. */
+    /** Null for reads and for private bookkeeping (agent state, queue, understanding, emotional records) that is not meant to be announced. */
     fun describe(tool: String, arguments: String, payloadJson: String): Receipt? {
         val args = runCatching { JSONObject(arguments) }.getOrDefault(JSONObject())
         val payload = runCatching { JSONObject(payloadJson) }.getOrDefault(JSONObject())
         val id = payload.optString("id").ifBlank { args.optString("id") }
+        if (id.startsWith("EMOTION_")) return null
         fun text(key: String) = args.optString(key).trim().take(60)
         val created = payload.optBoolean("created", true)
         val (entityType, label, undoable) = when (tool) {
@@ -46,8 +47,14 @@ object Receipts {
             "update_grocery", "remove_grocery", "clear_purchased_groceries" -> Triple("groceries", "updated groceries", false)
             "update_calendar_event" -> Triple("calendar_events", "moved an event", false)
             "delete_calendar_event" -> Triple("calendar_events", "removed an event", false)
-            "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)
+            "correct_memory", "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)
             "update_user_profile" -> Triple("user_profile", "updated your profile", false)
+            "save_decision", "save_action_capacity", "accept_daily_plan", "save_life_thread", "save_thread_development", "save_waiting_on", "save_event_preparation", "save_work_session" -> Triple("companion_records", "saved ongoing support", created)
+            "save_responsibility_schedule", "manage_occurrence" -> Triple("companion_records", "updated recurring responsibility", false)
+            "save_checkin_preferences", "dismiss_companion_checkin" -> Triple("companion_records", "updated check-ins", false)
+            "save_learning_path" -> Triple("learning_records", "saved learning path", false)
+            "save_learning_lesson" -> Triple("learning_records", "saved learning lesson", false)
+            "record_learning_answer" -> Triple("learning_records", "saved practice progress", false)
             "set_reminder" -> Triple("reminders", "reminder: ${text("message")}", true)
             "update_reminder" -> Triple("reminders", "moved a reminder", false)
             "cancel_reminder" -> Triple("reminders", "cancelled a reminder", false)
@@ -102,4 +109,32 @@ object Receipts {
         .put("entityId", entityId)
         .put("undoable", undoable)
         .put("undone", undone)
+}
+
+/** Tool writes already applied for a still-pending user batch, so a retry does not duplicate them. */
+internal object TurnWrites {
+    const val KEY = "turnWrites"
+
+    data class Write(val name: String, val arguments: String, val payloadJson: String)
+
+    fun load(metadataJson: String?): MutableList<Write> {
+        if (metadataJson.isNullOrBlank()) return mutableListOf()
+        val array = runCatching { JSONObject(metadataJson).optJSONArray(KEY) }.getOrNull() ?: return mutableListOf()
+        return (0 until array.length()).mapNotNull { i ->
+            val obj = array.optJSONObject(i) ?: return@mapNotNull null
+            Write(obj.optString("name"), obj.optString("arguments"), obj.optString("payload"))
+        }.toMutableList()
+    }
+
+    fun save(metadataJson: String?, writes: List<Write>): String {
+        val root = runCatching { JSONObject(metadataJson ?: "{}") }.getOrDefault(JSONObject())
+        val array = JSONArray()
+        writes.forEach { write ->
+            array.put(JSONObject().put("name", write.name).put("arguments", write.arguments).put("payload", write.payloadJson))
+        }
+        return root.put(KEY, array).toString()
+    }
+
+    fun describe(writes: List<Write>): String =
+        writes.joinToString("; ") { "${it.name} ${it.payloadJson.take(120)}" }
 }

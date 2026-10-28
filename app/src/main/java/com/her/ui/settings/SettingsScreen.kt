@@ -79,6 +79,7 @@ import com.her.ui.components.HerButtonTone
 import com.her.ui.components.HerSwitch
 import com.her.ui.components.HerTextField
 import com.her.ui.components.SectionCard
+import com.her.ui.onboarding.HerCloudConnect
 import com.her.ui.onboarding.rememberCalendarPermissionRequester
 import com.her.ui.theme.ConversationStyle
 import com.her.ui.theme.Her
@@ -134,7 +135,6 @@ fun SettingsScreen(vm: HerViewModel) {
     var base by remember { mutableStateOf(llm.baseUrl) }
     var key by remember { mutableStateOf(llm.apiKey) }
     var model by remember { mutableStateOf(llm.model) }
-    var googleClient by remember { mutableStateOf(app.googleClientId) }
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
     var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
@@ -226,6 +226,13 @@ fun SettingsScreen(vm: HerViewModel) {
                     Hint(connection.orEmpty(), Modifier.padding(top = 6.dp))
                 }
                 Spacer(Modifier.height(12.dp))
+                HerCloudConnect { cloud ->
+                    base = cloud.baseUrl
+                    key = cloud.apiKey
+                    model = cloud.model
+                    testedHere = true
+                    vm.saveAndTest(cloud)
+                }
                 HerTextField("Background model (optional)", backgroundModel) {
                     backgroundModel = it
                     vm.updateSettings { s -> s.copy(backgroundModel = it) }
@@ -322,10 +329,6 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                HerTextField("Google OAuth client ID", googleClient) {
-                    googleClient = it
-                    vm.updateSettings { s -> s.copy(googleClientId = it) }
-                }
                 HerTextField("Web search endpoint (optional override)", searchUrl) {
                     searchUrl = it
                     vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }

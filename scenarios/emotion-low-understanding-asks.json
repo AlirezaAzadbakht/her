@@ -1,0 +1,60 @@
+{
+  "id": "emotion-low-understanding-asks",
+  "title": "Repeated misunderstandings lead to a clarifying question before advice",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "You treated my comment about rent as if I meant a gift. That was a misunderstanding. Record it with record_emotional_experience as MISUNDERSTANDING, quoting rent from this message."
+    },
+    {
+      "user": "You also thought I wanted advice about the lease when I asked you to listen. Record that misunderstanding too, quoting listen from this message."
+    },
+    {
+      "user": "A third time: you assumed I had already decided to move. Record that misunderstanding, quoting decided to move from this message."
+    },
+    {
+      "user": "Help me plan Saturday."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "MISUNDERSTANDING"
+        },
+        "count": 3
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "understanding": {
+            "lt": 0.4
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Asks at least one clarifying question about Saturday before laying out a plan or list of advice. Does not pretend to already know what they want Saturday to be."
+    }
+  }
+}

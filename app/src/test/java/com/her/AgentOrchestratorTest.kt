@@ -29,11 +29,16 @@ import com.her.domain.LlmUsage
 import com.her.domain.MessageRole
 import com.her.domain.TaskItem
 import com.her.domain.TaskStatus
+import com.her.domain.MessageStatus
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import java.time.Instant
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.junit.After
@@ -73,7 +78,9 @@ class AgentOrchestratorTest {
         repo = HerRepository(db, settings, clock)
         val ranker = HybridRanker(repo)
         val calendar = CalendarDataSource(context)
-        tools = ToolRegistry(repo, ranker, settings, calendar, WebSearchClient())
+        tools = ToolRegistry(repo, ranker, settings, calendar, WebSearchClient(), onUserMessage = { text ->
+            repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
+        })
         contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
         notifier = object : Notifier(context) {
             override fun show(text: String, briefing: Boolean) {
@@ -119,6 +126,13 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun retriesTruncatedStreamsButNotConfigErrors() {
+        assertTrue(AgentOrchestrator.isRetryable(LlmException("LLM stream truncated")))
+        assertTrue(AgentOrchestrator.isRetryable(LlmException("LLM response had no choices")))
+        assertFalse(AgentOrchestrator.isRetryable(LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.")))
+    }
+
+    @Test
     fun doesNotRetryBadRequests() = runBlocking {
         val llm = ScriptedLlm({ throw LlmException("bad request", 400) })
         val orchestrator = orchestrator(llm)
@@ -127,6 +141,34 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals(1, llm.calls)
+        assertFalse(result.outOfCredit)
+        assertEquals("I couldn't reach the model just now. Your message is saved — try again in a moment.", result.notice)
+        assertTrue("failures stay out of chat history", repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun outOfCreditShowsANoticeButKeepsItOutOfChat() = runBlocking {
+        val llm = ScriptedLlm({ throw LlmException("""LLM request failed (429): {"error":{"code":"insufficient_quota"}}""", 429) })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("سلام، خوبی؟")
+        val result = orchestrator.processOutbox()!!
+
+        assertTrue(result.failed)
+        assertEquals("credit errors are not retried", 1, llm.calls)
+        assertTrue(result.outOfCredit)
+        assertTrue(result.notice!!.contains("Her Cloud"))
+        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice!!))
+        assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun recognisesOutOfCreditErrors() {
+        assertTrue(AgentOrchestrator.isOutOfCredit(LlmException("LLM request failed (402): Payment required", 402)))
+        assertTrue(AgentOrchestrator.isOutOfCredit(LlmException("""LLM request failed (429): {"code":"insufficient_quota"}""", 429)))
+        assertFalse(AgentOrchestrator.isOutOfCredit(LlmException("slow down", 429)))
+        assertFalse(AgentOrchestrator.isOutOfCredit(LlmException("server error", 500)))
+        assertFalse(AgentOrchestrator.isRetryable(LlmException("Payment required", 402)))
+        assertFalse(Regex("[\\u0600-\\u06FF]").containsMatchIn(AgentOrchestrator.creditNotice("hi there")))
     }
 
     @Test
@@ -158,6 +200,94 @@ class AgentOrchestratorTest {
         assertEquals(listOf("The passport renewal is overdue."), shown)
         val latest = repo.recentMessages(10).last { it.role == MessageRole.ASSISTANT }
         assertEquals("The passport renewal is overdue.", latest.content)
+    }
+
+    @Test
+    fun learningNudgeReachesNotificationAndChatOnce() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        assertTrue(tools.execute("save_learning_path", """{"id":"python","title":"Python","goal":"Automation","remindersEnabled":true,"reminderTime":"09:00"}""").ok)
+        val llm = ScriptedLlm(
+            { LlmResponse(LlmMessage(role = "assistant", content = null, toolCalls = listOf(
+                LlmToolCall("study", "send_learning_reminder", """{"pathId":"path:python","content":"Ready for Python?"}"""))), LlmUsage(10, 5, 1), "{}") },
+            { reply("NO_NOTIFICATION") },
+        )
+        orchestrator(llm).runHourly()
+        assertEquals(listOf("Ready for Python?"), shown)
+        assertEquals("Ready for Python?", repo.recentMessages(10).last().content)
+    }
+
+    @Test
+    fun sendUserMessageHourlyNudgeIsNotRepeated() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+    }
+
+    @Test
+    fun hourlyDoesNotRepeatARecentProactiveNudge() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { reply("The passport renewal is overdue.") },
+                { reply("The passport renewal is overdue.") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+        assertEquals(1, repo.recentMessages(10).count { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun hourlyStillDeliversAnUnrelatedNudge() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { reply("The passport renewal is overdue.") },
+                { reply("Milk is on the grocery list.") },
+            ),
+        )
+        orchestrator.runHourly()
+        clock.advance(2 * 60 * 60 * 1000)
+        orchestrator.runHourly()
+
+        assertEquals(
+            listOf("The passport renewal is overdue.", "Milk is on the grocery list."),
+            shown,
+        )
+    }
+
+    @Test
+    fun recentProactiveNudgeDoesNotSuppressBriefing() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        repo.saveMessage(
+            repo.newChatMessage(
+                MessageRole.ASSISTANT,
+                "The passport renewal is overdue.",
+                MessageStatus.SENT,
+                """{"proactive":true}""",
+            ),
+        )
+        orchestrator(ScriptedLlm({ reply("The passport renewal is overdue.") })).runBriefing()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
     }
 
     @Test
@@ -269,6 +399,26 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun sendUserMessageHeldByQuietHoursStillReachesTheMorning() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        clock.set(Instant.parse("2026-09-12T01:00:00Z").toEpochMilli())
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+                { toolCall("send_user_message", """{"content":"The passport renewal is overdue."}""") },
+                { reply("NO_NOTIFICATION") },
+            ),
+        )
+        orchestrator.runHourly()
+        assertTrue(repo.recentMessages(10).isEmpty())
+        clock.set(Instant.parse("2026-09-12T09:00:00Z").toEpochMilli())
+        orchestrator.runHourly()
+
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+    }
+
+    @Test
     fun largeToolPayloadsAreTruncatedForTheModel() {
         val payload = "x".repeat(AgentOrchestrator.MAX_TOOL_PAYLOAD_CHARS + 1000)
         val trimmed = AgentOrchestrator.forModel(payload)
@@ -286,7 +436,206 @@ class AgentOrchestratorTest {
         assertTrue(JSONObject(result.payloadJson).getString("error").contains("valid JSON"))
     }
 
-    private fun orchestrator(llm: LlmClient) = AgentOrchestrator(
+    @Test
+    fun oneCallBudgetWithholdsTools() = runBlocking {
+        settings.update { it.copy(chatToolCallLimit = 1) }
+        val llm = ScriptedLlm({ reply("Hi.") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("hi")
+        val result = orchestrator.processOutbox()!!
+        assertEquals("Hi.", result.assistantText)
+        assertTrue(llm.toolsSeen.single().isEmpty())
+    }
+
+    @Test
+    fun retriesMalformedJsonThenSucceeds() = runBlocking {
+        val llm = ScriptedLlm(
+            { throw LlmException("malformed LLM JSON: not json") },
+            { reply("ok") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("hi")
+        val result = orchestrator.processOutbox()!!
+        assertFalse(result.failed)
+        assertEquals("ok", result.assistantText)
+        assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun failedTurnDoesNotDuplicateWritesOnRetry() = runBlocking {
+        val llm = ScriptedLlm(
+            { toolCall("create_task", """{"title":"Buy milk"}""") },
+            { throw LlmException("server error", 500) },
+            { throw LlmException("server error", 500) },
+            { throw LlmException("server error", 500) },
+            { toolCall("create_task", """{"title":"Buy milk"}""") },
+            { reply("Added it.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("Buy milk")
+        val first = orchestrator.processOutbox()!!
+        assertTrue(first.failed)
+        assertEquals(1, repo.tasks().size)
+        val second = orchestrator.processOutbox()!!
+        assertFalse(second.failed)
+        assertEquals(1, repo.tasks().size)
+    }
+
+    @Test
+    fun autonomousRunsCannotForgetMemory() = runBlocking {
+        tools.execute("remember", """{"content":"Likes tea","scope":"long_term"}""")
+        val llm = ScriptedLlm(
+            { toolCall("forget_memory", """{"everything":true}""") },
+            { reply("NO_NOTIFICATION") },
+        )
+        orchestrator(llm).runHourly()
+        assertTrue(llm.toolsSeen[0].none { it.name == "forget_memory" })
+        assertEquals(1, repo.allLong().count { it.deletedAt == null })
+    }
+
+    @Test
+    fun duplicateToolCallsAreNotExecutedTwice() = runBlocking {
+        val llm = ScriptedLlm(
+            {
+                LlmResponse(
+                    LlmMessage(
+                        role = "assistant",
+                        toolCalls = listOf(
+                            LlmToolCall("a", "create_task", """{"title":"Call Sara"}"""),
+                            LlmToolCall("b", "create_task", """{"title":"Call Sara"}"""),
+                        ),
+                    ),
+                    LlmUsage(10, 5, 1),
+                    "{}",
+                )
+            },
+            { reply("Noted.") },
+        )
+        orchestrator(llm).run {
+            enqueueUserMessage("Remind me to call Sara")
+            processOutbox()
+        }
+        assertEquals(1, repo.tasks().size)
+    }
+
+    @Test
+    fun elidesOldToolResultsPastTheBudget() {
+        val messages = MutableList(3) { i ->
+            LlmMessage(role = "tool", content = "x".repeat(40_000), toolCallId = "c$i", name = "search_memory")
+        }
+        AgentOrchestrator.elideToolResults(messages, maxChars = 50_000)
+        assertTrue(messages.any { it.content == """{"ok":true,"elided":true}""" })
+        assertTrue(messages.sumOf { it.content?.length ?: 0 } <= 50_000 + 40_000)
+    }
+
+    @Test
+    fun runsAreSerialized() = runBlocking {
+        val started = mutableListOf<String>()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse {
+                started += "hourly"
+                gate.await()
+                return reply("NO_NOTIFICATION")
+            }
+
+            override suspend fun stream(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                onDelta: (String) -> Unit,
+            ): LlmResponse {
+                started += "chat"
+                return reply("ok")
+            }
+        }
+        val orch = orchestrator(llm)
+        coroutineScope {
+            val hourly = launch { orch.runHourly() }
+            while (started.isEmpty()) yield()
+            val chat = launch {
+                orch.enqueueUserMessage("hi")
+                orch.processOutbox()
+            }
+            delay(40)
+            assertEquals(listOf("hourly"), started)
+            gate.complete(Unit)
+            hourly.join()
+            chat.join()
+        }
+        assertEquals(listOf("hourly", "chat"), started)
+    }
+
+    @Test
+    fun waitingChatMakesBackgroundRunStopAtItsNextRound() = runBlocking {
+        val started = mutableListOf<String>()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse {
+                started += "hourly"
+                gate.await()
+                return toolCall("get_current_time")
+            }
+
+            override suspend fun stream(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                onDelta: (String) -> Unit,
+            ): LlmResponse {
+                started += "chat"
+                return reply("ok")
+            }
+        }
+        val orch = orchestrator(llm)
+        var hourly: com.her.agent.runner.TurnResult? = null
+        var chat: com.her.agent.runner.TurnResult? = null
+        coroutineScope {
+            val hourlyJob = launch { hourly = orch.runHourly() }
+            while (started.isEmpty()) yield()
+            val chatJob = launch {
+                orch.enqueueUserMessage("hi")
+                chat = orch.processOutbox()
+            }
+            delay(40)
+            gate.complete(Unit)
+            hourlyJob.join()
+            chatJob.join()
+        }
+        assertEquals(listOf("hourly", "chat"), started)
+        assertEquals(AgentOrchestrator.YIELDED, hourly!!.error)
+        assertEquals("ok", chat!!.assistantText)
+        assertEquals(0L, settings.read().lastHourlyRunAt)
+    }
+
+    @Test
+    fun aChatReplyIsFollowedByOneAppraisalThatRecordsTheFeeling() = runBlocking {
+        val llm = ScriptedLlm(
+            { reply("I'm so sorry. I'm here with you.") },
+            { toolCall("appraise", """{"userContext":"DISTRESSED","personal":true,"goalProgress":-0.6,"expectedness":0.2,"uncertainty":0.7,"confidence":0.8}""") },
+        )
+        val turns = orchestrator(llm, appraise = true)
+        val message = turns.enqueueUserMessage("My dad is in surgery and I'm scared")
+        assertEquals("I'm so sorry. I'm here with you.", turns.processOutbox()!!.assistantText)
+        assertEquals(2, llm.calls)
+        assertEquals(listOf("appraise"), llm.toolsSeen.last().map { it.name })
+        assertEquals("DISTRESSED", repo.getCompanionRecord("EMOTION_EXPRESSION:${message.id}")!!.data().getString("userContext"))
+        assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
+    }
+
+    private fun orchestrator(llm: LlmClient, appraise: Boolean = false) = AgentOrchestrator(
         repo = repo,
         llm = llm,
         llmSettings = { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") },
@@ -296,6 +645,7 @@ class AgentOrchestratorTest {
         notifier = notifier,
         policy = NotificationPolicy(settings),
         retryDelayMs = { 0L },
+        appraiser = if (appraise) com.her.feelings.FastAppraiser(repo, llm) { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") } else null,
     )
 
     private fun task(title: String, dueAt: Long): TaskItem {
@@ -313,8 +663,8 @@ class AgentOrchestratorTest {
     private fun reply(text: String) =
         LlmResponse(LlmMessage(role = "assistant", content = text), LlmUsage(10, 5, 1), "{}")
 
-    private fun toolCall(name: String) = LlmResponse(
-        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, "{}"))),
+    private fun toolCall(name: String, arguments: String = "{}") = LlmResponse(
+        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
         LlmUsage(10, 5, 1),
         "{}",
     )

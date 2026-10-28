@@ -60,8 +60,9 @@ All tests are JVM / Robolectric unit tests under `app/src/test/java/com/her/`. T
 | Test | Why it exists |
 |------|----------------|
 | `HerSimulationTest` | Scripted first days through real Room + tools (no live LLM). Writes `build/reports/her-simulation.html` and `.txt` under the test working directory |
-| `ScenarioPoolValidationTest` | Parses `scenarios/*.json` with no LLM calls (this is what CI runs) |
-| `ScenarioEngineTest` | Live-LLM pool; **not** in `testDebugUnitTest`. Run `make scenarios`. See [Scenario engine](Scenario-engine.md) |
+| `ScenarioPoolValidationTest` | Parses `scenarios/*.json` with no LLM calls |
+| `CoreCassetteTest` | Records and replays `ci-core` cassettes with a scripted model (no live LLM) |
+| `ScenarioEngineTest` | Live-LLM pool; **not** in `testDebugUnitTest`. CI replays `ci-core` cassettes. Run `make scenarios`. See [Scenario engine](Scenario-engine.md) |
 | `MarkdownParserTest` | Local chat markdown |
 | `EnumParseTest` | `cancelled` → `DROPPED` |
 | `RoomDaoTest` | FTS + grocery persistence |
@@ -76,3 +77,11 @@ Robolectric does **not** download `android-all` at test time. Gradle prefetches 
 - Application id: `com.her.debug`
 - Version name suffix: `-debug`
 - Activity: `com.her.MainActivity`
+
+## Google Cloud (Drive / Calendar)
+
+One-time, for you as the developer — users only tap Connect Google.
+
+1. In a Google Cloud project, enable the Drive API and Google Calendar API, then configure the OAuth consent screen.
+2. Create an OAuth client of type **Android** with package `com.her.debug` and the SHA-1 of the debug key. Create another for release (`com.her`) with the release/upload key, and another for the Play App Signing key if you ship through Play.
+3. `calendar.readonly` is a sensitive scope. Until Google verifies the app, it only works for test users you add on the consent screen (up to 100). `drive.appdata` alone does not need that verification.

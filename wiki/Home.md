@@ -18,6 +18,8 @@ This folder is the working map of the repo: what the product is, how the code is
 | [Scenario engine](Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
 
+Want to help? Start with [Contributing](../CONTRIBUTING.md).
+
 ## One-line architecture
 
 ```
@@ -41,4 +43,10 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 - Package: `com.her` (debug: `com.her.debug`)
 - `minSdk` 29, `compileSdk` / `targetSdk` 36, JDK 17
 - Version tags: `vMAJOR.MINOR.PATCH` (CI sets `VERSION_NAME` / `VERSION_CODE` from the tag)
-- Latest published tag at the time this wiki was written: **v0.1.6** → [GitHub Release](https://github.com/AlirezaAzadbakht/her/releases/tag/v0.1.6)
+- Releases and what each one shipped: [CHANGELOG.md](../CHANGELOG.md), APKs on [GitHub Releases](https://github.com/AlirezaAzadbakht/her/releases)
+
+- [Personal support](Personal-support.md): correctable memory, capacity planning, recurrence, decisions and focused briefings.
+
+- [Emotional understanding](Emotional-understanding.md): evidence-backed feelings, purpose, recalled support lessons, continuity and quiet reflection.
+
+- [Wondering](Wondering.md): quiet memory review, unanswered questions, and learning from conversations.

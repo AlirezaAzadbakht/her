@@ -3,6 +3,8 @@ package com.her.scenario
 import com.her.core.redactSecrets
 import com.her.domain.MessageRole
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class AttemptResult(
     val index: Int,
@@ -27,19 +29,53 @@ data class ScenarioRunResult(
 }
 
 object ScenarioReport {
-    fun write(results: List<ScenarioRunResult>, dir: File = ScenarioPaths.reportsDir()): File {
+    fun write(
+        results: List<ScenarioRunResult>,
+        dir: File = ScenarioPaths.reportsDir(),
+        judgeSameAsAgent: Boolean = false,
+    ): File {
         dir.mkdirs()
         val index = File(dir, "index.html")
         val summary = File(dir, "summary.txt")
+        val summaryJson = File(dir, "summary.json")
+        val previous = File(dir, "summary.prev.json")
+        if (summaryJson.isFile) summaryJson.copyTo(previous, overwrite = true)
         results.forEach { result ->
             File(dir, "${result.spec.id}.html").writeText(scenarioPage(result))
         }
-        index.writeText(indexPage(results))
-        summary.writeText(summaryText(results))
+        index.writeText(indexPage(results, judgeSameAsAgent))
+        summary.writeText(summaryText(results, judgeSameAsAgent))
+        summaryJson.writeText(summaryJson(results, judgeSameAsAgent))
         return index
     }
 
-    private fun summaryText(results: List<ScenarioRunResult>): String = buildString {
+    private fun summaryJson(results: List<ScenarioRunResult>, judgeSameAsAgent: Boolean): String {
+        val root = JSONObject()
+            .put("judgeSameAsAgent", judgeSameAsAgent)
+            .put("passed", results.count { it.passed })
+            .put("total", results.size)
+            .put(
+                "scenarios",
+                JSONArray().apply {
+                    results.forEach { result ->
+                        put(
+                            JSONObject()
+                                .put("id", result.spec.id)
+                                .put("passed", result.passed)
+                                .put("passCount", result.passCount)
+                                .put("attempts", result.attempts.size)
+                                .put("inputTokens", result.inputTokens)
+                                .put("outputTokens", result.outputTokens)
+                                .put("skipped", result.skipped ?: JSONObject.NULL),
+                        )
+                    }
+                },
+            )
+        return root.toString(2) + "\n"
+    }
+
+    private fun summaryText(results: List<ScenarioRunResult>, judgeSameAsAgent: Boolean): String = buildString {
+        if (judgeSameAsAgent) appendLine("WARNING: judge model is the agent model")
         val passed = results.count { it.passed }
         appendLine("SCENARIOS $passed/${results.size} passed")
         results.forEach { result ->
@@ -53,7 +89,7 @@ object ScenarioReport {
 
     fun mark(result: ScenarioRunResult): String = statusLabel(result).uppercase()
 
-    private fun indexPage(results: List<ScenarioRunResult>): String {
+    private fun indexPage(results: List<ScenarioRunResult>, judgeSameAsAgent: Boolean): String {
         val rows = results.joinToString("\n") { result ->
             val status = statusLabel(result)
             val klass = statusClass(result)
@@ -69,10 +105,16 @@ object ScenarioReport {
             """.trimIndent()
         }
         val passed = results.count { it.passed }
+        val warning = if (judgeSameAsAgent) {
+            """<p class="bad">Judge model is the same as the agent model.</p>"""
+        } else {
+            ""
+        }
         return page(
             "Scenario report",
             """
             <h1>Scenario report</h1>
+            $warning
             <p class="meta">$passed / ${results.size} passed. Pending failures do not fail the suite.</p>
             <table>
               <thead><tr><th>Id</th><th>Title</th><th>Status</th><th>Attempts</th><th>Tokens</th><th>ms</th></tr></thead>

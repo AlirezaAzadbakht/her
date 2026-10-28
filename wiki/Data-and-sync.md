@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 5 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; `MIGRATION_3_4` creates `reminders`; `MIGRATION_4_5` adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`.
+`HerDatabase` — file `her.db`, version 9 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, and 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`.
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -28,7 +28,7 @@ Important record kinds:
 | Store | Prefs name | What |
 |-------|------------|------|
 | `SecureSettingsStore` | `her_secure_settings` | LLM base URL, API key, model (EncryptedSharedPreferences + MasterKey) |
-| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, Google client id, web search, calendar/Drive flags, tool-call limit, last-run dates, onboarding flags, first-run permission ask |
+| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, web search, calendar/Drive flags, tool-call limit, last-run dates, onboarding flags, first-run permission ask |
 
 `redactSecrets` in `Core.kt` strips keys from debug logs.
 
@@ -52,7 +52,7 @@ Download + `MergeEngine`: last-write-wins per field on `updatedAt`, except **`PU
 - Files are listed across all Drive pages and read oldest first per device. The per-device cursor comes from the `{firstSeq}-{lastSeq}` file name, so a file already read is not downloaded again.
 - A row that cannot be applied (for example, a delete for a row this device never had) is skipped and logged, and the sync continues.
 
-Needs Settings: Drive enabled + Google OAuth client id. Scope: `drive.appdata`.
+Needs Settings: Drive enabled + Connect Google. Scope: `drive.appdata`. A first-run **Restore from Google Drive** uses the same download path: one `sync` after Drive consent, then the restored profile can skip the name steps. API keys never sync.
 
 ## Calendar
 
@@ -73,3 +73,7 @@ With Settings → Connections → **Google Tasks** on, `GoogleTasksSync` (`app/s
 ## Web search
 
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.
+
+Companion records use atomic document merge and deletion-wins tombstones rather than per-field merge. See [Ongoing support](Ongoing-support.md) for provenance, bounded retrieval, forgetting cascades and preference generations.
+
+See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including sync and notification limitations.

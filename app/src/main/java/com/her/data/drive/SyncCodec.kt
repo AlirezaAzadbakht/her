@@ -9,10 +9,12 @@ import com.her.domain.CalendarSource
 import com.her.domain.ChatMessage
 import com.her.domain.Commitment
 import com.her.domain.CommitmentStatus
+import com.her.domain.Feeling
 import com.her.domain.Goal
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryItem
 import com.her.domain.GroceryStatus
+import com.her.domain.HerFeeling
 import com.her.domain.ImportantDate
 import com.her.domain.LongTermMemory
 import com.her.domain.MemoryRelationship
@@ -66,6 +68,10 @@ internal object SyncCodec {
             "agent_state" -> repo.getAgentState(id)?.toJson()
             "agent_queue" -> repo.getAgentQueue(id)?.toJson()
             "reminders" -> repo.getReminder(id)?.toJson()
+            "wondering" -> repo.getWondering(id)?.toJson()
+            "companion_records" -> repo.getCompanionRecord(id)?.toJson()
+            "learning_records" -> repo.getLearningRecord(id)?.toJson()
+            "feelings" -> repo.getFeeling(id)?.toJson()
             else -> null
         }
         return raw?.let(::JSONObject)
@@ -75,8 +81,8 @@ internal object SyncCodec {
     suspend fun persist(repo: HerRepository, type: String, json: JSONObject): Boolean {
         when (type) {
             "chat_messages" -> repo.saveMessage(chatMessage(json))
-            "short_term_memories" -> repo.upsertShort(shortTerm(json))
-            "long_term_memories" -> repo.upsertLong(longTerm(json))
+            "short_term_memories" -> if (!json.isNull("deletedAt")) repo.forgetKnowledge(json.getString("id")) else repo.upsertShort(shortTerm(json))
+            "long_term_memories" -> if (!json.isNull("deletedAt")) repo.forgetKnowledge(json.getString("id")) else repo.upsertLong(longTerm(json))
             "user_profile" -> repo.saveProfile(profile(json))
             "user_understandings" -> repo.saveUserUnderstanding(understanding(json))
             "people" -> repo.savePerson(person(json))
@@ -100,6 +106,15 @@ internal object SyncCodec {
             "agent_queue" -> repo.saveAgentQueue(agentQueue(json))
             // Only the device that set a reminder arms its alarm; the others keep the row so they can show or cancel it.
             "reminders" -> repo.saveReminder(reminder(json))
+            "companion_records" -> {
+                val row = com.her.data.db.CompanionRecord.fromJson(json)
+                repo.saveCompanionRecord(row)
+                if (row.kind == "FORGOTTEN") repo.forgetKnowledge(row.data().getString("targetId"))
+                if (row.deletedAt != null) repo.forgetCompanion(row.id)
+            }
+            "wondering" -> repo.saveWondering(com.her.data.db.WonderingRecord.fromJson(json))
+            "learning_records" -> repo.saveLearningRecord(com.her.data.db.LearningRecord.fromJson(json))
+            "feelings" -> repo.saveFeeling(feeling(json))
             else -> return false
         }
         return true
@@ -484,6 +499,22 @@ internal object SyncCodec {
             version = m.version,
             deletedAt = m.deletedAt,
             alarm = json.optBoolean("alarm", false),
+        )
+    }
+
+    private fun feeling(json: JSONObject): HerFeeling {
+        val m = Meta(json)
+        return HerFeeling(
+            id = m.id,
+            feeling = json.enumOr("feeling", Feeling.CALM),
+            intensity = json.optDouble("intensity", 0.5),
+            note = json.stringOrNull("note"),
+            sourceMessageId = json.stringOrNull("sourceMessageId"),
+            createdAt = m.createdAt,
+            updatedAt = m.updatedAt,
+            deviceId = m.deviceId,
+            version = m.version,
+            deletedAt = m.deletedAt,
         )
     }
 

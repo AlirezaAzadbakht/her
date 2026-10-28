@@ -41,6 +41,8 @@ data class CassetteCall(
 class CassetteAttempt(
     val startMillis: Long,
     val calls: MutableList<CassetteCall> = mutableListOf(),
+    var judgePassed: Boolean? = null,
+    var judgeReason: String? = null,
 )
 
 class Cassette(
@@ -60,7 +62,11 @@ class Cassette(
                         put(
                             JSONObject()
                                 .put("startMillis", attempt.startMillis)
-                                .put("calls", JSONArray().apply { attempt.calls.forEach { put(it.toJson()) } }),
+                                .put("calls", JSONArray().apply { attempt.calls.forEach { put(it.toJson()) } })
+                                .apply {
+                                    attempt.judgePassed?.let { put("judgePassed", it) }
+                                    attempt.judgeReason?.let { put("judgeReason", it) }
+                                },
                         )
                     }
                 },
@@ -83,6 +89,8 @@ class Cassette(
                     CassetteAttempt(
                         startMillis = attempt.getLong("startMillis"),
                         calls = (0 until calls.length()).map { callFromJson(calls.getJSONObject(it)) }.toMutableList(),
+                        judgePassed = if (attempt.has("judgePassed")) attempt.optBoolean("judgePassed") else null,
+                        judgeReason = attempt.optString("judgeReason").takeIf { attempt.has("judgeReason") && it.isNotBlank() },
                     )
                 }.toMutableList(),
             )
@@ -106,7 +114,12 @@ class Cassette(
                         content = if (response.isNull("content")) null else response.optString("content"),
                         toolCalls = toolCalls,
                     ),
-                    usage = LlmUsage(usage.optInt("input"), usage.optInt("output"), 0),
+                    usage = LlmUsage(
+                        inputTokens = usage.optInt("input"),
+                        outputTokens = usage.optInt("output"),
+                        latencyMs = 0,
+                        cachedInputTokens = usage.optInt("cached"),
+                    ),
                     rawJson = "{\"replayed\":true}",
                 ),
             )
@@ -130,7 +143,13 @@ class Cassette(
                             )
                         }
                     }
-                    .put("usage", JSONObject().put("input", response.usage.inputTokens).put("output", response.usage.outputTokens)),
+                    .put(
+                        "usage",
+                        JSONObject()
+                            .put("input", response.usage.inputTokens)
+                            .put("output", response.usage.outputTokens)
+                            .put("cached", response.usage.cachedInputTokens),
+                    ),
             )
     }
 }
@@ -146,6 +165,7 @@ class ScenarioLlmClient(
     private val mode: ScenarioMode,
     private val delegate: LlmClient?,
     val tape: CassetteAttempt,
+    private val faults: List<ScenarioFault> = emptyList(),
 ) : LlmClient() {
     var calls: Int = 0
         private set
@@ -183,6 +203,7 @@ class ScenarioLlmClient(
     ): LlmResponse {
         val index = calls
         calls += 1
+        throwIfFault(index)
         val print = fingerprint(messages, tools)
         val summary = summarize(messages, tools)
         val response = when (mode) {
@@ -207,6 +228,17 @@ class ScenarioLlmClient(
         outputTokens += response.usage.outputTokens
         cachedInputTokens += response.usage.cachedInputTokens
         return response
+    }
+
+    private fun throwIfFault(index: Int) {
+        val fault = faults.firstOrNull { it.call == index + 1 } ?: return
+        throw when (fault.type) {
+            "http_500" -> com.her.data.remote.LlmException("server error", 500)
+            "http_429" -> com.her.data.remote.LlmException("slow down", 429)
+            "malformed_json" -> com.her.data.remote.LlmException("malformed LLM JSON")
+            "truncated_stream" -> com.her.data.remote.LlmException("LLM stream truncated")
+            else -> IllegalArgumentException("unknown fault ${fault.type}")
+        }
     }
 
     private fun requireDelegate(): LlmClient =

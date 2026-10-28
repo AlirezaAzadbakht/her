@@ -11,6 +11,7 @@ import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
 import com.her.domain.CommitmentStatus
 import com.her.domain.ConfirmationKind
+import com.her.domain.Feeling
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryStatus
 import com.her.domain.MemorySource
@@ -65,6 +66,8 @@ class HerConverters {
     @TypeConverter fun toReminderStatus(v: String?): ReminderStatus? = v?.let { ReminderStatus.valueOf(it) }
     @TypeConverter fun reminderRepeat(v: ReminderRepeat?): String? = v?.name
     @TypeConverter fun toReminderRepeat(v: String?): ReminderRepeat? = v?.let { ReminderRepeat.valueOf(it) }
+    @TypeConverter fun feeling(v: Feeling?): String? = v?.name
+    @TypeConverter fun toFeeling(v: String?): Feeling? = v?.let { Feeling.valueOf(it) }
 }
 
 @Database(
@@ -100,8 +103,12 @@ class HerConverters {
         PendingConfirmationEntity::class,
         MemoryEmbeddingEntity::class,
         ReminderEntity::class,
+        FeelingEntity::class,
+        LearningRecord::class,
+        CompanionRecord::class,
+        WonderingRecord::class,
     ],
-    version = 5,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -128,8 +135,60 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun confirmationDao(): ConfirmationDao
     abstract fun embeddingDao(): EmbeddingDao
     abstract fun reminderDao(): ReminderDao
+    abstract fun learningDao(): LearningDao
+    abstract fun companionDao(): CompanionDao
+    abstract fun wonderingDao(): WonderingDao
+    abstract fun feelingDao(): FeelingDao
 
     companion object {
+        /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
+        private fun addColumn(db: SupportSQLiteDatabase, table: String, column: String, definition: String) {
+            val exists = db.query("PRAGMA table_info(`$table`)").use { c ->
+                val name = c.getColumnIndexOrThrow("name")
+                generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
+            }
+            if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addColumn(db, "reminders", "alarm", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "api_usage", "cachedInputTokens", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "api_usage", "backgroundTokens", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "tasks", "googleTaskId", "TEXT")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `wondering` (
+                    `id` TEXT NOT NULL, `sourceId` TEXT NOT NULL, `status` TEXT NOT NULL,
+                    `content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL,
+                    `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER,
+                    PRIMARY KEY(`id`))""")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `companion_records` (
+                    `id` TEXT NOT NULL, `parentId` TEXT NOT NULL, `kind` TEXT NOT NULL,
+                    `content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL,
+                    `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER,
+                    PRIMARY KEY(`id`))""")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `learning_records` (
+                    `id` TEXT NOT NULL, `pathId` TEXT NOT NULL, `kind` TEXT NOT NULL,
+                    `content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL,
+                    `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER,
+                    PRIMARY KEY(`id`))""")
+            }
+        }
+
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
@@ -204,10 +263,23 @@ abstract class HerDatabase : RoomDatabase() {
 
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE `reminders` ADD COLUMN `alarm` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `api_usage` ADD COLUMN `cachedInputTokens` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `api_usage` ADD COLUMN `backgroundTokens` INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE `tasks` ADD COLUMN `googleTaskId` TEXT")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `feelings` (
+                        `id` TEXT NOT NULL,
+                        `feeling` TEXT NOT NULL,
+                        `intensity` REAL NOT NULL,
+                        `note` TEXT,
+                        `sourceMessageId` TEXT,
+                        `createdAt` INTEGER NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deviceId` TEXT NOT NULL,
+                        `version` INTEGER NOT NULL,
+                        `deletedAt` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                    """.trimIndent(),
+                )
             }
         }
     }

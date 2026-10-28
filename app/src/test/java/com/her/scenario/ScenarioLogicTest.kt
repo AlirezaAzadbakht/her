@@ -8,6 +8,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -156,6 +157,42 @@ class ScenarioLogicTest {
         assertEquals("Design review", spec.seed.googleCalendar.single().title)
         assertEquals("today at 4pm", spec.seed.googleCalendar.single().whenPhrase)
         assertEquals("google_calendar", spec.expect.rows.single().table)
+    }
+
+    @Test
+    fun parsesFaultsAndConcurrentRun() {
+        val file = tmp.newFile("fault-retry.json")
+        file.writeText(
+            """
+            {
+              "id": "fault-retry",
+              "title": "Retry after a 500",
+              "faults": [{ "call": 2, "type": "http_500" }],
+              "turns": [
+                { "user": "Add milk" },
+                { "run": "hourly", "concurrent_with_user": "hi" }
+              ],
+              "expect": { "tools_called": ["add_grocery"] }
+            }
+            """.trimIndent(),
+        )
+        val spec = ScenarioLoader.parse(file)
+        assertEquals(2, spec.faults.single().call)
+        assertEquals("http_500", spec.faults.single().type)
+        val run = spec.turns[1] as ScenarioTurn.Run
+        assertEquals(AutonomousRun.HOURLY, run.kind)
+        assertEquals("hi", run.concurrentWithUser)
+    }
+
+    @Test
+    fun parsesQueuedUserTurnOnly() {
+        val file = tmp.newFile("queued.json")
+        file.writeText("""{"id":"q","title":"Q","turns":[{"user":"Add milk","queued":true},{"user":"hi"}],"expect":{}}""")
+        val turns = ScenarioLoader.parse(file).turns
+        assertTrue((turns[0] as ScenarioTurn.User).queued)
+        assertFalse((turns[1] as ScenarioTurn.User).queued)
+        file.writeText("""{"id":"q","title":"Q","turns":[{"run":"hourly","queued":true}],"expect":{}}""")
+        assertThrows(ScenarioParseException::class.java) { ScenarioLoader.parse(file) }
     }
 
     @Test(expected = ScenarioParseException::class)

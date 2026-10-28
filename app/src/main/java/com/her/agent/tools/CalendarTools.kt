@@ -23,11 +23,11 @@ import org.json.JSONObject
 internal fun ToolRegistry.registerCalendarTools() {
     register(
         "get_calendar_events",
-        "Read internal, device, and Google Calendar events for any date or time slice. Pass from/to for a day, week, month, hour range, or Jalali date. days is only a convenience from the start of from (or today). Context only has the next 7 days — call this for anything else.",
+        "Read internal, device, and Google events for any slice; context only has the next 7 days.",
         objSchema(
-            "from" to str("Start of the slice: ISO, epoch millis, Jalali, or a phrase such as 'next Tuesday', 'today at 2pm', 'this afternoon'"),
-            "to" to str("End of the slice, same formats. A date without a clock includes that whole day."),
-            "days" to num("Number of calendar days from from (or today) when to is omitted. Default 7 if from and to are also omitted."),
+            "from" to str("Slice start: $WHEN_HINT"),
+            "to" to str("Slice end: $WHEN_HINT. A date alone includes that whole day."),
+            "days" to num("Days from the start when to is omitted. Default 7."),
         ),
     ) { args ->
         val slice = try {
@@ -61,10 +61,10 @@ internal fun ToolRegistry.registerCalendarTools() {
     }
     register(
         "create_calendar_event",
-        "Create an event. Writes the device calendar when calendar access is on, and always keeps an internal copy.",
+        "Create an event on the device calendar when access is on, and keep an internal copy.",
         objSchema(
             "title" to str(),
-            "when" to str("ISO-8601, epoch millis, Jalali, or a natural phrase such as 'next Tuesday at 10am'"),
+            "when" to str(WHEN_HINT),
             "notes" to str(),
             required = listOf("title", "when"),
         ),
@@ -87,11 +87,11 @@ internal fun ToolRegistry.registerCalendarTools() {
     }
     register(
         "update_calendar_event",
-        "Move or rename a calendar event. Writes through to the device calendar when access is on. Pass the id from context; do not delete and recreate.",
+        "Move or rename one calendar event by id. If two events could match, ask which one and do not call this.",
         objSchema(
             "id" to str(),
             "title" to str(),
-            "when" to str("ISO-8601, epoch millis, Jalali, or a natural phrase such as 'tomorrow at 3pm'"),
+            "when" to str(WHEN_HINT),
             "notes" to str(),
             required = listOf("id"),
         ),
@@ -111,20 +111,19 @@ internal fun ToolRegistry.registerCalendarTools() {
     }
     register(
         "delete_calendar_event",
-        "Delete a calendar event. Device-calendar deletes need confirmation unless they already said to delete it.",
+        "Delete a calendar event. Call it before asking: a phone-calendar event returns needsConfirmation, and on their next message you pass the id from Pending confirmations as confirmId.",
         objSchema(
             "id" to str(),
             "confirmId" to str("From a previous needsConfirmation result. Do not reuse the event id."),
-            "confirmed" to bool("True when they already said to delete it in this message"),
+            "confirmed" to bool("Ignored"),
             required = listOf("id"),
         ),
     ) { args ->
         val existing = requireCalendarEvent(args.requiredString("id"))
         refuseGoogleWrite(existing)
         if (existing.source != CalendarSource.INTERNAL && existing.externalId != null) {
-            val already = args.optBoolean("confirmed", false)
             val confirmId = args.optStringOrNull("confirmId")
-            if (!already && confirmId == null) {
+            if (confirmId == null) {
                 val pending = PendingConfirmation(
                     newId(),
                     ConfirmationKind.CALENDAR_DELETE,
@@ -140,11 +139,7 @@ internal fun ToolRegistry.registerCalendarTools() {
                     "summary" to pending.summary,
                 )
             }
-            if (!already) {
-                val token = confirmId ?: throw ToolValidationException("Confirmation not found")
-                repo.getConfirmation(token) ?: throw ToolValidationException("Confirmation not found")
-                repo.deleteConfirmation(token)
-            }
+            consumeConfirmation(confirmId, ConfirmationKind.CALENDAR_DELETE)
             systemCalendar.delete(existing)
         }
         repo.deleteCalendarEvent(existing.id)

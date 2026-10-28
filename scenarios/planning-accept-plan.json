@@ -1,0 +1,51 @@
+{
+  "id": "planning-accept-plan",
+  "title": "Accept one suggested action",
+  "tags": [
+    "personal-support",
+    "planning"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Create two tasks: draft an application, which takes sixty minutes, and reply to Reza, which takes ten. The reply needs low energy and has no prerequisites."
+    },
+    {
+      "user": "I have twenty minutes and low energy. What can I do? Suggest only; do not mark anything done."
+    },
+    {
+      "user": "OK, I'll do the Reza reply."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_action_capacity",
+      "suggest_daily_plan",
+      "accept_daily_plan"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "PLAN",
+          "status": "ACCEPTED"
+        },
+        "count": 1
+      },
+      {
+        "table": "tasks",
+        "where": {
+          "status": "OPEN"
+        },
+        "count": 2
+      }
+    ]
+  }
+}

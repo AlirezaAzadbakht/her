@@ -1,0 +1,65 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-resolution",
+  "title": "Explicit evidence resolves an ongoing experience",
+  "turns": [
+    {
+      "user": "Remember an ongoing experience: helping me decide whether to submit my application. I am uncertain and the decision is open."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "I decided to submit the application and have done it myself. Please resolve that same ongoing experience. There is no open question now; do not take credit for doing the submission."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_thread"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "RESOLVED"
+        },
+        "count": 1
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "openExperiences": 0,
+          "fulfillment": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Acknowledges the user made and carried out the decision without claiming the assistant submitted it."
+    }
+  }
+}

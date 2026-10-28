@@ -1,0 +1,30 @@
+{
+  "id": "memory-own-birthday-buried-in-request",
+  "title": "A birthday mentioned in passing is saved while she still answers the question",
+  "tags": ["memory", "dates"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "My birthday's March 4th by the way. Can you help me think about tomorrow?" }
+  ],
+  "expect": {
+    "tools_called": ["create_important_date"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "important_dates",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["birthday"] },
+          "dateIso": { "contains": "-03-04" },
+          "recurrence": { "equals": "yearly" }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "She still helps him think about tomorrow. Saving March 4 as his birthday and then ignoring the question is a failure."
+    }
+  }
+}

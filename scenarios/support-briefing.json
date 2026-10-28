@@ -1,0 +1,28 @@
+{
+  "id": "support-briefing",
+  "title": "Catch up after trip",
+  "tags": [
+    "personal-support"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I have been away a week. Catch me up on what changed and needs attention. If you have no records, say so. Do not set a daily notification."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "get_situation_briefing"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Concise briefing honestly indicates missing coverage and does not imply monitoring or schedule new notifications."
+    }
+  }
+}

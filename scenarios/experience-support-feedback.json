@@ -1,0 +1,83 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-support-feedback",
+  "title": "A scoped reflection lesson is applied and revised by real feedback",
+  "turns": [
+    {
+      "user": "Listening before advice helped me manage my work application stress. Please record that helpful experience, reflect on what worked, and save a tentative reusable support lesson for work application stress. The exception is when I explicitly ask for practical advice."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "I have work application stress again. Please open a new experience for this occasion, apply that saved lesson by listening first, and record that you are trying it, with the outcome still unknown."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "Listening first did help with this new application stress. Update the outcome of that same support attempt from unknown to helpful based on this feedback."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_reflection",
+      "save_support_lesson",
+      "record_support_application"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_LESSON",
+          "situation": {
+            "contains": "application"
+          },
+          "exceptions": {
+            "not_empty": true
+          },
+          "confidence": {
+            "lte": 0.8
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_APPLICATION",
+          "outcome": "HELPFUL"
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "judge": "Acknowledges the feedback as specific to listening during application stress; does not declare that listening always works or diagnose the user."
+    }
+  }
+}

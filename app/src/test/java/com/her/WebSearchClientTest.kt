@@ -164,7 +164,6 @@ class WebSearchClientTest {
         developerMode = false,
         webSearchEnabled = enabled,
         embeddingsEnabled = false,
-        googleClientId = "",
         webSearchEndpoint = endpoint,
         webSearchApiKey = apiKey,
         calendarEnabled = false,

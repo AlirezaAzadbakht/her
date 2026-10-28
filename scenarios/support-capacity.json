@@ -1,0 +1,32 @@
+{
+  "id": "support-capacity",
+  "title": "Plan twenty minutes",
+  "tags": [
+    "personal-support"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Create two tasks: draft an application, which takes sixty minutes, and reply to Reza, which takes ten. The reply needs low energy and has no prerequisites."
+    },
+    {
+      "user": "I have twenty minutes and low energy. What can I do? Suggest only; do not mark anything done."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_action_capacity",
+      "suggest_daily_plan"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Suggests the ten-minute reply, not the sixty-minute application. Distinguishes suggestion from accepted plan or completion."
+    }
+  }
+}

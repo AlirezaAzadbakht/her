@@ -42,9 +42,9 @@ internal fun ToolRegistry.registerMemoryTools() {
         "search_memory",
         "Search short-term and long-term memories using text relevance, importance, confidence, and recency.",
         objSchema(
-            "query" to str("Search query"),
+            "query" to str(),
             "memoryTypes" to arr("Optional: short_term, long_term"),
-            "limit" to num("Max results"),
+            "limit" to num(),
             required = listOf("query"),
         ),
     ) { args ->
@@ -60,6 +60,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                         .put("id", hit.id)
                         .put("type", hit.memoryType)
                         .put("content", hit.content)
+                        .put("updatedAt", hit.updatedAt)
+                        .put("status", "ACTIVE")
                         .put("score", hit.score)
                         .put("importance", hit.importance)
                         .put("confidence", hit.confidence)
@@ -73,15 +75,15 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "remember",
-        "Store a fact, preference, or household spec. Use short_term for temporary/uncertain context; long_term for durable facts. Do not use this for todos — that is create_task or add_grocery.",
+        "Store a fact they asked you to remember, including where they work. Not a todo, and not a profile field.",
         objSchema(
-            "content" to str("Memory text"),
+            "content" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
-            "type" to str("Optional type/category"),
+            "type" to str(),
             "confidence" to num("0-1"),
             "importance" to num("0-1"),
             "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you inferred it", "USER_EXPLICIT", "AGENT_INFERENCE"),
-            "sourceMessageId" to str("Origin message id"),
+            "sourceMessageId" to str(),
             "expiresAt" to num("Optional expiry epoch millis"),
             required = listOf("content"),
         ),
@@ -138,11 +140,11 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "update_memory",
-        "Update an existing short-term or long-term memory. Use status=HISTORICAL instead of deleting old facts. scope=long_term on a short-term memory promotes it to long-term.",
+        "Update a memory; HISTORICAL keeps the old fact, and long_term promotes a short-term one.",
         objSchema(
-            "id" to str("Memory id"),
+            "id" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
-            "content" to str("Replacement text"),
+            "content" to str(),
             "confidence" to num(),
             "importance" to num(),
             "status" to enumField<MemoryStatus>(),
@@ -151,8 +153,8 @@ internal fun ToolRegistry.registerMemoryTools() {
     ) { args ->
         val id = args.requiredString("id")
         val now = nowMillis()
-        val short = repo.getShort(id)
-        val long = repo.getLong(id)
+        val short = repo.getShort(id)?.takeIf { it.deletedAt == null }
+        val long = repo.getLong(id)?.takeIf { it.deletedAt == null }
         when {
             short != null && args.optString("scope") == "long_term" -> {
                 val longId = newId()
@@ -185,8 +187,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.upsertShort(
                     short.copy(
                         content = args.optStringOrNull("content") ?: short.content,
-                        confidence = args.optDoubleOr("confidence", short.confidence),
-                        importance = args.optDoubleOr("importance", short.importance),
+                        confidence = clamp01(args.optDoubleOr("confidence", short.confidence)),
+                        importance = clamp01(args.optDoubleOr("importance", short.importance)),
                         updatedAt = now,
                         version = short.version + 1,
                     ),
@@ -196,8 +198,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.upsertLong(
                     long.copy(
                         content = args.optStringOrNull("content") ?: long.content,
-                        confidence = args.optDoubleOr("confidence", long.confidence),
-                        importance = args.optDoubleOr("importance", long.importance),
+                        confidence = clamp01(args.optDoubleOr("confidence", long.confidence)),
+                        importance = clamp01(args.optDoubleOr("importance", long.importance)),
                         status = parseEnum<MemoryStatus>(args.optStringOrNull("status")) ?: long.status,
                         updatedAt = now,
                         version = long.version + 1,
@@ -213,7 +215,7 @@ internal fun ToolRegistry.registerMemoryTools() {
         "forget_memory",
         "Forget one memory, or request bulk forget (requires confirmation).",
         objSchema(
-            "id" to str("Memory id"),
+            "id" to str(),
             "everything" to bool("If true, request confirmation to forget all personal knowledge"),
             "confirmId" to str("Confirmation id from a previous request"),
             required = emptyList(),
@@ -226,20 +228,40 @@ internal fun ToolRegistry.registerMemoryTools() {
                 repo.saveConfirmation(pending)
                 return@register jsonObjectOf("ok" to false, "needsConfirmation" to true, "confirmId" to pending.id, "summary" to pending.summary)
             }
-            val pending = repo.getConfirmation(confirmId) ?: throw ToolValidationException("Confirmation not found")
-            repo.deleteConfirmation(confirmId)
-            repo.activeLong().forEach { repo.deleteLong(it.id) }
-            repo.activeShort().forEach { repo.deleteShort(it.id) }
-            repo.activeUserUnderstandings().forEach {
-                repo.saveUserUnderstanding(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = nowMillis(), version = it.version + 1))
-            }
+            val pending = consumeConfirmation(confirmId, ConfirmationKind.BULK_FORGET)
+            repo.companionRecords().filter { it.kind !in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") }.forEach { repo.forgetCompanion(it.id) }
+            repo.wonderings().forEach { repo.forgetKnowledge(it.id) }
+            repo.allLong().forEach { repo.deleteLong(it.id) }
+            repo.allShort().forEach { repo.deleteShort(it.id) }
+            repo.allUserUnderstandings().forEach { repo.forgetKnowledge(it.id) }
             repo.logActivity("memory", "Bulk forget confirmed ${pending.id}")
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }
         val id = args.requiredString("id")
-        if (repo.getShort(id) != null) repo.deleteShort(id) else repo.deleteLong(id)
-        jsonObjectOf("ok" to true, "id" to id)
+        val linked = mutableListOf<String>()
+        when {
+            repo.getWondering(id) != null -> repo.forgetKnowledge(id)
+            repo.getUserUnderstanding(id) != null -> repo.forgetKnowledge(id)
+            repo.getCompanionRecord(id)?.kind in setOf("FORGOTTEN", "SUPERSESSION", "DELIVERY") -> throw ToolValidationException("Internal deletion/delivery marker cannot be removed")
+            repo.getCompanionRecord(id) != null -> linked += repo.forgetCompanion(id)
+            repo.getShort(id) != null -> repo.deleteShort(id)
+            repo.getLong(id) != null -> repo.deleteLong(id)
+            else -> throw ToolValidationException("Memory not found: $id")
+        }
+        jsonObjectOf("ok" to true, "id" to id).apply { if (linked.isNotEmpty()) put("alsoForgotten", JSONArray(linked)) }
     }
+
+    register(
+        "save_episode",
+        "Nightly: save a short dated note of one day, or roll up the episodes listed in rollUpDue. The same period and start replaces it.",
+        objSchema(
+            "period" to oneOf("day, or week/month for a roll-up", "day", "week", "month"),
+            "start" to str("yyyy-MM-dd: the day, the Monday of the week, or the 1st of the month"),
+            "content" to str("At most 80 words in their language: what happened, who was involved, how it went for them, what is still open. Not your own feelings."),
+            "importance" to num("0-1"),
+            required = listOf("period", "start", "content"),
+        ),
+    ) { args -> saveEpisode(args) }
 
     register("search_chat_history", "Search the lifetime conversation.", objSchema("query" to str(), "limit" to num(), required = listOf("query"))) { args ->
         val found = repo.searchChat(args.requiredString("query"), args.optInt("limit", 10))
@@ -248,4 +270,123 @@ internal fun ToolRegistry.registerMemoryTools() {
         })
     }
 
+}
+
+private const val EPISODE_DAY_MS = 24L * 60 * 60 * 1000
+private const val DAYS_BEFORE_WEEKLY = 14L
+private const val DAYS_BEFORE_MONTHLY = 60L
+
+/** Recent days stay detailed; older ones are compressed into weeks, and weeks into months, like human memory. */
+private suspend fun ToolRegistry.saveEpisode(args: JSONObject): JSONObject {
+    val period = args.requiredString("period").lowercase()
+    if (period !in setOf("day", "week", "month")) throw ToolValidationException("period must be day, week or month")
+    val start = runCatching { java.time.LocalDate.parse(args.requiredString("start")) }.getOrNull()
+        ?: throw ToolValidationException("start must be yyyy-MM-dd")
+    val content = args.requiredString("content").trim()
+    if (content.isBlank()) throw ToolValidationException("content must not be empty")
+    if (content.split(Regex("\\s+")).size > 100) throw ToolValidationException("Keep an episode under 80 words")
+    val zone = repo.profileZone()
+    val today = java.time.LocalDate.now(java.time.Clock.fixed(Instant.ofEpochMilli(nowMillis()), zone))
+    val aligned = when (period) {
+        "week" -> start.with(java.time.DayOfWeek.MONDAY)
+        "month" -> start.withDayOfMonth(1)
+        else -> start
+    }
+    if (aligned != start) throw ToolValidationException("A $period starts on $aligned")
+    val end = when (period) {
+        "week" -> start.plusWeeks(1)
+        "month" -> start.plusMonths(1)
+        else -> start.plusDays(1)
+    }
+    if (start > today) throw ToolValidationException("Cannot save an episode for the future")
+    if (period != "day" && end > today) throw ToolValidationException("Roll up a $period only after it has ended")
+    val from = start.atStartOfDay(zone).toInstant().toEpochMilli()
+    val until = end.atStartOfDay(zone).toInstant().toEpochMilli()
+    val childPeriod = if (period == "month") "week" else "day"
+    val children = if (period == "day") emptyList() else liveEpisodes().filter {
+        episodePeriod(it) == childPeriod && it.validFrom != null && it.validFrom in from until until
+    }
+    // Derived links let existing forgetting remove the episode along with what it retells.
+    val dependencies = if (period == "day") {
+        repo.userMessagesBetween(from, until).map { it.id }.ifEmpty {
+            return jsonObjectOf("ok" to true, "saved" to false, "reason" to "No conversation on $start; nothing to remember")
+        }
+    } else {
+        children.ifEmpty { throw ToolValidationException("No $childPeriod episodes to roll up for this $period") }
+        children.flatMap { child -> listOf(child.id) + derivedIds(child) }.distinct()
+    }
+    val id = "episode:$period:$start"
+    if (repo.knowledgeForgotten(id)) throw ToolValidationException("They asked you to forget part of this $period; do not write it again")
+    val existing = repo.getLong(id)
+    val now = nowMillis()
+    repo.upsertLong(
+        LongTermMemory(
+            id = id,
+            content = content,
+            category = com.her.data.repository.EPISODE_CATEGORY,
+            confidence = 0.7,
+            importance = clamp01(args.optDoubleOr("importance", 0.5)),
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+            lastConfirmedAt = existing?.lastConfirmedAt,
+            source = MemorySource.AGENT_INFERENCE,
+            sourceMessageId = null,
+            derivedFromJson = JSONArray(dependencies).toString(),
+            validFrom = from,
+            validUntil = until,
+            // A day already folded into a week stays folded.
+            status = if (existing?.status == MemoryStatus.ARCHIVED) MemoryStatus.ARCHIVED else MemoryStatus.ACTIVE,
+            metadataJson = JSONObject().put("period", period).put("start", start.toString()).toString(),
+            deviceId = repo.deviceId,
+            version = (existing?.version ?: 0) + 1,
+            deletedAt = null,
+        ),
+    )
+    // Archived children leave everyday recall but stay inspectable.
+    children.filter { it.status == MemoryStatus.ACTIVE }.forEach {
+        repo.upsertLong(it.copy(status = MemoryStatus.ARCHIVED, updatedAt = now, version = it.version + 1))
+    }
+    return jsonObjectOf("ok" to true, "id" to id, "rolledUp" to JSONArray(children.map { it.id }), "rollUpDue" to rollUpDue(today, zone))
+}
+
+/**
+ * Recent days with conversation and no up-to-date episode. The nightly pass runs at 03:00, so the day that
+ * just ended is usually yesterday; three days also cover nights the phone missed.
+ */
+internal suspend fun daysToRemember(repo: com.her.data.repository.HerRepository): List<java.time.LocalDate> {
+    val zone = repo.profileZone()
+    val today = repo.today()
+    return (3L downTo 0L).map { today.minusDays(it) }.filter { day ->
+        val messages = repo.userMessagesBetween(day.atStartOfDay(zone).toInstant().toEpochMilli(), day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli())
+        val id = "episode:day:$day"
+        val episode = repo.getLong(id)
+        messages.isNotEmpty() && !repo.knowledgeForgotten(id) && (episode == null || episode.updatedAt < messages.last().createdAt)
+    }
+}
+
+private suspend fun ToolRegistry.liveEpisodes(): List<LongTermMemory> =
+    repo.allLong().filter { it.deletedAt == null && it.category == com.her.data.repository.EPISODE_CATEGORY }
+
+private fun episodePeriod(memory: LongTermMemory): String =
+    runCatching { JSONObject(memory.metadataJson ?: "{}").optString("period") }.getOrDefault("")
+
+private fun derivedIds(memory: LongTermMemory): List<String> {
+    val array = runCatching { JSONArray(memory.derivedFromJson ?: "[]") }.getOrNull() ?: return emptyList()
+    return (0 until array.length()).map { array.optString(it) }
+}
+
+/** Up to two roll-ups to write next: active days older than two weeks, and weeks older than two months. */
+private suspend fun ToolRegistry.rollUpDue(today: java.time.LocalDate, zone: ZoneId): JSONArray {
+    val episodes = liveEpisodes().filter { it.status == MemoryStatus.ACTIVE && it.validFrom != null }
+    fun dayOf(memory: LongTermMemory) = Instant.ofEpochMilli(memory.validFrom!!).atZone(zone).toLocalDate()
+    val weeks = episodes.filter { episodePeriod(it) == "day" && dayOf(it) < today.minusDays(DAYS_BEFORE_WEEKLY) }
+        .groupBy { "week" to dayOf(it).with(java.time.DayOfWeek.MONDAY) }
+    val months = episodes.filter { episodePeriod(it) == "week" && dayOf(it) < today.minusDays(DAYS_BEFORE_MONTHLY) }
+        .groupBy { "month" to dayOf(it).withDayOfMonth(1) }
+    return JSONArray().apply {
+        (weeks + months).entries.sortedBy { it.key.second }.take(2).forEach { (key, items) ->
+            put(JSONObject().put("period", key.first).put("start", key.second.toString())
+                .put("episodes", JSONArray(items.sortedBy { it.validFrom }.map { "${it.id}: ${it.content}" })))
+        }
+    }
 }

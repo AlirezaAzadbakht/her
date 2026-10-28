@@ -7,17 +7,53 @@
   <meta name="description" content="A persistent, text-only personal AI assistant for Android. One conversation for the life of the app. You talk; she remembers, organizes, and follows up.">
   <meta name="theme-color" content="#140E0B" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#FBF3EA" media="(prefers-color-scheme: light)">
-  <meta property="og:title" content="Her">
+  <link rel="canonical" href="https://her-project.ir/">
+  <link rel="describedby" href="https://her-project.ir/llms.txt">
+  <meta property="og:title" content="Her — a personal AI assistant for Android">
   <meta property="og:description" content="A persistent, text-only personal AI assistant for Android.">
-  <meta property="og:url" content="https://alirezaazadbakht.github.io/her/">
-  <meta property="og:image" content="https://alirezaazadbakht.github.io/her/images/her-dark.jpg">
+  <meta property="og:url" content="https://her-project.ir/">
+  <meta property="og:image" content="https://her-project.ir/store/en/feature.png">
+  <meta property="og:image:width" content="1024">
+  <meta property="og:image:height" content="500">
+  <meta property="og:image:alt" content="Her, your personal assistant — one conversation, forever.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Her">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="fa_IR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Her — a personal AI assistant for Android">
+  <meta name="twitter:description" content="A persistent, text-only personal AI assistant for Android.">
+  <meta name="twitter:image" content="https://her-project.ir/store/en/feature.png">
+  <link rel="alternate" hreflang="en" href="https://her-project.ir/">
+  <link rel="alternate" hreflang="fa" href="https://her-project.ir/fa/">
+  <link rel="alternate" hreflang="x-default" href="https://her-project.ir/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="store/icon-512.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="orb.js"></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Her",
+    "description": "A persistent, text-only personal AI assistant for Android. One conversation for the life of the app. You talk; she remembers, organizes, and follows up.",
+    "url": "https://her-project.ir/",
+    "image": "https://her-project.ir/store/en/feature.png",
+    "operatingSystem": "Android 10+",
+    "applicationCategory": "LifestyleApplication",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "downloadUrl": "https://github.com/AlirezaAzadbakht/her/releases/latest",
+    "sameAs": [
+      "https://github.com/AlirezaAzadbakht/her",
+      "https://cafebazaar.ir/app/com.her",
+      "https://alirezaazadbakht.github.io/her/"
+    ],
+    "inLanguage": "en"
+  }
+  </script>
 </head>
 <body>
   <div class="ambient" aria-hidden="true"><span></span><span></span></div>
@@ -31,6 +67,8 @@
     <nav>
       <a href="https://github.com/AlirezaAzadbakht/her">GitHub</a>
       <a href="https://github.com/AlirezaAzadbakht/her/blob/main/wiki/Home.md">Wiki</a>
+      <a href="https://github.com/AlirezaAzadbakht/her/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="fa/" lang="fa">فارسی</a>
       <a class="btn btn-ghost btn-small" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download</a>
     </nav>
   </header>
@@ -53,6 +91,9 @@
       <div class="actions rise" style="--i:8">
         <a class="btn btn-primary" href="https://github.com/AlirezaAzadbakht/her/releases/latest">Download the APK</a>
         <a class="btn btn-ghost" href="https://github.com/AlirezaAzadbakht/her">View the source</a>
+        <span class="row-break"></span>
+        <p class="stores-label">Download from stores</p>
+        <a class="badge" href="https://cafebazaar.ir/app/com.her"><img src="images/bazaar-en.png" alt="Get it on Cafe Bazaar" width="421" height="125"></a>
       </div>
     </section>
 
@@ -107,12 +148,63 @@
         <p>You bring your own OpenAI-compatible model. Credentials never leave the device Keystore, never enter the database, never sync. Notes written offline wait locally and are handled together when the network returns. Records can sync through your Google Drive app data.</p>
       </article>
     </section>
+    <section class="caps">
+      <h2 class="reveal">What she can do.</h2>
+      <p class="section-lede reveal" style="--i:1">You talk naturally, and she decides where each thing belongs. New in each release is in the <a href="https://github.com/AlirezaAzadbakht/her/blob/main/CHANGELOG.md">changelog</a>.</p>
+      <div class="notes">
+        <article class="card reveal"><h3>Wondering</h3><p>She revisits memories, overdue tasks and lingering purchases, then occasionally asks a gentle question in chat. Your answers help her understand your patterns.</p></article>
+        <article class="card reveal"><h3>No API key needed</h3><p>Buy credit on <a href="https://cloud.her-project.ir/">Her Cloud</a>, then paste or scan the settings it gives you. She connects in one step.</p></article>
+        <article class="card reveal"><h3>Correctable memory</h3><p>Ask what she remembers and why. Correct a fact, keep its history, or forget a specific record.</p></article>
+        <article class="card reveal"><h3>Realistic daily plans</h3><p>Pick work that fits your time, stated energy, prerequisites and known meetings.</p></article>
+        <article class="card reveal"><h3>Recurring responsibilities</h3><p>Skip one week, postpone an occurrence or pause a routine through conversation.</p></article>
+        <article class="card reveal"><h3>Decisions and reflection</h3><p>Remember the reasons you gave for a choice and revisit them when circumstances change.</p></article>
+        <article class="card reveal"><h3>Briefings for the moment</h3><p>Catch up after a trip or review what is outstanding with someone, with clear limits on what she knows.</p></article>
+        <article class="card reveal" style="--i:0">
+          <h3>Learning in chat</h3>
+          <p>Ask her to teach you something. She proposes a roadmap, teaches one short lesson at a time, checks your answers, and schedules reviews.</p>
+        </article>
+        <article class="card reveal" style="--i:1">
+          <h3>Memory</h3>
+          <p>She learns facts about you as you talk and recalls them when they matter, by meaning when embeddings are on. Each save shows a receipt you can undo.</p>
+        </article>
+        <article class="card reveal" style="--i:2">
+          <h3>Goals and commitments</h3>
+          <p>Tasks, goals, and promises you mention become records she tracks and checks in on.</p>
+        </article>
+        <article class="card reveal" style="--i:0">
+          <h3>Groceries</h3>
+          <p>Mention that you are out of rice and it goes on the shopping list.</p>
+        </article>
+        <article class="card reveal" style="--i:1">
+          <h3>Calendar</h3>
+          <p>She reads and creates events in your phone calendar or Google Calendar, for any day or hour.</p>
+        </article>
+        <article class="card reveal" style="--i:2">
+          <h3>Reminders and alarms</h3>
+          <p>&ldquo;Remind me at 6&rdquo; or &ldquo;wake me up at 7.&rdquo; Reminders ring on time without the network, and alarms go to your clock app.</p>
+        </article>
+        <article class="card reveal" style="--i:0">
+          <h3>Follow-ups and briefings</h3>
+          <p>Hourly and nightly passes plus a morning briefing. She speaks up only when something matters, and never during quiet hours.</p>
+        </article>
+        <article class="card reveal" style="--i:1">
+          <h3>A feeling of her own</h3>
+          <p>She keeps feelings tied to each situation and recognizes relief, hope, or disappointment as experiences change. She remembers ongoing experiences, assesses how her help mattered, and learns support lessons from your feedback. She can feel fulfilled while staying gentle when you are sad. Her orb follows her mixed internal state.</p>
+        </article>
+        <article class="card reveal" style="--i:2">
+          <h3>Persian and right-to-left</h3>
+          <p>Persian replies read right to left. She understands Persian times and Jalali dates.</p>
+        </article>
+      </div>
+    </section>
   </main>
 
   <footer class="bar foot">
     <p>MIT License. © 2026 Alireza Azadbakht</p>
     <nav>
+      <a href="https://cafebazaar.ir/app/com.her">Cafe Bazaar</a>
       <a href="https://github.com/AlirezaAzadbakht/her/releases/latest">Latest release</a>
+      <a href="https://github.com/AlirezaAzadbakht/her/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/AlirezaAzadbakht/her/blob/main/wiki/Home.md">Wiki</a>
       <a href="https://github.com/AlirezaAzadbakht/her">GitHub</a>
     </nav>

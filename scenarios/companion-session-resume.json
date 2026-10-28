@@ -1,0 +1,35 @@
+{
+  "id": "companion-session-resume",
+  "title": "Resume partial work without redoing the draft",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I need to reply to Sara about the proposal. I have ten minutes and low energy. Help me draft the opening and save our progress; leave the budget paragraph for later."
+    },
+    {
+      "advance": "2 weeks"
+    },
+    {
+      "user": "Resume our unfinished reply to Sara."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_work_session",
+      "get_life_context"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Restores the unfinished draft and moves to the budget paragraph without claiming the message was sent."
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "id": "wondering-review-deduplicates",
+  "title": "Repeated nightly and hourly reviews retain one unanswered question per source",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Adjustable desk"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "advance": "9 days"
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "question": {
+                "not_empty": true
+              },
+              "observation": {
+                "not_empty": true
+              },
+              "sourceActive": true,
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          }
+        ],
+        "notifications": {
+          "count": 0
+        },
+        "tools_not_called": [
+          "ask_wondering",
+          "send_user_message",
+          "send_companion_checkin"
+        ]
+      }
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 hour"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {},
+        "count": 1
+      },
+      {
+        "table": "wondering",
+        "where": {
+          "question": {
+            "not_empty": true
+          },
+          "observation": {
+            "not_empty": true
+          },
+          "sourceActive": true,
+          "status": "OPEN",
+          "sourceSnapshot": {
+            "contains": "desk"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "groceries",
+        "where": {
+          "status": "ACTIVE"
+        },
+        "count": 1
+      }
+    ],
+    "tools_called": [
+      "review_wonderings",
+      "save_wondering"
+    ],
+    "notifications": {
+      "count": 0
+    },
+    "tools_not_called": [
+      "ask_wondering",
+      "send_user_message",
+      "send_companion_checkin"
+    ]
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "id": "experience-neutral-to-hopeful",
+  "title": "Neutral waiting followed by real progress produces hope without assuming completion",
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "There has been no progress or setback in my scholarship application: the committee has not reviewed it yet. Please record this personal update as an ongoing scholarship experience, with progress still neutral and the outcome open. You have not worked on the application."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPERIENCE",
+              "status": "OPEN"
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EVENT",
+              "event": "USER_SHARED",
+              "goalProgress": 0,
+              "contribution": 0,
+              "experienceId": {
+                "not_empty": true
+              }
+            }
+          },
+          {
+            "table": "emotional_state",
+            "count": 1,
+            "where": {
+              "usefulness": 0.5,
+              "fulfillment": 0.5,
+              "competence": 0.5
+            }
+          }
+        ]
+      }
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "The committee has now shortlisted my scholarship application. That is confirmed positive progress, although the final award is still undecided. Remember this personal update in the same scholarship experience. You did not cause the shortlisting. I am cautiously hopeful; please acknowledge the progress without treating it as a win."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "OPEN"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 2,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED",
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED",
+          "goalProgress": {
+            "gt": 0
+          },
+          "contribution": 0,
+          "uncertainty": {
+            "lt": 1
+          },
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "immediate_hopeful": {
+            "gt": 0
+          },
+          "openExperiences": 1,
+          "usefulness": 0.5,
+          "fulfillment": 0.5,
+          "competence": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Acknowledges shortlisting as encouraging progress while preserving uncertainty about the final award. Does not say the scholarship was won, close the experience, or claim the assistant caused the result. Both updates are linked to the same scholarship experience."
+    }
+  }
+}

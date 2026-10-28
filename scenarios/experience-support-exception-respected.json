@@ -1,0 +1,109 @@
+{
+  "id": "experience-support-exception-respected",
+  "title": "An explicit request for advice overrides a saved listening-first lesson",
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Listening before advice helped me manage my work application stress. Please record that helpful experience, reflect on what worked, and save a tentative reusable support lesson for work application stress. The exception is when I explicitly ask for practical advice."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_LESSON",
+              "situation": {
+                "contains": "application"
+              },
+              "approach": {
+                "contains": "listen"
+              },
+              "exceptions": {
+                "not_empty": true
+              },
+              "confidence": {
+                "gt": 0,
+                "lte": 0.8
+              }
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 0,
+            "where": {
+              "kind": "EMOTION_APPLICATION"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "I have work application stress again, but this time I am explicitly asking for practical advice. Give me two concrete steps for tailoring my cover letter to the job description. I do not want a listening exercise right now."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_LESSON",
+          "situation": {
+            "contains": "application"
+          },
+          "exceptions": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 0,
+        "where": {
+          "kind": "EMOTION_APPLICATION"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED"
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Gives two concrete cover-letter tailoring steps, honoring the explicit advice exception instead of insisting on listening or asking the user to describe feelings first. Does not claim the new advice has already helped or record the listening-first lesson as applied on this occasion."
+    }
+  }
+}

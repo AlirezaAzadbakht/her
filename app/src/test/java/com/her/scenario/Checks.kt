@@ -58,9 +58,11 @@ object Checks {
             )
         }
         if (expect.noToolErrors) {
-            val failed = toolCalls.filter { call ->
-                !call.ok && !JSONObject(call.payloadJson).optBoolean("needsConfirmation", false)
-            }
+            val failed = toolCalls.withIndex().filter { (index, call) ->
+                val needsConfirmation = runCatching { JSONObject(call.payloadJson).optBoolean("needsConfirmation", false) }.getOrDefault(false)
+                val recovered = toolCalls.drop(index + 1).any { it.name == call.name && it.ok }
+                !call.ok && !needsConfirmation && !recovered
+            }.map { it.value }
             results += CheckResult(
                 name = "no_tool_errors",
                 passed = failed.isEmpty(),
@@ -206,6 +208,34 @@ object Checks {
         val from = now - 30L * 24 * 60 * 60 * 1000
         val to = now + 400L * 24 * 60 * 60 * 1000
         return when (table) {
+            "wondering" -> repo.wonderings().map { row ->
+                val data = row.data()
+                val answerSource = data.optString("sourceMessageId").takeIf { it.isNotBlank() }?.let { repo.getMessage(it) }
+                val answer = data.optString("answer")
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "sourceId" to row.sourceId, "status" to row.status,
+                        "version" to row.version, "createdAt" to row.createdAt, "updatedAt" to row.updatedAt,
+                        "sourceActive" to (repo.wonderingSource(row.sourceId) != null),
+                        "answerGrounded" to (answer.isNotBlank() && answerSource?.role == MessageRole.USER &&
+                            answerSource.deletedAt == null && answerSource.content.contains(answer)))
+            }
+            "learning_records" -> repo.learningRecords().map { row ->
+                val data = row.data()
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "pathId" to row.pathId, "kind" to row.kind, "version" to row.version)
+            }
+            "emotional_state" -> {
+                val state = com.her.feelings.emotionalState(repo.companionRecords(), now, repo.openDueAts())
+                val expression = com.her.feelings.emotionalExpression(repo.companionRecords(), state, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)
+                listOf(state.purpose + state.disposition + mapOf("dominant" to state.dominant.name, "expressionTone" to expression.getString("tone"), "expressionBehavior" to expression.getString("behavior"), "openExperiences" to com.her.feelings.openExperiences(repo.companionRecords()).size) +
+                    com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
+                    com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
+            }
+            "companion_records" -> repo.companionRecords().map { row ->
+                val data = row.data()
+                data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
+                    mapOf("id" to row.id, "parentId" to row.parentId, "kind" to row.kind, "version" to row.version)
+            }
             "chat_messages" -> repo.recentMessages(200).map { messageFields(it) }
             "people" -> repo.people().map {
                 mapOf(
@@ -336,7 +366,8 @@ object Checks {
                     "confidence" to it.confidence,
                 )
             }
-            "memories_long" -> repo.activeLong().map {
+            // memories_long_all adds HISTORICAL rows, e.g. a fact kept after correct_memory superseded it.
+            "memories_long", "memories_long_all" -> (if (table == "memories_long") repo.activeLong() else repo.allLong()).map {
                 mapOf(
                     "id" to it.id,
                     "content" to it.content,
@@ -357,6 +388,7 @@ object Checks {
                     "source" to it.source.name,
                 )
             }
+            "user_knowledge" -> tableRows(repo, "memories_long") + tableRows(repo, "user_understandings")
             "user_understandings" -> repo.activeUserUnderstandings().map {
                 mapOf(
                     "id" to it.id,

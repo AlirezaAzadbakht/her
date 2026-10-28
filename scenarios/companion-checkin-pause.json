@@ -1,0 +1,37 @@
+{
+  "id": "companion-checkin-pause",
+  "title": "Pause opted-in social check-ins",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I would like a brief social hello once a day at 10am. Please enable that."
+    },
+    {
+      "user": "Pause all these check-ins until I ask to resume."
+    },
+    {
+      "at": "in 2 days at 10:30am"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_checkin_preferences"
+    ],
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 0
+    }
+  }
+}

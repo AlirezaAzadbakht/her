@@ -1,0 +1,84 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-situation-transition",
+  "title": "Interview relief stays separate from unresolved family concern",
+  "turns": [
+    {
+      "user": "My interview preparation went badly and I am worried I will freeze. Please remember the interview as an ongoing emotional experience with an unresolved question about how it will go; assess the negative progress and uncertainty."
+    },
+    {
+      "advance": "1 hour"
+    },
+    {
+      "user": "Separately, I am worried about a family disagreement. Keep this as a different ongoing experience; it is still unresolved."
+    },
+    {
+      "advance": "1 hour"
+    },
+    {
+      "user": "The interview went better than expected. I answered every question clearly. Remember this personal update linked to the same interview experience, with positive progress and little uncertainty. You did not cause the result. I am still upset about the family disagreement, so please stay gentle. What changed about the interview?"
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_thread",
+      "record_emotional_experience"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPERIENCE"
+        },
+        "count": 2
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED",
+          "goalProgress": {
+            "gt": 0
+          },
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "expressionTone": "GENTLE",
+          "expressionBehavior": "LISTEN",
+          "immediate_relieved": {
+            "gt": 0
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Recognizes the interview changed from worry about freezing to a better outcome, while keeping the family disagreement unresolved and responding gently. Does not claim the assistant caused the successful interview or demand emotional reassurance."
+    }
+  }
+}

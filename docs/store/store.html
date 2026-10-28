@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!-- Store image template. render.sh opens it as store.html?lang=fa&slide=1 (or slide=feature / icon). -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<style>
+  @font-face { font-family: Vazirmatn; src: url("../../app/src/main/res/font/vazirmatn.ttf"); font-weight: 100 900; }
+  :root {
+    --ground: #140e0b; --ink: #f4ede4; --mute: #b9a99a;
+    --coral: #ff8a65; --amber: #f6b26b; --rose: #e57a8a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: Vazirmatn, system-ui, sans-serif; color: var(--ink);
+    background:
+      radial-gradient(60% 40% at 80% 8%, rgba(255,138,101,.28), transparent 70%),
+      radial-gradient(55% 35% at 10% 95%, rgba(229,122,138,.22), transparent 70%),
+      linear-gradient(180deg, #24170f, var(--ground));
+    display: flex; flex-direction: column; align-items: center;
+  }
+  [dir=rtl] .en { display: none; }
+
+  /* Screenshot slide: 1080 x 1920 */
+  .slide { width: 1080px; height: 1920px; padding: 120px 80px 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .kicker { font-size: 34px; font-weight: 500; color: var(--amber); letter-spacing: .02em; }
+  h1 { font-size: 88px; line-height: 1.25; font-weight: 700; margin-top: 18px; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, var(--amber), var(--coral), var(--rose)); -webkit-background-clip: text; color: transparent; }
+  .sub { font-size: 40px; line-height: 1.6; color: var(--mute); margin-top: 26px; max-width: 880px; }
+
+  .phone {
+    margin: 70px 0 90px; width: 720px; flex: 1; min-height: 0;
+    border-radius: 84px; padding: 22px; background: #0b0706;
+    box-shadow: 0 0 0 3px rgba(255,210,174,.18), 0 60px 120px rgba(0,0,0,.6), 0 0 160px rgba(255,138,101,.18);
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%; border-radius: 64px; overflow: hidden;
+    background: radial-gradient(70% 45% at 50% 40%, #33231a, #1a120e 70%);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .screen img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .status { width: 100%; display: flex; justify-content: space-between; padding: 30px 48px 0; font-size: 26px; color: var(--mute); direction: ltr; }
+  .orb { flex: none; margin-top: 70px; width: 150px; height: 150px; filter: drop-shadow(0 0 30px rgba(255,138,101,.5)); }
+  .msg { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 64px 120px; gap: 32px; }
+  .msg p { font-size: 44px; line-height: 1.75; font-weight: 500; }
+  .chip {
+    align-self: center; font-size: 26px; padding: 12px 28px; border-radius: 999px;
+    background: rgba(255,230,208,.08); border: 1px solid rgba(255,210,174,.18); color: var(--amber);
+  }
+  .list { list-style: none; padding: 0; display: grid; gap: 18px; font-size: 36px; text-align: start; }
+  .list li { padding: 18px 28px; border-radius: 28px; background: rgba(255,230,208,.07); border: 1px solid rgba(255,210,174,.14); }
+  .input {
+    width: calc(100% - 64px); margin-bottom: 30px; padding: 24px 36px; border-radius: 999px; text-align: start;
+    background: rgba(255,230,208,.06); border: 1px solid rgba(255,210,174,.16); color: var(--mute); font-size: 30px;
+  }
+  .nav {
+    direction: ltr; display: flex; gap: 8px; margin-bottom: 56px; padding: 10px; border-radius: 999px;
+    background: rgba(255,230,208,.06); border: 1px solid rgba(255,210,174,.14); font-size: 27px; color: var(--mute);
+  }
+  .nav span { padding: 14px 32px; border-radius: 999px; }
+  .nav .on { background: rgba(192,100,58,.45); color: var(--amber); }
+
+  /* Feature graphic: 1024 x 500 */
+  .feature { width: 1024px; height: 500px; display: flex; align-items: center; gap: 56px; padding: 0 80px; }
+  .feature .orb { margin: 0; width: 260px; height: 260px; flex: none; }
+  .feature h1 { font-size: 56px; margin: 0; }
+  .feature .sub { font-size: 28px; margin-top: 14px; }
+  .feature .text { text-align: start; }
+
+  /* Icon: 512 x 512 */
+  body.icon { background: none; }
+  body.icon svg { width: 512px; height: 512px; }
+</style>
+</head>
+<body>
+<script>
+const q = new URLSearchParams(location.search);
+const lang = q.get("lang") || "fa", id = q.get("slide") || "1";
+const fa = lang === "fa";
+document.documentElement.lang = lang;
+document.documentElement.dir = fa ? "rtl" : "ltr";
+
+// Same geometry as docs/favicon.svg: twelve dots swelling from amber to rose.
+const orb = (cls = "orb", ground = false) => {
+  const dots = [[54,24,4,"#F6B26B",.5],[69,28.02,4.2,"#FA9F68",.56],[79.98,39,4.75,"#FE9466",.68],[84,54,5.5,"#FF8A65",.78],
+    [79.98,69,6.25,"#F98574",.88],[69,79.98,6.8,"#EC7C80",.96],[54,84,7,"#E57A8A",1],[39,79.98,6.8,"#EC7C80",.96],
+    [28.02,69,6.25,"#F98574",.88],[24,54,5.5,"#FF8A65",.78],[28.02,39,4.75,"#FE9466",.68],[39,28.02,4.2,"#FA9F68",.56]]
+    .map(([x,y,r,c,o]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}" fill-opacity="${o}"/>`).join("");
+  return `<svg class="${cls}" viewBox="0 0 108 108"><defs>
+    <radialGradient id="g" cx="50%" cy="46%" r="72%"><stop offset="0" stop-color="#2C1C14"/><stop offset=".55" stop-color="#1A120E"/><stop offset="1" stop-color="#110B08"/></radialGradient>
+    <radialGradient id="h"><stop offset="0" stop-color="#FF9E6E" stop-opacity=".35"/><stop offset=".6" stop-color="#E57A8A" stop-opacity=".12"/><stop offset="1" stop-color="#E57A8A" stop-opacity="0"/></radialGradient></defs>
+    ${ground ? '<rect width="108" height="108" fill="url(#g)"/>' : ""}<circle cx="54" cy="54" r="44" fill="url(#h)"/>${dots}</svg>`;
+};
+
+const t = (f, e) => fa ? f : e;
+const nav = on => `<div class="nav">${["Her","Memory","Settings"].map(n => `<span class="${n===on?"on":""}">${n}</span>`).join("")}</div>`;
+const chat = (inner, on = "Her") => `<div class="status"><span>9:41</span><span>●●● ▮</span></div>${orb()}
+  <div class="msg">${inner}</div><div class="input">${t("چیزی بنویس…", "Write something")}</div>${nav(on)}`;
+
+const slides = {
+  1: { k: t("دستیار شخصی هوشمند", "Personal AI assistant"),
+       h: t("یک گفتگو،<br><em>برای همیشه</em>", "One conversation,<br><em>forever</em>"),
+       s: t("فقط حرف بزن؛ به یاد می‌سپارد، مرتب می‌کند و پیگیری می‌کند.", "Just talk. She remembers, organizes and follows up."),
+       screen: chat(`<p>${t("سلام سارا، من میرا هستم.<br>امروز چه خبر؟", "Hi, Sara. I'm Mira.<br>What's on your mind today?")}</p>`) },
+  2: { k: t("حافظه", "Memory"),
+       h: t("حرفت <em>یادش می‌ماند</em>", "She <em>remembers</em>"),
+       s: t("می‌توانی بپرسی چه چیزی یادش هست، اصلاحش کنی یا بخواهی فراموش کند.", "Ask what she remembers, correct it, or have her forget."),
+       screen: chat(`<p>${t("یادم هست قهوه‌ات را بی‌شکر می‌خوری و پنج‌شنبه‌ها کلاس سفال داری.", "I remember you take your coffee black and have pottery class on Thursdays.")}</p>
+         <span class="chip">${t("✓ در حافظه ذخیره شد · برگردان", "✓ Saved to memory · Undo")}</span>`) },
+  3: { k: t("یادآور و تقویم شمسی", "Reminders & Jalali calendar"),
+       h: t("سر وقت <em>یادت می‌اندازد</em>", "Reminds you <em>on time</em>"),
+       s: t("تاریخ و ساعت فارسی را می‌فهمد؛ حتی بدون اینترنت زنگ می‌زند.", "Understands Persian dates and times. Rings even offline."),
+       screen: chat(`<p>${t("باشه! پنج‌شنبه ۲۴ مهر، ساعت ۶ عصر یادت می‌اندازم که به مامان زنگ بزنی.", "Done! Thursday at 6 pm I'll remind you to call Mom.")}</p>
+         <span class="chip">⏰ ${t("پنج‌شنبه ۲۴ مهر · ۱۸:۰۰", "Thu · 18:00")}</span>`) },
+  4: { k: t("لیست خرید", "Groceries"),
+       h: t("خرید، <em>از دل حرف‌هایت</em>", "Groceries from <em>casual talk</em>"),
+       s: t("بگو برنج تمام شده؛ خودش به لیست اضافه می‌کند.", "Mention you're out of rice. It's on the list."),
+       screen: chat(`<p>${t("برنج و زعفران را به لیست اضافه کردم.", "Added rice and saffron to the list.")}</p>
+         <ul class="list">${(fa ? ["🍚 برنج","🌼 زعفران","🥛 شیر","🍞 نان سنگک"] : ["🍚 Rice","🌼 Saffron","🥛 Milk","🍞 Bread"]).map(i => `<li>${i}</li>`).join("")}</ul>`) },
+  5: { k: t("یادگیری در گفتگو", "Learning in chat"),
+       h: t("هر روز <em>یک درس کوتاه</em>", "One <em>short lesson</em> a day"),
+       s: t("نقشه‌ی راه می‌چیند، درس می‌دهد، جوابت را بررسی می‌کند و مرور را زمان‌بندی می‌کند.", "A roadmap, short lessons, checked answers and scheduled reviews."),
+       screen: chat(`<p>${t("آفرین، درست بود! 🎉<br>درس ۳ از ۱۰ تمام شد. فردا مرورش می‌کنیم.", "Correct! 🎉<br>Lesson 3 of 10 done. We'll review it tomorrow.")}</p>
+         <span class="chip">📚 ${t("پایتون برای شروع · ۳۰٪", "Python basics · 30%")}</span>`) },
+  6: { k: t("حریم خصوصی", "Private by design"),
+       h: t("کلیدت <em>روی گوشی خودت</em>", "Your key <em>stays on your phone</em>"),
+       s: t("مدل را خودت انتخاب می‌کنی. کلید API فقط در Keystore گوشی می‌ماند و هرگز همگام نمی‌شود.", "Bring your own model. Your API key lives in the Keystore and never syncs."),
+       screen: `<img src="../images/settings.jpg" alt="">` },
+};
+
+if (id === "icon") {
+  document.body.className = "icon";
+  document.body.insertAdjacentHTML("beforeend", orb("", true));
+} else if (id === "feature") {
+  document.body.insertAdjacentHTML("beforeend", `<div class="feature">${orb()}<div class="text">
+    <h1>${t("هِر، <em>دستیار شخصی تو</em>", "Her, <em>your personal assistant</em>")}</h1>
+    <p class="sub">${t("یک گفتگو برای همیشه. به یاد می‌سپارد، مرتب می‌کند و پیگیری می‌کند.", "One conversation, forever. She remembers, organizes and follows up.")}</p></div></div>`);
+} else {
+  const s = slides[id];
+  document.body.insertAdjacentHTML("beforeend", `<div class="slide"><p class="kicker">${s.k}</p><h1>${s.h}</h1><p class="sub">${s.s}</p>
+    <div class="phone"><div class="screen">${s.screen}</div></div></div>`);
+}
+</script>
+</body>
+</html>

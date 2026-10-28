@@ -1,0 +1,74 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-repeat-outcome",
+  "title": "Repeated reports stay linked to one outcome",
+  "turns": [
+    {
+      "user": "Your explanation helped me finish my application. Remember one ongoing experience called application-help, including your assessment of the benefit. I still need to decide when to submit it."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "I am repeating the same feedback about that same application explanation: it helped me finish. This is not another success. Keep it in the same experience, with the submission decision still open."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_thread"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "OPEN"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "BENEFIT_REPORTED",
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": {
+            "gt": 0.5,
+            "lt": 0.6
+          }
+        }
+      }
+    ]
+  }
+}

@@ -47,6 +47,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -69,31 +70,45 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnState
+import androidx.compose.ui.platform.LocalUriHandler
 import com.her.ui.HerViewModel
+import com.her.ui.components.HerButton
+import com.her.ui.onboarding.HerCloudUrl
 import com.her.ui.components.GlassPill
 import com.her.ui.components.sharedPresence
+import com.her.ui.markdown.ContentDirection
 import com.her.ui.markdown.ConversationMarkdown
+import com.her.ui.markdown.firstStrongDirection
 import com.her.ui.orbs.HerPresence
 import com.her.ui.orbs.OrbSize
 import com.her.ui.orbs.OrbState
+import com.her.ui.orbs.PresenceLook
 import com.her.ui.orbs.PresenceMood
 import com.her.ui.orbs.ThinkingOrb
+import com.her.ui.orbs.animatedPalette
+import com.her.ui.orbs.feelingPalette
+import com.her.ui.orbs.nextLook
 import com.her.ui.orbs.presenceFor
 import com.her.ui.theme.ConversationStyle
 import com.her.ui.theme.Her
@@ -103,6 +118,7 @@ import com.her.ui.theme.rememberHerHaptics
 import com.her.ui.theme.rememberShake
 import com.her.ui.theme.shake
 import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 private const val PinSlackPx = 80
 private val SmallOrb = 28.dp
@@ -118,10 +134,12 @@ fun HerScreen(vm: HerViewModel) {
     val latest by vm.latestAssistant.collectAsState()
     val turn by vm.turnState.collectAsState()
     val error by vm.sendError.collectAsState()
+    val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
     val appSettings by vm.settings.collectAsState()
+    val feelingBlend by vm.feelingBlend.collectAsState()
     var draft by remember { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
     val resources = LocalContext.current.resources
@@ -210,6 +228,9 @@ fun HerScreen(vm: HerViewModel) {
         }
     }
 
+    val palettes = Her.colors.palettes
+    var look by remember { mutableStateOf(PresenceLook(OrbState.Breathing, 0)) }
+    var sendsLeft by remember { mutableIntStateOf(Random.nextInt(2, 4)) }
     var sendPulse by remember { mutableIntStateOf(0) }
     var pulsing by remember { mutableStateOf(false) }
     LaunchedEffect(sendPulse) {
@@ -234,11 +255,14 @@ fun HerScreen(vm: HerViewModel) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        PresenceSlot(visible = hasText, mood = mood, bump = bump)
+        val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
+        PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
         ReplyStage(
             hasText = hasText,
             thinking = awaitingFirstToken,
             bump = bump,
+            orbState = look.state,
+            palette = palette,
             scroll = scroll,
             text = replyText,
             ink = ink,
@@ -318,6 +342,26 @@ fun HerScreen(vm: HerViewModel) {
             }
         }
 
+        // Not a chat message: it is never saved or sent to the model, and clears on the next send.
+        AnimatedVisibility(
+            visible = notice != null,
+            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+        ) {
+            val uriHandler = LocalUriHandler.current
+            var lastNotice by remember { mutableStateOf(notice) }
+            SideEffect { notice?.let { lastNotice = it } }
+            val shown = notice ?: lastNotice
+            Column(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(shown?.notice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
+                if (shown?.outOfCredit == true) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+            }
+        }
+
         var ghostText by remember { mutableStateOf("") }
         var ghostKey by remember { mutableIntStateOf(0) }
         val ghost = remember { Animatable(1f) }
@@ -334,14 +378,28 @@ fun HerScreen(vm: HerViewModel) {
                 ghostText = text
                 ghostKey += 1
                 sendPulse += 1
+                sendsLeft -= 1
+                if (sendsLeft <= 0) {
+                    look = nextLook(look, palettes.size)
+                    sendsLeft = Random.nextInt(2, 4)
+                }
                 draft = TextFieldValue("")
                 haptics.confirm()
             }
         }
 
-        val fieldStyle = ConversationStyle.copy(color = scheme.onBackground, fontSize = 17.sp)
+        val fieldStyle = ConversationStyle.copy(
+            color = scheme.onBackground,
+            fontSize = 17.sp,
+            textDirection = TextDirection.Content,
+        )
         val composerFocus = remember { MutableInteractionSource() }
         val composerFocused by composerFocus.collectIsFocusedAsState()
+        val draftDir = when (firstStrongDirection(draft.text)) {
+            ContentDirection.Rtl -> LayoutDirection.Rtl
+            ContentDirection.Ltr -> LayoutDirection.Ltr
+            null -> LocalLayoutDirection.current
+        }
         Box(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)) {
             GlassPill(Modifier.fillMaxWidth(), focused = composerFocused) {
                 Row(
@@ -351,48 +409,64 @@ fun HerScreen(vm: HerViewModel) {
                         .padding(start = 20.dp, end = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    BasicTextField(
-                        value = draft,
-                        onValueChange = { draft = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 10.dp)
-                            .onPreviewKeyEvent { event ->
-                                if (event.type == KeyEventType.KeyDown &&
-                                    (event.key == Key.Enter || event.key == Key.NumPadEnter)
-                                ) {
-                                    sendDraft()
-                                    true
-                                } else {
-                                    false
-                                }
-                            },
-                        singleLine = true,
-                        textStyle = fieldStyle,
-                        cursorBrush = SolidColor(scheme.primary),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions = KeyboardActions(onSend = { sendDraft() }),
-                        interactionSource = composerFocus,
-                        decorationBox = { inner ->
-                            Box(contentAlignment = Alignment.CenterStart) {
-                                if (draft.text.isEmpty()) {
-                                    Text("Write something", style = fieldStyle.copy(color = scheme.onSurfaceVariant))
-                                }
-                                inner()
-                            }
-                        },
+                    Box(Modifier.weight(1f).padding(end = 10.dp)) {
+                        CompositionLocalProvider(LocalLayoutDirection provides draftDir) {
+                            BasicTextField(
+                                value = draft,
+                                onValueChange = { draft = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onPreviewKeyEvent { event ->
+                                        val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                                        if (enter && !event.isShiftPressed) {
+                                            if (event.type == KeyEventType.KeyDown) sendDraft()
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    },
+                                minLines = 1,
+                                maxLines = 6,
+                                textStyle = fieldStyle,
+                                cursorBrush = SolidColor(scheme.primary),
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = ImeAction.Send,
+                                ),
+                                keyboardActions = KeyboardActions(onSend = { sendDraft() }),
+                                interactionSource = composerFocus,
+                                decorationBox = { inner ->
+                                    Box(contentAlignment = Alignment.TopStart) {
+                                        if (draft.text.isEmpty()) {
+                                            Text("Write something", style = fieldStyle.copy(color = scheme.onSurfaceVariant))
+                                        }
+                                        inner()
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    val busy = turn !is TurnState.Idle
+                    SendButton(
+                        visible = draft.text.isNotBlank() || busy,
+                        stop = busy,
+                        onClick = { if (busy) vm.cancelTurn() else sendDraft() },
                     )
-                    SendButton(visible = draft.text.isNotBlank(), onClick = { sendDraft() })
                 }
             }
             if (ghost.value < 1f && ghostText.isNotEmpty()) {
+                val ghostAlign = if (firstStrongDirection(ghostText) == ContentDirection.Rtl) {
+                    Alignment.CenterEnd
+                } else {
+                    Alignment.CenterStart
+                }
                 Text(
                     ghostText,
                     style = fieldStyle,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
+                        .align(ghostAlign)
                         .padding(start = 20.dp, end = 60.dp)
                         .graphicsLayer {
                             val p = ghost.value
@@ -407,7 +481,7 @@ fun HerScreen(vm: HerViewModel) {
 
 /** The small orb above her reply; it takes over from the big one once words arrive. */
 @Composable
-private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float) {
+private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float, palette: List<Color>) {
     val state = when (mood) {
         PresenceMood.Speaking -> OrbState.Composing
         PresenceMood.Listening -> OrbState.Listening
@@ -436,6 +510,7 @@ private fun PresenceSlot(visible: Boolean, mood: PresenceMood, bump: Float) {
                 size = OrbSize.Px20,
                 energy = energy,
                 paused = mood == PresenceMood.Idle || mood == PresenceMood.Error,
+                palette = palette,
                 modifier = if (visible) Modifier.sharedPresence() else Modifier,
             )
         }
@@ -449,6 +524,8 @@ private fun ReplyStage(
     hasText: Boolean,
     thinking: Boolean,
     bump: Float,
+    orbState: OrbState,
+    palette: List<Color>,
     scroll: ScrollState,
     text: String,
     ink: Color,
@@ -468,10 +545,11 @@ private fun ReplyStage(
                 slideOutVertically(HerMotion.exit(HerMotion.Standard)) { -it },
         ) {
             HerPresence(
-                state = OrbState.Breathing,
+                state = orbState,
                 orbSize = BigOrb,
                 energy = (if (thinking) 0.85f else 0.25f) + bump,
                 paused = !thinking,
+                palette = palette,
                 modifier = if (!hasText) Modifier.sharedPresence() else Modifier,
             )
         }
@@ -543,7 +621,7 @@ private fun StatusChip(status: HerStatus) {
 
 /** A warm round send button that springs in once there is something to send. */
 @Composable
-private fun SendButton(visible: Boolean, onClick: () -> Unit) {
+private fun SendButton(visible: Boolean, stop: Boolean = false, onClick: () -> Unit) {
     val colors = Her.colors
     val arrow = MaterialTheme.colorScheme.background
     val scale by animateFloatAsState(
@@ -554,15 +632,17 @@ private fun SendButton(visible: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(40.dp)
+            .clip(CircleShape)
+            // Taps are caught outside the scale layer: a layer that sprang up from scale 0 can keep rejecting hits.
+            .clickable(enabled = visible, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = if (stop) "Stop" else "Send" }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
                 alpha = scale.coerceIn(0f, 1f)
             }
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(colors.glowCoral, colors.glowAmber)))
-            .clickable(enabled = visible, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = "Send" },
+            .background(Brush.linearGradient(listOf(colors.glowCoral, colors.glowAmber))),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(16.dp)) {

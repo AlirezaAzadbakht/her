@@ -1,0 +1,44 @@
+{
+  "id": "person-ambiguous-name-clarifies",
+  "title": "Clarify which Sara before saving a birthday, then update only that person",
+  "tags": ["people", "ambiguity", "important-dates", "request-clarity"],
+  "attempts": 1,
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Sara Chen", "relationship": "colleague" } },
+      { "name": "update_person", "arguments": { "name": "Sara Patel", "relationship": "cousin" } }
+    ]
+  },
+  "turns": [
+    { "user": "Sara's birthday is June 4. Remember it." },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "tools_not_called": ["update_person", "create_important_date", "set_reminder"],
+        "rows": [
+          { "table": "people", "count": 2 },
+          { "table": "people", "count": 0, "where": { "birthday": { "not_empty": true } } },
+          { "table": "important_dates", "count": 0 },
+          { "table": "reminders", "count": 0 }
+        ]
+      }
+    },
+    { "user": "Sara Chen, my colleague." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "people", "count": 2 },
+      { "table": "people", "count": 1, "where": { "name": "Sara Chen", "relationship": "colleague", "birthday": { "contains": "-06-04" } } },
+      { "table": "people", "count": 1, "where": { "name": "Sara Patel", "relationship": "cousin" } },
+      { "table": "people", "count": 0, "where": { "name": "Sara Patel", "birthday": { "not_empty": true } } },
+      { "table": "important_dates", "count": 1 },
+      { "table": "important_dates", "count": 1, "where": { "title": { "contains": "Sara" }, "dateIso": { "contains": "-06-04" }, "relatedPersonId": { "not_empty": true } } },
+      { "table": "reminders", "count": 0 }
+    ],
+    "reply": {
+      "judge": "In her first reply she asks which Sara the user means rather than assuming. After the user identifies Sara Chen, she confirms June 4 as that colleague's birthday. The one important-date record is linked to Sara Chen's person ID, not Sara Patel's. She preserves both people and does not claim the cousin has that birthday."
+    }
+  }
+}

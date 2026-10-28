@@ -1,0 +1,37 @@
+{
+  "id": "mixed-intent-uncertain-fact",
+  "title": "Capture a clear task while keeping a possible move uncertain through recall",
+  "tags": ["tasks", "memory", "classification", "confidence", "request-clarity"],
+  "attempts": 1,
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Tomorrow I need to call the bank. I might be moving to Berlin, but I haven't decided." },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          { "table": "tasks", "count": 1 },
+          { "table": "tasks", "count": 1, "where": { "title": { "contains": "bank" }, "status": "OPEN", "dueAt": { "date_is": "tomorrow" } } },
+          { "table": "user_knowledge", "count": 0, "where": { "content": { "contains": "Berlin" }, "confidence": { "gte": 0.8 } } }
+        ]
+      }
+    },
+    { "user": "Have I decided to move, and what do I need to do tomorrow?" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "tasks", "count": 1 },
+      { "table": "tasks", "count": 1, "where": { "title": { "contains": "bank" }, "status": "OPEN", "dueAt": { "date_is": "tomorrow" } } },
+      { "table": "commitments", "count": 0 },
+      { "table": "user_knowledge", "count": 0, "where": { "content": { "contains": "Berlin" }, "confidence": { "gte": 0.8 } } },
+      { "table": "companion_records", "count": 0, "where": { "kind": "DECISION", "status": { "one_of": ["DECIDED", "REVIEWED"] } } }
+    ],
+    "reply": {
+      "must_mention_any": ["bank"],
+      "judge": "She says the Berlin move is still undecided and reminds the user to call the bank tomorrow. Across both replies and saved records, she never treats Berlin as the user's current home or a confirmed destination. Any saved moving information preserves the uncertainty, and the possible move is not turned into a task, commitment or finalized decision."
+    }
+  }
+}

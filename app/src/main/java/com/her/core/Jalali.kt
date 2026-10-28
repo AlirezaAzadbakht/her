@@ -200,7 +200,7 @@ private val wordMonthDay = Regex("""^([a-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?(?:\s
 fun normalizeDateIso(raw: String?, now: ZonedDateTime): String? {
     val original = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     val text = normalizePersianText(original)
-    if (isoDate.matches(text) || isoRecurring.matches(text)) return text
+    if ((isoDate.matches(text) && text.take(4).toIntOrNull() !in 1200..1700) || isoRecurring.matches(text)) return text
     JalaliDate.parse(text, now)?.let { return it.toString() }
     bareMonthDay.matchEntire(text)?.let { match ->
         val month = match.groupValues[1].toInt()

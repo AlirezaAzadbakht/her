@@ -15,6 +15,12 @@ data class ScenarioSpec(
     val seed: ScenarioSeed,
     val turns: List<ScenarioTurn>,
     val expect: ScenarioExpect,
+    val faults: List<ScenarioFault> = emptyList(),
+)
+
+data class ScenarioFault(
+    val call: Int,
+    val type: String,
 )
 
 data class ScenarioSettings(
@@ -49,14 +55,18 @@ data class SeedToolCall(
 )
 
 sealed class ScenarioTurn {
-    data class User(val text: String) : ScenarioTurn()
-    data class Run(val kind: AutonomousRun) : ScenarioTurn()
+    /** `queued` leaves the message pending, like one sent offline; the next unqueued user turn sends the batch. */
+    data class User(val text: String, val queued: Boolean = false) : ScenarioTurn()
+    data class Run(val kind: AutonomousRun, val concurrentWithUser: String? = null) : ScenarioTurn()
 
     /** Move the harness clock forward, e.g. `"3 days"`. */
     data class Advance(val millis: Long, val label: String) : ScenarioTurn()
 
     /** Jump the harness clock to a future moment, e.g. `"next monday at 8am"`. */
     data class At(val phrase: String) : ScenarioTurn()
+
+    /** Assert cumulative behavior and current storage without showing assertions to the model. */
+    data class Check(val expect: ScenarioExpect) : ScenarioTurn()
 }
 
 enum class AutonomousRun {
@@ -139,17 +149,23 @@ object ScenarioTables {
         "agent_queue",
         "agent_state",
         "memories_long",
+        "memories_long_all",
         "memories_short",
         "profile",
         "user_understandings",
+        "user_knowledge",
         "reminders",
         "alarms",
+        "companion_records",
+        "emotional_state",
+        "learning_records",
+        "wondering",
     )
 }
 
 object ScenarioLoader {
     private val topKeys = setOf(
-        "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect",
+        "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect", "faults",
     )
     private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled")
     private val seedKeys = setOf("profile", "tools", "system_calendar", "google_calendar", "web_search")
@@ -161,7 +177,9 @@ object ScenarioLoader {
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
     )
     private val seedToolKeys = setOf("name", "arguments")
-    private val turnKeys = setOf("user", "run", "advance", "at")
+    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued", "check")
+    private val faultKeys = setOf("call", "type")
+    val faultTypes = setOf("http_500", "http_429", "malformed_json", "truncated_stream")
     private val expectKeys = setOf(
         "tools_called", "tools_not_called", "no_tool_errors", "rows", "reply",
         "tool_order", "max_tool_calls", "max_llm_calls", "max_input_tokens", "notifications",
@@ -227,6 +245,7 @@ object ScenarioLoader {
         val expectObj = root.optJSONObject("expect")
             ?: throw ScenarioParseException(file, "expect is required")
         val expect = parseExpect(file, expectObj, "$path.expect")
+        val faults = parseFaults(file, root.optJSONArray("faults"), "$path.faults")
         return ScenarioSpec(
             file = file,
             id = id,
@@ -238,7 +257,25 @@ object ScenarioLoader {
             seed = seed,
             turns = turns,
             expect = expect,
+            faults = faults,
         )
+    }
+
+    private fun parseFaults(file: File, array: JSONArray?, path: String): List<ScenarioFault> {
+        if (array == null) return emptyList()
+        return (0 until array.length()).map { index ->
+            val obj = array.requiredObject(index, "$path[$index]")
+            rejectUnknown(obj, faultKeys, "$path[$index]", file)
+            val call = obj.opt("call")
+            if (call !is Number || call.toDouble() < 1 || call.toDouble() % 1 != 0.0) {
+                throw ScenarioParseException(file, "$path[$index].call must be a 1-based integer")
+            }
+            val type = obj.requiredString(file, "type", "$path[$index]").lowercase()
+            if (type !in faultTypes) {
+                throw ScenarioParseException(file, "$path[$index].type must be one of ${faultTypes.joinToString()}")
+            }
+            ScenarioFault(call.toInt(), type)
+        }
     }
 
     private fun parseSettings(file: File, obj: JSONObject?, path: String): ScenarioSettings {
@@ -323,12 +360,28 @@ object ScenarioLoader {
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {
         rejectUnknown(obj, turnKeys, path, file)
-        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) }
+        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) } - "queued"
+        if (obj.has("queued") && !obj.has("user")) throw ScenarioParseException(file, "$path.queued needs user")
+        val concurrent = obj.optString("concurrent_with_user").takeIf { obj.has("concurrent_with_user") && it.isNotBlank() }
+        if (concurrent != null) {
+            if (!obj.has("run")) throw ScenarioParseException(file, "$path.concurrent_with_user needs run")
+            val raw = obj.requiredString(file, "run", path).lowercase()
+            if (raw !in runKinds) {
+                throw ScenarioParseException(file, "$path.run must be one of ${runKinds.joinToString()}")
+            }
+            return ScenarioTurn.Run(AutonomousRun.valueOf(raw.uppercase()), concurrent)
+        }
         if (present.size != 1) {
-            throw ScenarioParseException(file, "$path must have exactly one of ${turnKeys.joinToString()}")
+            throw ScenarioParseException(file, "$path must have exactly one of user, run, advance, at, check")
         }
         return when (present.single()) {
-            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path))
+            "check" -> {
+                val check = obj.optJSONObject("check") ?: throw ScenarioParseException(file, "$path.check must be an object")
+                val expect = parseExpect(file, check, "$path.check")
+                if (expect.reply?.judge != null) throw ScenarioParseException(file, "$path.check does not support a reply judge; use deterministic checks here and a final judge")
+                ScenarioTurn.Check(expect)
+            }
+            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path), obj.optBoolean("queued", false))
             "run" -> {
                 val raw = obj.requiredString(file, "run", path).lowercase()
                 if (raw !in runKinds) {

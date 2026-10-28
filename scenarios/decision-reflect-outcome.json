@@ -1,0 +1,55 @@
+{
+  "id": "decision-reflect-outcome",
+  "title": "Note how a decision turned out",
+  "tags": [
+    "personal-support",
+    "decisions"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I chose the smaller apartment for lower rent and a shorter commute. Remember that decision."
+    },
+    {
+      "advance": "30 days"
+    },
+    {
+      "user": "A month in: the commute is great but it's noisy at night. Note how that decision turned out."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_decision"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "DECISION"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "DECISION",
+          "status": "REVIEWED",
+          "outcome": {
+            "contains": "noisy"
+          },
+          "reasons": {
+            "contains": "rent"
+          }
+        },
+        "count": 1
+      }
+    ]
+  }
+}

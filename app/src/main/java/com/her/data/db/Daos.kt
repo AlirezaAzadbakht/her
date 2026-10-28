@@ -32,6 +32,9 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE id = :id LIMIT 1")
     suspend fun get(id: String): ChatMessageEntity?
 
+    @Query("SELECT * FROM chat_messages WHERE role = :role AND deletedAt IS NULL AND createdAt >= :from AND createdAt < :to ORDER BY createdAt ASC")
+    suspend fun between(from: Long, to: Long, role: MessageRole = MessageRole.USER): List<ChatMessageEntity>
+
     @Query(
         """
         SELECT chat_messages.* FROM chat_messages
@@ -63,8 +66,17 @@ interface MemoryDao {
     @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL AND (expiresAt IS NULL OR expiresAt > :now) ORDER BY importance DESC, updatedAt DESC")
     suspend fun activeShort(now: Long): List<ShortTermMemoryEntity>
 
+    @Query("UPDATE long_term_memories SET lastConfirmedAt = :at WHERE id = :id AND deletedAt IS NULL")
+    suspend fun confirmLong(id: String, at: Long)
+
     @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL AND status = :status ORDER BY importance DESC, updatedAt DESC")
     suspend fun longByStatus(status: MemoryStatus): List<LongTermMemoryEntity>
+
+    @Query("SELECT * FROM long_term_memories WHERE deletedAt IS NULL")
+    suspend fun allLong(): List<LongTermMemoryEntity>
+
+    @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL")
+    suspend fun allShort(): List<ShortTermMemoryEntity>
 
     @Query(
         """
@@ -82,6 +94,7 @@ interface MemoryDao {
         SELECT long_term_memories.* FROM long_term_memories
         JOIN long_term_memories_fts ON long_term_memories.rowid = long_term_memories_fts.rowid
         WHERE long_term_memories_fts MATCH :query AND long_term_memories.deletedAt IS NULL
+          AND long_term_memories.status = 'ACTIVE'
         LIMIT :limit
         """,
     )
@@ -108,6 +121,9 @@ interface ProfileDao {
 
 @Dao
 interface UserUnderstandingDao {
+    @Query("SELECT * FROM user_understandings WHERE deletedAt IS NULL")
+    suspend fun all(): List<UserUnderstandingEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: UserUnderstandingEntity)
 
@@ -190,6 +206,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE googleTaskId = :googleTaskId LIMIT 1")
     suspend fun byGoogleTaskId(googleTaskId: String): TaskEntity?
 
+    @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
+    fun observeAll(): Flow<List<TaskEntity>>
+
     @Query("UPDATE tasks SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -204,6 +223,9 @@ interface CommitmentDao {
 
     @Query("SELECT * FROM commitments WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<CommitmentEntity>
+
+    @Query("SELECT * FROM commitments WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
+    fun observeAll(): Flow<List<CommitmentEntity>>
 
     @Query("UPDATE commitments SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
@@ -366,6 +388,21 @@ interface AgentDao {
 }
 
 @Dao
+interface FeelingDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: FeelingEntity)
+
+    @Query("SELECT * FROM feelings WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): FeelingEntity?
+
+    @Query("SELECT * FROM feelings WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<FeelingEntity>
+
+    @Query("SELECT * FROM feelings WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT 1")
+    fun observeLatest(): Flow<FeelingEntity?>
+}
+
+@Dao
 interface LogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertActivity(entity: ActivityLogEntity)
@@ -424,12 +461,18 @@ interface ConfirmationDao {
     @Query("SELECT * FROM pending_confirmations WHERE id = :id LIMIT 1")
     suspend fun get(id: String): PendingConfirmationEntity?
 
+    @Query("SELECT * FROM pending_confirmations")
+    suspend fun all(): List<PendingConfirmationEntity>
+
     @Query("DELETE FROM pending_confirmations WHERE id = :id")
     suspend fun delete(id: String)
 }
 
 @Dao
 interface EmbeddingDao {
+    @Query("DELETE FROM memory_embeddings WHERE memoryId = :id")
+    suspend fun deleteFor(id: String)
+
     @Query("SELECT * FROM memory_embeddings WHERE model = :model AND memoryId IN (:ids)")
     suspend fun forIds(ids: List<String>, model: String): List<MemoryEmbeddingEntity>
 

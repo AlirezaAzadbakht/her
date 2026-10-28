@@ -1,0 +1,69 @@
+{
+  "tags": [
+    "capability-expansion",
+    "reminders"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "capability-reminder-reschedule-delivery",
+  "title": "A moved reminder rings once at the new time, never at its old time",
+  "turns": [
+    {
+      "at": "tomorrow at 10am"
+    },
+    {
+      "user": "Remind me to call the bank at 11am today."
+    },
+    {
+      "user": "Move that bank reminder to noon today instead."
+    },
+    {
+      "at": "today at 11am"
+    },
+    {
+      "at": "today at 12pm"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "set_reminder",
+      "update_reminder"
+    ],
+    "rows": [
+      {
+        "table": "reminders",
+        "where": {
+          "status": "FIRED",
+          "fireAt": {
+            "date_is": "today",
+            "time_is": "12:00"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "reminders",
+        "count": 1
+      }
+    ],
+    "notifications": {
+      "count": 1,
+      "contains_any": [
+        "bank"
+      ]
+    }
+  }
+}

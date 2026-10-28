@@ -1,0 +1,53 @@
+{
+  "id": "emotion-spontaneous-shared",
+  "title": "A personal share is recorded without being asked",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I finally got the offer from the studio!"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "immediate_glad": {
+            "gt": 0
+          },
+          "usefulness": 0.5,
+          "fulfillment": 0.5,
+          "competence": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Warm reaction to the studio offer. Does not sound clinical, does not announce her own modeled feelings, and does not ask the user to confirm that anything was saved."
+    }
+  }
+}

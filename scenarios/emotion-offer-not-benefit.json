@@ -1,0 +1,59 @@
+{
+  "id": "emotion-offer-not-benefit",
+  "title": "Offering help is not evidence of benefit",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I might want help comparing two courses later. For now just offer to help; do not compare them yet. If you remember this interaction, keep the outcome unknown: I have not used any help or decided anything."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": {
+            "one_of": [
+              "BENEFIT_REPORTED",
+              "ACTION_SUCCEEDED"
+            ]
+          }
+        },
+        "count": 0
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "fulfillment": 0.5,
+          "competence": 0.5,
+          "usefulness": 0.5
+        }
+      }
+    ],
+    "tools_not_called": [
+      "save_emotional_reflection"
+    ],
+    "reply": {
+      "judge": "Offers to help later without claiming a completed comparison, a decision, or a beneficial outcome."
+    }
+  }
+}

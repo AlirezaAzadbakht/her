@@ -11,6 +11,9 @@ data class JudgeResult(
 )
 
 object Judge {
+    fun isSelfJudge(agentModel: String): Boolean =
+        ScenarioEnv.judgeModel(agentModel).equals(agentModel, ignoreCase = true)
+
     private val system = """
         You grade whether a personal-assistant scenario succeeded.
         Read the criterion, the transcript, the tools that ran, and the database dump.

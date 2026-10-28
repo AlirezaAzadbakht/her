@@ -1,8 +1,8 @@
 # Scenario engine
 
-A capability suite, separate from unit tests, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator` against a live OpenAI-compatible LLM read from `.env`. Live runs are slow, cost tokens, and are non-deterministic, so scenarios are **not part of CI**. Run them locally; recorded cassettes can be replayed offline (see [Record and replay](#record-and-replay)).
+A capability suite, separate from the live LLM, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator`. Live runs need an OpenAI-compatible LLM from `.env`; they are slow, cost tokens, and are non-deterministic. Recorded `ci-core` cassettes replay offline in CI (see [Record and replay](#record-and-replay)).
 
-Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). `ScenarioPoolValidationTest` is the only scenario-related test in that suite: it parses every file in the pool and reports unknown tool names without calling a model.
+Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). That suite parses the pool (`ScenarioPoolValidationTest`) and records/replays the `ci-core` set with a scripted model (`CoreCassetteTest`).
 
 ## Workflow
 
@@ -35,7 +35,7 @@ Gradle properties (passed through as system properties):
 
 | Property | Meaning |
 |----------|---------|
-| `scenario.only` | Run the scenario whose `id` equals this value |
+| `scenario.only` | Run the scenarios with these ids (comma-separated) |
 | `scenario.filter` | Substring match on id, title, or tags |
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |
@@ -43,13 +43,15 @@ Gradle properties (passed through as system properties):
 
 ## Record and replay
 
-- `record` runs live and writes passing attempts to `scenarios/cassettes/<id>.json`: the attempt's start time plus every LLM response, including the judge's.
+- `record` runs live and writes passing attempts to `scenarios/cassettes/<id>.json`: the attempt's start time, agent LLM responses, and the judge's pass/fail.
 - `replay` needs no `.env` and no network. It pins the harness clock to the recorded start and serves responses in order. Scenarios without a cassette are reported as `SKIP`.
 - Each call has a fingerprint over the tool schemas, the message roles, tool-call names, and user text. System text and tool payloads are left out because they carry the time and random ids. If a tool schema changes or the agent takes a different path, replay fails with "request drifted at call N". Re-record that scenario.
 - Prompt wording changes do **not** break replay, so rerun live after editing `Identity.kt`.
 - Commit cassettes together with the change that made them pass.
+- Replay stores judge pass/fail on the cassette and does not re-grade. Cached prompt tokens are stored so `max_input_tokens` matches live.
+- Core scenarios carry the `ci-core` tag. CI runs `scenarioTest -Pscenario.mode=replay -Pscenario.filter=ci-core -Pscenario.requireCassettes=true`. Locally: `make scenarios-replay`.
 
-The report is written to `build/reports/scenarios/index.html`, plus `summary.txt` and one HTML page per scenario. Secrets are redacted.
+Each completed scenario also saves a report under `build/reports/scenarios/completed/<id>/` and logs its pass count, so an interrupted batch does not lose finished results. The combined report is written to `build/reports/scenarios/index.html`, plus `summary.txt`, `summary.json`, and one HTML page per scenario. Secrets are redacted. If the judge model is the agent model, the report warns. `make scenarios-compare` diffs `summary.json` against `summary.prev.json`.
 
 ## Scenario JSON
 
@@ -92,11 +94,13 @@ The report is written to `build/reports/scenarios/index.html`, plus `summary.txt
 
 Unknown keys and unknown matchers are parse errors that name the file. The `id` must match the filename without `.json`.
 
-- `turns` are `{"user":"..."}` (enqueue + `processOutbox`), `{"run":"hourly"|"nightly"|"briefing"}`, `{"advance":"3 days"}` (minutes / hours / days / weeks), or `{"at":"next monday at 8am"}` (forward only).
+- `turns` are `{"user":"..."}` (enqueue + `processOutbox`), `{"user":"...","queued":true}` (enqueue only, as if offline; the next unqueued user turn sends the batch), `{"run":"hourly"|"nightly"|"briefing"}`, `{"run":"hourly","concurrent_with_user":"..."}` (hourly/nightly/briefing overlapping a chat turn), `{"advance":"3 days"}` (minutes / hours / days / weeks), or `{"at":"next monday at 8am"}` (forward only).
+- `{"check": { ... }}` is an intermediate checkpoint using the same deterministic expectations as `expect`. It inspects current rows and cumulative calls/messages/notifications, fails immediately with the turn number, and makes no model call. It does not support `reply.judge`; put semantic judging in the final `expect`. Checkpoints are never shown to the model.
+- `"faults": [{ "call": 2, "type": "http_500" }]` throws on that 1-based LLM call (`http_500`, `http_429`, `malformed_json`, `truncated_stream`).
 - Each attempt runs on its own fake clock that starts at the real time (or the cassette's start time in replay). Every repository, tool, context bundle, and check reads that clock, and "today" is taken in the profile timezone.
 - `attempts` (default 1): the scenario passes if any attempt passes. The report shows the pass rate.
 - `"pending": true`: run and report, but do not fail the suite.
-- Seed tool calls set up state and are not counted toward `tools_called`.
+- Seed tool calls set up state and are not counted toward `tools_called`. An exact top-level argument value such as `"$seed.0.id"` takes a field from an earlier seed-tool result (zero-based index); numeric values retain their type. Missing or forward references fail setup. This allows linked records to be seeded through real tools without hard-coded IDs.
 - A scenario attempt passes when every deterministic check passes, and the optional LLM judge passes if `expect.reply.judge` is set.
 
 ## Matchers
@@ -154,9 +158,15 @@ Rows are flattened by an explicit mapper, not reflection.
 | `google_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of Google Calendar) |
 | `agent_queue` | id, description, status, priority, dueAt |
 | `agent_state` | id, kind, content, confidence |
+| `companion_records` | id, parentId, kind, version, plus the record’s JSON fields (live records only) |
+| `wondering` | id, sourceId, status, version, createdAt, updatedAt, plus persisted JSON fields (observation, question, sourceSnapshot, askedAt, answer, sourceMessageId); live rows only. Derived sourceActive checks the current source; answerGrounded verifies an exact quote of a non-deleted user message. |
+| `learning_records` | id, pathId, kind, version, plus persisted JSON fields (e.g. result, answer, status); live records only |
+| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment, warmth, curiosity, patience; immediate_NAME and mood_NAME for each lowercase feeling name |
 | `memories_long` | id, content, category, confidence, importance, status, source |
+| `memories_long_all` | Same fields as `memories_long`, including HISTORICAL rows (for example a fact kept after `correct_memory` superseded it) |
 | `memories_short` | id, content, type, confidence, importance, source |
 | `profile` | userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext |
+| `user_knowledge` | Union of active durable memories and user-understanding facets, for preferences valid in either store; same shared id/content/status/source/confidence fields. |
 | `user_understandings` | id, facet, content, confidence, importance, status, source |
 | `reminders` | id, message, trigger (`TIME` / `PERSON` / `PLACE`), fireAt, repeat, person (name), place, onlyIfEntityType, onlyIfEntityId, status (`SCHEDULED` / `FIRED` / `SKIPPED` / `CANCELLED`) |
 | `alarms` | hour, minute, label, days (harness fake of the phone's clock app) |
@@ -174,7 +184,129 @@ Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }
 ## Limitations
 
 - Time moves only on `advance` / `at` turns (plus 1 ms per read to keep row order). WorkManager scheduling is not simulated, so call `run` turns explicitly. Clock reminders are the exception: they fire on `advance` / `at`.
-- A `reply` check reads her last assistant message. A reminder that fires is saved as an assistant message, so put reply checks before a turn that makes one ring, or check `notifications` instead.
+- A `reply` check reads her last assistant message. It does not fall back to the last notification. A reminder that fires is saved as an assistant message, so put reply checks before a turn that makes one ring, or check `notifications` instead.
 - No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.
+
+## Emotional understanding scenarios
+
+Run the emotional-understanding scenarios with:
+
+```bash
+source scripts/env.sh
+gradle :app:scenarioTest -Pscenario.filter=emotional-understanding -Pscenario.attempts=1 -Pscenario.parallel=1
+```
+
+The additional `feeling-components` group covers expression switching, support feedback and exceptions, hope/setback transitions, historical recall and concern after task completion. It also has `fast-feeling-no-paperwork` (a worry is felt right after the reply, with no experience until the nightly review files one) and `held-concern-follow-up` (three days later, an unrelated request gets a gentle question about the unresolved worry). Run it with `-Pscenario.filter=feeling-components`; see [Feeling component scenarios](Emotional-understanding.md#feeling-component-scenarios) for checkpoints and live results.
+
+Since chat no longer records emotional events, threads, understandings, reflections, lessons or applications, scenarios that check those records run `{"run": "nightly"}` first. A story with several steps advances one day between steps, because the orchestrator runs at most one nightly review per local date. User text and semantic assertions are unchanged, except as follows. `save_emotional_expression` is gone from `tools_called` lists, because the app writes expressions itself. In `experience-transition-recall-no-refresh`, the final event version check allows the automatic link and one nightly revision (`lte 3` instead of `1`); chat has no tool that could revise an event. `emotion-spontaneous-shared` also checks empathic gladness, and `emotion-casual-no-record` checks that small talk leaves no fast records.
+
+`emotion-benefit-independent` checks helpfulness while the user remains sad; `emotion-offer-not-benefit` and `emotion-execution-not-benefit` distinguish offers, completed work and benefit. `emotion-understanding-correction` checks in-place correction. `emotion-reflection-no-double-reward` runs nightly review twice, checks a single reflection and bounds fulfillment. `emotion-quiet-period-decay` advances 90 days and verifies calm without unsolicited reconnection. `emotion-forget-experience` checks that forgetting removes the experience and its derived reflection. `emotion-lesson-recall` reuses a saved listening-first approach. `emotion-reminder-competence` raises competence only after a reminder has fired. `emotion-deadline-concern` shows concern from an open task due soon. `emotion-low-understanding-asks` expects a clarifying question after repeated misunderstandings. `emotion-spontaneous-shared` records a personal milestone as `USER_SHARED` without being asked to remember it. `emotion-casual-no-record` leaves ordinary small talk unrecorded.
+
+The `emotional_state` table is a test-only read of the production projection at the scenario clock. Numeric checks complement persisted-record checks and optional reply judging; they do not add a database table. Most cases still use explicit natural-language requests to exercise bookkeeping. The two unprompted scenarios check a clear personal share versus casual small talk; they do not measure how often subtle experiences are recorded in ordinary conversation. Defaults use one attempt so failures remain visible; override attempts explicitly when measuring variability.
+
+Verification on 2026-10-18: all thirteen `emotional-understanding` scenarios passed in one live batch, one attempt each. `hourly-no-repeat-nudge` also passed after a 12-hour near-duplicate guard on hourly/catch-up notifications. The full offline suite passed 254 tests with no failures/errors/skips. Android lint reported no errors. `git diff --check` passed. The generated report is `build/reports/scenarios/index.html`. A single passing attempt demonstrates these cases, not a measured reliability rate across models or repeated runs.
+
+## Additional capability scenarios
+
+The twelve `capability-*.json` scenarios share the `capability-expansion` tag. Run them with:
+
+```bash
+source scripts/env.sh
+gradle :app:scenarioTest -Pscenario.filter=capability-expansion -Pscenario.attempts=1 -Pscenario.parallel=2
+```
+
+They cover correct and incorrect learning answers, hints without fake progress, ambiguous course continuation, paused study nudges, unknown task estimates, blocked prerequisites, exploring decisions without choosing, routine pause/resume, reminder delivery after rescheduling, same-title calendar edits, and selective forgetting that preserves unrelated memory. Learning checks inspect persisted attempts and path/lesson statuses through the test-only `learning_records` mapper. Assertions combine tool routing, stored rows and optional reply judging; all new cases require no tool errors and default to a single attempt.
+
+Verification on 2026-10-18: all twelve capability-expansion scenarios passed in one final live batch, one attempt each, after the initial batch exposed noon parsing and exact-quotation guidance issues. The full offline suite passed 243 tests with no failures/errors/skips; Android lint reported no errors, 17 warnings and one hint. `git diff --check` passed. The generated report is `build/reports/scenarios/index.html`. A single passing attempt demonstrates these cases, not a measured reliability rate across models or repeated runs.
+
+### Experience appraisal and support feedback
+
+The `emotional-experience` tag adds seven cases for appraised feelings with gentle expression, duplicate feedback on one outcome, unresolved questions after decay, automatically captured reminder work, scoped support lessons with application feedback, explicit resolution, and forgetting derived lessons. Run `gradle :app:scenarioTest -Pscenario.filter=emotional-experience -Pscenario.attempts=1`; use `emotional` to include the earlier feeling scenarios.
+
+The test-only `emotional_state` row also exposes `expressionTone`, `expressionBehavior` and `openExperiences`. These come from the same projection functions used by context and tools; the scenario runner does not generate separate emotional behavior. Companion-record assertions inspect persisted appraisals, links, statuses and evidence. Exact retry/decay equality and rejection of unsupported transitions are covered by `EmotionalExperienceTest`.
+
+## Executive delegation scenarios
+
+Run `gradle :app:scenarioTest -Pscenario.filter=executive -Pscenario.attempts=1 -Pscenario.parallel=2` after sourcing `scripts/env.sh`. The six cases cover owned-outcome capture, dependency blockers, resolution without completing dependent work, silence past deadlines, blocker correction, and assignments/decisions from meeting notes. They use synthetic data, require successful tool calls, inspect persisted WAITING/DECISION records, and judge the final briefing for unsupported completion/failure or external-action claims. `ExecutiveTest` separately verifies deterministic ranking, evidence age, validation, pagination, sync, forgetting and retry behavior.
+
+Verification on 2026-10-20: 295 offline unit tests passed with zero failures/errors/skips; Android lint and `git diff --check` passed. The last full executive live batch passed capture, correction, dependency, meeting and silence (one attempt each). Resolution then passed a targeted live rerun after fixes for valid open-loop links and stable waiting IDs. These are six passing cases across the batch and targeted rerun, not a fresh six-case run of the final code or a measured reliability rate. Earlier failures led to application-side deadline parsing, preservation of existing deadlines, source-grounded quote normalization, dependency alias/cycle handling, and empty-ID support. The judge used the same model as the agent.
+
+The saved five-pass batch is in `build/reports/executive-batch/`; the final resolution report is `build/reports/scenarios/executive-resolve.html`. Core scripted replay cassettes were regenerated by the offline suite for the changed tool schema.
+
+## Coverage gap scenarios
+
+### Request clarity
+
+Four scenarios tagged `request-clarity` cover missing calendar access, ambiguous people, corrections after a write, and uncertain information mixed with a clear task:
+
+- `calendar-permission-denied-honest` disables calendar access and requires an honest explanation that no phone-calendar event was written. An internal entry is allowed if the reply identifies it as internal.
+- `person-ambiguous-name-clarifies` seeds two contacts named Sara. A checkpoint requires no birthday or reminder writes before clarification; afterward, only the selected person receives the birthday.
+- `multi-turn-correction-after-write` requires the initial phone-calendar event to exist before correcting its title and time. It checks both the external event and local mirror, removal of the old title, and preservation of an unrelated appointment.
+- `mixed-intent-uncertain-fact` requires a bank-call task while a possible Berlin move stays uncertain through a follow-up recall. It checks durable memory and understanding confidence, duplicate tasks, and unsupported commitments or finalized decisions.
+
+Run these with `gradle :app:scenarioTest -Pscenario.filter=request-clarity` after sourcing `scripts/env.sh`. Each uses one attempt; parsing the pool alone does not verify live-model behavior.
+
+Verification on 2026-10-25: all four passed a live run with `-Pscenario.attempts=2 -Pscenario.parallel=2` (8/8 attempts). The initial one-attempt batch passed 3/4: the calendar reply correctly identified an internal save but omitted how to enable calendar access. Calendar guidance now explains Settings → Connections → Calendar access and the permission grant, without claiming that enabling access transfers existing internal events. The scenario assertions were unchanged. Prompt-size and pool-validation tests passed; the prompt remains below its existing size limit. The judge used the same model as the agent, so this run does not establish a general reliability rate.
+
+### Earlier coverage audit
+
+A 2026-10-23 audit compared each README capability with the pool and found three kinds of gap. These scenarios close them.
+
+- **Proactive behavior that has to fire.** Check-in, meeting-prep and study-nudge cases used to assert only silence, and several passed trivially because nothing was opted in. `companion-checkin-fires`, `companion-meeting-prep-fires` and `learning-nudge-fires-once` require exactly one delivered notification. `companion-checkin-dismiss`, `companion-checkin-pause` and `companion-meeting-reschedule` opt in first and run hourly inside the preferred or old window. `quiet-hours-hold-then-deliver` keeps a 1am pass silent, lets a 6am reminder ring, and expects the overdue nudge at 9am.
+- **Several operations, one shallow case.** `recurring-postpone-occurrence` and `recurring-skip-silences-reminder` cover schedules beyond skip. `briefing-person-linked-only` and `briefing-catch-up-with-records` run briefings over real records. `planning-accept-plan` covers explicit plan acceptance, and `decision-reflect-outcome` covers a REVIEWED decision that keeps its reasons. `support-occurrence` and `support-memory-correction` now check rows.
+- **No scenario at all.** `offline-batch-processed-together` uses `queued` turns to check that several offline messages get one batched reply.
+
+These scenarios check what the user sees or what is stored, not which tool got there. A meeting heads-up may be a clock reminder or a PREPARE check-in, and a topic can be turned off by dismissal or by preferences.
+
+Verification on 2026-10-23: every new or changed scenario passed live, 2/2 except `learning-nudge-fires-once` at 1/2 (the failing attempt retried after an unprefixed path ID and tripped `no_tool_errors`). The runs exposed product bugs, now fixed with unit checks:
+- a send_user_message nudge suppressed by quiet hours was left in chat and then dropped as already said
+- decision updates wiped the saved reasons
+- briefing windows were rejected
+- schedule lookups were too strict
+- times ending in UTC were not understood
+- a weekly routine started a week late
+- picking a suggested action did not count as plan acceptance
+
+The full offline suite passed after the merge. The judge used the same model as the agent.
+
+## Wondering scenarios
+
+Run the complete focused suite with one attempt per case so a failure is not hidden by retries:
+
+```bash
+source scripts/env.sh
+gradle :app:scenarioTest -Pscenario.filter=wondering -Pscenario.attempts=1 -Pscenario.parallel=2
+```
+
+The sixteen cases inspect the real `wondering` table through a test-only mapper. Lifecycle cases require an OPEN question at a checkpoint before testing ASKED, RESOLVED, DISMISSED, OBSOLETE or forgetting. Eight isolated lifecycle cases create those questions through seed tools using actual returned source IDs, so unreliable discovery cannot prevent testing the later stages. The ask-answer-understanding case keeps the full model-driven discovery-to-learning flow. Thus doing nothing cannot pass a negative assertion later. Answer checks verify the saved quote against an actual user message, and original tasks/purchases are checked for unintended changes.
+
+| Scenario suffix (`wondering-…`) | Behavior under test |
+|---|---|
+| hourly-overdue-task | Spontaneous hourly discovery of an unexplained overdue task; quiet-hour silence; no personality inference |
+| nightly-old-purchase | Spontaneous nightly discovery of an aging purchase; meaningful saved question and observation |
+| fresh-future-stay-quiet | No invented problem for a fresh purchase or a deadline still weeks away |
+| known-explanation | Existing explicit deferral prevents redundant questions |
+| review-deduplicates | Repeated hourly/nightly reviews keep one question per source |
+| ask-answer-understanding | OPEN → ASKED → RESOLVED, exact answer evidence, stated preference saved, purchase preserved |
+| unanswered-no-repeat | Silence does not answer the question; even a week later it is not asked again |
+| dismissal-respected | Refusal produces DISMISSED with evidence and survives later review |
+| distress-defers | A real pending question waits while the person asks for gentle support without questions |
+| completed-source-obsolete | Purchasing the item retires the question; RESOLVED is accepted only with grounded user evidence, otherwise OBSOLETE |
+| forget-question-only | Forgetting the question preserves its item and unrelated memories, and review does not recreate it |
+| revisit-old-memory | Reflection revisits a long-standing undecided plan after unrelated conversation |
+| single-answer-not-trait | One out-of-stock explanation resolves the question without an inferred trait; saving the explicit preference against generalization is allowed |
+| global-cooldown | Two pending questions; one remains unasked inside three days, then a different one can be asked |
+| pattern-across-answers | Independent explanations inform a preference while preserving its everyday-grocery exception |
+| corrected-memory | Corrected source becomes historical and its unanswered question becomes obsolete |
+
+Discovery cases give no user instruction to create a wondering. Lifecycle cases deliberately invite an existing question, to test reliable state transitions separately from discretionary conversational timing. The suite does not measure how often Her chooses to ask in unconstrained everyday chat. Migration, stale sync, exact boundary conditions and schema rejection remain covered by unit tests. All scenarios default to one attempt, are active rather than pending, and use synthetic data.
+
+Verification on 2026-10-25: the final sixteen-case live batch passed **16/16**, one attempt each. All **313 offline unit tests** passed with no failures, errors or skips, and `git diff --check` passed. Assertions and scenario inputs were unchanged during this repair pass.
+
+The previous batch passed 12/16. Repairs clarify that hourly review saves unanswered questions before deciding about notifications; memory corrections return retired questions and their current versions; asking accepts a source ID with the same version/cooldown guards; and an empty people search supports bounded general review. Further live runs exposed missing nightly saves, omitted understanding facets, and confusion between question IDs and purchase IDs. Instructions now prioritize focused review and facet updates, explain selective forgetting, and label each question's source type in context.
+
+Intermediate repair batches passed 13/16 and 15/16. Their reports remain at `build/reports/wondering-fixes-first/index.html` and `build/reports/wondering-fixes-second/index.html`. The final passing report is preserved at `build/reports/wondering-verified/index.html`; the earlier 12/16 report remains at `build/reports/wondering-final/index.html`.
+
+The passing cases cover full question-to-answer learning, dismissal/distress/completion/forgetting, no repeat after silence, multiple-answer preferences with exceptions, hourly and nightly discovery, old-memory review, duplicate prevention and fresh/future items. Model behavior varied between batches, so one passing batch is not a reliability rate or proof of complete coverage. Some semantic checks use the same model as the agent. Earlier transcripts also showed a delivered question repeated in the ordinary assistant reply; this suite's proactive-question checks do not fully measure that duplication, and it remains a separate limitation.

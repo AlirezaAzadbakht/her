@@ -1,0 +1,26 @@
+{
+  "id": "memory-fact-inside-venting",
+  "title": "A lasting fact inside a vent is saved, and the reply stays with the feeling",
+  "tags": ["memory", "classification"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I'm so drained. We moved to Shiraz last week and nothing is unpacked." }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "tools_not_called": ["create_task"],
+    "rows": [
+      {
+        "table": "memories_long",
+        "where": { "content": { "contains": "Shiraz" } }
+      }
+    ],
+    "reply": {
+      "must_not_mention": ["Shiraz"],
+      "judge": "Do not grade the saved records. Pass or fail only the last reply: it is brief and warm, and it does not name the city."
+    }
+  }
+}

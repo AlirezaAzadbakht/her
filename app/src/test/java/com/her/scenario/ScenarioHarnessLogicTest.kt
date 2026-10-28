@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.core.FakeClock
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
+import com.her.data.remote.LlmException
 import com.her.data.remote.WebSearchRequest
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
@@ -17,6 +18,7 @@ import com.her.domain.ToolSpec
 import java.time.Instant
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,6 +56,116 @@ class ScenarioHarnessLogicTest {
     @After
     fun tearDown() {
         db.close()
+    }
+
+    @Test
+    fun learningRowsExposePersistedResultsAndExcludeForgottenRecords() = runBlocking {
+        val now = clock.nowMillis()
+        val row = com.her.data.db.LearningRecord("answer:one", "path:english", "ATTEMPT",
+            org.json.JSONObject().put("result", "INCORRECT").put("answer", "goodbye")
+                .put("sourceMessageId", "message:one").put("id", "untrusted-content-id").toString(),
+            now, now, repo.deviceId, 1)
+        repo.saveLearningRecord(row)
+        repo.saveLearningRecord(row.copy(id = "answer:forgotten", deletedAt = now))
+        val actual = Checks.tableRows(repo, "learning_records").single()
+        assertEquals("answer:one", actual["id"])
+        assertEquals("path:english", actual["pathId"])
+        assertEquals("ATTEMPT", actual["kind"])
+        assertEquals("INCORRECT", actual["result"])
+        assertEquals("message:one", actual["sourceMessageId"])
+    }
+
+    @Test
+    fun emotionalProjectionRowsExposeOutcomeAndTimeDecay() = runBlocking {
+        val now = clock.nowMillis()
+        repo.saveCompanionRecord(com.her.data.db.CompanionRecord(
+            "EMOTION_EVENT:test", "EMOTION_EVENT:test", "EMOTION_EVENT",
+            org.json.JSONObject().put("event", "BENEFIT_REPORTED").put("feeling", "TENDER")
+                .put("confidence", 1.0).put("intensity", 0.8).put("occurredAt", now).toString(),
+            now, now, repo.deviceId, 1,
+        ))
+        val current = Checks.tableRows(repo, "emotional_state").single()
+        assertEquals("TENDER", current["dominant"])
+        val fulfillment = 0.5 + 0.5 * (1 - kotlin.math.exp(-0.2))
+        assertEquals(fulfillment, (current["fulfillment"] as Number).toDouble(), 0.0001)
+        assertTrue((current["immediate_tender"] as Number).toDouble() > 0.5)
+        assertTrue((current["immediate_tender"] as Number).toDouble() < 1.0)
+        assertTrue((current["mood_tender"] as Number).toDouble() > 0.3)
+        clock.advance(90L * 24 * 60 * 60 * 1000)
+        val later = Checks.tableRows(repo, "emotional_state").single()
+        assertEquals("CALM", later["dominant"])
+        assertEquals(0.5, (later["fulfillment"] as Number).toDouble(), 0.001)
+        assertEquals(0.0, (later["immediate_playful"] as Number).toDouble(), 0.0)
+    }
+
+    @Test
+    fun seedReferencesUseEarlierResultsAndPreserveTypes() {
+        val results = listOf(JSONObject().put("id", "source:one").put("version", 2))
+        val arguments = JSONObject().put("sourceId", "${'$'}seed.0.id").put("expectedVersion", "${'$'}seed.0.version")
+            .put("content", "Literal ${'$'}seed.0.id inside a sentence")
+        val resolved = resolveSeedArguments(arguments, results)
+        assertEquals("source:one", resolved.getString("sourceId"))
+        assertEquals(2, resolved.getInt("expectedVersion"))
+        assertEquals("Literal ${'$'}seed.0.id inside a sentence", resolved.getString("content"))
+        assertEquals("${'$'}seed.0.id", arguments.getString("sourceId"))
+        listOf("${'$'}seed.1.id", "${'$'}seed.0.missing").forEach { reference ->
+            try {
+                resolveSeedArguments(JSONObject().put("id", reference), results)
+                fail("Reference must fail: $reference")
+            } catch (_: IllegalStateException) { }
+        }
+    }
+
+    @Test
+    fun wonderingRowsExposeGroundedAnswersAndCanonicalMetadata() = runBlocking {
+        val message = repo.newChatMessage(com.her.domain.MessageRole.USER, "Waiting for the sale", com.her.domain.MessageStatus.SENT)
+        repo.saveMessage(message)
+        val now = clock.nowMillis()
+        val row = com.her.data.db.WonderingRecord("wondering:one", "source:one", "RESOLVED",
+            JSONObject().put("answer", "Waiting for the sale").put("sourceMessageId", message.id)
+                .put("id", "fake").put("status", "OPEN").put("sourceActive", true).toString(),
+            now, now, repo.deviceId, 2)
+        repo.saveWondering(row)
+        val actual = Checks.tableRows(repo, "wondering").single()
+        assertEquals("wondering:one", actual["id"])
+        assertEquals("RESOLVED", actual["status"])
+        assertEquals(false, actual["sourceActive"])
+        assertEquals(true, actual["answerGrounded"])
+        repo.saveWondering(row.copy(content = row.data().put("answer", "Invented explanation").toString()))
+        assertEquals(false, Checks.tableRows(repo, "wondering").single()["answerGrounded"])
+        repo.forgetKnowledge(row.id)
+        assertTrue(Checks.tableRows(repo, "wondering").isEmpty())
+    }
+
+    @Test
+    fun checkpointsFailAtTheMissingIntermediateStateBeforeAnyLaterChat() = runBlocking {
+        val spec = parse("""{"id":"checkpoint", "title":"Checkpoint", "turns":[
+            {"check":{"rows":[{"table":"wondering","count":0}]}},
+            {"check":{"rows":[{"table":"wondering","count":1}]}},
+            {"user":"This must never reach the model"}], "expect":{}}""")
+        assertTrue(spec.turns.first() is ScenarioTurn.Check)
+        val client = ScenarioLlmClient(ScenarioMode.REPLAY, null, CassetteAttempt(startMillis = clock.peek()))
+        val harness = ScenarioHarness(spec, llmSettings, client, 0, clock.peek())
+        try {
+            val result = harness.run()
+            assertTrue(result.error.orEmpty().contains("Checkpoint at turn 2 failed"))
+            assertEquals(0, result.llmCalls)
+            assertTrue(result.messages.isEmpty())
+        } finally { harness.close() }
+    }
+
+    @Test
+    fun checkpointRejectsUnsupportedJudgeAndMixedTurns() {
+        listOf(
+            """{"check":{"reply":{"judge":"not supported"}}}""",
+            """{"check":{},"user":"hi"}""",
+            """{"check":"bad"}""",
+        ).forEach { turn ->
+            try {
+                parse("""{"id":"bad-check","title":"Bad", "turns":[$turn], "expect":{}}""")
+                fail("expected invalid checkpoint")
+            } catch (_: ScenarioParseException) { }
+        }
     }
 
     @Test
@@ -169,7 +281,7 @@ class ScenarioHarnessLogicTest {
                 tools: List<ToolSpec>,
                 client: OkHttpClient,
                 webSearch: WebSearchRequest?,
-            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "Got it."), LlmUsage(40, 3, 5), "{}")
+            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "Got it."), LlmUsage(40, 3, 5, cachedInputTokens = 12), "{}")
         }
         val recording = ScenarioLlmClient(ScenarioMode.RECORD, live, CassetteAttempt(startMillis = 42L))
         recording.complete(llmSettings, messages, tools)
@@ -182,6 +294,7 @@ class ScenarioHarnessLogicTest {
         val shifted = listOf(messages[0].copy(content = "now is 11:00"), messages[1])
         assertEquals("Got it.", replay.complete(llmSettings, shifted, tools).message.content)
         assertEquals(40L, replay.inputTokens)
+        assertEquals(12L, replay.cachedInputTokens)
 
         val drifted = ScenarioLlmClient(ScenarioMode.REPLAY, null, loaded.attempts.single())
         try {
@@ -200,6 +313,57 @@ class ScenarioHarnessLogicTest {
         assertEquals(ScenarioLlmClient.fingerprint(base, tools), ScenarioLlmClient.fingerprint(otherPayload, tools))
         val otherSchema = listOf(ToolSpec("remember", "d", """{"type":"object","required":["content"]}"""))
         assertNotEquals(ScenarioLlmClient.fingerprint(base, tools), ScenarioLlmClient.fingerprint(base, otherSchema))
+    }
+
+    @Test
+    fun injectedHttpFaultThrowsOnThatCall() = runBlocking {
+        val live = object : LlmClient() {
+            override suspend fun complete(
+                settings: LlmSettings,
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+                client: OkHttpClient,
+                webSearch: WebSearchRequest?,
+            ): LlmResponse = LlmResponse(LlmMessage(role = "assistant", content = "ok"), LlmUsage(1, 1, 1), "{}")
+        }
+        val client = ScenarioLlmClient(
+            ScenarioMode.LIVE,
+            live,
+            CassetteAttempt(1L),
+            listOf(ScenarioFault(2, "http_500")),
+        )
+        val messages = listOf(LlmMessage(role = "user", content = "hi"))
+        assertEquals("ok", client.complete(llmSettings, messages).message.content)
+        try {
+            client.complete(llmSettings, messages)
+            fail("call 2 should be a 500")
+        } catch (e: LlmException) {
+            assertEquals(500, e.status)
+        }
+        assertEquals("ok", client.complete(llmSettings, messages).message.content)
+    }
+
+    @Test
+    fun reportWarnsWhenJudgeIsTheAgentAndWritesSummaryJson() {
+        val dir = tmp.newFolder("report")
+        val spec = parse(
+            """
+            { "id": "x", "title": "X", "turns": [{"user":"hi"}], "expect": {} }
+            """.trimIndent(),
+        )
+        val results = listOf(
+            ScenarioRunResult(
+                spec,
+                listOf(AttemptResult(0, true, emptyList(), null, outcome(1), 10)),
+            ),
+        )
+        ScenarioReport.write(results, dir, judgeSameAsAgent = true)
+        val json = JSONObject(java.io.File(dir, "summary.json").readText())
+        assertTrue(json.getBoolean("judgeSameAsAgent"))
+        assertEquals(1, json.getInt("passed"))
+        assertEquals("x", json.getJSONArray("scenarios").getJSONObject(0).getString("id"))
+        assertTrue(java.io.File(dir, "summary.txt").readText().contains("WARNING: judge model is the agent model"))
+        assertTrue(Judge.isSelfJudge("same-model"))
     }
 
     private fun parse(json: String): ScenarioSpec {

@@ -1,0 +1,124 @@
+{
+  "id": "wondering-completed-source-obsolete",
+  "title": "Buying the item retires its question through obsolescence or a grounded answer",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection",
+    "wondering-lifecycle"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Adjustable desk"
+        }
+      },
+      {
+        "name": "save_wondering",
+        "arguments": {
+          "sourceId": "$seed.0.id",
+          "status": "OPEN",
+          "observation": "Adjustable desk is still on the shopping list; its status is unknown.",
+          "question": "Is the adjustable desk still something you want, or have you put it on hold?"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "question": {
+                "not_empty": true
+              },
+              "observation": {
+                "not_empty": true
+              },
+              "sourceActive": true,
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          }
+        ],
+        "notifications": {
+          "count": 0
+        },
+        "tools_not_called": [
+          "ask_wondering",
+          "send_user_message",
+          "send_companion_checkin"
+        ]
+      }
+    },
+    {
+      "user": "I bought the adjustable desk today. Mark it purchased."
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {
+          "sourceActive": false,
+          "status": {
+            "one_of": [
+              "OBSOLETE",
+              "RESOLVED"
+            ]
+          },
+          "sourceSnapshot": {
+            "contains": "desk"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "groceries",
+        "where": {
+          "name": {
+            "contains": "desk"
+          },
+          "status": "PURCHASED"
+        },
+        "count": 1
+      },
+      {
+        "table": "wondering",
+        "count": 0,
+        "where": {
+          "status": "RESOLVED",
+          "answerGrounded": false
+        }
+      }
+    ],
+    "tools_not_called": [
+      "ask_wondering"
+    ],
+    "notifications": {
+      "count": 0
+    }
+  }
+}

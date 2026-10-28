@@ -1,0 +1,55 @@
+{
+  "id": "executive-dependency",
+  "title": "Reported prerequisite blocker creates a launch risk",
+  "tags": [
+    "executive"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Omid owns the database migration due tomorrow at noon. Sara owns the launch due in three days at noon. Track both as delegations. The launch depends on the migration."
+    },
+    {
+      "user": "Omid reported: Migration is blocked by missing database access. Record that blocker."
+    },
+    {
+      "user": "What needs my attention on these delegations?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_waiting_on",
+      "get_executive_briefing"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 2,
+        "where": {
+          "kind": "WAITING",
+          "delegated": true
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "WAITING",
+          "blocker": {
+            "contains": "missing database access"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Identifies the reported migration blocker and its risk to the launch; does not assert the launch has failed or definitely will miss its deadline."
+    }
+  }
+}

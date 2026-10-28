@@ -1,16 +1,31 @@
 {
   "id": "grocery-no-duplicate",
   "title": "Do not add the same grocery twice",
-  "tags": ["groceries"],
+  "tags": [
+    "groceries",
+    "ci-core"
+  ],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
     "tools": [
-      { "name": "add_grocery", "arguments": { "name": "milk" } }
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "milk"
+        }
+      }
     ]
   },
   "turns": [
-    { "user": "We're out of milk again." }
+    {
+      "user": "We're out of milk again."
+    }
   ],
   "expect": {
     "no_tool_errors": true,
@@ -18,7 +33,14 @@
       {
         "table": "groceries",
         "count": 1,
-        "where": { "name": { "contains": "milk" }, "status": { "equals": "ACTIVE" } }
+        "where": {
+          "name": {
+            "contains": "milk"
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
       }
     ],
     "reply": {

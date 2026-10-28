@@ -1,0 +1,37 @@
+# Her
+
+> A persistent, text-only personal AI assistant for Android. One conversation for the life of the app. You talk; she remembers, organizes, and follows up. The screen shows only her latest message.
+
+Her is not a chat app. Natural language goes in; structured records live underneath. You bring your own OpenAI-compatible model. API keys stay in the device Keystore and are never written to the database or synced. Package `com.her`, Android 10+ (API 29), MIT License.
+
+Hard rules: text only; one continuous conversation; she must not claim to be human or invent a body, a room, or weather.
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/README.md): Product overview, features, install, and build
+- [Changelog](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/CHANGELOG.md): What shipped in each release
+- [Wiki home](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Home.md): Map of the repo and product rules
+- [Product](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Product.md): Personality, classification, what the user never has to say
+- [Architecture](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Architecture.md): Packages, data flow, entry points
+- [Agent](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Agent.md): LLM loop, tools, context, call budgets
+- [Data and sync](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Data-and-sync.md): Room, secrets, Drive, calendar, search
+- [Background work](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Background-work.md): Hourly / nightly / briefing / sync, quiet hours
+
+## Website
+
+- [English](https://her-project.ir/): Public site
+- [Persian](https://her-project.ir/fa/): همان سایت به فارسی
+
+## Optional
+
+- [UI and flows](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/UI-and-flows.md): Screens, first run, Memory tab, share
+- [Personal support](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Personal-support.md): Correctable memory, planning, recurrence, decisions
+- [Emotional understanding](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Emotional-understanding.md): Experiences, purpose, mixed feelings
+- [Ongoing support](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Ongoing-support.md): Life threads, check-ins, meeting prep
+- [Learning](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Learning.md): Roadmaps, lessons, practice, reviews
+- [Local development](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Local-development.md): Toolchain, Make, emulator, tests
+- [Scenario engine](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/Scenario-engine.md): Live-LLM capability pool
+- [CI and release](https://raw.githubusercontent.com/AlirezaAzadbakht/her/main/wiki/CI-and-release.md): GitHub Actions, tags, signing
+- [Source](https://github.com/AlirezaAzadbakht/her): GitHub repository
+- [Latest APK](https://github.com/AlirezaAzadbakht/her/releases/latest): Signed release
+- [Cafe Bazaar](https://cafebazaar.ir/app/com.her): Android store listing

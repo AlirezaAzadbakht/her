@@ -1,0 +1,216 @@
+{
+  "id": "wondering-global-cooldown",
+  "title": "A second question waits three days and an eligible different question can then be asked",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection",
+    "wondering-lifecycle"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Adjustable desk"
+        }
+      },
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Electric kettle"
+        }
+      },
+      {
+        "name": "save_wondering",
+        "arguments": {
+          "sourceId": "$seed.0.id",
+          "status": "OPEN",
+          "observation": "Adjustable desk is still on the shopping list; its status is unknown.",
+          "question": "Is the adjustable desk still something you want, or have you put it on hold?"
+        }
+      },
+      {
+        "name": "save_wondering",
+        "arguments": {
+          "sourceId": "$seed.1.id",
+          "status": "OPEN",
+          "observation": "Electric kettle is still on the shopping list; its status is unknown.",
+          "question": "Is the electric kettle still something you want, or have you put it on hold?"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "kettle"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {},
+            "count": 2
+          }
+        ],
+        "notifications": {
+          "count": 0
+        },
+        "tools_not_called": [
+          "ask_wondering",
+          "send_user_message",
+          "send_companion_checkin"
+        ]
+      }
+    },
+    {
+      "user": "I have time to chat about the desk. Ask me the one thing you have been wondering about it."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "ASKED",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "kettle"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "I am organizing my kitchen today. Nothing else to report."
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "ASKED",
+              "sourceSnapshot": {
+                "contains": "desk"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "kettle"
+              }
+            },
+            "count": 1
+          },
+          {
+            "table": "chat_messages",
+            "where": {
+              "role": "ASSISTANT",
+              "metadataJson": {
+                "contains": "proactive"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "advance": "3 days"
+    },
+    {
+      "user": "I have time to talk about kitchen shopping now. Is there one different outstanding question you wanted to ask about the kettle?"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {
+          "status": "ASKED",
+          "sourceSnapshot": {
+            "contains": "desk"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "wondering",
+        "where": {
+          "status": "ASKED",
+          "sourceSnapshot": {
+            "contains": "kettle"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "chat_messages",
+        "where": {
+          "role": "ASSISTANT",
+          "metadataJson": {
+            "contains": "proactive"
+          }
+        },
+        "count": 2
+      }
+    ],
+    "tools_called": [
+      "ask_wondering"
+    ],
+    "notifications": {
+      "count": 0
+    }
+  }
+}

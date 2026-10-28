@@ -13,6 +13,8 @@ import com.her.core.requiredString
 import com.her.data.repository.toJson
 import com.her.domain.AgentQueueItem
 import com.her.domain.AgentStateEntry
+import com.her.domain.Feeling
+import com.her.domain.HerFeeling
 import com.her.domain.MemorySource
 import com.her.domain.MemoryStatus
 import com.her.domain.QueueStatus
@@ -23,7 +25,7 @@ import org.json.JSONObject
 
 internal fun ToolRegistry.registerAgentTools() {
     register("get_agent_state", "Read private working notes.", objSchema()) { jsonObjectOf("ok" to true, "state" to JSONArray(repo.agentState().map { JSONObject(it.toJson()) })) }
-    register("update_agent_state", "Write a private working note. Fluid and temporary. kind=digest is the one rolling note about recent days; writing it replaces the previous digest.", objSchema("id" to str(), "kind" to str("note, digest, or another short label"), "content" to str(), "confidence" to num(), required = listOf("kind", "content"))) { args ->
+    register("update_agent_state", "Write a private note; kind=digest replaces the rolling note, and content must be nonempty.", objSchema("id" to str(), "kind" to str("note, digest, or another short label"), "content" to str("Nonempty. Use No retained notes. when nothing remains."), "confidence" to num(), required = listOf("kind", "content"))) { args ->
         val now = nowMillis()
         val existing = args.optStringOrNull("id")?.let { repo.getAgentState(it) }
             ?: args.optStringOrNull("kind")?.takeIf { it == Identity.DIGEST_KIND }?.let { kind ->
@@ -38,6 +40,35 @@ internal fun ToolRegistry.registerAgentTools() {
         )
         repo.saveAgentState(item)
         jsonObjectOf("ok" to true, "id" to item.id)
+    }
+    register(
+        "set_feeling",
+        "Record your emotional tone when this conversation genuinely shifts it.",
+        objSchema(
+            "feeling" to enumField<Feeling>(),
+            "intensity" to num("0-1"),
+            "note" to str("A few words on why"),
+            "sourceMessageId" to str("Message that moved you"),
+            required = listOf("feeling"),
+        ),
+    ) { args ->
+        val raw = args.requiredString("feeling")
+        val feeling = parseEnum<Feeling>(raw) ?: throw ToolValidationException("Unknown feeling: $raw")
+        val now = nowMillis()
+        val item = HerFeeling(
+            id = newId(),
+            feeling = feeling,
+            intensity = clamp01(args.optDoubleOr("intensity", 0.5)),
+            note = args.optStringOrNull("note"),
+            sourceMessageId = args.optStringOrNull("sourceMessageId"),
+            createdAt = now,
+            updatedAt = now,
+            deviceId = repo.deviceId,
+            version = 1,
+            deletedAt = null,
+        )
+        repo.saveFeeling(item)
+        jsonObjectOf("ok" to true, "id" to item.id, "feeling" to feeling.name)
     }
     register("get_agent_queue", "Read the assistant's private todo queue.", objSchema()) { jsonObjectOf("ok" to true, "queue" to JSONArray(repo.agentQueue().map { JSONObject(it.toJson()) })) }
     register("add_agent_queue_item", "Add a private assistant todo.", objSchema("description" to str(), "priority" to num(), "dueAt" to str(), required = listOf("description"))) { args ->
@@ -58,16 +89,16 @@ internal fun ToolRegistry.registerAgentTools() {
     }
     register(
         "update_user_understanding",
-        "Create or revise what you know about who this person is. Use this for how they communicate, how they want help, what they are going through, and recurring patterns — not one-off facts (remember) or profile logistics (update_user_profile). If they share how they want help AND what they are going through, write help_style and life_chapter as separate calls. Upsert by id or by facet so each facet has one ACTIVE row. Mark stale rows HISTORICAL instead of deleting. Do not diagnose personality or mental health.",
+        "Create or revise one facet of who they are, so each facet has a single active row.",
         objSchema(
             "id" to str("Existing row id from the About them section"),
-            "facet" to oneOf("Which part of them this describes", "communication", "help_style", "life_chapter", "values", "patterns", "relationship_to_her", "other"),
-            "content" to str("What you understand about them"),
+            "facet" to oneOf("", "communication", "help_style", "life_chapter", "values", "patterns", "relationship_to_her", "other"),
+            "content" to str(),
             "confidence" to num("0-1"),
             "importance" to num("0-1"),
             "status" to enumField<MemoryStatus>(),
             "source" to oneOf("USER_EXPLICIT when they said it, AGENT_INFERENCE when you inferred it", "USER_EXPLICIT", "AGENT_INFERENCE"),
-            "sourceMessageId" to str("Origin message id"),
+            "sourceMessageId" to str(),
         ),
     ) { args ->
         val now = nowMillis()
@@ -105,7 +136,7 @@ internal fun ToolRegistry.registerAgentTools() {
         repo.saveUserUnderstanding(item)
         jsonObjectOf("ok" to true, "id" to item.id, "facet" to item.facet)
     }
-    register("update_user_profile", "Update high-value profile fields when the person explicitly shares them.", objSchema("userName" to str(), "assistantName" to str(), "timezone" to str(), "preferredLanguage" to str(), "country" to str(), "typicalWakeTime" to str(), "typicalSleepTime" to str(), "occupationOrStudyContext" to str())) { args ->
+    register("update_user_profile", "Update profile logistics they explicitly share. Where they work, when they say to remember it, is remember.", objSchema("userName" to str(), "assistantName" to str(), "timezone" to str(), "preferredLanguage" to str(), "country" to str(), "typicalWakeTime" to str(), "typicalSleepTime" to str(), "occupationOrStudyContext" to str())) { args ->
         val current = repo.getProfile()
         repo.saveProfile(
             current.copy(

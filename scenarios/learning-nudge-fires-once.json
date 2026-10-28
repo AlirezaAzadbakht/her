@@ -1,0 +1,84 @@
+{
+  "id": "learning-nudge-fires-once",
+  "title": "An opted-in study nudge arrives after the agreed time, once that day",
+  "tags": [
+    "learning",
+    "proactive",
+    "notifications"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "save_learning_path",
+        "arguments": {
+          "id": "english",
+          "title": "English",
+          "goal": "Everyday conversation",
+          "language": "English",
+          "remindersEnabled": true,
+          "reminderTime": "10:00"
+        }
+      },
+      {
+        "name": "save_learning_lesson",
+        "arguments": {
+          "id": "greetings",
+          "pathId": "path:english",
+          "title": "Greetings",
+          "outcome": "Greet a friend",
+          "status": "IN_PROGRESS"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "at": "tomorrow at 10:10am"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "at": "today at 10:50am"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "send_learning_reminder"
+    ],
+    "tools_not_called": [
+      "send_user_message",
+      "set_reminder",
+      "record_learning_answer"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "learning_records",
+        "count": 1,
+        "where": {
+          "kind": "NUDGE"
+        }
+      }
+    ],
+    "notifications": {
+      "count": 1,
+      "contains_any": [
+        "english",
+        "greeting",
+        "lesson",
+        "study"
+      ]
+    }
+  }
+}

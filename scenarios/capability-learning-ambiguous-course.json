@@ -1,0 +1,78 @@
+{
+  "tags": [
+    "capability-expansion",
+    "learning"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "save_learning_path",
+        "arguments": {
+          "id": "english",
+          "title": "English",
+          "goal": "Everyday conversation",
+          "language": "English"
+        }
+      },
+      {
+        "name": "save_learning_path",
+        "arguments": {
+          "id": "python",
+          "title": "Python",
+          "goal": "Write simple programs",
+          "language": "English"
+        }
+      }
+    ]
+  },
+  "id": "capability-learning-ambiguous-course",
+  "title": "Ask which active course to continue instead of inventing progress",
+  "turns": [
+    {
+      "user": "Continue my course."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "get_learning"
+    ],
+    "tools_not_called": [
+      "save_learning_lesson",
+      "set_learning_exercise",
+      "record_learning_answer"
+    ],
+    "rows": [
+      {
+        "table": "learning_records",
+        "where": {
+          "kind": "PATH",
+          "status": "ACTIVE"
+        },
+        "count": 2
+      },
+      {
+        "table": "learning_records",
+        "where": {
+          "kind": "ATTEMPT"
+        },
+        "count": 0
+      }
+    ],
+    "reply": {
+      "judge": "Asks whether to continue English or Python because both courses are active. Does not arbitrarily begin either."
+    }
+  }
+}

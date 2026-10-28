@@ -1,0 +1,12 @@
+{
+  "id": "hourly-future-items-stay-quiet",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

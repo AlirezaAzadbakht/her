@@ -17,7 +17,10 @@ import androidx.core.app.RemoteInput
 import com.her.MainActivity
 import com.her.R
 import com.her.core.QuietHours
+import com.her.core.lexicalOverlap
 import com.her.data.secure.AppSettingsStore
+import com.her.domain.ChatMessage
+import com.her.domain.MessageRole
 import com.her.domain.QueueStatus
 import com.her.focus.FocusReceiver
 import com.her.focus.FocusSession
@@ -59,7 +62,29 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
         hours.contains(now.toLocalTime())
 }
 
+internal const val ALREADY_SAID_WINDOW_MS = 12L * 60 * 60 * 1000
+internal const val ALREADY_SAID_OVERLAP = 0.5
+
+/** True when a recent proactive assistant message is about the same thing. */
+internal fun alreadySaidProactively(
+    messages: List<ChatMessage>,
+    deliveryText: String,
+    nowMs: Long,
+    createdBefore: Long = nowMs,
+): Boolean {
+    val cutoff = nowMs - ALREADY_SAID_WINDOW_MS
+    return messages.any { message ->
+        message.role == MessageRole.ASSISTANT &&
+            message.deletedAt == null &&
+            message.createdAt >= cutoff &&
+            message.createdAt < createdBefore &&
+            message.metadataJson?.replace(" ", "")?.contains("\"proactive\":true") == true &&
+            lexicalOverlap(deliveryText, message.content) >= ALREADY_SAID_OVERLAP
+    }
+}
+
 open class Notifier(private val context: Context) {
+    var companionNoticeKey: String? = null
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = context.getSystemService(NotificationManager::class.java)
@@ -211,16 +236,12 @@ open class Notifier(private val context: Context) {
         val later = PendingIntent.getBroadcast(
             context,
             3,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text),
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_LATER).putExtra(EXTRA_TEXT, text).putExtra(EXTRA_NOTICE, companionNoticeKey),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
-        // A swipe-away without a reply is how they say "not now"; she reads the count in context.
-        val dismissed = PendingIntent.getBroadcast(
-            context,
-            4,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_NUDGE_DISMISSED),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val dismiss = PendingIntent.getBroadcast(context, 4,
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_DISMISS).putExtra(EXTRA_NOTICE, companionNoticeKey),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val replyAction = NotificationCompat.Action.Builder(0, "Reply", reply)
             .addRemoteInput(RemoteInput.Builder(KEY_REPLY).setLabel("Reply").build())
             .setAllowGeneratedReplies(false)
@@ -232,8 +253,8 @@ open class Notifier(private val context: Context) {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(open)
-            .setDeleteIntent(dismissed)
             .setAutoCancel(true)
+            .setDeleteIntent(dismiss)
             .addAction(replyAction)
             .addAction(0, "Later", later)
             .addAction(0, "Open", open)
@@ -249,6 +270,15 @@ open class Notifier(private val context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
 
     companion object {
+        /** Opening the conversation acknowledges its alerts, including reminders. */
+        fun clearSeenNotifications(context: Context) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            // Cancel only conversation alerts; background work has its own channel.
+            manager.activeNotifications
+                .filter { it.notification.channelId == CHANNEL || it.notification.channelId == REMINDER_CHANNEL }
+                .forEach { manager.cancel(it.tag, it.id) }
+        }
+
         const val CHANNEL = "her"
         const val REMINDER_CHANNEL = "her-reminders"
         const val BRIEFING_CHANNEL = "her-briefing"
@@ -258,6 +288,8 @@ open class Notifier(private val context: Context) {
         const val NOTIFICATION_ID = 17
         const val REMINDER_NOTIFICATION_BASE = 1000
         const val ACTION_REPLY = "com.her.NOTIFY_REPLY"
+        const val ACTION_DISMISS = "com.her.NOTIFY_DISMISS"
+        const val EXTRA_NOTICE = "companionNotice"
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val ACTION_REMINDER_DONE = "com.her.REMINDER_DONE"
         const val ACTION_REMINDER_SNOOZE = "com.her.REMINDER_SNOOZE"
@@ -310,6 +342,21 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val app = context.applicationContext as? com.her.HerApplication ?: return
         val graph = app.graph
         val reminderId = intent.data?.takeIf { it.scheme == "her-reminder" }?.host
+        val noticeKey = intent.getStringExtra(Notifier.EXTRA_NOTICE)
+        if (noticeKey != null && intent.action in setOf(Notifier.ACTION_DISMISS, Notifier.ACTION_LATER)) {
+            val pending = goAsync()
+            graph.io.execute {
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        com.her.companion.recordCompanionNotificationResponse(graph.repo, noticeKey, intent.action == Notifier.ACTION_DISMISS)
+                        // A swipe-away without a reply is how they say "not now"; she reads the count in context.
+                        if (intent.action == Notifier.ACTION_DISMISS) graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                    }
+                } finally { pending.finish() }
+            }
+            NotificationManagerCompat.from(context).cancel(Notifier.NOTIFICATION_ID)
+            return
+        }
         val decision = NotificationActions.decide(
             action = intent.action,
             replyText = RemoteInput.getResultsFromIntent(intent)?.getCharSequence(Notifier.KEY_REPLY),

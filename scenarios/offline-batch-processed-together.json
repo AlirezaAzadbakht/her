@@ -1,0 +1,26 @@
+{
+  "id": "offline-batch-processed-together",
+  "title": "Messages sent offline are answered together in one reply",
+  "tags": ["offline", "queue"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "add milk to my shopping list", "queued": true },
+    { "user": "remind me at 6pm to call mom", "queued": true },
+    { "user": "and what's on my list now?" }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery", "set_reminder"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "groceries", "where": { "name": { "contains": "milk" } } },
+      { "table": "reminders", "where": { "message": { "contains": "mom" } } },
+      { "table": "chat_messages", "count": 1, "where": { "role": "ASSISTANT" } }
+    ],
+    "reply": {
+      "judge": "One reply that answers all three messages: milk is added, a 6pm reminder to call mom is set, and the shopping list (with milk) is shown."
+    }
+  }
+}

@@ -25,6 +25,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.her.HerApplication
 import com.her.R
+import com.her.agent.runner.AgentOrchestrator
 import com.her.core.nowMillis
 import com.her.di.AppGraph
 import com.her.reminders.rearmAll
@@ -98,7 +99,11 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                     RunDecision.RUN -> { }
                 }
             }
-            graph.orchestrator.runNightly(gated = !manual)
+            if (graph.orchestrator.runNightly(gated = !manual).error == AgentOrchestrator.YIELDED) {
+                // A chat message went first; try again shortly instead of waiting for tomorrow.
+                scheduleNext = false
+                return Result.retry()
+            }
             return Result.success()
         } catch (_: Exception) {
             return Result.success()
@@ -127,7 +132,11 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     return Result.success()
                 }
             }
-            graph.orchestrator.runBriefing(gated = !manual)
+            if (graph.orchestrator.runBriefing(gated = !manual).error == AgentOrchestrator.YIELDED) {
+                // A chat message went first; try again shortly instead of waiting for tomorrow.
+                scheduleNext = false
+                return Result.retry()
+            }
             return Result.success()
         } catch (_: Exception) {
             return Result.success()

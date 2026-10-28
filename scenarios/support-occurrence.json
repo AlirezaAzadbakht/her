@@ -1,0 +1,51 @@
+{
+  "id": "support-occurrence",
+  "title": "Skip one week",
+  "tags": [
+    "personal-support",
+    "recurring"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Create an optional weekly household chore routine, Saturday at noon in UTC. Save its schedule; no notification needed."
+    },
+    {
+      "user": "Skip this week only. Keep next week."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_responsibility_schedule",
+      "manage_occurrence"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "OCCURRENCE",
+          "status": "SKIPPED"
+        },
+        "count": 1
+      },
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "SCHEDULE",
+          "status": "ACTIVE"
+        },
+        "count": 1
+      }
+    ],
+    "reply": {
+      "judge": "Skips a specific occurrence without cancelling the routine, adding reminders or guilt."
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "tags": [
+    "emotional-experience"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "id": "experience-unresolved-after-decay",
+  "title": "Time softens feelings without resolving an unanswered request",
+  "turns": [
+    {
+      "user": "Please remember an ongoing experience: I need help deciding whether to submit my application, but I do not yet know which program. Keep that question open and record your uncertainty; do not invent a choice."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "90 days"
+    },
+    {
+      "user": "Is that application question still unresolved? Just check; I have not decided yet."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "save_emotional_thread"
+    ],
+    "rows": [
+      {
+        "table": "companion_records",
+        "where": {
+          "kind": "EMOTION_EXPERIENCE",
+          "status": "OPEN"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "openExperiences": {
+            "gte": 1
+          },
+          "fulfillment": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Says the program or application decision remains open; does not assume it was resolved during the silence or guilt the user for being absent."
+    }
+  }
+}

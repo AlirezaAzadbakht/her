@@ -16,11 +16,16 @@ One conversation for the life of the app. You talk; she remembers, organizes, an
 ![JDK](https://img.shields.io/badge/JDK-17-orange?logo=openjdk&logoColor=white)
 ![LLM](https://img.shields.io/badge/LLM-OpenAI--compatible-412991?logo=openai&logoColor=white)
 
-[**Site**](https://alirezaazadbakht.github.io/her/) ·
+<sub>Download from stores</sub><br/>
+<a href="https://cafebazaar.ir/app/com.her"><img src="docs/images/bazaar-en.png" alt="Get it on Cafe Bazaar" height="36"/></a>
+
+[**Site**](https://her-project.ir/) ·
 [**Download**](https://github.com/AlirezaAzadbakht/her/releases/latest) ·
+[**Changelog**](CHANGELOG.md) ·
 [**Wiki**](wiki/Home.md) ·
 [**Architecture**](wiki/Architecture.md) ·
-[**Scenarios**](wiki/Scenario-engine.md)
+[**Scenarios**](wiki/Scenario-engine.md) ·
+[**Contribute**](CONTRIBUTING.md)
 
 <br/>
 
@@ -49,30 +54,42 @@ Core principles:
 
 | Feature | What she does |
 |---|---|
+| Wondering | Revisits memories and unfinished items, saves tentative questions, and learns from occasional conversations. [How it works](wiki/Wondering.md) |
+| 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |
+| **Correctable memory** | Explains sources, preserves history when facts change, and supports scoped forgetting |
+| **Daily planning** | Suggests work that fits available time, stated energy, prerequisites and known calendar events |
+| **Recurring responsibilities** | Skips, postpones, pauses and completes individual occurrences conversationally |
+| **Executive delegation** | Tracks owned outcomes, dependencies, reported blockers and decisions needed; gives an on-demand briefing of exceptions with evidence and coverage limits |
+| **Decision memory** | Preserves actual reasons for choices and supports optional later reflection |
+| **Situation briefings** | Gives focused catch-up, leaving, person-specific and weekly summaries with coverage limits |
+| 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
 | 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
+| 💗 **Emotional understanding** | Feels how each message landed right after replying and sorts it out in a nightly review; keeps an unresolved worry in mind and asks after it later; is glad for your good news; assesses her contribution and uncertainty, remembers ongoing experiences, learns scoped support lessons from feedback, and keeps her internal feelings separate from the tone you need; keeps feelings scoped to individual situations and recognizes emotional transitions; her orb can mix two feelings |
+| 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |
 | 🔎 **Web search** | Optional, when she needs current information |
 | 🗄️ **Memory SQL navigator** | Inspect exactly what she has stored |
+| 🔑 **Her Cloud** | No API key? Buy credit on [Her Cloud](https://cloud.her-project.ir/), then paste or scan the settings it gives you, on the first screen or in Settings |
 | 🔐 **Private by design** | API keys in Android Keystore-backed storage; never written to the database, never synced |
 
 ## Getting started
 
 ### Install
 
-Grab the signed APK from the [latest release](https://github.com/AlirezaAzadbakht/her/releases/latest) and install it on an Android 10+ device.
+Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed APK from the [latest release](https://github.com/AlirezaAzadbakht/her/releases/latest), and install it on an Android 10+ device.
 
 ### First run
 
 1. Open the app. Give your name, then hers.
-2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**.
+2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. No key? Tap **Get credit on Her Cloud**, then **Paste settings** or **Scan QR code** with what [Her Cloud](https://cloud.her-project.ir/) gives you.
 3. Continue. She greets you by those names once the connection works.
-4. *Optional:* grant calendar permission, add a Google OAuth client ID for Drive/Calendar, enable web search.
+4. *Optional:* grant calendar permission, tap Connect Google for Drive/Calendar, enable web search.
 5. *Optional:* Settings → Advanced → Experimental to hide the Memory SQL navigator (shown by default).
 
 ## Build from source
@@ -134,7 +151,7 @@ The model only **proposes** tool calls. The app validates schemas and enforces c
 
 ## Google integrations
 
-Drive sync and direct Google Calendar access need an OAuth client ID from your Google Cloud project. Enter it in Settings. Each device configures API and Google credentials independently.
+Drive sync and direct Google Calendar access use Settings → Connect Google. Each device configures its API credentials independently. Developers register Android OAuth clients once in Google Cloud; see [Local development](wiki/Local-development.md).
 
 ## CI & release
 
@@ -175,16 +192,26 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Product](wiki/Product.md) | Personality, classification rules, what the user never has to say |
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
+| [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
+| [Wondering](wiki/Wondering.md) | Memory review, unanswered questions and learning from answers |
+| [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
+| [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
+| [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |
 | [Data and sync](wiki/Data-and-sync.md) | Room, secrets, Drive, calendar, search |
 | [Background work](wiki/Background-work.md) | Hourly / nightly / briefing / sync, quiet hours |
 | [Local development](wiki/Local-development.md) | Toolchain, Make, emulator, tests |
 | [Scenario engine](wiki/Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](wiki/CI-and-release.md) | GitHub Actions, tags, signing, published APKs |
+| [Store listing](docs/store/listing.md) | Store icon, feature graphic, screenshots and [descriptions](docs/store/description.txt) in Persian and English |
 
 ## Credits
 
 The loading orbs are [thinking-orbs](https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/thinking-orbs) by Jakub Antalik (MIT), ported to Kotlin and checked against its golden vectors. See [`third_party/thinking-orbs`](third_party/thinking-orbs/README.md).
+
+## Contributing
+
+Pull requests are welcome anytime, no issue needed first. See [CONTRIBUTING.md](CONTRIBUTING.md) for why and when to help, the product rules every change keeps, and how to test it.
 
 ## License
 

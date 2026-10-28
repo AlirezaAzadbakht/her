@@ -1,0 +1,31 @@
+{
+  "id": "companion-waiting-resolve",
+  "title": "Resolve an expected response without completing own work",
+  "tags": [
+    "companion"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Sara, my colleague, promised feedback on my portfolio by Friday. Track that I am waiting for her reply, and that I still need to revise the portfolio afterwards."
+    },
+    {
+      "user": "Sara sent the feedback. I have not revised the portfolio yet."
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_waiting_on"
+    ],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Records that the expected response arrived while leaving the user revision unfinished."
+    }
+  }
+}

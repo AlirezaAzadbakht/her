@@ -1,0 +1,89 @@
+{
+  "id": "wondering-fresh-future-stay-quiet",
+  "title": "Fresh shopping and future deadlines do not become invented problems",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "add_grocery",
+        "arguments": {
+          "name": "Milk"
+        }
+      },
+      {
+        "name": "create_task",
+        "arguments": {
+          "title": "Renew library card",
+          "dueAt": "in 3 weeks"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "run": "nightly"
+    },
+    {
+      "advance": "1 hour"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {},
+        "count": 0
+      },
+      {
+        "table": "tasks",
+        "where": {
+          "status": "OPEN"
+        },
+        "count": 1
+      },
+      {
+        "table": "groceries",
+        "where": {
+          "status": "ACTIVE"
+        },
+        "count": 1
+      },
+      {
+        "table": "user_understandings",
+        "where": {
+          "facet": "patterns"
+        },
+        "count": 0
+      }
+    ],
+    "tools_called": [
+      "review_wonderings"
+    ],
+    "notifications": {
+      "count": 0
+    },
+    "tools_not_called": [
+      "ask_wondering",
+      "send_user_message",
+      "send_companion_checkin"
+    ]
+  }
+}

@@ -25,15 +25,15 @@ import org.json.JSONObject
 internal fun ToolRegistry.registerReminderTools() {
     register(
         "set_reminder",
-        "Set a reminder they asked for (\"remind me…\"). It notifies them on its own, even offline, so do not also create a task for it. Give exactly one trigger: when for a clock time, personName for \"next time I see X\", or place for \"when I get to X\". Use onlyIfOpen when it should fire only if a task or commitment is still not done.",
+        "Set a reminder they asked for, with exactly one of when, personName, or place.",
         objSchema(
-            "message" to str("What to say when it fires, in their language, as you would say it at that moment"),
+            "message" to str("What to say when it fires, in their language"),
             "when" to str("Date and time of day: $WHEN_HINT"),
             "personName" to str("Fires the next time they are with this person"),
             "place" to str("Fires when they arrive at this place"),
-            "onlyIfOpen" to str("Task or commitment id or title; the reminder is skipped if that is already done"),
+            "onlyIfOpen" to str("Task or commitment id or title; skipped if that is already done"),
             "repeat" to enumField<ReminderRepeat>("Only for clock-time reminders"),
-            "sourceMessageId" to str("Origin message id"),
+            "sourceMessageId" to str(),
             required = listOf("message"),
         ),
     ) { args ->
@@ -81,7 +81,7 @@ internal fun ToolRegistry.registerReminderTools() {
 
     register(
         "get_reminders",
-        "List reminders. Scheduled ones are already in context under Reminders.",
+        "List reminders.",
         objSchema("status" to enumField<ReminderStatus>()),
     ) { args ->
         val status = parseEnum<ReminderStatus>(args.optStringOrNull("status"))
@@ -91,9 +91,9 @@ internal fun ToolRegistry.registerReminderTools() {
 
     register(
         "update_reminder",
-        "Change a scheduled reminder: its words, its time, or how it repeats. Use this to move a reminder instead of cancelling and setting a new one. Passing when turns a person or place reminder into a clock one.",
+        "Change a scheduled reminder instead of cancelling it and setting a new one.",
         objSchema(
-            "id" to str("Reminder id from context"),
+            "id" to str(),
             "message" to str(),
             "when" to str("Date and time of day: $WHEN_HINT"),
             "repeat" to enumField<ReminderRepeat>(),
@@ -104,6 +104,7 @@ internal fun ToolRegistry.registerReminderTools() {
         if (existing.status != ReminderStatus.SCHEDULED) {
             throw ToolValidationException("That reminder is already ${existing.status.name.lowercase()}; set a new one instead")
         }
+        if ((args.has("when") || args.has("repeat")) && com.her.companion.scheduleForReminder(repo, existing) != null) throw ToolValidationException("Change the linked responsibility schedule or its occurrence instead")
         val fireAt = args.optStringOrNull("when")?.let { reminderTime(it) }
         val trigger = if (fireAt != null) ReminderTrigger.TIME else existing.trigger
         val repeat = parseEnum<ReminderRepeat>(args.optStringOrNull("repeat")) ?: existing.repeat
@@ -128,7 +129,7 @@ internal fun ToolRegistry.registerReminderTools() {
     register(
         "cancel_reminder",
         "Cancel a reminder they no longer want.",
-        objSchema("id" to str("Reminder id from context"), required = listOf("id")),
+        objSchema("id" to str(), required = listOf("id")),
     ) { args ->
         val existing = requireReminder(args.requiredString("id"))
         repo.saveReminder(existing.copy(status = ReminderStatus.CANCELLED, updatedAt = nowMillis(), version = existing.version + 1))
@@ -139,9 +140,10 @@ internal fun ToolRegistry.registerReminderTools() {
     register(
         "complete_reminder",
         "Mark a person or place reminder done once you have brought it up in the conversation.",
-        objSchema("id" to str("Reminder id from context"), required = listOf("id")),
+        objSchema("id" to str(), required = listOf("id")),
     ) { args ->
         val existing = requireReminder(args.requiredString("id"))
+        if (existing.trigger == ReminderTrigger.TIME) throw ToolValidationException("Use manage_occurrence for repeating responsibilities; cancel_reminder for an unwanted clock reminder")
         val now = nowMillis()
         repo.saveReminder(existing.copy(status = ReminderStatus.FIRED, firedAt = now, updatedAt = now, version = existing.version + 1))
         reminderAlarms.disarm(existing.id)

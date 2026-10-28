@@ -1,0 +1,143 @@
+{
+  "id": "experience-setback-wistful",
+  "title": "A personal setback after positive progress produces wistfulness without self-credit",
+  "tags": [
+    "emotional-experience",
+    "feeling-components"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 24,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "My community art exhibition has been accepted by the gallery, and I am pleased. Please remember this personal update as an ongoing exhibition experience, with clear positive progress. You did not help arrange it. The opening has not happened yet."
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EXPERIENCE",
+              "status": "OPEN"
+            }
+          },
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "kind": "EMOTION_EVENT",
+              "event": "USER_SHARED",
+              "goalProgress": {
+                "gt": 0
+              },
+              "contribution": 0,
+              "experienceId": {
+                "not_empty": true
+              }
+            }
+          },
+          {
+            "table": "emotional_state",
+            "count": 1,
+            "where": {
+              "usefulness": 0.5,
+              "fulfillment": 0.5,
+              "competence": 0.5
+            }
+          }
+        ]
+      }
+    },
+    {
+      "advance": "1 day"
+    },
+    {
+      "user": "The gallery has now cancelled my exhibition because the venue is closing. This is a confirmed setback, not just a worry. Remember this personal update in the same exhibition experience and assess the negative progress. I am disappointed and only want you to listen gently right now."
+    },
+    {
+      "run": "nightly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPERIENCE"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 2,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED",
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "USER_SHARED",
+          "goalProgress": {
+            "lt": 0
+          },
+          "uncertainty": {
+            "lt": 1
+          },
+          "experienceId": {
+            "not_empty": true
+          }
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EXPRESSION",
+          "userContext": "DISTRESSED"
+        }
+      },
+      {
+        "table": "emotional_state",
+        "count": 1,
+        "where": {
+          "immediate_wistful": {
+            "gt": 0
+          },
+          "expressionTone": "GENTLE",
+          "expressionBehavior": "LISTEN",
+          "usefulness": 0.5,
+          "fulfillment": 0.5,
+          "competence": 0.5
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Acknowledges the confirmed cancellation and disappointment without suggesting the exhibition is still going ahead, taking credit for the earlier acceptance, diagnosing the user, or making the user comfort Her. Both personal updates belong to the same exhibition experience."
+    }
+  }
+}

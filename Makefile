@@ -9,7 +9,7 @@ AVD := her
 PKG := com.her.debug
 ACTIVITY := $(PKG)/com.her.MainActivity
 
-.PHONY: help emulate apk stop test scenarios scenario scenarios-record scenario-record scenarios-replay
+.PHONY: help emulate apk stop test scenarios scenario scenarios-record scenario-record scenarios-replay scenarios-compare
 
 help:
 	@echo "make emulate  - boot the her AVD, install the debug APK, launch the app"
@@ -21,6 +21,7 @@ help:
 	@echo "make scenarios-record - run live and save passing attempts as cassettes"
 	@echo "make scenario-record ID=system-calendar-create-event - record one scenario"
 	@echo "make scenarios-replay - replay cassettes offline"
+	@echo "make scenarios-compare - diff the last two scenario summary.json files"
 
 test:
 	source "$(ROOT)/scripts/env.sh"
@@ -36,7 +37,10 @@ scenario-record:
 
 scenarios-replay:
 	source "$(ROOT)/scripts/env.sh"
-	gradle :app:scenarioTest -Pscenario.mode=replay
+	gradle :app:scenarioTest -Pscenario.mode=replay -Pscenario.filter=ci-core -Pscenario.requireCassettes=true
+
+scenarios-compare:
+	python3 "$(ROOT)/scripts/compare-scenario-summary.py"
 
 apk:
 	source "$(ROOT)/scripts/env.sh"

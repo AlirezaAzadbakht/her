@@ -11,6 +11,7 @@ import com.her.focus.FocusSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONObject
 
 data class LlmSettings(
     val baseUrl: String,
@@ -19,6 +20,14 @@ data class LlmSettings(
 ) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && apiKey.isNotBlank() && model.isNotBlank()
+
+    companion object {
+        /** Reads the settings Her Cloud gives out, as copied text or as the QR code of the same JSON. */
+        fun fromJson(text: String): LlmSettings? = runCatching {
+            val json = JSONObject(text.trim())
+            LlmSettings(json.getString("base_url"), json.getString("api_key"), json.getString("model_name"))
+        }.getOrNull()?.takeIf { it.isConfigured }
+    }
 }
 
 class SecureSettingsStore(context: Context) {
@@ -64,7 +73,6 @@ data class AppSettings(
     val developerMode: Boolean,
     val webSearchEnabled: Boolean,
     val embeddingsEnabled: Boolean,
-    val googleClientId: String,
     val webSearchEndpoint: String,
     val webSearchApiKey: String,
     val calendarEnabled: Boolean,
@@ -118,7 +126,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             developerMode = prefs.getBoolean(KEY_DEV, false),
             webSearchEnabled = prefs.getBoolean(KEY_WEB, false),
             embeddingsEnabled = prefs.getBoolean(KEY_EMBED, false),
-            googleClientId = prefs.getString(KEY_GOOGLE, "") ?: "",
             webSearchEndpoint = prefs.getString(KEY_WEB_URL, "") ?: "",
             webSearchApiKey = prefs.getString(KEY_WEB_KEY, "") ?: "",
             calendarEnabled = prefs.getBoolean(KEY_CAL, false),
@@ -156,7 +163,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_DEV, next.developerMode)
             putBoolean(KEY_WEB, next.webSearchEnabled)
             putBoolean(KEY_EMBED, next.embeddingsEnabled)
-            putString(KEY_GOOGLE, next.googleClientId)
             putString(KEY_WEB_URL, next.webSearchEndpoint)
             putString(KEY_WEB_KEY, next.webSearchApiKey)
             putBoolean(KEY_CAL, next.calendarEnabled)
@@ -199,7 +205,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_DEV = "developer_mode"
         private const val KEY_WEB = "web_search"
         private const val KEY_EMBED = "embeddings"
-        private const val KEY_GOOGLE = "google_client_id"
         private const val KEY_WEB_URL = "web_search_url"
         private const val KEY_WEB_KEY = "web_search_key"
         private const val KEY_CAL = "calendar_enabled"

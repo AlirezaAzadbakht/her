@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
+import com.her.core.DeterministicIds
 import com.her.core.FakeClock
 import com.her.core.RelativeTimeParser
 import com.her.data.calendar.CalendarDataSource
@@ -33,6 +34,9 @@ import com.her.reminders.FakeAlarmClock
 import com.her.reminders.FakeReminderAlarms
 import com.her.reminders.ReminderAlarms
 import com.her.reminders.ReminderDelivery
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 data class RecordedNotification(
@@ -117,6 +121,7 @@ class ScenarioHarness(
     attempt: Int,
     startMillis: Long,
 ) {
+    private val idPrefix = "${spec.id}:$startMillis"
     private val context = ApplicationProvider.getApplicationContext<Application>()
     val clock = FakeClock(startMillis)
     private val settings = AppSettingsStore(context, "her_scenario_${spec.id}_${attempt}_${System.nanoTime()}")
@@ -147,25 +152,50 @@ class ScenarioHarness(
         tools = tools,
         notifier = notifier,
         policy = NotificationPolicy(settings),
+        appraiser = com.her.feelings.FastAppraiser(repo, llm) { llmSettings },
     )
 
-    suspend fun run(): HarnessOutcome {
+    suspend fun run(): HarnessOutcome = withContext(DeterministicIds(idPrefix)) {
         var lastReply: String? = null
         var error: String? = null
         try {
             seed()
             tools.clear()
-            for (turn in spec.turns) {
+            for ((turnIndex, turn) in spec.turns.withIndex()) {
                 val result = when (turn) {
+                    is ScenarioTurn.Check -> {
+                        val messages = repo.recentMessages(200)
+                        val snapshot = HarnessOutcome(tools.calls, notifier.notifications, messages,
+                            Checks.lastAssistantReply(messages, lastReply), "", "", llm.inputTokens, llm.outputTokens, llm.calls, error)
+                        val failures = Checks.evaluate(spec.copy(expect = turn.expect), repo, snapshot, extraTables()).filterNot { it.passed }
+                        check(failures.isEmpty()) { "Checkpoint at turn ${turnIndex + 1} failed: " + failures.joinToString("; ") { "${it.name}: ${it.detail}" } }
+                        null
+                    }
                     is ScenarioTurn.User -> {
                         orchestrator.enqueueUserMessage(turn.text)
-                        orchestrator.processOutbox()
+                        if (turn.queued) null else orchestrator.processOutbox()
                     }
                     // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.
-                    is ScenarioTurn.Run -> when (turn.kind) {
-                        AutonomousRun.HOURLY -> orchestrator.runHourly(gated = true)
-                        AutonomousRun.NIGHTLY -> orchestrator.runNightly(gated = true)
-                        AutonomousRun.BRIEFING -> orchestrator.runBriefing(gated = true)
+                    is ScenarioTurn.Run -> {
+                        suspend fun runAutonomous() = when (turn.kind) {
+                            AutonomousRun.HOURLY -> orchestrator.runHourly(gated = true)
+                            AutonomousRun.NIGHTLY -> orchestrator.runNightly(gated = true)
+                            AutonomousRun.BRIEFING -> orchestrator.runBriefing(gated = true)
+                        }
+                        val userText = turn.concurrentWithUser
+                        if (userText == null) {
+                            runAutonomous()
+                        } else {
+                            coroutineScope {
+                                val background = async { runAutonomous() }
+                                val chat = async {
+                                    orchestrator.enqueueUserMessage(userText)
+                                    orchestrator.processOutbox()
+                                }
+                                background.await()
+                                chat.await()
+                            }
+                        }
                     }
                     // Moving the clock stands in for AlarmManager: anything due rings before the next turn.
                     is ScenarioTurn.Advance -> {
@@ -192,9 +222,8 @@ class ScenarioHarness(
         }
         val messages = repo.recentMessages(200)
         val reply = Checks.lastAssistantReply(messages, lastReply)
-            ?: notifier.notifications.lastOrNull()?.text
         val bundle = runCatching { contextBuilder.build().systemBundle }.getOrDefault("")
-        return HarnessOutcome(
+        return@withContext HarnessOutcome(
             toolCalls = tools.calls,
             notifications = notifier.notifications,
             messages = messages,
@@ -269,11 +298,14 @@ class ScenarioHarness(
                 google.seed(event.title, start, start + 60 * 60 * 1000, event.notes)
             }
         }
+        val seedResults = mutableListOf<JSONObject>()
         spec.seed.tools.forEach { call ->
-            val result = tools.execute(call.name, call.argumentsJson)
+            val arguments = resolveSeedArguments(JSONObject(call.argumentsJson), seedResults)
+            val result = tools.execute(call.name, arguments.toString())
             if (!result.ok && !JSONObject(result.payloadJson).optBoolean("ok", false)) {
                 error("Seed tool ${call.name} failed: ${result.payloadJson}")
             }
+            seedResults += JSONObject(result.payloadJson)
         }
     }
 
@@ -281,4 +313,20 @@ class ScenarioHarness(
         raw.toLongOrNull()?.let { return it }
         return RelativeTimeParser.parse(raw, repo.now())?.toInstant()?.toEpochMilli()
     }
+}
+
+/** Exact, top-level references only; seed results never become model instructions. */
+internal fun resolveSeedArguments(arguments: JSONObject, results: List<JSONObject>): JSONObject {
+    val resolved = JSONObject(arguments.toString())
+    val reference = Regex("""^\${'$'}seed\.(\d+)\.([A-Za-z][A-Za-z0-9_]*)$""")
+    arguments.keys().forEach { key ->
+        val value = arguments.opt(key) as? String ?: return@forEach
+        val match = reference.matchEntire(value) ?: return@forEach
+        val index = match.groupValues[1].toIntOrNull() ?: error("Invalid seed reference: $value")
+        val result = results.getOrNull(index) ?: error("Seed reference must point to an earlier result: $value")
+        val field = match.groupValues[2]
+        check(result.has(field) && !result.isNull(field)) { "Missing seed result field: $value" }
+        resolved.put(key, result.get(field))
+    }
+    return resolved
 }

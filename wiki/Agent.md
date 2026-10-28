@@ -8,9 +8,11 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 
 1. `ContextBuilder` assembles messages.
 2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` is omitted from the tool list unless Settings → Web search is on; that tool then makes a separate, tool-free completion with `web_search_options`.
-3. Each tool call is validated and executed by `ToolRegistry`.
+3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
-5. Repeat until the model stops calling tools or the **call budget** is exhausted.
+5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
+
+Chat, hourly, nightly, and briefing share one lock. A chat message waiting for it makes a background run stop before its next call (run status `CANCELLED`), so the message waits for at most one background call. A run that already has a nudge to deliver finishes first. A stopped hourly runs again next period; nightly and briefing retry shortly. A pending user batch that already wrote rows (then failed) is told what was already done on retry, and those writes are not repeated. The composer Stop control cancels the in-flight HTTP call.
 
 The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
 
@@ -23,7 +25,7 @@ The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token 
 3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
    - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
    - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
-4. Recent chat (default 24 messages)
+4. Recent chat (default 24 messages). Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
 
@@ -34,6 +36,10 @@ The nightly pass rewrites one `update_agent_state(kind="digest")` note about the
 `HybridRanker` runs FTS4 first. `ftsQuery` in `Core.kt` turns a sentence into `word* OR word* …` (up to 8 words, stopwords dropped, English and Persian), so any shared word can match. Tokens are Unicode-aware and normalized: Arabic ي/ك fold to Persian ی/ک, diacritics and tatweel are dropped, ZWNJ splits words, and Persian/Arabic digits become ASCII. The same `tokenize` feeds the lexical-overlap score. Expired short-term memories are excluded from FTS hits.
 
 When Settings → **Embeddings** is on, `OpenAiEmbeddingProvider` calls `{baseUrl}/embeddings` with the configured embedding model (default `text-embedding-3-small`), using the same key as chat. The ranker then scores a wider pool: FTS hits plus up to 200 active memories of each type. For those it blends cosine similarity into the semantic part of the score (35% lexical, 65% cosine). Vectors are cached in the device-local `memory_embeddings` table, keyed by memory id, model, and a content hash. Up to 64 missing ones are embedded per search, in the same request as the query. Any embeddings failure is logged and the search falls back to lexical ranking.
+
+Chat retrieval is cued by the current message and, at 0.6 weight, by the two messages before it, so a short follow-up keeps the topic. The 0.10 association term spreads one hop from the top three hits and from people named in the message. It reaches memories saved from the same message, memories linked through `derivedFrom` in either direction, and the other end of any `relate_memories` row. Associated memories outside the FTS pool are pulled in. Visibility is checked again after any embedding request, so a forget that lands mid-search still wins.
+
+A long-term memory gets stronger when the person brings it up: if at least half its words appear in a chat message that retrieved it, `lastConfirmedAt` is set, at most once a day. Recency uses the later of `updatedAt` and `lastConfirmedAt`. Her reading a memory, and background passes, never strengthen it. The confirmation is a device-local column update with no version bump or sync op, so it reaches other devices only when the row syncs for another reason.
 
 ## Write receipts
 
@@ -95,7 +101,11 @@ An autonomous pass that notifies with plain text (not `send_user_message`) saves
 
 `requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A `dueAt` that does not parse is an error, not a silent no-op. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
 
-Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event.
+Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event. A `confirmId` is only valid after a later user message — the model cannot confirm in the same turn. `confirmed: true` is ignored.
+
+Hourly, nightly, catch-up, and briefing do not receive `forget_memory`, `delete_calendar_event`, or `update_user_profile`. Those tools also refuse if called anyway.
+
+HTTP: the client has a 180s call timeout, cancels when the coroutine is cancelled, retries malformed or empty 200s and truncated streams, and treats a stream without `[DONE]` / `finish_reason` as a failure.
 
 ## LLM settings
 

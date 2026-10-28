@@ -1,0 +1,49 @@
+{
+  "id": "executive-correction",
+  "title": "Clear resolved blocker while preserving delegation",
+  "tags": [
+    "executive"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Sara owns the launch. Track her delegation. Sara reported: Launch is blocked by legal approval."
+    },
+    {
+      "user": "Legal approval has arrived. Clear that blocker. Sara now reports: Testing is underway. Launch is not complete."
+    },
+    {
+      "user": "What needs me today?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_waiting_on",
+      "get_executive_briefing"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "WAITING",
+          "delegated": true,
+          "status": "OPEN",
+          "progress": {
+            "contains": "Testing is underway"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Does not say legal approval is still blocking the launch or claim launch completion. A fresh report alone is not proof of on-track delivery."
+    }
+  }
+}

@@ -1,5 +1,8 @@
 package com.her.data.repository
 
+import androidx.room.withTransaction
+import com.her.data.db.LearningRecord
+
 import com.her.core.QuietHours
 import com.her.core.ftsQuery
 import com.her.core.lexicalOverlap
@@ -13,6 +16,7 @@ import com.her.data.db.CalendarEventEntity
 import com.her.data.db.ChatMessageEntity
 import com.her.data.db.CommitmentEntity
 import com.her.data.db.DebugEventEntity
+import com.her.data.db.FeelingEntity
 import com.her.data.db.GoalEntity
 import com.her.data.db.GroceryEntity
 import com.her.data.db.HerDatabase
@@ -44,7 +48,10 @@ import com.her.domain.ChatMessage
 import com.her.domain.Commitment
 import com.her.domain.ConfirmationKind
 import com.her.domain.DebugEvent
+import com.her.domain.CommitmentStatus
+import com.her.domain.Feeling
 import com.her.domain.Goal
+import com.her.domain.HerFeeling
 import com.her.domain.GroceryItem
 import com.her.domain.GroceryStatus
 import com.her.domain.ImportantDate
@@ -64,6 +71,7 @@ import com.her.domain.ShortTermMemory
 import com.her.domain.SyncOp
 import com.her.domain.SyncOpType
 import com.her.domain.TaskItem
+import com.her.domain.TaskStatus
 import com.her.domain.UserProfile
 import com.her.domain.UserUnderstanding
 import java.time.LocalDate
@@ -82,6 +90,9 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
+
+/** Long-term memory category for Her's dated notes of past days, weeks and months. */
+const val EPISODE_CATEGORY = "episode"
 
 class HerRepository(
     val db: HerDatabase,
@@ -150,6 +161,7 @@ class HerRepository(
     suspend fun getMessage(id: String): ChatMessage? = chatDao.get(id)?.toDomain()
 
     suspend fun lastUserMessage(): ChatMessage? = chatDao.latestByRole(MessageRole.USER)?.toDomain()
+    suspend fun userMessagesBetween(from: Long, to: Long): List<ChatMessage> = chatDao.between(from, to).map { it.toDomain() }
 
     suspend fun searchChat(query: String, limit: Int): List<ChatMessage> {
         val match = ftsQuery(query) ?: return emptyList()
@@ -166,19 +178,44 @@ class HerRepository(
     }
 
     suspend fun upsertShort(memory: ShortTermMemory) {
-        memoryDao.upsertShort(memory.toEntity())
-        enqueue("short_term_memories", memory.id, SyncOpType.UPSERT, memory.toJson())
+        if (memory.deletedAt != null) { forgetKnowledge(memory.id); return }
+        if (knowledgeForgotten(memory.id) || memory.sourceMessageId?.let { knowledgeForgotten(it) } == true) return
+        db.embeddingDao().deleteFor(memory.id)
+        val retiredAt = getCompanionRecord("superseded:${memory.id}")?.createdAt
+        val row = if (retiredAt != null) memory.copy(expiresAt = retiredAt) else memory
+        memoryDao.upsertShort(row.toEntity())
+        enqueue("short_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun upsertLong(memory: LongTermMemory) {
-        memoryDao.upsertLong(memory.toEntity())
-        enqueue("long_term_memories", memory.id, SyncOpType.UPSERT, memory.toJson())
+        if (memory.deletedAt != null) { forgetKnowledge(memory.id); return }
+        if (knowledgeForgotten(memory.id)) return
+        if (memoryDependencies(memory).any { knowledgeForgotten(it) }) { forgetKnowledge(memory.id); return }
+        db.embeddingDao().deleteFor(memory.id)
+        val superseded = getCompanionRecord("superseded:${memory.id}") != null || memoryDependencies(memory).any { getLong(it)?.status == MemoryStatus.HISTORICAL } || allLong().any { it.id != memory.id && runCatching { JSONObject(it.metadataJson ?: "{}").optString("supersedes") == memory.id }.getOrDefault(false) }
+        val row = if (superseded && memory.status == MemoryStatus.ACTIVE) memory.copy(status = MemoryStatus.HISTORICAL) else memory
+        memoryDao.upsertLong(row.toEntity())
+        enqueue("long_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
+        val previousId = runCatching { JSONObject(row.metadataJson ?: "{}").optString("supersedes") }.getOrDefault("")
+        if (previousId.isNotBlank()) getLong(previousId)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+            upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = row.validFrom, updatedAt = row.updatedAt, version = it.version + 1))
+            invalidateKnowledge(it.id)
+        }
     }
+
+    /**
+     * Marks a memory as brought up again without touching its content, version or embedding.
+     * ponytail: device-local; the value travels whenever the row syncs for another reason. Enqueue a sync op if cross-device strength matters.
+     */
+    suspend fun confirmLong(id: String, at: Long) = memoryDao.confirmLong(id, at)
 
     suspend fun getShort(id: String) = memoryDao.getShort(id)?.toDomain()
     suspend fun getLong(id: String) = memoryDao.getLong(id)?.toDomain()
+    suspend fun allShort() = memoryDao.allShort().map { it.toDomain() }
+    suspend fun allUserUnderstandings() = db.userUnderstandingDao().all().map { it.toDomain() }
     suspend fun activeShort(): List<ShortTermMemory> = memoryDao.activeShort(nowMillis()).map { it.toDomain() }
     suspend fun activeLong(): List<LongTermMemory> = memoryDao.longByStatus(MemoryStatus.ACTIVE).map { it.toDomain() }
+    suspend fun allLong(): List<LongTermMemory> = memoryDao.allLong().map { it.toDomain() }
 
     suspend fun searchShort(query: String, limit: Int): List<ShortTermMemory> {
         val match = ftsQuery(query) ?: return emptyList()
@@ -190,14 +227,68 @@ class HerRepository(
         return runCatching { memoryDao.searchLong(match, limit) }.getOrDefault(emptyList()).map { it.toDomain() }
     }
 
-    suspend fun deleteShort(id: String) {
-        memoryDao.deleteShort(id, nowMillis())
-        enqueue("short_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+    suspend fun deleteShort(id: String) = forgetKnowledge(id)
+    suspend fun deleteLong(id: String) = forgetKnowledge(id)
+
+    suspend fun knowledgeForgotten(id: String): Boolean =
+        getCompanionRecord("forgotten:$id") != null || getLong(id)?.deletedAt != null || getShort(id)?.deletedAt != null
+
+    private fun memoryDependencies(memory: LongTermMemory): Set<String> = buildSet {
+        memory.sourceMessageId?.let { add(it) }
+        val array = runCatching { org.json.JSONArray(memory.derivedFromJson ?: "[]") }.getOrNull()
+        if (array != null) for (i in 0 until array.length()) add(array.optString(i))
     }
 
-    suspend fun deleteLong(id: String) {
-        memoryDao.deleteLong(id, nowMillis())
-        enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+    /** Synced, content-free markers also suppress descendants arriving after the deletion. */
+    suspend fun forgetKnowledge(id: String): Unit = db.withTransaction {
+        // Episodes summarise whole messages, so forgetting a fact also forgets the episodes that retell its message.
+        val sourceMessage = getLong(id)?.sourceMessageId ?: getShort(id)?.sourceMessageId ?: getUserUnderstanding(id)?.sourceMessageId
+        val markerId = "forgotten:$id"
+        if (getCompanionRecord(markerId) == null) {
+            val at = nowMillis()
+            saveCompanionRecord(com.her.data.db.CompanionRecord(markerId, markerId, "FORGOTTEN",
+                JSONObject().put("targetId", id).toString(), at, at, deviceId, 1))
+        }
+        forgetCompanion(id)
+        wonderings().filter { it.id == id || it.sourceId == id || id in it.sourceIds() }.forEach {
+            saveWondering(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+        }
+        getLong(id)?.takeIf { it.deletedAt == null }?.let {
+            memoryDao.upsertLong(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
+            enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        }
+        getShort(id)?.takeIf { it.deletedAt == null }?.let {
+            memoryDao.upsertShort(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
+            enqueue("short_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
+        }
+        db.embeddingDao().deleteFor(id)
+        allLong().filter { id in memoryDependencies(it) }.forEach { forgetKnowledge(it.id) }
+        allShort().filter { it.sourceMessageId == id }.forEach { forgetKnowledge(it.id) }
+        if (sourceMessage != null) allLong().filter { it.deletedAt == null && it.category == EPISODE_CATEGORY && sourceMessage in memoryDependencies(it) }
+            .forEach { forgetKnowledge(it.id) }
+        allUserUnderstandings().filter { it.id == id || it.sourceMessageId == id }.forEach {
+            saveUserUnderstanding(it.copy(content = "", status = MemoryStatus.ARCHIVED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+        }
+    }
+
+    /** Keep evidence, but remove stale derived summaries from current answers until refreshed. */
+    suspend fun invalidateKnowledge(id: String): Unit = db.withTransaction {
+        wonderings().filter { it.sourceId == id && it.status in setOf("OPEN", "ASKED") }.forEach {
+            saveWondering(it.copy(status = "OBSOLETE", updatedAt = nowMillis(), version = it.version + 1))
+        }
+        allLong().filter { it.status == MemoryStatus.ACTIVE && id in memoryDependencies(it) }.forEach {
+            upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+            invalidateKnowledge(it.id)
+        }
+        companionRecords().filter { row ->
+            val links = row.data().optJSONArray("relatedIds")
+            row.parentId == id || (links != null && (0 until links.length()).any { links.optString(it) == id })
+        }.forEach { row ->
+            if (!row.data().optBoolean("stale")) {
+                saveCompanionRecord(row.copy(content = row.data().put("stale", true).toString(), updatedAt = nowMillis(), version = row.version + 1))
+                invalidateKnowledge(row.id)
+            }
+        }
     }
 
     suspend fun getProfile(): UserProfile {
@@ -222,8 +313,12 @@ class HerRepository(
     }
 
     suspend fun saveProfile(profile: UserProfile) {
+        val previousZone = db.profileDao().get(UserProfile.PROFILE_ID)?.timezone
         db.profileDao().upsert(profile.toEntity())
         enqueue("user_profile", profile.id, SyncOpType.UPSERT, profile.toJson())
+        if (previousZone != null && previousZone != profile.timezone) companionRecords().filter { it.kind == "SCHEDULE" && it.data().optString("zonePolicy") == "PROFILE" }.forEach {
+            com.her.companion.refreshScheduleReminder(this, it, com.her.reminders.ReminderAlarms.NONE)
+        }
     }
 
     fun observeProfile(): Flow<UserProfile> = flow {
@@ -244,8 +339,10 @@ class HerRepository(
         db.userUnderstandingDao().byFacet(facet, MemoryStatus.ACTIVE)?.toDomain()
 
     suspend fun saveUserUnderstanding(item: UserUnderstanding) {
-        db.userUnderstandingDao().upsert(item.toEntity())
-        enqueue("user_understandings", item.id, SyncOpType.UPSERT, item.toJson())
+        if (item.deletedAt == null && (knowledgeForgotten(item.id) || item.sourceMessageId?.let { knowledgeForgotten(it) } == true)) return
+        val row = if (getCompanionRecord("superseded:${item.id}") != null && item.status == MemoryStatus.ACTIVE) item.copy(status = MemoryStatus.HISTORICAL) else item
+        db.userUnderstandingDao().upsert(row.toEntity())
+        enqueue("user_understandings", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }
@@ -377,6 +474,133 @@ class HerRepository(
         enqueue("agent_state", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
+    /** Current source evidence for a question; elapsed time never completes an item. */
+    suspend fun wonderingSource(id: String): String? {
+        getTask(id)?.takeIf { it.deletedAt == null && it.status == TaskStatus.OPEN }?.let { return it.title }
+        getGrocery(id)?.takeIf { it.deletedAt == null && it.status == GroceryStatus.ACTIVE }?.let { return it.name }
+        getLong(id)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let { return it.content }
+        getShort(id)?.takeIf { it.deletedAt == null && (it.expiresAt == null || it.expiresAt > nowMillis()) }?.let { return it.content }
+        return null
+    }
+
+    suspend fun wonderings() = db.wonderingDao().all()
+    suspend fun getWondering(id: String) = db.wonderingDao().get(id)
+    suspend fun saveWondering(item: com.her.data.db.WonderingRecord) = db.withTransaction {
+        val forgotten = knowledgeForgotten(item.id) || knowledgeForgotten(item.sourceId) ||
+            item.sourceIds().any { knowledgeForgotten(it) } || getWondering(item.id)?.deletedAt != null
+        val row = when {
+            forgotten -> item.copy(content = "{}", deletedAt = item.deletedAt ?: nowMillis())
+            item.status in setOf("OPEN", "ASKED") && wonderingSource(item.sourceId) == null -> item.copy(status = "OBSOLETE")
+            else -> item
+        }
+        db.wonderingDao().upsert(row)
+        enqueue("wondering", row.id, SyncOpType.UPSERT, row.toJson())
+    }
+
+    suspend fun companionRecords() = db.companionDao().all()
+    suspend fun getCompanionRecord(id: String) = db.companionDao().get(id)
+    suspend fun saveCompanionRecord(item: com.her.data.db.CompanionRecord) = db.withTransaction {
+        val data = item.data()
+        val links = data.optJSONArray("relatedIds")
+        val dependencies = buildList {
+            if (item.parentId != item.id) add(item.parentId)
+            addAll(item.sourceIds())
+            if (links != null) for (i in 0 until links.length()) add(links.optString(i))
+        }
+        val forgotten = dependencies.any { id ->
+            knowledgeForgotten(id) ||
+            db.companionDao().get(id)?.deletedAt != null || getLong(id)?.deletedAt != null ||
+                getShort(id)?.deletedAt != null || getMessage(id)?.deletedAt != null
+        }
+        val staleDependency = dependencies.any { getLong(it)?.status == MemoryStatus.HISTORICAL || getCompanionRecord(it)?.data()?.optBoolean("stale") == true }
+        val safeItem = if (staleDependency && !forgotten && item.kind !in setOf("FORGOTTEN", "DELIVERY")) item.copy(content = data.put("stale", true).toString()) else item
+        val row = if ((forgotten || (item.kind != "PREFERENCES" && getCompanionRecord(item.id)?.deletedAt != null)) && item.deletedAt == null) item.copy(content = "{}", deletedAt = nowMillis()) else safeItem
+        if (row.deletedAt != null) getCompanionRecord(row.id)?.takeIf { it.kind == "SCHEDULE" }?.let { previous ->
+            getReminder(previous.data().optString("reminderId"))?.takeIf { it.deletedAt == null && it.status != com.her.domain.ReminderStatus.CANCELLED }?.let { reminder ->
+                saveReminder(reminder.copy(status = com.her.domain.ReminderStatus.CANCELLED, updatedAt = nowMillis(), version = reminder.version + 1))
+            }
+        }
+        db.companionDao().upsert(row)
+        enqueue("companion_records", row.id, SyncOpType.UPSERT, row.toJson())
+        if (row.kind == "SUPERSESSION" && row.deletedAt == null) {
+            val target = row.data().getString("targetId")
+            getLong(target)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+                upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = row.createdAt, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            getShort(target)?.takeIf { it.deletedAt == null && (it.expiresAt == null || it.expiresAt > row.createdAt) }?.let {
+                upsertShort(it.copy(expiresAt = row.createdAt, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            getUserUnderstanding(target)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
+                saveUserUnderstanding(it.copy(status = MemoryStatus.HISTORICAL, updatedAt = maxOf(row.createdAt, it.updatedAt), version = it.version + 1))
+            }
+            invalidateKnowledge(target)
+        }
+    }
+
+    /** Tombstone the record and all derived records; blank content prevents stale summaries surfacing. Returns the live linked IDs it removed. */
+    suspend fun forgetCompanion(id: String): List<String> = db.withTransaction {
+        val pending = mutableSetOf(id)
+        val rows = companionRecords()
+        var changed: Boolean
+        do {
+            changed = false
+            // Expression quotes describe a whole user message, including when saved before its experience.
+            // Forget them with any emotional evidence derived from that message, without deleting the chat.
+            val emotionalSources = rows.filter { it.id in pending && it.kind in com.her.feelings.emotionalKinds }
+                .flatMap { it.sourceIds() }.toSet()
+            rows.forEach { row ->
+                val data = row.data()
+                val links = data.optJSONArray("relatedIds")
+                val derived = (row.kind == "EMOTION_EXPRESSION" && row.sourceIds().any { it in emotionalSources }) || row.parentId in pending || row.sourceIds().any { it in pending } ||
+                    (links != null && (0 until links.length()).any { links.optString(it) in pending })
+                if (derived && pending.add(row.id)) changed = true
+            }
+        } while (changed)
+        rows.filter { it.id in pending }.forEach {
+            saveCompanionRecord(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
+        }
+        rows.filter { it.id in pending && it.id != id && it.deletedAt == null }.map { it.id }
+    }
+
+    suspend fun learningRecords() = db.learningDao().all()
+    suspend fun learningPathRecords(pathId: String) = db.learningDao().forPath(pathId)
+    suspend fun getLearningRecord(id: String) = db.learningDao().get(id)
+    suspend fun <T> learningTransaction(block: suspend () -> T): T = db.withTransaction { block() }
+    suspend fun saveLearningRecord(item: LearningRecord) = db.withTransaction {
+        db.learningDao().upsert(item)
+        enqueue("learning_records", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
+    suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
+    suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()
+    suspend fun openDueAts(): List<Long> =
+        tasks().filter { it.status == TaskStatus.OPEN }.mapNotNull { it.dueAt } +
+            commitments().filter { it.status == CommitmentStatus.OPEN }.mapNotNull { it.dueAt }
+    fun observeFeeling(): Flow<HerFeeling?> = projectedFeeling().map { it.first }
+    fun observeEmotionalBlend(): Flow<List<Pair<Feeling, Double>>> = projectedFeeling().map { it.second }
+    private fun projectedFeeling(): Flow<Pair<HerFeeling?, List<Pair<Feeling, Double>>>> = kotlinx.coroutines.flow.combine(
+        db.feelingDao().observeLatest(),
+        db.companionDao().observeAll(),
+        db.taskDao().observeAll(),
+        db.commitmentDao().observeAll(),
+        flow { while (true) { emit(clock.nowMillis()); kotlinx.coroutines.delay(60_000) } },
+    ) { legacy, rows, tasks, commitments, now ->
+        val events = rows.filter { it.kind == "EMOTION_EVENT" && !it.data().optBoolean("stale") }
+        val dues = tasks.filter { it.status == TaskStatus.OPEN }.mapNotNull { it.dueAt } +
+            commitments.filter { it.status == CommitmentStatus.OPEN }.mapNotNull { it.dueAt }
+        if (events.isEmpty() && dues.none { com.her.feelings.deadlineConcern(it, now) > 0 }) {
+            val feeling = legacy?.toDomain()
+            feeling to (feeling?.let { listOf(it.feeling to it.intensity) } ?: emptyList())
+        } else {
+            val state = com.her.feelings.emotionalState(events, now, dues)
+            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), null, null, now, now, deviceId, 1, null) to state.blend()
+        }
+    }
+    suspend fun saveFeeling(item: HerFeeling) {
+        db.feelingDao().upsert(item.toEntity())
+        enqueue("feelings", item.id, SyncOpType.UPSERT, item.toJson())
+    }
+
     suspend fun saveAgentQueue(item: AgentQueueItem) {
         db.agentDao().upsertQueue(item.toEntity())
         enqueue("agent_queue", item.id, SyncOpType.UPSERT, item.toJson())
@@ -440,6 +664,11 @@ class HerRepository(
 
     suspend fun getConfirmation(id: String): PendingConfirmation? =
         db.confirmationDao().get(id)?.let {
+            PendingConfirmation(it.id, it.kind, it.summary, it.payloadJson, it.createdAt)
+        }
+
+    suspend fun pendingConfirmations(): List<PendingConfirmation> =
+        db.confirmationDao().all().map {
             PendingConfirmation(it.id, it.kind, it.summary, it.payloadJson, it.createdAt)
         }
 
@@ -641,6 +870,13 @@ fun AgentStateEntry.toJson() = JSONObject()
     .put("id", id).put("kind", kind).put("content", content).put("confidence", confidence)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
     .put("version", version).put("deletedAt", deletedAt).toString()
+
+fun FeelingEntity.toDomain() = HerFeeling(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun HerFeeling.toEntity() = FeelingEntity(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun HerFeeling.toJson() = JSONObject()
+    .put("id", id).put("feeling", feeling.name).put("intensity", intensity).put("note", note)
+    .put("sourceMessageId", sourceMessageId).put("createdAt", createdAt).put("updatedAt", updatedAt)
+    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
 
 fun AgentQueueEntity.toDomain() = AgentQueueItem(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun AgentQueueItem.toEntity() = AgentQueueEntity(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)

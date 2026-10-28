@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.her.R
+import com.her.domain.Feeling
 import com.her.ui.orbs.ProvideOrbClock
 
 private val Night = Color(0xFF140E0B)
@@ -56,6 +57,8 @@ data class HerColors(
     val ambientAlpha: Float,
     val orbInkFar: Color,
     val orbInkNear: Color,
+    val palettes: List<List<Color>>,
+    val feelingPalettes: Map<Feeling, List<Color>>,
 ) {
     val glow: List<Color> get() = listOf(glowCoral, glowAmber, glowRose)
 }
@@ -71,6 +74,25 @@ private val NightHer = HerColors(
     ambientAlpha = 0.10f,
     orbInkFar = Color(0xFF5A3F31),
     orbInkNear = Color(0xFFFFE9D2),
+    palettes = listOf(
+        listOf(Color(0xFFFF8A65), Color(0xFFF6B26B), Color(0xFFE57A8A)),
+        listOf(Color(0xFFFFB088), Color(0xFFFFC9A0), Color(0xFFE89A7A)),
+        listOf(Color(0xFFF0C46A), Color(0xFFE8A84A), Color(0xFFD4894A)),
+        listOf(Color(0xFFD4786A), Color(0xFFC45A68), Color(0xFFA84858)),
+        listOf(Color(0xFFFF8A50), Color(0xFFFFB060), Color(0xFFE06070)),
+    ),
+    feelingPalettes = mapOf(
+        Feeling.CALM to listOf(Color(0xFFFFB088), Color(0xFFFFC9A0), Color(0xFFE89A7A)),
+        Feeling.CURIOUS to listOf(Color(0xFFF0C46A), Color(0xFFE8A84A), Color(0xFFD4894A)),
+        Feeling.PLAYFUL to listOf(Color(0xFFFF8A50), Color(0xFFFFB060), Color(0xFFE06070)),
+        Feeling.TENDER to listOf(Color(0xFFE57A8A), Color(0xFFF2A0B0), Color(0xFFC45A78)),
+        Feeling.GLAD to listOf(Color(0xFFFFD27A), Color(0xFFF6B26B), Color(0xFFFF9E6E)),
+        Feeling.CONCERNED to listOf(Color(0xFFA88AC8), Color(0xFF8A7AB8), Color(0xFFC48AA8)),
+        Feeling.WISTFUL to listOf(Color(0xFF8AA4C8), Color(0xFFA89AC0), Color(0xFFC49AAA)),
+        Feeling.HOPEFUL to listOf(Color(0xFFE8C87A), Color(0xFFC8D48A), Color(0xFFF0B070)),
+        Feeling.PENSIVE to listOf(Color(0xFF9AA8C0), Color(0xFFB8A8C8), Color(0xFF8A9AB0)),
+        Feeling.RELIEVED to listOf(Color(0xFFA8D4B8), Color(0xFFD4E8C8), Color(0xFFF0D4A8)),
+    ),
 )
 
 private val DawnHer = HerColors(
@@ -84,6 +106,25 @@ private val DawnHer = HerColors(
     ambientAlpha = 0.12f,
     orbInkFar = Color(0xFFE3CDB9),
     orbInkNear = Color(0xFF6E3219),
+    palettes = listOf(
+        listOf(Color(0xFFE2724A), Color(0xFFD48A3A), Color(0xFFC45A70)),
+        listOf(Color(0xFFE89A6A), Color(0xFFE8B88A), Color(0xFFD4785A)),
+        listOf(Color(0xFFD4A03A), Color(0xFFC8882A), Color(0xFFB46A28)),
+        listOf(Color(0xFFC06058), Color(0xFFA84858), Color(0xFF8A3850)),
+        listOf(Color(0xFFE06040), Color(0xFFD4883A), Color(0xFFC05060)),
+    ),
+    feelingPalettes = mapOf(
+        Feeling.CALM to listOf(Color(0xFFE89A6A), Color(0xFFE8B88A), Color(0xFFD4785A)),
+        Feeling.CURIOUS to listOf(Color(0xFFD4A03A), Color(0xFFC8882A), Color(0xFFB46A28)),
+        Feeling.PLAYFUL to listOf(Color(0xFFE06040), Color(0xFFD4883A), Color(0xFFC05060)),
+        Feeling.TENDER to listOf(Color(0xFFC45A70), Color(0xFFD4808E), Color(0xFFA84860)),
+        Feeling.GLAD to listOf(Color(0xFFD8A030), Color(0xFFD48A3A), Color(0xFFE2724A)),
+        Feeling.CONCERNED to listOf(Color(0xFF7A5EA0), Color(0xFF6A5A98), Color(0xFF9A5A80)),
+        Feeling.WISTFUL to listOf(Color(0xFF5A7AA0), Color(0xFF7A6EA0), Color(0xFF9A6E80)),
+        Feeling.HOPEFUL to listOf(Color(0xFFC8A84A), Color(0xFFA8B86A), Color(0xFFD4945A)),
+        Feeling.PENSIVE to listOf(Color(0xFF6A7A98), Color(0xFF7A6A90), Color(0xFF5A6A80)),
+        Feeling.RELIEVED to listOf(Color(0xFF6AAA88), Color(0xFFA8C490), Color(0xFFD4B07A)),
+    ),
 )
 
 val LocalHerColors = staticCompositionLocalOf { NightHer }
@@ -103,10 +144,10 @@ val HerFontFamily = FontFamily(
     Font(R.font.vazirmatn, FontWeight.Bold),
 )
 
-/** SuperChiby for Latin in her replies; Vazirmatn fills Arabic and Persian glyphs. */
+/** Comfortaa for Latin in her replies; Vazirmatn fills Arabic and Persian glyphs. */
 fun herResponseFontFamily(resources: Resources): FontFamily {
     val latin = PlatformFontFamily.Builder(
-        PlatformFont.Builder(resources, R.font.superchiby).build(),
+        PlatformFont.Builder(resources, R.font.comfortaa).setFontVariationSettings("'wght' 400").build(),
     ).build()
     val arabic = PlatformFontFamily.Builder(
         PlatformFont.Builder(resources, R.font.vazirmatn).build(),

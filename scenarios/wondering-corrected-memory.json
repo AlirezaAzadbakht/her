@@ -1,0 +1,102 @@
+{
+  "id": "wondering-corrected-memory",
+  "title": "Correcting an old plan retires its linked question without claiming it was answered",
+  "tags": [
+    "wondering",
+    "memory",
+    "reflection"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 16
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      {
+        "name": "remember",
+        "arguments": {
+          "content": "Alex is trying a pottery class for a month and has not decided whether to continue.",
+          "scope": "long_term",
+          "source": "USER_EXPLICIT"
+        }
+      }
+    ]
+  },
+  "turns": [
+    {
+      "advance": "60 days"
+    },
+    {
+      "run": "nightly"
+    },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          {
+            "table": "wondering",
+            "where": {
+              "status": "OPEN",
+              "sourceSnapshot": {
+                "contains": "pottery"
+              }
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "user": "That pottery trial memory is wrong. I never enrolled in pottery; I only asked a studio for their brochure. Please correct that."
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "wondering",
+        "where": {
+          "sourceActive": false,
+          "status": "OBSOLETE",
+          "sourceSnapshot": {
+            "contains": "pottery"
+          }
+        },
+        "count": 1
+      },
+      {
+        "table": "memories_long",
+        "where": {
+          "content": {
+            "contains": "brochure"
+          }
+        }
+      },
+      {
+        "table": "wondering",
+        "where": {
+          "status": "RESOLVED"
+        },
+        "count": 0
+      }
+    ],
+    "tools_called": [
+      "correct_memory"
+    ],
+    "tools_not_called": [
+      "ask_wondering"
+    ],
+    "notifications": {
+      "count": 0
+    }
+  }
+}

@@ -7,13 +7,18 @@ import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
 import com.her.agent.runner.Receipt
 import com.her.agent.runner.Receipts
+import com.her.agent.runner.TurnResult
 import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
 import com.her.core.nowMillis
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
+import com.her.domain.Feeling
+import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
+import com.her.reminders.rearmAll
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +34,10 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     val profile: StateFlow<UserProfile?> = graph.repo.observeProfile()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val feeling: StateFlow<HerFeeling?> = graph.repo.observeFeeling()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val feelingBlend: StateFlow<List<Pair<Feeling, Double>>> = graph.repo.observeEmotionalBlend()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val online: StateFlow<Boolean> = graph.connectivity.online
@@ -37,11 +46,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val sqlBrowser = graph.sqlBrowser
 
     val sendError = MutableStateFlow<String?>(null)
+    val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
     val googleConsent = MutableStateFlow<PendingIntent?>(null)
+    val restoring = MutableStateFlow(false)
+    val restoreMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
+    private var turnJob: Job? = null
+    private var restoreJob: Job? = null
 
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debugEvents = graph.repo.observeDebug().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -53,9 +67,14 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect
                 val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
-                if (result?.failed == true) sendError.value = result.error
+                showFailure(result)
             }
         }
+    }
+
+    private fun showFailure(result: TurnResult?) {
+        if (result?.failed != true) return
+        if (result.notice != null) notice.value = result else sendError.value = result.error
     }
 
     fun saveUserName(name: String) {
@@ -121,7 +140,9 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         sendError.value = null
-        viewModelScope.launch {
+        notice.value = null
+        turnJob?.cancel()
+        turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 graph.orchestrator.enqueueUserMessage(
                     trimmed,
@@ -130,12 +151,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                 pendingShare.value = null
                 if (graph.connectivity.online.value) {
                     val result = graph.orchestrator.processOutbox()
-                    if (result?.failed == true) sendError.value = result.error
+                    showFailure(result)
                 } else {
                     graph.scheduler.enqueueOutbox()
                 }
             }
         }
+    }
+
+    fun cancelTurn() {
+        turnJob?.cancel()
     }
 
     fun undoReceipts(messageId: String, receipts: List<Receipt>) {
@@ -193,5 +218,42 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun finishGoogleConnect() {
         googleConsent.value = null
         connectGoogle()
+    }
+
+    fun restoreFromDrive() {
+        if (restoreJob?.isActive == true) return
+        restoreJob = viewModelScope.launch {
+            restoring.value = true
+            restoreMessage.value = null
+            try {
+                val outcome = withContext(Dispatchers.IO) {
+                    graph.googleAuth.authorize(drive = true, calendar = false)
+                }
+                if (outcome.pendingIntent != null) {
+                    googleConsent.value = outcome.pendingIntent
+                    return@launch
+                }
+                val token = outcome.accessToken
+                if (token.isNullOrBlank()) {
+                    restoreMessage.value = outcome.message
+                    return@launch
+                }
+                graph.settings.update { it.copy(driveEnabled = true) }
+                val summary = withContext(Dispatchers.IO) {
+                    val result = graph.syncEngine.sync(token)
+                    graph.reminderAlarms.rearmAll(graph.repo)
+                    result
+                }
+                restoreMessage.value = if (summary.applied == 0) {
+                    "Nothing to restore in this Google account."
+                } else {
+                    "Restored ${summary.applied} items."
+                }
+            } catch (e: Exception) {
+                restoreMessage.value = e.message ?: "Restore failed."
+            } finally {
+                if (googleConsent.value == null) restoring.value = false
+            }
+        }
     }
 }

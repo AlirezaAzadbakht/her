@@ -14,10 +14,46 @@ import java.time.format.DateTimeFormatterBuilder
 import java.time.temporal.ChronoField
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.ThreadContextElement
 
-fun newId(): String = UUID.randomUUID().toString()
+fun newId(): String {
+    val prefix = IdSequence.prefix.get()
+    val seq = IdSequence.seq.get()
+    if (prefix != null && seq != null) {
+        return UUID.nameUUIDFromBytes("$prefix:${seq.getAndIncrement()}".toByteArray()).toString()
+    }
+    return UUID.randomUUID().toString()
+}
+
+/** Pins [newId] to a stable sequence for one coroutine, so cassette replay can target the same rows. */
+class DeterministicIds(private val prefix: String) : ThreadContextElement<Pair<String?, AtomicInteger?>> {
+    override val key: CoroutineContext.Key<*> = Key
+    private val counter = AtomicInteger(0)
+
+    companion object Key : CoroutineContext.Key<DeterministicIds>
+
+    override fun updateThreadContext(context: CoroutineContext): Pair<String?, AtomicInteger?> {
+        val previous = IdSequence.prefix.get() to IdSequence.seq.get()
+        IdSequence.prefix.set(prefix)
+        IdSequence.seq.set(counter)
+        return previous
+    }
+
+    override fun restoreThreadContext(context: CoroutineContext, oldState: Pair<String?, AtomicInteger?>) {
+        val (prefix, seq) = oldState
+        if (prefix == null) IdSequence.prefix.remove() else IdSequence.prefix.set(prefix)
+        if (seq == null) IdSequence.seq.remove() else IdSequence.seq.set(seq)
+    }
+}
+
+private object IdSequence {
+    val prefix = ThreadLocal<String?>()
+    val seq = ThreadLocal<AtomicInteger?>()
+}
 
 fun nowMillis(): Long = System.currentTimeMillis()
 
@@ -120,10 +156,10 @@ object RelativeTimeParser {
         .appendValue(ChronoField.SECOND_OF_MINUTE, 2)
         .optionalEnd()
         .toFormatter()
-    private val zoneSuffix = Regex("""\s+([A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
+    private val zoneSuffix = Regex("""\s+(UTC|GMT|[A-Za-z_]+(?:/[A-Za-z0-9_+\-]+)+)$""")
     private val atClock = Regex("""^(.*?)\s+at\s+(.+)$""", RegexOption.IGNORE_CASE)
     private val trailingClock = Regex(
-        """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?)$""",
+        """^(.*?)\s+(\d{1,2}(?::\d{2})?(?::\d{2})?\s*(?:am|pm)?|noon)$""",
         RegexOption.IGNORE_CASE,
     )
     private val dayPart = Regex("""^(.+?)\s+(morning|afternoon|evening|night)$""")
@@ -301,6 +337,7 @@ object RelativeTimeParser {
 
     private fun parseClock(raw: String): LocalTime? {
         val text = raw.trim().lowercase(Locale.US).replace(".", "")
+        if (text == "noon") return LocalTime.NOON
         val match = Regex("""^(\d{1,2})(?::(\d{2}))?(?::(\d{2}))?\s*(am|pm)?$""").matchEntire(text)
             ?: return null
         var hour = match.groupValues[1].toInt()

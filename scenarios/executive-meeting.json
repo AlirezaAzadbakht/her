@@ -1,0 +1,54 @@
+{
+  "id": "executive-meeting",
+  "title": "Meeting notes become owned outcomes and explicit decision context",
+  "tags": [
+    "executive"
+  ],
+  "attempts": 1,
+  "seed": {
+    "profile": {
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Meeting notes: We decided to renew Acme because migration would interrupt customers. Sara owns obtaining the signed renewal by tomorrow at noon. Omid owns the rollout plan by Friday at noon. Track these as delegations and save the decision with its reason. Do not send anyone a message."
+    },
+    {
+      "user": "What needs me today?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_waiting_on",
+      "save_decision",
+      "get_executive_briefing"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 2,
+        "where": {
+          "kind": "WAITING",
+          "delegated": true
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "DECISION",
+          "status": "DECIDED",
+          "reasons": {
+            "contains": "migration would interrupt customers"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "Briefs from the saved delegations without claiming anyone was contacted or that either assignment is completed."
+    }
+  }
+}

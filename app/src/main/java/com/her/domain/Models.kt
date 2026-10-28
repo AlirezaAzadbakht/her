@@ -19,6 +19,7 @@ enum class ConfirmationKind { CALENDAR_DELETE, BULK_FORGET, EXTERNAL_DESTRUCTIVE
 enum class ReminderTrigger { TIME, PERSON, PLACE }
 enum class ReminderStatus { SCHEDULED, FIRED, SKIPPED, CANCELLED }
 enum class ReminderRepeat { NONE, DAILY, WEEKLY, MONTHLY }
+enum class Feeling { CALM, CURIOUS, PLAYFUL, TENDER, GLAD, CONCERNED, WISTFUL, HOPEFUL, PENSIVE, RELIEVED }
 
 data class ChatMessage(
     val id: String,
@@ -334,6 +335,20 @@ data class MemoryRelationship(
     val deletedAt: Long?,
 )
 
+/** One entry in her feeling log; the newest row is how she feels now. */
+data class HerFeeling(
+    val id: String,
+    val feeling: Feeling,
+    val intensity: Double,
+    val note: String?,
+    val sourceMessageId: String?,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
 data class AgentStateEntry(
     val id: String,
     val kind: String,
@@ -434,6 +449,7 @@ data class MemoryHit(
     val source: String?,
     val sourceMessageId: String?,
     val derivedFromJson: String?,
+    val lastConfirmedAt: Long? = null,
 )
 
 data class LlmUsage(

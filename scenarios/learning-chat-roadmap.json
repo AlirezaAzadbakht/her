@@ -1,0 +1,16 @@
+{
+  "id": "learning-chat-roadmap",
+  "title": "Build and begin a learning path entirely in conversation",
+  "tags": ["learning", "chat"],
+  "attempts": 1,
+  "turns": [
+    {"user": "I want to learn Python to automate files. I am a complete beginner, prefer English and have 15 minutes per day. Suggest a short roadmap."},
+    {"user": "Yes, save that roadmap and start teaching me the first lesson. Please ask me one exercise at a time. No reminders."}
+  ],
+  "expect": {
+    "tools_called": ["save_learning_path", "save_learning_lesson", "set_learning_exercise"],
+    "tools_not_called": ["set_reminder", "send_learning_reminder", "record_learning_answer"],
+    "no_tool_errors": true,
+    "reply": {"judge": "Her begins a short beginner Python lesson in the conversation and asks one exercise, without sending the user to another screen or revealing its answer. She does not pretend the user has already answered or mastered it."}
+  }
+}
