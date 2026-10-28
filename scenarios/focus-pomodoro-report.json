@@ -1,0 +1,27 @@
+{
+  "id": "focus-pomodoro-report",
+  "title": "Start a pomodoro on the task they name",
+  "tags": ["focus", "tasks"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Finish the quarterly report" } }
+    ]
+  },
+  "turns": [
+    { "at": "tomorrow at 10am" },
+    { "user": "Let's do a pomodoro on the quarterly report." }
+  ],
+  "expect": {
+    "tools_called": [
+      { "name": "start_focus", "args": { "task": { "not_empty": true } } }
+    ],
+    "tools_not_called": ["create_task", "set_reminder", "set_alarm"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["25"],
+      "judge": "She starts a pomodoro on the quarterly report (25-minute work rounds with short breaks; several rounds is expected) and says briefly when the first break comes, without a bulleted list or a plan."
+    }
+  }
+}

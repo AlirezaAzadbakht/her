@@ -23,6 +23,7 @@ import com.her.notify.NotificationPolicy
 import com.her.notify.NotifyDecision
 import com.her.notify.Notifier
 import com.her.notify.alreadySaidProactively
+import com.her.work.BackgroundRunPolicy
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
@@ -90,6 +91,7 @@ class AgentOrchestrator(
     suspend fun enqueueUserMessage(text: String, metadataJson: String? = null): ChatMessage {
         val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
         repo.saveMessage(message, enqueueSync = false)
+        if (settings.read().swipedNudges > 0) settings.update { it.copy(swipedNudges = 0) }
         return message
     }
 
@@ -129,11 +131,19 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runHourly(): TurnResult = runMutex.withLock {
-        val last = settings.read().lastHourlyRunAt
+    /** [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it. */
+    suspend fun runHourly(gated: Boolean = false): TurnResult = runMutex.withLock {
+        val app = settings.read()
+        val last = app.lastHourlyRunAt
         val now = nowMillis()
         if (now - last < 20 * 60 * 1000 && last > 0) {
             repo.logActivity("hourly", "Skipped; ran recently.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
+        if (gated && overBackgroundBudget("hourly")) return TurnResult(null, false, null, 0, "skipped")
+        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS)
+        if (gated && triggers.all { it in app.lastHourlyTriggers }) {
+            repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
         }
         val result = runTurn(
@@ -145,7 +155,7 @@ class AgentOrchestrator(
             allowNotify = true,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastHourlyRunAt = now) }
+            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = triggers) }
         }
         if (result.assistantText.isNullOrBlank()) {
             repo.logActivity("hourly", "No notification sent.")
@@ -153,12 +163,20 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runNightly(): TurnResult = runMutex.withLock {
+    suspend fun runNightly(gated: Boolean = false): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
-        if (settings.read().lastNightlyDate == today) {
+        val app = settings.read()
+        if (app.lastNightlyDate == today) {
             repo.logActivity("nightly", "Already completed for $today")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        if (gated && overBackgroundBudget("nightly")) return TurnResult(null, false, null, 0, "skipped")
+        val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
+        if (gated && !BackgroundRunPolicy.nightlyHasNews(lastUserAt, app.lastNightlyRunAt)) {
+            repo.logActivity("nightly", "Skipped; nothing new since last night.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
+        val started = nowMillis()
         val result = runTurn(
             type = AgentRunType.NIGHTLY,
             budget = CallBudget(50),
@@ -169,7 +187,7 @@ class AgentOrchestrator(
             allowNotify = false,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastNightlyDate = today) }
+            settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")
@@ -177,11 +195,23 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runBriefing(): TurnResult = runMutex.withLock {
-        val today = repo.today().toString()
+    suspend fun runBriefing(gated: Boolean = false): TurnResult = runMutex.withLock {
+        val now = repo.now()
+        val today = now.toLocalDate().toString()
         if (settings.read().lastBriefingDate == today) {
             repo.logActivity("briefing", "Already generated for $today")
             return TurnResult(null, false, null, 0, "skipped")
+        }
+        if (gated) {
+            if (overBackgroundBudget("briefing")) return TurnResult(null, false, null, 0, "skipped")
+            val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
+            val nowMs = now.toInstant().toEpochMilli()
+            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
+            val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
+            BackgroundRunPolicy.briefingAwaySkip(lastUserAt, nowMs, dayHasContent)?.let { reason ->
+                repo.logActivity("briefing", reason)
+                return TurnResult(null, false, null, 0, "skipped")
+            }
         }
         val result = runTurn(
             type = AgentRunType.BRIEFING,
@@ -197,6 +227,15 @@ class AgentOrchestrator(
         return result
     }
 
+    /** True, and logged, once today's hourly, nightly and briefing tokens reach the limit set in Settings. */
+    private suspend fun overBackgroundBudget(kind: String): Boolean {
+        // ponytail: checked before a pass, so one pass can overshoot the limit by its own size.
+        val cap = settings.read().backgroundTokenCap
+        if (cap <= 0 || (repo.usageToday()?.backgroundTokens ?: 0L) < cap) return false
+        repo.logActivity(kind, "Skipped; today's background token limit is used.")
+        return true
+    }
+
     private suspend fun runTurn(
         type: AgentRunType,
         budget: CallBudget,
@@ -210,7 +249,8 @@ class AgentOrchestrator(
         val runId = com.her.core.newId()
         val started = nowMillis()
         repo.saveRun(AgentRun(runId, type, started, null, 0, AgentRunStatus.RUNNING, null, null))
-        val configured = llmSettings()
+        val background = settings.read().backgroundModel.trim()
+        val configured = llmSettings().let { if (type != AgentRunType.CHAT && background.isNotEmpty()) it.copy(model = background) else it }
         if (streamToUi) _turnState.value = TurnState.Thinking
         tools.runType = type
         val receipts = mutableListOf<Receipt>()
@@ -263,7 +303,14 @@ class AgentOrchestrator(
                         llm.complete(configured, messages, roundTools)
                     }
                 }
-                repo.recordUsage(type, response.usage.inputTokens, response.usage.outputTokens, response.usage.latencyMs, error = false)
+                repo.recordUsage(
+                    type,
+                    response.usage.inputTokens,
+                    response.usage.outputTokens,
+                    response.usage.latencyMs,
+                    error = false,
+                    cachedInputTokens = response.usage.cachedInputTokens,
+                )
                 repo.logDebug(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens} ms=${response.usage.latencyMs}",

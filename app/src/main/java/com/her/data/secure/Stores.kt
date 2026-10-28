@@ -7,6 +7,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.her.core.QuietHours
 import com.her.core.newId
+import com.her.focus.FocusSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -89,6 +90,20 @@ data class AppSettings(
     val hourlyDuringQuietHours: Boolean = false,
     val showReceipts: Boolean = true,
     val embeddingModel: String = DEFAULT_EMBEDDING_MODEL,
+    /** What the last hourly model call already saw; a skipped hour leaves it alone. */
+    val lastHourlyTriggers: Set<String> = emptySet(),
+    val lastNightlyRunAt: Long = 0L,
+    /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
+    val backgroundModel: String = "",
+    /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
+    val backgroundTokenCap: Long = 0L,
+    /** Her notifications swiped away since they last wrote to her. */
+    val swipedNudges: Int = 0,
+    /** The running pomodoro, if any. */
+    val focus: FocusSession? = null,
+    /** Mirror her tasks to a "Her" list in Google Tasks. */
+    val googleTasksEnabled: Boolean = false,
+    val lastTasksSyncAt: Long = 0L,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -128,6 +143,14 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             hourlyDuringQuietHours = prefs.getBoolean(KEY_HOURLY_QUIET, false),
             showReceipts = prefs.getBoolean(KEY_RECEIPTS, true),
             embeddingModel = prefs.getString(KEY_EMBED_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL,
+            lastHourlyTriggers = prefs.getStringSet(KEY_HOURLY_TRIGGERS, null)?.toSet().orEmpty(),
+            lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
+            backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
+            backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
+            swipedNudges = prefs.getInt(KEY_SWIPED, 0),
+            focus = FocusSession.fromJson(prefs.getString(KEY_FOCUS, null)),
+            googleTasksEnabled = prefs.getBoolean(KEY_GTASKS, false),
+            lastTasksSyncAt = prefs.getLong(KEY_GTASKS_AT, 0L),
         )
     }
 
@@ -157,6 +180,14 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_HOURLY_QUIET, next.hourlyDuringQuietHours)
             putBoolean(KEY_RECEIPTS, next.showReceipts)
             putString(KEY_EMBED_MODEL, next.embeddingModel)
+            putStringSet(KEY_HOURLY_TRIGGERS, next.lastHourlyTriggers)
+            putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
+            putString(KEY_BG_MODEL, next.backgroundModel)
+            putLong(KEY_BG_CAP, next.backgroundTokenCap)
+            putInt(KEY_SWIPED, next.swipedNudges)
+            putString(KEY_FOCUS, next.focus?.toJson())
+            putBoolean(KEY_GTASKS, next.googleTasksEnabled)
+            putLong(KEY_GTASKS_AT, next.lastTasksSyncAt)
         }
         _state.value = next
     }
@@ -192,5 +223,13 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_RECEIPTS = "show_receipts"
         private const val KEY_EMBED_MODEL = "embedding_model"
         private const val KEY_SCHEDULE = "schedule_fingerprint"
+        private const val KEY_HOURLY_TRIGGERS = "last_hourly_triggers"
+        private const val KEY_NIGHTLY_AT = "last_nightly_at"
+        private const val KEY_BG_MODEL = "background_model"
+        private const val KEY_BG_CAP = "background_token_cap"
+        private const val KEY_SWIPED = "swiped_nudges"
+        private const val KEY_FOCUS = "focus_session"
+        private const val KEY_GTASKS = "google_tasks_enabled"
+        private const val KEY_GTASKS_AT = "google_tasks_synced_at"
     }
 }

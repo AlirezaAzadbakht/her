@@ -1,5 +1,6 @@
 package com.her.reminders
 
+import android.app.ActivityManager
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -9,6 +10,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
 import com.her.HerApplication
+import com.her.MainActivity
+import com.her.core.newId
 import com.her.data.repository.HerRepository
 import com.her.domain.CommitmentStatus
 import com.her.domain.MessageRole
@@ -27,6 +30,9 @@ import org.json.JSONObject
 interface ReminderAlarms {
     fun arm(reminder: Reminder)
     fun disarm(id: String)
+
+    /** Whether a reminder or alarm rings on the minute; Android 12+ asks the user first. */
+    fun exactAllowed(): Boolean = true
 
     companion object {
         val NONE: ReminderAlarms = object : ReminderAlarms {
@@ -103,10 +109,48 @@ class ReminderDelivery(
             if (deliver != null) {
                 val metadata = JSONObject().put("reminder", deliver.id).toString()
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliver.message, MessageStatus.SENT, metadata))
-                notifier.showReminder(deliver.id, deliver.message)
+                if (deliver.alarm) notifier.showAlarm(deliver.id, deliver.message) else notifier.showReminder(deliver.id, deliver.message)
+                repo.logActivity("reminder", "Fired: ${deliver.message.take(80)}")
             }
         }
         return due
+    }
+
+    /** "Done" on a reminder that rang: closes the task or commitment it was waiting on, without the model. */
+    suspend fun done(id: String) {
+        val reminder = repo.getReminder(id) ?: return
+        val entityId = reminder.onlyIfEntityId
+        val now = repo.clock.nowMillis()
+        when (reminder.onlyIfEntityType) {
+            "tasks" -> entityId?.let { repo.getTask(it) }?.takeIf { it.status == TaskStatus.OPEN }?.let {
+                repo.saveTask(it.copy(status = TaskStatus.DONE, updatedAt = now, version = it.version + 1))
+            }
+            "commitments" -> entityId?.let { repo.getCommitment(it) }
+                ?.takeIf { it.status == CommitmentStatus.OPEN || it.status == CommitmentStatus.MISSED }
+                ?.let { repo.saveCommitment(it.copy(status = CommitmentStatus.DONE, updatedAt = now, version = it.version + 1)) }
+        }
+        repo.logActivity("reminder", "Done from the notification: ${reminder.message.take(80)}")
+    }
+
+    /** Rings the same words again in [minutes] as a one-off, keeping any "only if still open" condition. */
+    suspend fun snooze(id: String, minutes: Long = SNOOZE_MINUTES): Reminder? {
+        val reminder = repo.getReminder(id) ?: return null
+        val now = repo.clock.nowMillis()
+        val again = reminder.copy(
+            id = newId(),
+            trigger = ReminderTrigger.TIME,
+            fireAt = now + minutes * 60 * 1000,
+            repeat = ReminderRepeat.NONE,
+            status = ReminderStatus.SCHEDULED,
+            firedAt = null,
+            createdAt = now,
+            updatedAt = now,
+            deviceId = repo.deviceId,
+            version = 1,
+        )
+        repo.saveReminder(again)
+        repo.logActivity("reminder", "Snoozed $minutes minutes: ${reminder.message.take(80)}")
+        return again
     }
 
     /** An "only if I haven't done it" reminder is dropped once its task or commitment is finished. */
@@ -135,19 +179,33 @@ class ReminderDelivery(
         }
         return next.toInstant().toEpochMilli()
     }
+
+    companion object {
+        const val SNOOZE_MINUTES = 10L
+    }
 }
 
 class AndroidReminderAlarms(private val context: Context) : ReminderAlarms {
     private val manager: AlarmManager? = context.getSystemService(AlarmManager::class.java)
 
     /** False on Android 12+ until they allow exact alarms; reminders then ring within a few minutes. */
-    fun exactAllowed(): Boolean =
+    override fun exactAllowed(): Boolean =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.S || manager?.canScheduleExactAlarms() == true
 
     override fun arm(reminder: Reminder) {
         val at = reminder.fireAt ?: return
         val manager = manager ?: return
         val intent = pendingIntent(reminder.id, create = true) ?: return
+        // An alarm clock alarm shows in the status bar and is let through Doze on the minute.
+        if (reminder.alarm && exactAllowed()) {
+            val open = PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            if (runCatching { manager.setAlarmClock(AlarmManager.AlarmClockInfo(at, open), intent) }.isSuccess) return
+        }
         val exact = exactAllowed() &&
             runCatching { manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, intent) }.isSuccess
         if (!exact) manager.setWindow(AlarmManager.RTC_WAKEUP, at, INEXACT_WINDOW_MS, intent)
@@ -185,6 +243,12 @@ class SystemAlarmClock(private val context: Context) : AlarmClockPort {
         if (days.isNotEmpty()) intent.putExtra(AlarmClock.EXTRA_DAYS, ArrayList(days))
         if (intent.resolveActivity(context.packageManager) == null) {
             error("No clock app on this phone accepts alarms")
+        }
+        // Android drops activity starts from the background without an error, so an alarm set from a notification
+        // reply or a background pass would never exist. Say so rather than report success.
+        val state = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }
+        if (state.importance > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+            error("The clock app can only be opened while Her is on screen. Set a reminder for that time instead.")
         }
         context.startActivity(intent)
     }

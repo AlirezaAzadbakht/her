@@ -412,6 +412,7 @@ object Checks {
                     "onlyIfEntityType" to it.onlyIfEntityType,
                     "onlyIfEntityId" to it.onlyIfEntityId,
                     "status" to it.status.name,
+                    "alarm" to it.alarm,
                 )
             }
             "profile" -> repo.getProfile().let {

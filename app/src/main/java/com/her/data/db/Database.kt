@@ -108,7 +108,7 @@ class HerConverters {
         CompanionRecord::class,
         WonderingRecord::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -141,6 +141,24 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun feelingDao(): FeelingDao
 
     companion object {
+        /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
+        private fun addColumn(db: SupportSQLiteDatabase, table: String, column: String, definition: String) {
+            val exists = db.query("PRAGMA table_info(`$table`)").use { c ->
+                val name = c.getColumnIndexOrThrow("name")
+                generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
+            }
+            if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addColumn(db, "reminders", "alarm", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "api_usage", "cachedInputTokens", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "api_usage", "backgroundTokens", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "tasks", "googleTaskId", "TEXT")
+            }
+        }
+
         val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS `wondering` (

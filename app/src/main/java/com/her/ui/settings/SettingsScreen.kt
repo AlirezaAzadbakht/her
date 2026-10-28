@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -137,6 +138,8 @@ fun SettingsScreen(vm: HerViewModel) {
     var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
     var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
+    var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
+    var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
     var advanced by remember { mutableStateOf(false) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
@@ -230,6 +233,16 @@ fun SettingsScreen(vm: HerViewModel) {
                     testedHere = true
                     vm.saveAndTest(cloud)
                 }
+                HerTextField("Background model (optional)", backgroundModel) {
+                    backgroundModel = it
+                    vm.updateSettings { s -> s.copy(backgroundModel = it) }
+                }
+                Hint("Hourly, nightly and the morning briefing use it. Blank uses the model above.")
+                HerTextField("Daily background token limit", backgroundCap, keyboard = KeyboardType.Number) {
+                    backgroundCap = it.filter(Char::isDigit)
+                    vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
+                }
+                Hint("Background passes stop for the day once they use this many tokens. Blank or 0 means no limit.")
             }
             if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Text(
@@ -283,6 +296,15 @@ fun SettingsScreen(vm: HerViewModel) {
                     app.driveEnabled,
                     description = "Keeps her records in step across your devices through a private Google Drive app folder. API keys never sync.",
                 ) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
+                ToggleRow(
+                    "Google Tasks",
+                    app.googleTasksEnabled,
+                    description = "Mirrors her tasks to a “Her” list in Google Tasks, both ways. Google keeps the date, not the time.",
+                ) {
+                    val turningOn = !app.googleTasksEnabled
+                    vm.updateSettings { it.copy(googleTasksEnabled = turningOn) }
+                    if (turningOn) vm.connectGoogle()
+                }
                 ToggleRow(
                     "Web search",
                     app.webSearchEnabled,
@@ -349,9 +371,10 @@ fun SettingsScreen(vm: HerViewModel) {
                     Row(Modifier.fillMaxWidth()) {
                         Stat("errors", u.errors, Modifier.weight(1f))
                         Stat("avg ms", if (u.requests == 0) 0 else u.totalLatencyMs / u.requests, Modifier.weight(1f))
-                        Spacer(Modifier.weight(1f))
+                        Stat("cached %", if (u.inputTokens == 0L) 0 else u.cachedInputTokens * 100 / u.inputTokens, Modifier.weight(1f))
                     }
                     Hint("chat ${u.chatCalls} · hourly ${u.hourlyCalls} · nightly ${u.nightlyCalls}")
+                    Hint("background ${u.backgroundTokens} tokens")
                 }
             }
         }

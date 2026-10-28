@@ -22,14 +22,30 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v2`
 
 | Pass | Skip | Defer (`Result.retry`) | Run |
 |------|------|------------------------|-----|
-| Hourly | LLM not configured; last **success** &lt; 20 minutes; battery ≤15% and not charging; quiet hours (default) | — | Otherwise. Orchestrator uses CATCH_UP if the last success was &gt; 3 hours ago (including after a quiet night). |
-| Nightly | Already completed today; LLM not configured | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
-| Briefing | Already generated today; LLM not configured; battery ≤15% and not charging | — | Otherwise |
+| Hourly | LLM not configured; last **success** &lt; 20 minutes; battery ≤15% and not charging; quiet hours (default); **nothing new** (see below) | — | Otherwise. Orchestrator uses CATCH_UP if the last success was &gt; 3 hours ago (including after a quiet night). |
+| Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
+| Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
 | Sync | Drive off; battery ≤15% and not charging | — | Otherwise |
 
 LLM failures return `Result.success()` and wait for the next scheduled slot. The only retry is nightly on critically low battery.
 
 Hourly stamps `lastHourlyRunAt` only after a successful pass.
+
+### Nothing new, no model call
+
+The content checks live in `AgentOrchestrator` behind `gated = true`, which the scheduled workers and the scenario harness pass. Manual runs and the developer buttons always reach the model.
+
+Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could speak about, without the model: open tasks and commitments due today or overdue, events starting within 2 hours, important dates today or tomorrow, a "next time with" reminder whose person is on the calendar in the next day, agent-queue items that came due, and their latest message. Each key carries its time (`due:<id>:<dueAt>:overdue`, `msg:<id>`, …). The model runs only when a key is not in `lastHourlyTriggers`, the set the last successful pass saw. So an ignored overdue task gets one nudge, not one an hour, and a moved deadline counts as new. The agent queue's `dueAt` is her way to wake herself later.
+
+The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. A user who comes back is back on their next message; nothing else is stored.
+
+Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
+
+Settings → Her mind → **Daily background token limit** stops gated passes for the rest of the day once `api_usage.backgroundTokens` (input plus output of hourly, nightly and briefing calls) reaches it. It is checked before a pass, so one pass can go over by its own size. The Today card shows background tokens and the share of input tokens the provider served from cache.
+
+Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count.
+
+The hourly wake also runs the Google Tasks mirror (see [Data and sync](Data-and-sync.md#google-tasks)) before the gate, so a task finished there stops her nudging about it.
 
 ## Quiet hours
 
@@ -66,6 +82,8 @@ Actions on a notification:
 - **Later**: queues an agent follow-up for tomorrow that quotes the notification text.
 - **Open**: opens the app.
 
+The morning briefing posts on its own **Morning briefing** channel, so hourly nudges can be muted in system settings without losing it. Alarms she rings use **Alarms**, and a running pomodoro uses **Focus**; see [Agent](Agent.md#focus-pomodoro).
+
 `NotificationActions.decide` holds that logic so it is unit-tested without Android. The hourly quiet-hours check uses the profile timezone, like the rest of the agent.
 
 Any autonomous text that reaches the phone is also saved as her latest assistant message, so the screen shows what the notification said.
@@ -75,7 +93,7 @@ Any autonomous text that reaches the phone is also saved as her latest assistant
 Clock reminders do not wait for WorkManager. `app/src/main/java/com/her/reminders/Reminders.kt`:
 
 - `AndroidReminderAlarms` arms one `AlarmManager` alarm per reminder: `setExactAndAllowWhileIdle`, or `setWindow` with 10 minutes of slack when Android 12+ has not granted exact alarms. Settings shows **Allow exact reminders** until it is granted.
-- `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time.
+- `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time. **Done** closes the task or commitment an "only if still open" reminder waited on; **Snooze 10 min** rings the same words again as a one-off. Neither calls the model.
 - `BootReceiver` re-arms on `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED`, and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. `HerApplication` re-arms at process start, and `SyncWorker` re-arms after a sync.
 - `HourlyWorker` fires anything overdue before its own policy check, so a reminder the system delayed still rings on the next hourly wakeup.
 

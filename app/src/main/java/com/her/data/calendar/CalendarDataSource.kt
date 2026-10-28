@@ -12,6 +12,8 @@ import com.her.core.nowMillis
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
 
+private const val EVENT_ALERT_MINUTES = 10
+
 open class CalendarDataSource(private val context: Context) {
     open fun hasPermission(): Boolean {
         val read = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR)
@@ -99,6 +101,17 @@ open class CalendarDataSource(private val context: Context) {
         val uri = context.contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: return Result.failure(IllegalStateException("Could not create calendar event"))
         val eventId = ContentUris.parseId(uri)
+        // Her's events carry their own alert rather than trusting calendar defaults; a Google calendar syncs it to their other devices.
+        runCatching {
+            context.contentResolver.insert(
+                CalendarContract.Reminders.CONTENT_URI,
+                ContentValues().apply {
+                    put(CalendarContract.Reminders.EVENT_ID, eventId)
+                    put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                    put(CalendarContract.Reminders.MINUTES, EVENT_ALERT_MINUTES)
+                },
+            )
+        }
         return Result.success(CalendarWindows.instanceExternalId(eventId.toString(), startAt))
     }
 

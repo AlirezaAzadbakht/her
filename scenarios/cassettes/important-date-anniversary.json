@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "6d3f72bcf3a8de1a",
-          "summary": "tools=88 [user(Our wedding anniversary )]",
+          "fingerprint": "9c913736e6a5364a",
+          "summary": "tools=90 [user(Our wedding anniversary )]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "41b78f238dd9f631",
-          "summary": "tools=88 [user(Our wedding anniversary ) assistant->create_important_date tool:create_important_date]",
+          "fingerprint": "19b2dec9780710f5",
+          "summary": "tools=90 [user(Our wedding anniversary ) assistant->create_important_date tool:create_important_date]",
           "response": {
             "role": "assistant",
             "content": "June 21 is saved as your anniversary.",

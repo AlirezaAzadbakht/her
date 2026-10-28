@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "8cd4e5f3e5f6784d",
-          "summary": "tools=88 [user(My coworker forwarded me)]",
+          "fingerprint": "4556565b551bac33",
+          "summary": "tools=90 [user(My coworker forwarded me)]",
           "response": {
             "role": "assistant",
             "content": "The forwarded note is asking the team for the quarterly report on Friday.",

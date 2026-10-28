@@ -4,21 +4,7 @@
   "attempts": [
     {
       "startMillis": 1779000000000,
-      "calls": [
-        {
-          "fingerprint": "2cd7ec7143936279",
-          "summary": "tools=84 []",
-          "response": {
-            "role": "assistant",
-            "content": "NO_NOTIFICATION",
-            "usage": {
-              "input": 10,
-              "output": 5,
-              "cached": 3
-            }
-          }
-        }
-      ],
+      "calls": [],
       "judgePassed": true,
       "judgeReason": "scripted"
     }

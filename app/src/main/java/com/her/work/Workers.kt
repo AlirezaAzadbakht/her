@@ -46,6 +46,8 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             graph.reminderDelivery.fireDue()
             graph.reminderAlarms.rearmAll(graph.repo)
         }
+        // No model call; a task finished in Google Tasks stops her nudging about it within the hour.
+        runCatching { graph.googleTasks.sync() }
         return try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -62,7 +64,7 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                     return Result.success()
                 }
             }
-            graph.orchestrator.runHourly()
+            graph.orchestrator.runHourly(gated = !manual)
             Result.success()
         } catch (_: Exception) {
             Result.success()
@@ -97,7 +99,7 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                     RunDecision.RUN -> { }
                 }
             }
-            if (graph.orchestrator.runNightly().error == AgentOrchestrator.YIELDED) {
+            if (graph.orchestrator.runNightly(gated = !manual).error == AgentOrchestrator.YIELDED) {
                 // A chat message went first; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
@@ -130,7 +132,7 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     return Result.success()
                 }
             }
-            if (graph.orchestrator.runBriefing().error == AgentOrchestrator.YIELDED) {
+            if (graph.orchestrator.runBriefing(gated = !manual).error == AgentOrchestrator.YIELDED) {
                 // A chat message went first; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
@@ -159,6 +161,7 @@ class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val graph = graph() ?: return Result.retry()
+        runCatching { graph.googleTasks.sync() }
         val verdict = BackgroundRunPolicy.decideSync(
             driveEnabled = graph.settings.read().driveEnabled,
             power = readDevicePower(applicationContext),
@@ -378,6 +381,7 @@ class BootReceiver : BroadcastReceiver() {
         app.graph.io.execute {
             try {
                 runBlocking { runCatching { app.graph.reminderAlarms.rearmAll(app.graph.repo) } }
+                runCatching { app.graph.focus.rearm() }
             } finally {
                 pending.finish()
             }

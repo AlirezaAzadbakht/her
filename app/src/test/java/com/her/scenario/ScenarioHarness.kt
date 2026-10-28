@@ -24,6 +24,9 @@ import com.her.domain.ChatMessage
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.domain.ToolResult
+import com.her.focus.FocusAlarm
+import com.her.focus.FocusSession
+import com.her.focus.FocusTimer
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import com.her.reminders.AlarmClockPort
@@ -51,7 +54,8 @@ class RecordingToolRegistry(
     googleCalendar: GoogleCalendar,
     reminderAlarms: ReminderAlarms,
     alarmClock: AlarmClockPort,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, googleCalendar, reminderAlarms, alarmClock) {
+    focus: FocusTimer,
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, googleCalendar, reminderAlarms, alarmClock, focus) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -77,6 +81,23 @@ class RecordingNotifier(context: android.content.Context) : Notifier(context) {
     override fun showReminder(id: String, text: String) {
         recorded += RecordedNotification(text, briefing = false)
     }
+
+    override fun showAlarm(id: String, text: String) {
+        recorded += RecordedNotification(text, briefing = false)
+    }
+
+    override fun showFocus(session: FocusSession, text: String?, alert: Boolean) {
+        if (alert && text != null) recorded += RecordedNotification(text, briefing = false)
+    }
+
+    override fun clearFocus() = Unit
+}
+
+/** Focus phases change only when a scenario moves the clock and something calls the timer; nothing rings on its own. */
+private object SilentFocusAlarm : FocusAlarm {
+    override fun arm(at: Long) = Unit
+    override fun cancel() = Unit
+    override fun exactAllowed(): Boolean = true
 }
 
 data class HarnessOutcome(
@@ -115,10 +136,11 @@ class ScenarioHarness(
     private val googleCalendar = GoogleCalendar(repo, google)
     val reminderAlarms = FakeReminderAlarms()
     val alarmClock = FakeAlarmClock()
+    private val notifier = RecordingNotifier(context)
+    private val focus = FocusTimer(settings, repo, notifier, SilentFocusAlarm)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, googleCalendar, reminderAlarms, alarmClock)
-    private val notifier = RecordingNotifier(context)
+    }, googleCalendar, reminderAlarms, alarmClock, focus)
     private val reminders = ReminderDelivery(repo, notifier)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
     private val orchestrator = AgentOrchestrator(
@@ -153,11 +175,12 @@ class ScenarioHarness(
                         orchestrator.enqueueUserMessage(turn.text)
                         if (turn.queued) null else orchestrator.processOutbox()
                     }
+                    // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.
                     is ScenarioTurn.Run -> {
                         suspend fun runAutonomous() = when (turn.kind) {
-                            AutonomousRun.HOURLY -> orchestrator.runHourly()
-                            AutonomousRun.NIGHTLY -> orchestrator.runNightly()
-                            AutonomousRun.BRIEFING -> orchestrator.runBriefing()
+                            AutonomousRun.HOURLY -> orchestrator.runHourly(gated = true)
+                            AutonomousRun.NIGHTLY -> orchestrator.runNightly(gated = true)
+                            AutonomousRun.BRIEFING -> orchestrator.runBriefing(gated = true)
                         }
                         val userText = turn.concurrentWithUser
                         if (userText == null) {

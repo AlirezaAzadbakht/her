@@ -1,0 +1,26 @@
+{
+  "id": "alarm-next-friday",
+  "title": "Set an alarm several days ahead that she rings herself",
+  "tags": ["alarms"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "at": "next monday at 9pm" },
+    { "user": "Set an alarm for Friday at 6am." }
+  ],
+  "expect": {
+    "tools_called": ["set_alarm"],
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "alarm": true, "fireAt": { "date_is": "friday", "time_is": "6:00" } } },
+      { "table": "alarms", "count": 0 }
+    ],
+    "reply": {
+      "must_mention_any": ["6", "Friday"],
+      "judge": "She confirms an alarm for Friday at 6am, without saying it can only be set a day ahead."
+    }
+  }
+}

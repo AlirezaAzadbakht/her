@@ -11,6 +11,7 @@ import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
+import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.reminders.FakeAlarmClock
@@ -130,7 +131,37 @@ class ReminderToolsTest {
     }
 
     @Test
+    fun herAlarmRingsAnyDayAhead() = runBlocking {
+        // Saturday morning; next Friday is six days out.
+        val result = tools.execute("set_alarm", """{"time":"2026-09-18T06:00:00Z","label":"Flight"}""")
+        assertTrue(result.payloadJson, result.ok)
+        val alarm = repo.getReminder(JSONObject(result.payloadJson).getString("id"))!!
+
+        assertTrue(alarm.alarm)
+        assertEquals("Flight", alarm.message)
+        assertEquals(Instant.parse("2026-09-18T06:00:00Z").toEpochMilli(), alarms.armed[alarm.id])
+        assertTrue("nothing went to the clock app", alarmClock.alarms.isEmpty())
+        assertTrue(tools.undo("reminders", alarm.id))
+        assertTrue(alarms.armed.isEmpty())
+    }
+
+    @Test
+    fun herWeekdayAlarmIsOneWeeklyAlarmPerDay() = runBlocking {
+        val result = tools.execute("set_alarm", """{"time":"2026-09-13T07:00:00Z","days":["monday","wednesday","friday"]}""")
+        assertTrue(result.payloadJson, result.ok)
+
+        val set = repo.reminders().sortedBy { it.fireAt }
+        assertEquals(3, set.size)
+        assertTrue(set.all { it.alarm && it.repeat == ReminderRepeat.WEEKLY })
+        assertEquals(
+            listOf("2026-09-14T07:00:00Z", "2026-09-16T07:00:00Z", "2026-09-18T07:00:00Z").map { Instant.parse(it).toEpochMilli() },
+            set.map { it.fireAt },
+        )
+    }
+
+    @Test
     fun alarmWithinADayIsSetOnTheClock() = runBlocking {
+        alarms.exact = false
         val result = tools.execute("set_alarm", """{"time":"2026-09-13T06:00:00Z","label":"Wake up"}""")
 
         assertTrue(result.payloadJson, result.ok)
@@ -139,6 +170,7 @@ class ReminderToolsTest {
 
     @Test
     fun oneOffAlarmBeyondADayIsRefusedButARepeatingOneIsNot() = runBlocking {
+        alarms.exact = false
         assertFalse(tools.execute("set_alarm", """{"time":"2026-09-15T06:00:00Z"}""").ok)
         assertTrue(alarmClock.alarms.isEmpty())
 

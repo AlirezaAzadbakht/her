@@ -50,9 +50,9 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 | Run | Max LLM calls | Extra rules |
 |-----|---------------|-------------|
 | Chat | `chatToolCallLimit` (default 12, min 1) | User-driven |
-| Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. |
-| Nightly | 50 | Once per calendar day |
-| Briefing | 8 | Once per calendar day |
+| Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. A scheduled pass skips when nothing new came due ([Background work](Background-work.md#nothing-new-no-model-call)). |
+| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one |
+| Briefing | 8 | Once per calendar day; a scheduled pass skips after 7 quiet days, or 3 when today is empty |
 
 ## Tools
 
@@ -67,6 +67,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal, system, and Google; Google rows are read-only)
 - `web_search`, `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
+- Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
 
 ## Reminders and alarms
 
@@ -81,8 +82,20 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `onlyIfOpen`: a task or commitment. A due reminder is marked `SKIPPED` without ringing when that record is no longer open.
 - `repeat`: `DAILY` / `WEEKLY` / `MONTHLY`, for clock reminders only. A repeating reminder moves to its next time after it rings.
 - Only the device that set a reminder arms its alarm. Other devices get the row through sync. Alarms are re-armed on app start, boot, app update, time or timezone change, exact-alarm permission change, and after sync. `HourlyWorker` also calls `fireDue()` as a safety net.
-- `set_alarm` sends `AlarmClock.ACTION_SET_ALARM` to the phone's clock app. A one-off alarm must ring within 24 hours. `days` makes it repeat weekly.
+- `set_alarm`, when exact alarms are allowed, stores a TIME reminder with `alarm = true`, any day ahead; `days` becomes one WEEKLY alarm per weekday. `AndroidReminderAlarms` arms it with `setAlarmClock`, so it shows in the status bar and gets through Doze on the minute. When it fires, `Notifier.showAlarm` rings on the **Alarms** channel at alarm volume with an insistent sound until **Stop** or **Snooze 10 min**. There is no full-screen alarm screen yet. It is undoable from its receipt like a reminder.
+- Without exact alarms, `set_alarm` falls back to `AlarmClock.ACTION_SET_ALARM` in the phone's clock app: a one-off alarm must ring within 24 hours, and only while Her is on screen, because Android silently drops activity starts from the background. From a notification reply or a background pass it fails and says to set a reminder, or to allow exact reminders in Settings.
+- `create_calendar_event` on the device calendar adds a 10-minute alert, so the calendar app notifies (and a Google-account calendar syncs the alert to their other devices).
 - `set_reminder` is undoable from its receipt, which cancels and disarms it.
+
+## Focus (pomodoro)
+
+`start_focus` runs work and break phases (default 25 / 5 × 4) from `app/src/main/java/com/her/focus/Focus.kt`, with no model calls between phases.
+
+- The session lives in `AppSettings.focus` on this device only. `FocusTimer` arms one alarm per phase (exact when allowed, otherwise `setAndAllowWhileIdle`, and the tool returns `timing: approximate`). `FocusReceiver` handles the alarm and the **Skip** / **Stop** buttons. `BootReceiver` re-arms.
+- The **Focus** notification is ongoing, with a countdown chronometer Android ticks itself. It is silent when the session starts and sounds at each phase change with the message she wrote in their language (`breakMessage`, `backMessage`, `doneMessage`), which is also saved as her latest message.
+- While a work phase runs, `NotificationPolicy` holds non-urgent nudges ("focusing"). Reminders and alarms still ring.
+- When the session ends, or is stopped after at least one finished round, a short-term memory records it ("Focused 3 × 25 min on “Write the report” (Tuesday, September 23).") so she can answer "how much did I focus this week?".
+- The context bundle shows the running phase: "Focus: round 2 of 4 on … until 3:40 PM".
 
 An autonomous pass that notifies with plain text (not `send_user_message`) saves that text as an assistant message first. Opening the app from the notification then shows the same words.
 

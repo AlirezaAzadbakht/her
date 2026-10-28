@@ -138,7 +138,7 @@ class WonderingTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE).use {
             it.execSQL("DROP TABLE wondering"); it.version = 7
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_7_8).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9).allowMainThreadQueries().build()
         assertNotNull(disk.companionDao().get("keep"))
         assertTrue(disk.wonderingDao().all().isEmpty())
         disk.close(); context.deleteDatabase(name); Unit

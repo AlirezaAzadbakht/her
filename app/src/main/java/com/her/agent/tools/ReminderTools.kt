@@ -14,7 +14,9 @@ import com.her.domain.Reminder
 import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
+import java.time.DayOfWeek
 import java.time.Instant
+import java.time.temporal.TemporalAdjusters
 import java.util.Calendar
 import java.util.Locale
 import org.json.JSONArray
@@ -150,10 +152,10 @@ internal fun ToolRegistry.registerReminderTools() {
 
     register(
         "set_alarm",
-        "Set a clock-app alarm that rings within 24 hours, or weekly when days is set, and only claim it is set when this returns ok.",
+        "Set a real alarm for \"wake me up at…\" or \"set an alarm\". She rings it herself, loudly, until they stop or snooze it, on any day ahead; days makes it repeat every week. If exact alarms are not allowed on this phone it goes to the clock app instead, which only takes a one-off alarm within the next 24 hours. Only say the alarm is set when this returns ok.",
         objSchema(
             "time" to str("When it should ring: $WHEN_HINT"),
-            "label" to str("Short label shown on the alarm"),
+            "label" to str("Short label shown when it rings, in their language"),
             "days" to arr("Weekdays to repeat on, in English (monday…sunday). Omit for a one-off alarm."),
             required = listOf("time"),
         ),
@@ -164,24 +166,68 @@ internal fun ToolRegistry.registerReminderTools() {
         val now = nowMillis()
         val parsed = requiredWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
         if (parsed < now - 24 * HOUR_MS) throw ToolValidationException("That time has already passed: $raw")
-        // The clock app rings at the next occurrence of that hour and minute.
+        // A bare time means its next occurrence.
         var at = Instant.ofEpochMilli(parsed).atZone(nowZoned().zone)
         while (at.toInstant().toEpochMilli() <= now) at = at.plusDays(1)
+        val clock = "%d:%02d".format(Locale.US, at.hour, at.minute)
+        if (reminderAlarms.exactAllowed()) {
+            val first = at
+            val times = if (days.isEmpty()) listOf(first) else days.map { first.with(TemporalAdjusters.nextOrSame(dayOfWeek(it))) }
+            val alarms = times.sortedBy { it.toInstant() }.map { time ->
+                Reminder(
+                    id = newId(),
+                    message = args.optStringOrNull("label") ?: "⏰ $clock",
+                    trigger = ReminderTrigger.TIME,
+                    fireAt = time.toInstant().toEpochMilli(),
+                    repeat = if (days.isEmpty()) ReminderRepeat.NONE else ReminderRepeat.WEEKLY,
+                    personId = null,
+                    place = null,
+                    onlyIfEntityType = null,
+                    onlyIfEntityId = null,
+                    status = ReminderStatus.SCHEDULED,
+                    firedAt = null,
+                    sourceMessageId = null,
+                    createdAt = now,
+                    updatedAt = now,
+                    deviceId = repo.deviceId,
+                    version = 1,
+                    deletedAt = null,
+                    alarm = true,
+                )
+            }
+            alarms.forEach {
+                repo.saveReminder(it)
+                reminderAlarms.arm(it)
+            }
+            return@register jsonObjectOf(
+                "ok" to true,
+                "id" to alarms.first().id,
+                "ringsIn" to "Her",
+                "clock" to clock,
+                "when" to formatNaturalDate(Instant.ofEpochMilli(alarms.first().fireAt!!).atZone(nowZoned().zone)),
+                "days" to JSONArray(dayNames),
+            )
+        }
         if (days.isEmpty() && at.toInstant().toEpochMilli() - now > 24 * HOUR_MS) {
             throw ToolValidationException(
-                "A one-off alarm can only ring within the next 24 hours. For a later day, use set_reminder, or pass days for a repeating alarm.",
+                "Exact alarms are not allowed on this phone, so this goes to the clock app, which only takes a one-off alarm within the next 24 hours. " +
+                    "Use set_reminder or pass days for a repeating alarm, and tell them to allow exact reminders in Settings so Her can ring alarms herself.",
             )
         }
         alarmClock.set(at.hour, at.minute, args.optStringOrNull("label"), days)
             .getOrElse { throw ToolValidationException(it.message ?: "Could not set the alarm") }
         jsonObjectOf(
             "ok" to true,
-            "clock" to "%d:%02d".format(Locale.US, at.hour, at.minute),
+            "ringsIn" to "clock app",
+            "clock" to clock,
             "when" to formatNaturalDate(at),
             "days" to JSONArray(dayNames),
         )
     }
 }
+
+/** java.util.Calendar weekday (Sunday = 1) as a java.time DayOfWeek (Monday = 1). */
+private fun dayOfWeek(calendarDay: Int): DayOfWeek = DayOfWeek.of((calendarDay + 5) % 7 + 1)
 
 /** A reminder time must be in the future and name a time of day, so "Thursday" does not ring at midnight. */
 private suspend fun ToolRegistry.reminderTime(raw: String): Long {

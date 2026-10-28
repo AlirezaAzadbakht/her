@@ -204,7 +204,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun connectGoogle() {
         viewModelScope.launch {
             val outcome = withContext(Dispatchers.IO) {
-                graph.googleAuth.authorize(drive = true, calendar = true)
+                graph.googleAuth.authorize(drive = true, calendar = true, tasks = graph.settings.read().googleTasksEnabled)
             }
             googleConsent.value = outcome.pendingIntent
             googleMessage.value = outcome.message

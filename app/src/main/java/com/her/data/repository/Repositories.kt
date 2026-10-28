@@ -160,6 +160,7 @@ class HerRepository(
 
     suspend fun getMessage(id: String): ChatMessage? = chatDao.get(id)?.toDomain()
 
+    suspend fun lastUserMessage(): ChatMessage? = chatDao.latestByRole(MessageRole.USER)?.toDomain()
     suspend fun userMessagesBetween(from: Long, to: Long): List<ChatMessage> = chatDao.between(from, to).map { it.toDomain() }
 
     suspend fun searchChat(query: String, limit: Int): List<ChatMessage> {
@@ -369,6 +370,8 @@ class HerRepository(
 
     suspend fun tasks() = db.taskDao().allActive().map { it.toDomain() }
     suspend fun getTask(id: String) = db.taskDao().get(id)?.toDomain()
+    suspend fun tasksChangedSince(since: Long) = db.taskDao().changedSince(since).map { it.toDomain() }
+    suspend fun taskByGoogleId(googleTaskId: String) = db.taskDao().byGoogleTaskId(googleTaskId)?.toDomain()
     suspend fun saveTask(task: TaskItem) {
         db.taskDao().upsert(task.toEntity())
         enqueue("tasks", task.id, SyncOpType.UPSERT, task.toJson())
@@ -627,6 +630,7 @@ class HerRepository(
         outputTokens: Int,
         latencyMs: Long,
         error: Boolean,
+        cachedInputTokens: Int = 0,
     ) {
         val day = today().toString()
         val current = db.logDao().usage(day) ?: ApiUsageEntity(day, 0, 0, 0, 0, 0, 0, 0, 0, 0)
@@ -640,9 +644,13 @@ class HerRepository(
             chatCalls = current.chatCalls + if (type == AgentRunType.CHAT) 1 else 0,
             totalLatencyMs = current.totalLatencyMs + latencyMs,
             errors = current.errors + if (error) 1 else 0,
+            cachedInputTokens = current.cachedInputTokens + cachedInputTokens,
+            backgroundTokens = current.backgroundTokens + if (type != AgentRunType.CHAT) inputTokens + outputTokens else 0,
         )
         db.logDao().upsertUsage(next)
     }
+
+    suspend fun usageToday(): ApiUsageDay? = db.logDao().usage(today().toString())?.toDomain()
 
     fun observeUsageToday(): Flow<ApiUsageDay?> = flow {
         emitAll(db.logDao().observeUsage(today().toString()).map { it?.toDomain() })
@@ -774,13 +782,13 @@ fun Goal.toJson() = JSONObject()
     .put("progressSummary", progressSummary).put("createdAt", createdAt).put("updatedAt", updatedAt)
     .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
 
-fun TaskEntity.toDomain() = TaskItem(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt)
-fun TaskItem.toEntity() = TaskEntity(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun TaskEntity.toDomain() = TaskItem(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt, googleTaskId)
+fun TaskItem.toEntity() = TaskEntity(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt, googleTaskId)
 fun TaskItem.toJson() = JSONObject()
     .put("id", id).put("title", title).put("description", description).put("status", status.name)
     .put("dueAt", dueAt).put("relatedProjectId", relatedProjectId).put("relatedGoalId", relatedGoalId)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
-    .put("version", version).put("deletedAt", deletedAt).toString()
+    .put("version", version).put("deletedAt", deletedAt).put("googleTaskId", googleTaskId).toString()
 
 fun CommitmentEntity.toDomain() = Commitment(id, title, description, status, dueAt, promisedTo, relatedTaskId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun Commitment.toEntity() = CommitmentEntity(id, title, description, status, dueAt, promisedTo, relatedTaskId, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -838,15 +846,15 @@ fun CalendarEvent.toJson() = JSONObject()
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
     .put("version", version).put("deletedAt", deletedAt).toString()
 
-fun ReminderEntity.toDomain() = Reminder(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
-fun Reminder.toEntity() = ReminderEntity(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun ReminderEntity.toDomain() = Reminder(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt, alarm)
+fun Reminder.toEntity() = ReminderEntity(id, message, trigger, fireAt, repeat, personId, place, onlyIfEntityType, onlyIfEntityId, status, firedAt, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt, alarm)
 fun Reminder.toJson() = JSONObject()
     .put("id", id).put("message", message).put("trigger", trigger.name).put("fireAt", fireAt)
     .put("repeat", repeat.name).put("personId", personId).put("place", place)
     .put("onlyIfEntityType", onlyIfEntityType).put("onlyIfEntityId", onlyIfEntityId)
     .put("status", status.name).put("firedAt", firedAt).put("sourceMessageId", sourceMessageId)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
-    .put("version", version).put("deletedAt", deletedAt).toString()
+    .put("version", version).put("deletedAt", deletedAt).put("alarm", alarm).toString()
 
 fun MemoryRelationshipEntity.toDomain() = MemoryRelationship(id, sourceType, sourceId, relationshipType, targetType, targetId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun MemoryRelationship.toEntity() = MemoryRelationshipEntity(id, sourceType, sourceId, relationshipType, targetType, targetId, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -882,5 +890,5 @@ fun ActivityLogEntity.toDomain() = ActivityLogEntry(id, createdAt, category, mes
 fun DebugEventEntity.toDomain() = DebugEvent(id, createdAt, kind, payload)
 fun AgentRunEntity.toDomain() = AgentRun(id, type, startedAt, finishedAt, callsUsed, status, error, notes)
 fun AgentRun.toEntity() = AgentRunEntity(id, type, startedAt, finishedAt, callsUsed, status, error, notes)
-fun ApiUsageEntity.toDomain() = ApiUsageDay(day, requests, inputTokens, outputTokens, hourlyCalls, nightlyCalls, briefingCalls, chatCalls, totalLatencyMs, errors)
+fun ApiUsageEntity.toDomain() = ApiUsageDay(day, requests, inputTokens, outputTokens, hourlyCalls, nightlyCalls, briefingCalls, chatCalls, totalLatencyMs, errors, cachedInputTokens, backgroundTokens)
 fun SyncOpEntity.toDomain() = SyncOp(id, entityType, entityId, opType, payloadJson, createdAt, deviceId, seq, uploaded)

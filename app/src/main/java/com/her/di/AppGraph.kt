@@ -13,6 +13,8 @@ import com.her.data.db.HerDatabase
 import com.her.data.db.SqlBrowser
 import com.her.data.drive.SyncEngine
 import com.her.data.google.GoogleAuthService
+import com.her.data.google.GoogleTasksClient
+import com.her.data.google.GoogleTasksSync
 import com.her.data.remote.LlmClient
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -23,6 +25,8 @@ import com.her.data.secure.SecureSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.feelings.FastAppraiser
+import com.her.focus.AndroidFocusAlarm
+import com.her.focus.FocusTimer
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
 import com.her.reminders.AndroidReminderAlarms
@@ -39,7 +43,7 @@ class AppGraph(context: Context) {
     val secure = SecureSettingsStore(appContext)
     val connectivity = ConnectivityObserver(appContext)
     val db: HerDatabase = Room.databaseBuilder(appContext, HerDatabase::class.java, "her.db")
-        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8)
+        .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9)
         .build()
     val repo = HerRepository(db, settings)
     val sqlBrowser = SqlBrowser(db)
@@ -56,12 +60,14 @@ class AppGraph(context: Context) {
     val googleAuth = GoogleAuthService(appContext)
     val googleCalendarClient = GoogleCalendarClient(googleAuth)
     val googleCalendar = GoogleCalendar(repo, googleCalendarClient)
+    val googleTasks = GoogleTasksSync(repo, GoogleTasksClient(googleAuth), settings)
     val syncEngine = SyncEngine(repo)
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)
     val reminderAlarms = AndroidReminderAlarms(appContext)
     val reminderDelivery = ReminderDelivery(repo, notifier)
+    val focus = FocusTimer(settings, repo, notifier, AndroidFocusAlarm(appContext))
 
     private val contextBuilder: ContextBuilder by lazy {
         ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
@@ -70,7 +76,7 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, googleCalendar, reminderAlarms, SystemAlarmClock(appContext))
+        }, googleCalendar, reminderAlarms, SystemAlarmClock(appContext), focus)
     }
 
     val orchestrator: AgentOrchestrator by lazy {

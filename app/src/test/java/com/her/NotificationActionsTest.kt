@@ -34,6 +34,24 @@ class NotificationActionsTest {
     }
 
     @Test
+    fun reminderButtonsNeedTheReminderId() {
+        assertEquals(
+            NotificationAction.ReminderDone("r1"),
+            NotificationActions.decide(Notifier.ACTION_REMINDER_DONE, null, null, reminderId = "r1"),
+        )
+        assertEquals(
+            NotificationAction.ReminderSnooze("r1"),
+            NotificationActions.decide(Notifier.ACTION_REMINDER_SNOOZE, null, null, reminderId = "r1"),
+        )
+        assertEquals(NotificationAction.Ignore, NotificationActions.decide(Notifier.ACTION_REMINDER_DONE, null, null))
+    }
+
+    @Test
+    fun swipeAwayIsCounted() {
+        assertEquals(NotificationAction.Dismissed, NotificationActions.decide(Notifier.ACTION_NUDGE_DISMISSED, null, null))
+    }
+
+    @Test
     fun unknownActionIsIgnored() {
         assertEquals(NotificationAction.Ignore, NotificationActions.decide("com.her.NOTIFY_DONE", null, "x"))
     }
