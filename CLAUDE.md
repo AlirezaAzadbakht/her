@@ -25,5 +25,6 @@ GitHub ruleset `basic-protection` on `main` (no bypass):
 Working here:
 
 - Several sessions share this checkout: never switch branches in it. Use a worktree (`git worktree add ../her-<topic> -b <branch>`).
+- Once the branch is pushed and its PR is open, remove the worktree (`git worktree remove ../her-<topic>`). Only `her` stays on disk; branches live on GitHub.
 - Commit each verified step by explicit path (not `git add -A`), as you go.
 - Push over SSH port 443 if port 22 is blocked (see [wiki/CI-and-release.md](wiki/CI-and-release.md)).
