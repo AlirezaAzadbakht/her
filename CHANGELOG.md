@@ -7,6 +7,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ### Added
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
 - When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
+- If you mention wanting to hurt yourself or not wanting to be here, Her takes it seriously, asks you directly, and encourages you to reach someone you trust or a crisis line, while staying with you.
 - **Load QR image** connects Her Cloud from a saved picture of the QR code, such as a connect or gift card you downloaded. If the picture also has the store-link QR, Her skips it and uses the settings one.
 
 ### Changed
@@ -15,6 +16,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her is glad for your good news even when she had no part in it.
 - Short follow-ups like "and tomorrow?" now bring back what you were just talking about, and remembering one thing brings up what you told her alongside it or linked to the person you mention.
 - Things you bring up again stay fresh in Her's memory, while things nobody mentions gradually step back.
+- When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
 - Message and reminder notifications clear when you open or return to the app.
