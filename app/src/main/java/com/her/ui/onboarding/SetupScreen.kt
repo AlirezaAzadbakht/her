@@ -1,7 +1,12 @@
 package com.her.ui.onboarding
 
 import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.ImageDecoder
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,7 +21,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -32,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,9 +62,17 @@ import com.her.ui.theme.HerMotion
 import com.her.ui.theme.rememberEntrance
 import com.her.ui.theme.rememberHerHaptics
 import com.her.ui.theme.rise
+import com.google.zxing.BinaryBitmap
+import com.google.zxing.DecodeHintType
+import com.google.zxing.RGBLuminanceSource
+import com.google.zxing.common.HybridBinarizer
+import com.google.zxing.multi.qrcode.QRCodeMultiReader
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // HerViewModel.saveAndTest reports success with exactly this message.
 private const val Connected = "Connected."
@@ -249,6 +264,7 @@ fun SetupScreen(
 }
 
 /** For people without a key: buy credit on Her Cloud, then paste or scan the settings it gives out. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
     val context = LocalContext.current
@@ -262,6 +278,14 @@ fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
     }
     // No contents means they backed out of the scanner.
     val scanner = rememberLauncherForActivityResult(ScanContract()) { result -> result.contents?.let(accept) }
+    val scope = rememberCoroutineScope()
+    // A saved card may also carry a store-link code; take the one that is settings. No uri means they backed out.
+    val picker = rememberLauncherForActivityResult(PickVisualMedia()) { uri ->
+        if (uri != null) scope.launch {
+            val texts = withContext(Dispatchers.Default) { qrTextsInImage(context, uri) }
+            accept(texts.firstOrNull { LlmSettings.fromJson(it) != null })
+        }
+    }
     Column {
         Text(
             "No API key? Buy credit on Her Cloud, then paste or scan the settings it gives you.",
@@ -272,7 +296,7 @@ fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
         Spacer(Modifier.height(10.dp))
         HerButton("Get credit on Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
         Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             HerButton(
                 "Paste settings",
                 tone = HerButtonTone.Quiet,
@@ -294,6 +318,11 @@ fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
                     )
                 },
             )
+            HerButton(
+                "Load QR image",
+                tone = HerButtonTone.Quiet,
+                onClick = { picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly)) },
+            )
         }
         AnimatedVisibility(
             visible = invalid,
@@ -301,7 +330,7 @@ fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
             exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
         ) {
             Text(
-                "That isn't Her Cloud settings. Copy them again from the site.",
+                "That isn't Her Cloud settings. Get them again from Her Cloud.",
                 color = scheme.error,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp),
@@ -309,6 +338,26 @@ fun HerCloudConnect(onImport: (LlmSettings) -> Unit) {
         }
     }
 }
+
+/** Every QR code's text in an image, or none if it has none. */
+internal fun qrTexts(pixels: IntArray, width: Int, height: Int): List<String> = runCatching {
+    val bitmap = BinaryBitmap(HybridBinarizer(RGBLuminanceSource(width, height, pixels)))
+    QRCodeMultiReader().decodeMultiple(bitmap, mapOf(DecodeHintType.TRY_HARDER to true)).map { it.text }
+}.getOrDefault(emptyList())
+
+// Big camera photos are scaled down to this long side before looking for codes.
+private const val MaxQrImageSide = 2048
+
+private fun qrTextsInImage(context: Context, uri: Uri): List<String> = runCatching {
+    val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+        decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        val scale = MaxQrImageSide.toFloat() / maxOf(info.size.width, info.size.height)
+        if (scale < 1f) decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
+    }
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    qrTexts(pixels, bitmap.width, bitmap.height)
+}.getOrDefault(emptyList())
 
 private val GreetingStyle = ConversationStyle.copy(fontSize = 30.sp, lineHeight = 40.sp)
 private val QuestionStyle = ConversationStyle.copy(fontSize = 18.sp, lineHeight = 26.sp)
