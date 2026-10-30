@@ -117,6 +117,18 @@ fun emotionalState(rows: List<CompanionRecord>, now: Long, dueAts: List<Long> = 
     )
 }
 
+/** The one line that best explains [feeling] now: the strongest recent event behind it, or for concern a deadline. */
+fun feelingCause(rows: List<CompanionRecord>, now: Long, feeling: Feeling, deadlines: List<Pair<String, Long>> = emptyList()): String? {
+    val events = distinctEmotionalEvents(rows).map { row ->
+        val d = row.data()
+        val ageHours = (now - d.optLong("occurredAt", row.createdAt)).coerceAtLeast(0) / 3_600_000.0
+        val weight = (appraisedFeelings(d)[feeling] ?: 0.0) * d.optDouble("confidence", 0.5).coerceIn(0.0, 1.0) * exp(-ageHours / 48.0)
+        weight to d.optString("interpretation").ifBlank { d.optString("evidence").takeIf { it.isNotBlank() }?.let { "“$it”" }.orEmpty() }
+    }
+    val dues = if (feeling == Feeling.CONCERNED) deadlines.map { (title, dueAt) -> deadlineConcern(dueAt, now) to "$title is due soon" } else emptyList()
+    return (events + dues).filter { it.first > 0 && it.second.isNotBlank() }.maxByOrNull { it.first }?.second
+}
+
 fun recentEmotionalEvents(rows: List<CompanionRecord>, limit: Int = 4): List<CompanionRecord> =
     rows.filter { it.kind == "EMOTION_EVENT" && it.deletedAt == null && !it.data().optBoolean("stale") }
         .sortedWith(compareByDescending<CompanionRecord> { it.updatedAt }.thenBy { it.id }).take(limit)

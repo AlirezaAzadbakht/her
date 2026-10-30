@@ -586,14 +586,16 @@ class HerRepository(
         flow { while (true) { emit(clock.nowMillis()); kotlinx.coroutines.delay(60_000) } },
     ) { legacy, rows, tasks, commitments, now ->
         val events = rows.filter { it.kind == "EMOTION_EVENT" && !it.data().optBoolean("stale") }
-        val dues = tasks.filter { it.status == TaskStatus.OPEN }.mapNotNull { it.dueAt } +
-            commitments.filter { it.status == CommitmentStatus.OPEN }.mapNotNull { it.dueAt }
+        val deadlines = tasks.filter { it.status == TaskStatus.OPEN }.mapNotNull { t -> t.dueAt?.let { t.title to it } } +
+            commitments.filter { it.status == CommitmentStatus.OPEN }.mapNotNull { c -> c.dueAt?.let { c.title to it } }
+        val dues = deadlines.map { it.second }
         if (events.isEmpty() && dues.none { com.her.feelings.deadlineConcern(it, now) > 0 }) {
             val feeling = legacy?.toDomain()
             feeling to (feeling?.let { listOf(it.feeling to it.intensity) } ?: emptyList())
         } else {
             val state = com.her.feelings.emotionalState(events, now, dues)
-            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), null, null, now, now, deviceId, 1, null) to state.blend()
+            val cause = com.her.feelings.feelingCause(events, now, state.dominant, deadlines)
+            HerFeeling("emotional-projection", state.dominant, state.emotions.getValue(state.dominant), cause, null, now, now, deviceId, 1, null) to state.blend()
         }
     }
     suspend fun saveFeeling(item: HerFeeling) {

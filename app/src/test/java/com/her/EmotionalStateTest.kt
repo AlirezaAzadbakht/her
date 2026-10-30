@@ -21,6 +21,7 @@ import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.feelings.emotionalState
+import com.her.feelings.feelingCause
 import com.her.feelings.rankSupportLessons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -292,6 +293,19 @@ class EmotionalStateTest {
         assertTrue(inspected.getJSONArray("firedReminders").length() >= 1)
         assertTrue(inspected.getJSONArray("learningProgress").length() >= 1)
         assertTrue(state.purpose.getValue("competence") > afterReminder.purpose.getValue("competence"))
+    }
+
+    @Test
+    fun causeNamesWhatMovedHerMost() {
+        val now = clock.nowMillis()
+        fun row(id: String, progress: Double, note: String) = CompanionRecord(id, id, "EMOTION_EVENT",
+            JSONObject().put("event", "USER_SHARED").put("goalProgress", progress).put("contribution", 0.0).put("expectedness", 0.5)
+                .put("uncertainty", 0.0).put("confidence", 1.0).put("occurredAt", now).put("interpretation", note).toString(),
+            now, now, repo.deviceId, 1)
+        val rows = listOf(row("EMOTION_EVENT:a", 0.9, "They got the job offer"), row("EMOTION_EVENT:b", 0.2, "A small win"))
+        assertEquals("They got the job offer", feelingCause(rows, now, Feeling.GLAD))
+        assertEquals("Taxes is due soon", feelingCause(rows, now, Feeling.CONCERNED, listOf("Taxes" to now + 3_600_000)))
+        assertNull(feelingCause(emptyList(), now, Feeling.CALM))
     }
 
     private fun eventRow(event: String, feeling: String, source: String, now: Long, intensity: Double = 0.8) =
