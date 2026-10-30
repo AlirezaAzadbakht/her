@@ -87,7 +87,7 @@ Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed 
 ### First run
 
 1. Open the app. Give your name, then hers.
-2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. No key? Tap **Get credit on Her Cloud**, then **Paste settings** or **Scan QR code** with what [Her Cloud](https://cloud.her-project.ir/) gives you.
+2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. No key? Tap **Get credit on Her Cloud**, then **Paste settings**, **Scan QR code**, or **Load QR image** (a saved card) with what [Her Cloud](https://cloud.her-project.ir/) gives you.
 3. Continue. She greets you by those names once the connection works.
 4. *Optional:* grant calendar permission, tap Connect Google for Drive/Calendar, enable web search.
 5. *Optional:* Settings → Advanced → Experimental to hide the Memory SQL navigator (shown by default).
