@@ -15,6 +15,14 @@ data class TableInfo(
     val rowCount: Int,
 )
 
+/** Something she remembered, noted or learnt; [kind] is `remembered`, `noted` or `learnt`. */
+data class RecentMemory(
+    val kind: String,
+    val content: String,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
 object SqlGuard {
     private val ALLOWED = setOf("SELECT", "WITH", "PRAGMA", "EXPLAIN")
 
@@ -68,7 +76,8 @@ object SqlGuard {
 }
 
 class SqlBrowser(private val db: HerDatabase) {
-    fun query(sql: String, rowCap: Int = 200): QueryResult {
+    /** Reads up to [rowCap] rows after skipping [offset], so any read-only statement can be paged. */
+    fun query(sql: String, rowCap: Int = 200, offset: Int = 0): QueryResult {
         if (!SqlGuard.isReadOnly(sql)) {
             return QueryResult(emptyList(), emptyList(), error = "Only read-only queries are allowed.")
         }
@@ -77,8 +86,9 @@ class SqlBrowser(private val db: HerDatabase) {
             db.query(SimpleSQLiteQuery(sql)).use { cursor ->
                 val cols = (0 until cursor.columnCount).map { cursor.getColumnName(it) }
                 val rows = ArrayList<List<String?>>(minOf(cap, 32))
+                if (offset > 0) cursor.moveToPosition(offset - 1)
                 var n = 0
-                while (cursor.moveToNext() && n < cap) {
+                while (n < cap && cursor.moveToNext()) {
                     rows += (0 until cursor.columnCount).map { i ->
                         if (cursor.isNull(i)) null else runCatching { cursor.getString(i) }.getOrNull()
                     }
@@ -105,6 +115,17 @@ class SqlBrowser(private val db: HerDatabase) {
             TableInfo(name, count)
         }
     }
+
+    fun recentMemories(limit: Int = 5): List<RecentMemory> = query(
+        """
+        SELECT kind, content, createdAt, updatedAt FROM (
+            SELECT 'remembered' AS kind, content, createdAt, updatedAt FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'
+            UNION ALL SELECT 'noted', content, createdAt, updatedAt FROM short_term_memories WHERE deletedAt IS NULL
+            UNION ALL SELECT 'learnt', content, createdAt, updatedAt FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'
+        ) ORDER BY updatedAt DESC LIMIT $limit
+        """,
+        rowCap = limit,
+    ).rows.map { RecentMemory(it[0].orEmpty(), it[1].orEmpty(), it[2]?.toLongOrNull() ?: 0, it[3]?.toLongOrNull() ?: 0) }
 
     companion object {
         const val HARD_CAP = 500
