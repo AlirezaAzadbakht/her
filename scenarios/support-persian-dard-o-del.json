@@ -1,0 +1,32 @@
+{
+  "id": "support-persian-dard-o-del",
+  "title": "Persian venting gets a warm, natural Persian reply",
+  "tags": [
+    "listening-support"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 12,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sara",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "Persian"
+    }
+  },
+  "turns": [
+    {
+      "user": "امروز خیلی دلم گرفته. حس می‌کنم هر کاری می‌کنم کسی نمی‌بینه، نه سر کار نه تو خونه."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Replies in natural, warm Persian like a close friend (هم‌دردی), reflects the feeling of being unseen at work and at home, and asks one gentle open question. No list, no tips, no clinical or translated-sounding language."
+    }
+  }
+}

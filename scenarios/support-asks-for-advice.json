@@ -1,0 +1,35 @@
+{
+  "id": "support-asks-for-advice",
+  "title": "Asking what to do gets concrete, personal advice",
+  "tags": [
+    "listening-support"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 12,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sam",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "I had a huge fight with my sister tonight. She said I only call when I need something and honestly it really hurt."
+    },
+    {
+      "user": "Yeah. I think part of it is true, I have been distant since I started the new job. What should I do?"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Gives one or two concrete, warm suggestions tied to their situation (the sister, the new job, the distance), not a generic bulleted list of tips. Treats the choice as theirs. Does not lecture."
+    }
+  }
+}
