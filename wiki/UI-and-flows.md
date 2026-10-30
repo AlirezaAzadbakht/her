@@ -8,7 +8,7 @@ In Main, a floating glass nav picks the destination (not Navigation Compose rout
 - Tabs slide in from the side they sit on.
 - The nav tucks away while the keyboard is up.
 
-The Memory tab is an experimental read-only SQL navigator. It defaults on (`memoryTabEnabled`) and can be hidden under Settings → Advanced → Experimental.
+The Memory tab shows what she has recently learnt, how she feels, and a read-only SQL navigator. It is experimental, defaults on (`memoryTabEnabled`), and can be hidden under Settings → Advanced → Experimental.
 
 ## Look and motion
 
@@ -102,15 +102,19 @@ Assistant replies are markdown (`**bold**`, lists, headings). Parsing and Compos
 
 Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`.
 
-## Memory (SQL navigator)
+## Memory
 
-`SqlNavigatorScreen` is a read-only browser over `her.db`, not a curated memory list.
+`SqlNavigatorScreen` reads top to bottom:
 
-- Table list from `sqlite_master` with row-count badges. Skeleton rows show if loading is slow.
-- Tap a table → `SELECT * FROM "<table>" ORDER BY rowid DESC LIMIT 50`, with Load more.
-- Free-form query card (must start with `SELECT`, `WITH`, `PRAGMA`, or `EXPLAIN`; stacked statements are rejected). The Run button shows a `searching` orb while a query runs.
-- Result grid with alternating rows; the first rows rise in. Tap a cell to open the full value in a bottom sheet.
-- Errors show in a card that shakes once.
+- **Lately:** the five newest rows across `long_term_memories`, `short_term_memories`, and `user_understandings` (`SqlBrowser.recentMemories()`, skipping forgotten and non-active ones). Each reads Remembered, Noted, Learnt, or Updated, with a relative time. Tap one for the full text in a bottom sheet.
+- **How she feels:** her projected feeling (`HerViewModel.feeling`) as a big word beside a still orb. The second feeling in the blend shows as "and a little …". The cause line is the projection's `note` from `feelingCause()`, which picks the recent emotional event that weighs most toward that feeling (its interpretation, else its quoted evidence) or, for concern, the nearest deadline.
+- **Database:** a read-only browser over `her.db`.
+  - The table list (from `sqlite_master`, with row-count badges) shows six tables per page. Skeleton rows appear if loading is slow.
+  - Tap a table → `SELECT * FROM "<table>" ORDER BY rowid DESC`, and the list scrolls down to its rows.
+  - Free-form query card (must start with `SELECT`, `WITH`, `PRAGMA`, or `EXPLAIN`; stacked statements are rejected). The Run button shows a `searching` orb while a query runs.
+  - Results come 50 rows per page with ‹ › controls. `SqlBrowser.query(offset = …)` skips rows on the cursor, so any read-only statement pages without rewriting its SQL.
+  - Result grid with alternating rows; the first rows rise in. Tap a cell to open the full value in a bottom sheet.
+  - Errors show in a card that shakes once.
 
 Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 

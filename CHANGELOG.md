@@ -14,6 +14,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her is glad for your good news even when she had no part in it.
 - Short follow-ups like "and tomorrow?" now bring back what you were just talking about, and remembering one thing brings up what you told her alongside it or linked to the person you mention.
 - Things you bring up again stay fresh in Her's memory, while things nobody mentions gradually step back.
+- The Memory tab now opens with the last few things Her remembered or learnt about you, then how she feels right now and why. Below that, the database browser shows its tables and rows in pages, and tapping a table jumps straight to its rows.
 
 ### Fixed
 - Message and reminder notifications clear when you open or return to the app.
