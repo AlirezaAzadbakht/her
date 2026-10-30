@@ -380,7 +380,7 @@ private fun RecentRow(memory: RecentMemory, now: Long, onClick: () -> Unit) {
 private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val main = feeling?.feeling ?: Feeling.CALM
-    val second = blend.map { it.first }.firstOrNull { it != main }
+    val second = blend.map { it.first }.firstOrNull { it != main && it != Feeling.CALM }
     Column(modifier.fillMaxWidth()) {
         Label("How she feels")
         Row(

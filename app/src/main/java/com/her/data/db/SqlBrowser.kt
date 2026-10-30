@@ -101,9 +101,10 @@ class SqlBrowser(private val db: HerDatabase) {
         }
     }
 
+    /** Her own tables; SQLite's full-text shadow tables (`*_fts_segdir` and friends) stay reachable by query only. */
     fun tables(): List<TableInfo> {
         val listed = query(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' AND name NOT LIKE 'room_%' ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%' AND name NOT LIKE 'room_%' AND name NOT LIKE '%\\_fts\\_%' ESCAPE '\\' ORDER BY name",
             rowCap = HARD_CAP,
         )
         if (listed.error != null) return emptyList()

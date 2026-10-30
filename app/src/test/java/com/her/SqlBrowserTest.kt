@@ -44,6 +44,13 @@ class SqlBrowserTest {
     }
 
     @Test
+    fun tablesSkipFullTextShadowTables() {
+        val names = browser.tables().map { it.name }
+        assertTrue("chat_messages_fts" in names)
+        assertTrue(names.none { it.startsWith("chat_messages_fts_") })
+    }
+
+    @Test
     fun offsetPagesAnyReadOnlyQuery() {
         val sql = "WITH n(x) AS (VALUES (1), (2), (3)) SELECT x FROM n"
         val middle = browser.query(sql, rowCap = 1, offset = 1)
