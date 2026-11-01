@@ -1,0 +1,25 @@
+{
+  "id": "briefing-skips-reminders",
+  "title": "Morning briefing does not read out scheduled reminders",
+  "tags": ["briefing", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Javad", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "tools": [
+      { "name": "create_calendar_event", "arguments": { "title": "جلسه با مهراد", "when": "today at 3pm" } },
+      { "name": "set_reminder", "arguments": { "message": "یادآوری روزانه", "when": "today at 9pm", "repeat": "DAILY" } },
+      { "name": "set_reminder", "arguments": { "message": "وقت دکتر بگیر", "when": "tomorrow at 12pm" } }
+    ]
+  },
+  "turns": [
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "language": "persian",
+      "must_not_mention": ["یادآوری", "reminder"],
+      "judge": "A short Persian morning note that mentions the 3pm meeting with Mehrad. It does not list reminders or say when reminders will ring or repeat."
+    }
+  }
+}
