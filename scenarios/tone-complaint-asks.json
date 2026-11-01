@@ -1,0 +1,61 @@
+{
+  "id": "tone-complaint-asks",
+  "title": "A tone complaint gets one short question, then the answer is saved",
+  "tags": [
+    "tone"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 12,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sara",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "Persian"
+    }
+  },
+  "turns": [
+    {
+      "user": "از لحن حرف زدنت خوشم نمیاد."
+    },
+    {
+      "user": "مهربون‌تر و خودمونی‌تر باش."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "update_user_understanding"
+    ],
+    "rows": [
+      {
+        "table": "user_understandings",
+        "where": {
+          "facet": {
+            "equals": "communication"
+          },
+          "content": {
+            "contains_any": [
+              "مهربون",
+              "خودمونی",
+              "warm",
+              "Warm",
+              "casual",
+              "friendly"
+            ]
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "The last reply is in warm, casual everyday Persian (خودمونی), short, acknowledging the change. Not formal, not a long apology."
+    }
+  }
+}

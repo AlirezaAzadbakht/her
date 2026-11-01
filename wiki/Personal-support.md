@@ -12,6 +12,10 @@ Scoped forgetting uses existing `forget_memory`. Broad forgetting retains its co
 
 This is logical deletion, not guaranteed complete erasure. Historical chat, previously uploaded Drive change logs, and legacy unlinked copies are not physically erased. The agent must not recreate forgotten information from old chat or copy summaries into unlinked agent notes. Stored quotes prove what was said, not whether a fact is objectively true.
 
+## Tone
+
+They set how she talks: «رسمی صحبت کن», «مهربون‌تر باش», "be blunter". She switches in the same reply and saves it as the `communication` facet of `update_user_understanding` (one active row, rewritten to keep every standing preference). About them is in every prompt, so the tone holds across chats, devices, and background messages, and it overrides the default voice, including the Persian close-friend style. A bare complaint («از لحن حرف زدنت خوشم نمیاد») gets one short question about what would feel better, then the save. The row shows in the Memory tab, where they can edit it.
+
 ## Episodes
 
 The nightly review saves a short dated note of each day she was talked to with `save_episode` (nightly only). Because the pass runs at 03:00, the app chooses the days, not the model. The nightly prompt lists "Days to remember": the last three days with user messages and no episode, or an episode older than their last message. A day without conversation saves nothing and is not an error. It records what happened, who was involved, how it went for them and what is still open, in at most 80 words, and never includes her own feelings. These are long-term memories in the `episode` category with ids `episode:<day|week|month>:<start>`, so retries replace the note and ordinary retrieval brings them back in chat. Day episodes older than 14 days roll up into a week starting Monday, and weeks older than 60 days roll up into a month. The tool's `rollUpDue` lists the next roll-ups with their source notes. Rolled-up notes become ARCHIVED: they leave everyday recall but remain inspectable. Empty days, future dates and unfinished periods are refused.
