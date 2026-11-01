@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Ask Her to talk differently, more formal, warmer, or plainer, or just tell her you don't like her tone. She changes right away and keeps talking that way.
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
 - When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
 - If you mention wanting to hurt yourself or not wanting to be here, Her takes it seriously, asks you directly, and encourages you to reach someone you trust or a crisis line, while staying with you.

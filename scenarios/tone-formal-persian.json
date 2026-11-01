@@ -1,0 +1,55 @@
+{
+  "id": "tone-formal-persian",
+  "title": "Asked to speak formally, she switches and remembers it",
+  "tags": [
+    "tone"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 12,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sara",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "Persian"
+    }
+  },
+  "turns": [
+    {
+      "user": "لطفاً از این به بعد با من رسمی صحبت کن."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_called": [
+      "update_user_understanding"
+    ],
+    "rows": [
+      {
+        "table": "user_understandings",
+        "where": {
+          "facet": {
+            "equals": "communication"
+          },
+          "content": {
+            "contains_any": [
+              "رسمی",
+              "formal",
+              "Formal"
+            ]
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "judge": "A short reply in formal Persian that addresses the user as شما with polite verb forms, acknowledging the change. No long explanation."
+    }
+  }
+}
