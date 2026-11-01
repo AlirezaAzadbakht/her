@@ -21,6 +21,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
+- Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.
 - The morning briefing no longer reads out your scheduled reminders or what's missing from your lists. Reminders still ring on their own.
 - Message and reminder notifications clear when you open or return to the app.
 - When Her can't reach the model, the "couldn't reach the model" note shows only on screen. It no longer stays in your chat or gets read back to the model later.
