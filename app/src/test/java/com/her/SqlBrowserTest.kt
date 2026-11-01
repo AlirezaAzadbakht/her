@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.her.data.db.HerDatabase
+import com.her.data.db.ImportantDateEntity
 import com.her.data.db.LongTermMemoryEntity
 import com.her.data.db.SqlBrowser
 import com.her.data.db.UserUnderstandingEntity
@@ -41,6 +42,16 @@ class SqlBrowserTest {
         assertEquals(listOf("learnt", "remembered"), recent.map { it.kind })
         assertEquals("Prefers mornings for deep work", recent.first().content)
         assertEquals(5L, recent.first().createdAt)
+    }
+
+    @Test
+    fun recentMemoriesIncludeImportantDates() = runBlocking {
+        db.memoryDao().upsertLong(longMemory("l1", "Lives in Tehran", at = 10))
+        db.importantDateDao().upsert(ImportantDateEntity("d1", "Ali's birthday", "1990-10-04", "yearly", null, null, 0.7, 20, 20, "dev", 1, null))
+        db.importantDateDao().upsert(ImportantDateEntity("d2", "Gone", "2020-01-01", null, null, null, 0.7, 30, 30, "dev", 1, 31))
+        val recent = browser.recentMemories()
+        assertEquals(listOf("dated", "remembered"), recent.map { it.kind })
+        assertEquals("Ali's birthday · 1990-10-04", recent.first().content)
     }
 
     @Test

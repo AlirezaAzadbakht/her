@@ -269,7 +269,7 @@ internal fun ToolRegistry.registerEntityTools() {
     register("get_important_dates", "List important dates.", objSchema()) { jsonObjectOf("ok" to true, "dates" to JSONArray(repo.importantDates().map { JSONObject(it.toJson()) })) }
     register(
         "create_important_date",
-        "Create an important date.",
+        "Save a date to remember, yearly or once: their own birthday or anniversary (recurrence yearly), or another fixed date. Someone else's birthday goes on update_person.",
         objSchema(
             "title" to str(),
             "dateIso" to str("Gregorian or Jalali date; it is normalized to ISO before storage"),

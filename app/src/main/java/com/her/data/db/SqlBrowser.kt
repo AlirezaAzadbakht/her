@@ -123,6 +123,7 @@ class SqlBrowser(private val db: HerDatabase) {
             SELECT 'remembered' AS kind, content, createdAt, updatedAt FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'
             UNION ALL SELECT 'noted', content, createdAt, updatedAt FROM short_term_memories WHERE deletedAt IS NULL
             UNION ALL SELECT 'learnt', content, createdAt, updatedAt FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'
+            UNION ALL SELECT 'dated', title || ' · ' || dateIso, createdAt, updatedAt FROM important_dates WHERE deletedAt IS NULL
         ) ORDER BY updatedAt DESC LIMIT $limit
         """,
         rowCap = limit,
