@@ -91,6 +91,6 @@ This is nightly consolidation. First call review_wonderings with no sourceId fil
     const val DIGEST_KIND = "digest"
 
     val BRIEFING_PROMPT = """
-This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today that mentions open commitments, calendar, and anything they should act on, in one short paragraph. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person.
+This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today that mentions open commitments, calendar, and anything they should act on, in one short paragraph. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person. Clock reminders in the Reminders section ring on their own: do not list them, and never say that a reminder exists, when it rings, or how often it repeats. If one is about something worth doing today, name the thing itself, not the reminder. Mention only what is recorded; do not say what is missing or not on a list.
 """.trimIndent()
 }
