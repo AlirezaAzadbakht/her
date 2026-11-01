@@ -32,6 +32,9 @@ data class WebSearchRequest(
 open class LlmClient(
     private val http: OkHttpClient = defaultClient(),
 ) {
+    // Some gateways add reasoning_effort to reasoning models and then reject it alongside tools.
+    @Volatile private var effortNone = false
+
     open suspend fun complete(
         settings: LlmSettings,
         messages: List<LlmMessage>,
@@ -48,6 +51,9 @@ open class LlmClient(
             val raw = response.body?.string().orEmpty()
             val latency = System.currentTimeMillis() - started
             if (!response.isSuccessful) {
+                if (retryWithEffortNone(tools, response.code, raw)) {
+                    return complete(settings, messages, tools, client, webSearch)
+                }
                 throw LlmException(
                     redactSecrets("LLM request failed (${response.code}): ${raw.take(400)}"),
                     response.code,
@@ -71,6 +77,9 @@ open class LlmClient(
         http.newCall(request).await().use { response ->
             if (!response.isSuccessful) {
                 val raw = response.body?.string().orEmpty()
+                if (retryWithEffortNone(tools, response.code, raw)) {
+                    return stream(settings, messages, tools, onDelta)
+                }
                 if (looksLikeStreamingUnsupported(response.code, raw)) {
                     return complete(settings, messages, tools).also { result ->
                         result.message.content?.takeIf { it.isNotBlank() }?.let(onDelta)
@@ -154,6 +163,7 @@ open class LlmClient(
                         },
                     )
                     put("tool_choice", "auto")
+                    if (effortNone) put("reasoning_effort", "none")
                 }
                 if (stream) {
                     put("stream", true)
@@ -166,6 +176,12 @@ open class LlmClient(
             .addHeader("Content-Type", "application/json")
             .post(body.toString().toRequestBody(JSON))
             .build()
+    }
+
+    private fun retryWithEffortNone(tools: List<ToolSpec>, status: Int, raw: String): Boolean {
+        if (effortNone || tools.isEmpty() || status != 400 || "reasoning_effort" !in raw) return false
+        effortNone = true
+        return true
     }
 
     private fun parseResponse(raw: String, latency: Long): LlmResponse {
