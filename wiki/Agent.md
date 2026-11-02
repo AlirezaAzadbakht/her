@@ -25,7 +25,7 @@ The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token 
 3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
    - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
    - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
-4. Recent chat (default 24 messages). Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
+4. Recent chat: up to 24 messages (8 for hourly / catch-up), newest first until 12,000 characters. The newest message always goes whole; the four newest are never clipped, older ones are cut to 1,200 characters. What falls out is covered by the digest note and `search_chat_history`. Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
 
