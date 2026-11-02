@@ -12,6 +12,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Load QR image** connects Her Cloud from a saved picture of the QR code, such as a connect or gift card you downloaded. If the picture also has the store-link QR, Her skips it and uses the settings one.
 
 ### Changed
+- Her sends less of your older chat to the model with each reply, so long conversations stay faster and cheaper. She still remembers earlier days through her notes and by searching your chat.
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
 - Her is glad for your good news even when she had no part in it.

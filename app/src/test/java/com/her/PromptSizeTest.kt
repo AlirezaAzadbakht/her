@@ -61,6 +61,23 @@ class PromptSizeTest {
         assertFalse(built.systemBundle.substring(0, clockAt).contains("Your feeling"))
     }
 
+    @Test
+    fun longChatHistoryStaysWithinBudget() = runBlocking {
+        repeat(24) { i ->
+            val role = if (i % 2 == 0) com.her.domain.MessageRole.USER else com.her.domain.MessageRole.ASSISTANT
+            repo.saveMessage(repo.newChatMessage(role, "m$i " + "x".repeat(3_000), com.her.domain.MessageStatus.SENT))
+        }
+        repo.saveMessage(repo.newChatMessage(com.her.domain.MessageRole.USER, "short", com.her.domain.MessageStatus.SENT))
+        val history = contextBuilder.build("short").messages.drop(2)
+        val chars = history.sumOf { it.content.orEmpty().length }
+        assertTrue("history grew to $chars", chars <= com.her.agent.prompt.HISTORY_CHARS)
+        assertEquals("short", history.last().content)
+        // The newest four go whole; older ones are clipped, so more of the conversation fits.
+        assertEquals(6, history.size)
+        assertTrue(history.first().content!!.endsWith("…"))
+        assertFalse(history[history.size - 2].content!!.endsWith("…"))
+    }
+
     private companion object {
         // Just above the trimmed sizes (tools 38159, system 27410, empty bundle 776).
         const val TOOL_CHARS = 42_000

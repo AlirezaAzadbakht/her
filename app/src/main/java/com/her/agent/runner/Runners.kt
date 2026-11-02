@@ -256,7 +256,8 @@ class AgentOrchestrator(
         val receipts = mutableListOf<Receipt>()
         try {
             val buildStarted = nowMillis()
-            val built = contextBuilder.build(latestUserText)
+            // An hourly look-in only needs the last few messages; nightly and briefing keep the full window.
+            val built = contextBuilder.build(latestUserText, recentLimit = if (type == AgentRunType.HOURLY || type == AgentRunType.CATCH_UP) 8 else 24)
             if (type == AgentRunType.CHAT && latestUserText != null) com.her.data.retrieval.strengthenRecalled(repo, built.retrieved, latestUserText)
             val messages = built.messages.toMutableList()
             var anchor = writeAnchor
@@ -270,7 +271,7 @@ class AgentOrchestrator(
             if (systemExtra != null) {
                 messages.add(1, LlmMessage(role = "system", content = systemExtra))
             }
-            repo.logDebug("prompt", "contextChars=${built.systemBundle.length} buildMs=${nowMillis() - buildStarted}")
+            repo.logDebug("prompt", "contextChars=${built.systemBundle.length} historyMsgs=${messages.count { it.role == "user" || it.role == "assistant" }} totalChars=${messages.sumOf { it.content?.length ?: 0 }} buildMs=${nowMillis() - buildStarted}")
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
             var lastText: String? = null
             var preamble = ""

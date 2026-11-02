@@ -35,6 +35,9 @@ data class BuiltContext(
 private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
 private const val DAY_MS = 24 * 60 * 60 * 1000L
 private const val FOLLOW_UP_GAP_MS = 6 * 60 * 60 * 1000L
+internal const val HISTORY_CHARS = 12_000
+private const val FULL_RECENT = 4
+private const val CLIPPED_CHARS = 1_200
 
 class ContextBuilder(
     private val repo: HerRepository,
@@ -213,9 +216,7 @@ class ContextBuilder(
                 com.her.feelings.EMOTIONAL_INSTRUCTIONS,
             ).joinToString("\n\n")))
             add(LlmMessage(role = "system", content = bundle))
-            recent.forEach { msg ->
-                add(LlmMessage(role = msg.role.name.lowercase(), content = withReceipts(msg)))
-            }
+            addAll(history(recent))
         }
         return BuiltContext(messages, memories, bundle)
     }
@@ -252,12 +253,29 @@ class ContextBuilder(
         }
     }
 
-    private fun withReceipts(msg: com.her.domain.ChatMessage): String {
-        if (msg.role != MessageRole.ASSISTANT) return msg.content
+    /**
+     * The newest messages that fit in [HISTORY_CHARS]; the newest always goes. Older ones are clipped, since the
+     * digest note and search_chat_history cover what falls out.
+     */
+    private fun history(recent: List<com.her.domain.ChatMessage>): List<LlmMessage> {
+        val kept = ArrayDeque<LlmMessage>()
+        var chars = 0
+        for ((age, msg) in recent.asReversed().withIndex()) {
+            val content = withReceipts(msg, if (age < FULL_RECENT) Int.MAX_VALUE else CLIPPED_CHARS)
+            if (age > 0 && chars + content.length > HISTORY_CHARS) break
+            chars += content.length
+            kept.addFirst(LlmMessage(role = msg.role.name.lowercase(), content = content))
+        }
+        return kept
+    }
+
+    private fun withReceipts(msg: com.her.domain.ChatMessage, clip: Int = Int.MAX_VALUE): String {
+        val text = if (msg.content.length > clip) msg.content.take(clip) + "…" else msg.content
+        if (msg.role != MessageRole.ASSISTANT) return text
         val receipts = Receipts.fromMetadata(msg.metadataJson).filter { !it.undone }
-        if (receipts.isEmpty()) return msg.content
+        if (receipts.isEmpty()) return text
         return buildString {
-            append(msg.content)
+            append(text)
             receipts.forEach { receipt ->
                 append("\n[saved ${receipt.entityType} ${receipt.entityId.take(8)} \"${receipt.label}\"]")
             }
