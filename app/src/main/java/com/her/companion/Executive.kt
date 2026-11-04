@@ -3,6 +3,7 @@ package com.her.companion
 import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
 import com.her.data.repository.HerRepository
+import com.her.work.BackgroundRunPolicy
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -71,6 +72,8 @@ suspend fun validateDelegation(repo: HerRepository, id: String, data: JSONObject
 /** Deterministic exceptions, never a prediction of success/failure from missing reports. */
 suspend fun executiveBriefing(repo: HerRepository, offset: Int): JSONObject {
     val now = repo.clock.nowMillis()
+    val zonedNow = repo.now()
+    fun overdue(deadline: Long) = BackgroundRunPolicy.deadlineState(deadline, zonedNow) == "overdue"
     val rows = repo.companionRecords().filter { it.kind == "WAITING" }.associateBy { it.id }
     val items = mutableListOf<JSONObject>()
     var active = 0
@@ -92,14 +95,14 @@ suspend fun executiveBriefing(repo: HerRepository, offset: Int): JSONObject {
                 dep.optString("status") == "RESOLVED" -> "RESOLVED"
                 dep.optString("status") == "CANCELLED" -> "CANCELLED"
                 !dep.isNull("blocker") && dep.optString("blocker").isNotBlank() -> "REPORTED_BLOCKER"
-                dep.optLong("deadline") in 1 until now -> "OVERDUE"
+                dep.optLong("deadline") > 0 && overdue(dep.optLong("deadline")) -> "OVERDUE"
                 else -> "OPEN"
             }
             jsonObjectOf("id" to id, "state" to state)
         }
         if (dependencies.any { it.getString("state") in setOf("UNKNOWN", "CANCELLED", "REPORTED_BLOCKER", "OVERDUE") }) reasons += "DEPENDENCY_RISK"
         val deadline = d.optLong("deadline").takeIf { it > 0 }
-        if (deadline != null && deadline < now) reasons += "OVERDUE"
+        if (deadline != null && overdue(deadline)) reasons += "OVERDUE"
         else if (deadline != null && deadline <= now + 86_400_000L) reasons += "DUE_WITHIN_24H"
         val sourceKey = if (present("progress")) d.optJSONObject("fieldSources")?.optString("progress") else null
         val progressAt = sourceKey?.let { d.optJSONObject("sourceQuotes")?.optJSONObject(it)?.optLong("sourceDate") }?.takeIf { it > 0 }
