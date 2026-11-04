@@ -28,7 +28,7 @@ object BackgroundRunPolicy {
     const val LOW_BATTERY_PERCENT = 15
     const val HOURLY_MIN_GAP_MS = 20 * 60 * 1000L
     const val CATCH_UP_GAP_MS = 3 * 60 * 60 * 1000L
-    const val SCHEDULE_VERSION = "v2"
+    const val SCHEDULE_VERSION = "v3"
     const val DAY_MS = 24 * 60 * 60 * 1000L
     const val HOURLY_EVENT_HORIZON_MS = 2 * 60 * 60 * 1000L
     const val AWAY_EMPTY_DAY_DAYS = 3

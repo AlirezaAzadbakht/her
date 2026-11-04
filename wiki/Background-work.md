@@ -14,9 +14,9 @@
 | `SyncWorker` | `her-sync` | Periodic, every 6 hours; no-ops if Drive is disabled or battery is low | Network + battery not low |
 | `OutboxWorker` | `her-outbox` | One-shot when `PENDING` user rows exist | Network |
 
-Nightly and briefing are **not** 24-hour periodic work. A one-shot delayed to the wall clock keeps the 50-call nightly pass at night. After success, skip, or LLM failure the worker appends the next occurrence. `enqueueAll()` / boot restore a missing next run without resetting an already-pending one.
+Nightly and briefing are **not** 24-hour periodic work. A one-shot delayed to the wall clock keeps the 50-call nightly pass at night. After success, skip, or LLM failure the worker appends the next occurrence. A worker WorkManager stopped (network lost, time limit) appends nothing, because the same request runs again; an appended run's delay only starts when it is unblocked, so an extra one would fire at the wrong hour. `enqueueAll()` / boot restore a missing next run without resetting an already-pending one.
 
-A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v2`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour.
+A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v3`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour. Bumping the version also rebuilds the nightly and briefing chains once.
 
 ## Policy
 
@@ -64,7 +64,7 @@ The morning briefing is scheduled at the **end** of quiet hours, not at a fixed 
 
 ## Foreground and battery exemption
 
-Hourly, nightly, and briefing call `setForeground()` on a low-importance **Background work** channel so a long LLM pass is not killed at WorkManager’s ~10 minute limit. Manifest: `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC`.
+Hourly, nightly, and briefing call `setForeground()` on a low-importance **Background work** channel so a long LLM pass is not killed at WorkManager’s ~10 minute limit. They do it through `onPassStart`, once a pass holds the run lock and will call the model, so a skipped or waiting pass shows nothing. All three share one notification id, so overlapping passes are one row. A pass waiting its turn can be stopped at that limit; WorkManager runs it again. Manifest: `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC`.
 
 Settings, under quiet hours: if the app is still battery-optimized, **Allow background work** opens `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`. This is user-initiated so OEM savers do not silently defer hourly/nightly. There is no first-launch prompt.
 

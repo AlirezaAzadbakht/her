@@ -23,6 +23,20 @@ class ReasoningEffortRetryTest {
     private val tool = ToolSpec("get_current_time", "Time", """{"type":"object","properties":{}}""")
 
     @Test
+    fun completeHidesInlineThinking() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setBody("""{"choices":[{"message":{"role":"assistant","content":"<think>plan</think>Good morning."}}]}"""))
+        server.start()
+        try {
+            val settings = LlmSettings(server.url("/v1").toString().trimEnd('/'), "sk-test", "model")
+            val reply = LlmClient().complete(settings, listOf(LlmMessage(role = "user", content = "hi"))).message.content
+            assertEquals("Good morning.", reply)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun retriesWithEffortNoneAndKeepsIt() = runBlocking {
         val server = MockWebServer()
         server.enqueue(MockResponse().setResponseCode(400).setBody(rejected))

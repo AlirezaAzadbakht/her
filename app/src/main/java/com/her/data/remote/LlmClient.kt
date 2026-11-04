@@ -215,7 +215,7 @@ open class LlmClient(
         return LlmResponse(
             message = LlmMessage(
                 role = message.optString("role", "assistant"),
-                content = if (message.isNull("content")) null else message.optString("content").takeIf { it.isNotBlank() },
+                content = if (message.isNull("content")) null else visibleText(message.optString("content")).takeIf { it.isNotBlank() },
                 toolCalls = parsedCalls,
             ),
             usage = parseUsage(usage, latency),

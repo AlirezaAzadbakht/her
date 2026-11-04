@@ -192,6 +192,88 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun briefingShowsOnlyTheFinalMessageNotNotesBesideAToolCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("get_current_time", text = "Commitments section not provided, call get_commitments.") },
+                { reply("The dentist is at ten.") },
+            ),
+        )
+        val result = orchestrator.runBriefing()
+
+        assertEquals("The dentist is at ten.", result.assistantText)
+        assertEquals(listOf("The dentist is at ten."), shown)
+        assertEquals("The dentist is at ten.", repo.recentMessages(10).last { it.role == MessageRole.ASSISTANT }.content)
+    }
+
+    @Test
+    fun hourlyThatEndsBlankStaysSilentDespiteNotesBesideAToolCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm(
+            { toolCall("get_current_time", text = "Nothing is due, so stay quiet.") },
+            { reply("") },
+        )
+        val result = orchestrator(llm).runHourly()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertTrue(repo.recentMessages(10).isEmpty())
+        assertEquals("an hourly pass may end blank, no extra call", 2, llm.calls)
+    }
+
+    @Test
+    fun notesEndingInTheSilenceMarkerStaySilent() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val result = orchestrator(ScriptedLlm({ reply("Nothing is due, so stay quiet.\nNO_NOTIFICATION") })).runHourly()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertTrue(repo.recentMessages(10).isEmpty())
+    }
+
+    @Test
+    fun chatThatEndsBlankAsksOnceMoreWithoutTools() = runBlocking {
+        val llm = ScriptedLlm(
+            { toolCall("get_current_time", text = "Need the time first.") },
+            { reply("") },
+            { reply("It's two in the morning.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("What time is it?")
+        val result = orchestrator.processOutbox()!!
+
+        assertEquals("It's two in the morning.", result.assistantText)
+        assertTrue(llm.toolsSeen[1].isNotEmpty())
+        assertTrue("the extra call must not offer tools", llm.toolsSeen[2].isEmpty())
+    }
+
+    @Test
+    fun briefingThatStaysBlankGivesUpAfterOneExtraCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm({ reply("") }, { reply("") })
+        val result = orchestrator(llm).runBriefing()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun blankEndingAfterSendUserMessageDoesNotAskAgain() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm(
+            { toolCall("send_user_message", """{"content":"The dentist is at ten."}""") },
+            { reply("") },
+        )
+        val result = orchestrator(llm).runBriefing()
+
+        assertNull(result.assistantText)
+        assertEquals(listOf("The dentist is at ten."), shown)
+        assertEquals("the message was already delivered", 2, llm.calls)
+    }
+
+    @Test
     fun hourlyNudgeIsSavedSoTheScreenMatchesTheNotification() = runBlocking {
         // 22:30 UTC is outside the default quiet hours; the device zone might not be.
         repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
@@ -355,6 +437,34 @@ class AgentOrchestratorTest {
         orchestrator.enqueueUserMessage("I'm back")
         orchestrator.runBriefing(gated = true)
         assertEquals(1, llm.calls)
+    }
+
+    @Test
+    fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("Morning. The day is open.") })
+        val orchestrator = orchestrator(llm)
+        var passes = 0
+
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals("nothing is due", 0, passes)
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals(1, passes)
+
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("the first night always runs", 2, passes)
+        clock.advance(24 * HOUR)
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("nothing new since last night", 2, passes)
+
+        orchestrator.enqueueUserMessage("hi")
+        clock.advance(8 * 24 * HOUR)
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals("away for over a week", 2, passes)
+        orchestrator.enqueueUserMessage("I'm back")
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals(3, passes)
+        assertEquals("every model call was announced", llm.calls, passes)
     }
 
     @Test
@@ -682,8 +792,8 @@ class AgentOrchestratorTest {
     private fun reply(text: String) =
         LlmResponse(LlmMessage(role = "assistant", content = text), LlmUsage(10, 5, 1), "{}")
 
-    private fun toolCall(name: String, arguments: String = "{}") = LlmResponse(
-        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
+    private fun toolCall(name: String, arguments: String = "{}", text: String? = null) = LlmResponse(
+        LlmMessage(role = "assistant", content = text, toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
         LlmUsage(10, 5, 1),
         "{}",
     )

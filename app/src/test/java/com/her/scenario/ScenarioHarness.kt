@@ -20,6 +20,7 @@ import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
+import com.her.domain.AgentRunType
 import com.her.domain.ChatMessage
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
@@ -112,6 +113,7 @@ data class HarnessOutcome(
     val llmCalls: Int,
     val error: String?,
     val cachedInputTokens: Long = 0,
+    val toolNames: Set<String> = emptySet(),
 )
 
 class ScenarioHarness(
@@ -235,6 +237,7 @@ class ScenarioHarness(
             llmCalls = llm.calls,
             error = error,
             cachedInputTokens = llm.cachedInputTokens,
+            toolNames = (tools.specsFor(AgentRunType.CHAT) + tools.specsFor(AgentRunType.NIGHTLY)).map { it.name }.toSet(),
         )
     }
 
