@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.agent.runner.Receipts
+import com.her.agent.runner.TurnFailure
 import com.her.agent.runner.TurnState
 import androidx.compose.ui.platform.LocalUriHandler
 import com.her.ui.HerViewModel
@@ -358,7 +359,7 @@ fun HerScreen(vm: HerViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(shown?.notice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
-                if (shown?.outOfCredit == true) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                if (shown?.failure == TurnFailure.OutOfCredit) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
             }
         }
 

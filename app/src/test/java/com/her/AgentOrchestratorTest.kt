@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
+import com.her.agent.runner.TurnFailure
 import com.her.agent.tools.ToolRegistry
 import com.her.core.FakeClock
 import com.her.core.QuietHours
@@ -33,6 +34,7 @@ import com.her.domain.MessageStatus
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import java.io.IOException
 import java.time.Instant
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -141,9 +143,45 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals(1, llm.calls)
-        assertFalse(result.outOfCredit)
-        assertEquals("I couldn't reach the model just now. Your message is saved — try again in a moment.", result.notice)
+        assertEquals(TurnFailure.BadSettings, result.failure)
+        assertEquals("The model settings don't look right. Check the model name and Base URL. Your message is saved.", result.notice)
+        assertEquals("the raw error stays available for Details", "bad request", result.error)
         assertTrue("failures stay out of chat history", repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun sortsFailuresByWhatThePersonCanDo() {
+        listOf(
+            LlmException("Payment required", 402) to TurnFailure.OutOfCredit,
+            LlmException("""{"code":"insufficient_quota"}""", 429) to TurnFailure.OutOfCredit,
+            LlmException("unauthorized", 401) to TurnFailure.BadKey,
+            LlmException("forbidden", 403) to TurnFailure.BadKey,
+            LlmException("bad request", 400) to TurnFailure.BadSettings,
+            LlmException("model not found", 404) to TurnFailure.BadSettings,
+            LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.") to TurnFailure.BadSettings,
+            IllegalArgumentException("Expected URL scheme 'http' or 'https'") to TurnFailure.BadSettings,
+            LlmException("slow down", 429) to TurnFailure.Busy,
+            LlmException("server error", 500) to TurnFailure.ServerDown,
+            LlmException("bad gateway", 502) to TurnFailure.ServerDown,
+            IOException("timeout") to TurnFailure.Unreachable,
+            LlmException("LLM stream truncated") to TurnFailure.Glitch,
+            LlmException("malformed LLM JSON: oops") to TurnFailure.Glitch,
+            IllegalStateException("a bug") to TurnFailure.Glitch,
+        ).forEach { (error, expected) ->
+            assertEquals(error.message, expected, AgentOrchestrator.failureOf(error))
+        }
+    }
+
+    @Test
+    fun failureNoticesArePlainWordsInTheirLanguage() {
+        val raw = LlmException("""LLM request failed (401): {"error":{"message":"Provider API error"}}""", 401)
+
+        assertEquals("Your API key was refused. Your message is saved.", AgentOrchestrator.failureNotice(raw, "hi there"))
+
+        val persian = AgentOrchestrator.failureNotice(raw, "سلام، خوبی؟")
+        assertTrue(Regex("[\\u0600-\\u06FF]").containsMatchIn(persian))
+        assertFalse(persian.contains("Provider API error"))
+        assertFalse(persian.contains("LLM request failed"))
     }
 
     @Test
@@ -155,7 +193,7 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals("credit errors are not retried", 1, llm.calls)
-        assertTrue(result.outOfCredit)
+        assertEquals(TurnFailure.OutOfCredit, result.failure)
         assertTrue(result.notice!!.contains("Her Cloud"))
         assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice!!))
         assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
