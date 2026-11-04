@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.ui.theme.HerMotion
@@ -44,9 +46,12 @@ fun NoteWithDetails(
 ) {
     var open by remember(details) { mutableStateOf(false) }
     val align = if (centered) Alignment.CenterHorizontally else Alignment.Start
+    // Follow the words, not the phone's locale: a Persian line stays RTL and a raw error stays LTR.
+    val style = LocalTextStyle.current.copy(textDirection = TextDirection.Content)
     Column(modifier, horizontalAlignment = align, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             text,
+            style = style,
             color = color,
             fontSize = 14.sp,
             lineHeight = 20.sp,
@@ -71,6 +76,7 @@ fun NoteWithDetails(
             SelectionContainer {
                 Text(
                     details.orEmpty(),
+                    style = style,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
