@@ -91,6 +91,17 @@ class ExecutiveTest {
         assertTrue(briefing().getJSONArray("items").getJSONObject(0).isNull("blocker"))
     }
 
+    @Test fun dateOnlyDeadlineIsNotOverdueUntilTheDayEnds() = runBlocking {
+        val today = repo.now().toLocalDate().atStartOfDay(repo.profileZone()).toInstant().toEpochMilli()
+        delegation("Sara", JSONObject().put("deadline", today))
+        suspend fun reasons() = briefing().getJSONArray("items").getJSONObject(0).getJSONArray("reasons").toString()
+        assertTrue(reasons(), "DUE_WITHIN_24H" in reasons())
+        assertFalse(reasons(), "OVERDUE" in reasons())
+
+        clock.advance(24 * 60 * 60 * 1000L)
+        assertTrue(reasons(), "OVERDUE" in reasons())
+    }
+
     @Test fun briefingRanksDecisionsBeforeOverdueAndNeverInfersFailure() = runBlocking {
         delegation("Overdue", JSONObject().put("deadline", clock.peek() - 1000))
         val decision = delegation("Sara", JSONObject().put("decisionNeeded", "Need pricing decision").put("priority", 3))

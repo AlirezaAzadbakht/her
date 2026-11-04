@@ -28,7 +28,7 @@ object BackgroundRunPolicy {
     const val LOW_BATTERY_PERCENT = 15
     const val HOURLY_MIN_GAP_MS = 20 * 60 * 1000L
     const val CATCH_UP_GAP_MS = 3 * 60 * 60 * 1000L
-    const val SCHEDULE_VERSION = "v2"
+    const val SCHEDULE_VERSION = "v3"
     const val DAY_MS = 24 * 60 * 60 * 1000L
     const val HOURLY_EVENT_HORIZON_MS = 2 * 60 * 60 * 1000L
     const val AWAY_EMPTY_DAY_DAYS = 3
@@ -93,12 +93,17 @@ object BackgroundRunPolicy {
     fun isCatchUp(lastSuccessAt: Long, nowMs: Long): Boolean =
         lastSuccessAt > 0 && nowMs - lastSuccessAt > CATCH_UP_GAP_MS
 
+    /** A bare date ("today", "2026-11-04") parses to local midnight, meaning some time that day. */
+    // ponytail: a deadline really set for 00:00 reads as date-only, and one saved in another timezone reads as timed; store a date-only flag if either matters.
+    fun isDateOnly(due: ZonedDateTime): Boolean = due == due.toLocalDate().atStartOfDay(due.zone)
+
     /** "overdue" or "today" for a deadline worth one nudge, matching the markers the context shows; null otherwise. */
     fun deadlineState(dueAt: Long, now: ZonedDateTime): String? {
         val due = Instant.ofEpochMilli(dueAt).atZone(now.zone)
+        val dueToday = due.toLocalDate() == now.toLocalDate()
         return when {
-            due.isBefore(now) -> "overdue"
-            due.toLocalDate() == now.toLocalDate() -> "today"
+            due.isBefore(now) && !(dueToday && isDateOnly(due)) -> "overdue"
+            dueToday -> "today"
             else -> null
         }
     }

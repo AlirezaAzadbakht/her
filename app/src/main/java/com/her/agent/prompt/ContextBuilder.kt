@@ -33,6 +33,7 @@ data class BuiltContext(
 )
 
 private val clockFormat = DateTimeFormatter.ofPattern("h:mm a", Locale.US)
+private val dayFormat = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US)
 private const val DAY_MS = 24 * 60 * 60 * 1000L
 private const val FOLLOW_UP_GAP_MS = 6 * 60 * 60 * 1000L
 internal const val HISTORY_CHARS = 12_000
@@ -348,13 +349,15 @@ class ContextBuilder(
         val when_ = Instant.ofEpochMilli(millis).atZone(zone)
         val days = ChronoUnit.DAYS.between(now.toLocalDate(), when_.toLocalDate())
         val marker = when {
-            when_.isBefore(now) -> " OVERDUE"
+            BackgroundRunPolicy.deadlineState(millis, now) == "overdue" -> " OVERDUE"
             days == 0L -> " due today"
             days == 1L -> " due tomorrow"
             days <= 3L -> " due in $days days"
             else -> ""
         }
-        return " due ${stamp(millis, zone)}$marker"
+        // No clock for a date-only deadline: "at 12:00 AM" reads as a time already gone.
+        val day = if (BackgroundRunPolicy.isDateOnly(when_)) when_.format(dayFormat) else stamp(millis, zone)
+        return " due $day$marker"
     }
 
     private fun StringBuilder.appendSection(title: String, lines: List<String>) {
