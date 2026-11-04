@@ -7,10 +7,24 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RelativeTimeParserTest {
     private val now = ZonedDateTime.of(LocalDate.of(2026, 9, 11), LocalTime.of(15, 0), ZoneId.of("UTC"))
+
+    @Test
+    fun aDeadlineCanBeAWholeMonthAndMeansItsLastDay() {
+        assertEquals(LocalDate.of(2027, 3, 31), RelativeTimeParser.parseDeadline("March 2027", now)?.toLocalDate())
+        assertEquals(LocalDate.of(2027, 2, 28), RelativeTimeParser.parseDeadline("By Feb 2027", now)?.toLocalDate())
+        assertEquals(LocalDate.of(2026, 9, 18), RelativeTimeParser.parseDeadline("next Friday", now)?.toLocalDate())
+        assertNull(RelativeTimeParser.parseDeadline("sometime soon", now))
+    }
+
+    @Test
+    fun anEventTimeCannotBeAWholeMonth() {
+        assertNull(RelativeTimeParser.parse("March 2027", now))
+    }
 
     @Test
     fun tomorrowAndInThreeDays() {

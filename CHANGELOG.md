@@ -22,6 +22,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
+- Her no longer says she saved a goal, task, or promise with a date when the date was actually lost. If she can't read a date she tries again or asks you. A month on its own, like "by March 2027", now works and means the end of that month.
 - Her's private working notes no longer appear in her replies, the morning note or notifications. They could show up above the real message, or arrive as a notification when she meant to stay quiet.
 - The morning note sticks to what's actually on your day. It no longer goes through what's empty, or says your calendar is clear when she can't see it.
 - You see at most one "Her is working" notification, and only while she's really working. Before, several could stack up, even when she had nothing to do.
