@@ -40,6 +40,7 @@ Gradle properties (passed through as system properties):
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |
 | `scenario.mode` | `live` (default), `record`, or `replay` |
+| `scenario.start` | ISO instant every live attempt's clock starts at, instead of now (for example `2026-11-04T04:30:00Z`, 08:00 in Tehran). Use a morning time for briefing scenarios: run in the evening, a morning note reads as "hope your evening…" and today's events are already over |
 
 ## Record and replay
 
@@ -135,6 +136,8 @@ A `where` field may be a scalar (treated as `equals`) or an object of matchers. 
 | `notifications` | `{ "count"?, "contains_any"? }` | Recorded notifications match |
 | `reply.must_not_mention` | strings | None appear in the last reply |
 | `reply.language` | `english` / `persian` | Most letters in the last reply are in that script |
+
+Every scenario also gets `no_internal_text` without asking for it: no assistant message, reply or notification may contain a tool name with an underscore, `NO_NOTIFICATION`, or `<think`.
 
 ## Tables and fields
 

@@ -89,7 +89,7 @@ class StreamAccumulator {
         return LlmResponse(
             message = LlmMessage(
                 role = role,
-                content = content.toString().takeIf { it.isNotBlank() },
+                content = visibleText(content.toString()).takeIf { it.isNotBlank() },
                 toolCalls = toolCalls,
             ),
             usage = usage.copy(latencyMs = latency),
@@ -103,6 +103,11 @@ class StreamAccumulator {
         val arguments = StringBuilder()
     }
 }
+
+private val INLINE_THINKING = Regex("""<think(ing)?>.*?(</think(ing)?>|$)""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+
+/** Model text without the thinking some models write inline, even when the block never closes. */
+fun visibleText(text: String): String = text.replace(INLINE_THINKING, "").trim()
 
 /** Token counts from an OpenAI-style usage object. Cached prompt tokens appear only when the provider reports them. */
 fun parseUsage(usage: JSONObject?, latencyMs: Long): LlmUsage = LlmUsage(

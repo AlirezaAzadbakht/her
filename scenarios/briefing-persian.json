@@ -14,8 +14,10 @@
   ],
   "expect": {
     "no_tool_errors": true,
+    "tools_not_called": ["get_commitments", "get_calendar_events"],
     "reply": {
       "language": "persian",
+      "must_not_mention": ["تعهد", "تقویم", "commitment"],
       "judge": "A short Persian morning note that mentions renewing the car insurance today."
     }
   }

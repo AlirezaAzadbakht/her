@@ -254,6 +254,19 @@ class ScenarioHarnessLogicTest {
     }
 
     @Test
+    fun internalTextFailsAnyScenario() = runBlocking {
+        val spec = parse("""{ "id": "quiet", "title": "t", "turns": [{ "user": "hi" }], "expect": {} }""")
+        val clean = outcome(llmCalls = 1).copy(toolNames = setOf("remember", "get_commitments"))
+        suspend fun passes(outcome: HarnessOutcome) =
+            Checks.evaluate(spec, repo, outcome).single { it.name == "no_internal_text" }.passed
+
+        assertTrue(passes(clean.copy(lastReply = "I'll remember that.")))
+        assertFalse(passes(clean.copy(lastReply = "Need to call get_commitments.\n\nGood morning.")))
+        assertFalse(passes(clean.copy(lastReply = "<think>plan")))
+        assertFalse(passes(clean.copy(notifications = listOf(RecordedNotification("Quiet. NO_NOTIFICATION", briefing = false)))))
+    }
+
+    @Test
     fun detectsReplyLanguage() {
         assertEquals("persian", Checks.detectLanguage("باشه، فردا ساعت ۱۰ یادت می‌اندازم."))
         assertEquals("english", Checks.detectLanguage("Sure, I'll remind you at 10."))
