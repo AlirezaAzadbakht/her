@@ -8,6 +8,7 @@ import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.tools.ToolRegistry
 import com.her.core.FakeClock
 import com.her.core.QuietHours
+import com.her.core.RelativeTimeParser
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
@@ -474,6 +475,24 @@ class AgentOrchestratorTest {
         orchestrator(ScriptedLlm()).enqueueUserMessage("sorry, busy day")
         assertEquals(0, settings.read().swipedNudges)
         assertFalse(contextBuilder.build().systemBundle.contains("swiped away"))
+    }
+
+    @Test
+    fun dateOnlyDeadlineReadsDueTodayUntilTheDayEnds() = runBlocking {
+        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { title in it }
+        val today = RelativeTimeParser.parse("today", repo.now())!!.toInstant().toEpochMilli()
+        val insurance = task("Renew insurance", dueAt = today)
+        repo.saveTask(insurance)
+        repo.saveTask(task("Call the bank", dueAt = clock.peek() - HOUR))
+
+        assertTrue(line("Renew insurance"), line("Renew insurance").endsWith(" due today"))
+        assertFalse("a date has no clock time", "12:00 AM" in line("Renew insurance"))
+        assertTrue(line("Call the bank"), line("Call the bank").endsWith(" OVERDUE"))
+        assertTrue("due:${insurance.id}:$today:today" in contextBuilder.triggers(HOUR))
+
+        clock.advance(24 * HOUR)
+        assertTrue(line("Renew insurance"), line("Renew insurance").endsWith(" OVERDUE"))
+        assertTrue("due:${insurance.id}:$today:overdue" in contextBuilder.triggers(HOUR))
     }
 
     @Test
