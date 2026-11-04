@@ -6,6 +6,7 @@ import com.her.agent.tools.ToolRegistry
 import com.her.core.redactSecrets
 import com.her.data.remote.LlmClient
 import com.her.data.remote.LlmException
+import com.her.data.remote.visibleText
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
@@ -296,7 +297,7 @@ class AgentOrchestrator(
                     if (streamToUi) {
                         llm.stream(configured, messages, roundTools) { delta ->
                             round.append(delta)
-                            _turnState.value = TurnState.Streaming(round.toString())
+                            _turnState.value = TurnState.Streaming(visibleText(round.toString()))
                         }
                     } else {
                         llm.complete(configured, messages, roundTools)
@@ -316,7 +317,7 @@ class AgentOrchestrator(
                 )
                 repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
-                val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
+                val roundText = msg.content?.trim().orEmpty().ifBlank { visibleText(round.toString()) }
                 val calls = msg.toolCalls.orEmpty()
                 if (calls.isEmpty()) {
                     if (Identity.isSilence(roundText)) break
