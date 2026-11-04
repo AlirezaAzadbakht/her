@@ -196,6 +196,34 @@ class BackgroundRunPolicyTest {
     }
 
     @Test
+    fun dateOnlyDeadlineIsDueTodayUntilTheDayEnds() {
+        val midnight = ZonedDateTime.of(2026, 9, 23, 0, 0, 0, 0, ZoneId.of("Asia/Tehran"))
+        val dueMs = midnight.toInstant().toEpochMilli()
+        assertNull(BackgroundRunPolicy.deadlineState(dueMs, midnight.minusDays(1).withHour(8)))
+        assertEquals("today", BackgroundRunPolicy.deadlineState(dueMs, midnight))
+        assertEquals("today", BackgroundRunPolicy.deadlineState(dueMs, midnight.withHour(8)))
+        assertEquals("today", BackgroundRunPolicy.deadlineState(dueMs, midnight.plusDays(1).minusNanos(1)))
+        assertEquals("overdue", BackgroundRunPolicy.deadlineState(dueMs, midnight.plusDays(1)))
+    }
+
+    @Test
+    fun timedDeadlineEarlierTodayIsStillOverdue() {
+        val at = ZonedDateTime.of(2026, 9, 23, 8, 0, 0, 0, ZoneId.of("Asia/Tehran"))
+        assertEquals("overdue", BackgroundRunPolicy.deadlineState(at.withHour(7).toInstant().toEpochMilli(), at))
+        assertEquals("overdue", BackgroundRunPolicy.deadlineState(at.withHour(0).withMinute(1).toInstant().toEpochMilli(), at))
+    }
+
+    @Test
+    fun dateOnlyHoldsWhenClocksSkipMidnight() {
+        // Havana springs forward at 00:00 on this date, so the day starts at 01:00.
+        val zone = ZoneId.of("America/Havana")
+        val start = LocalDate.of(2026, 3, 8).atStartOfDay(zone)
+        assertEquals(1, start.hour)
+        assertTrue(BackgroundRunPolicy.isDateOnly(start))
+        assertEquals("today", BackgroundRunPolicy.deadlineState(start.toInstant().toEpochMilli(), start.withHour(8)))
+    }
+
+    @Test
     fun birthdaysComeUpEveryYear() {
         val today = LocalDate.of(2026, 9, 23)
         assertEquals(today, BackgroundRunPolicy.upcomingOccurrence("1990-09-23", today))

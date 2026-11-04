@@ -25,6 +25,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.
 - Your own birthday and other dates you tell Her now show up in the Memory tab's "Lately" list. Before, she saved them but they didn't appear there, so it looked like she had forgotten.
 - The morning briefing no longer reads out your scheduled reminders or what's missing from your lists. Reminders still ring on their own.
+- Something due "today" with no set time no longer counts as overdue from midnight. Her treats it as due today, and as overdue only once the day has passed.
 - Message and reminder notifications clear when you open or return to the app.
 - When Her can't reach the model, the "couldn't reach the model" note shows only on screen. It no longer stays in your chat or gets read back to the model later.
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
