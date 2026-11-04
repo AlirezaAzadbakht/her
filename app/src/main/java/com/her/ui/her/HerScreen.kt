@@ -260,111 +260,115 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
-        PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
-        ReplyStage(
-            hasText = hasText,
-            thinking = awaitingFirstToken,
-            bump = bump,
-            orbState = look.state,
-            palette = palette,
-            scroll = scroll,
-            text = replyText,
-            ink = ink,
-            style = responseStyle,
-            showCaret = showCaret,
-            tailStrength = tail.value,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-        )
+        // The composer is measured first, so it keeps its height however tall the notice gets; the notice scrolls.
+        Column(Modifier.weight(1f).fillMaxWidth()) {
+            val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
+            PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
+            ReplyStage(
+                hasText = hasText,
+                thinking = awaitingFirstToken,
+                bump = bump,
+                orbState = look.state,
+                palette = palette,
+                scroll = scroll,
+                text = replyText,
+                ink = ink,
+                style = responseStyle,
+                showCaret = showCaret,
+                tailStrength = tail.value,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
 
-        val message = latest
-        val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
-        val showReceipts = message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
-            turn is TurnState.Idle && nextHeld.isBlank()
-        var lastReceipts by remember { mutableStateOf(receipts to message?.id) }
-        SideEffect { if (showReceipts) lastReceipts = receipts to message?.id }
-        AnimatedVisibility(
-            visible = showReceipts,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            val (items, id) = if (showReceipts) receipts to message?.id else lastReceipts
-            ReceiptLine(items, onUndo = { picked -> if (id != null) vm.undoReceipts(id, picked) })
-        }
+            val message = latest
+            val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
+            val showReceipts = message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
+                turn is TurnState.Idle && nextHeld.isBlank()
+            var lastReceipts by remember { mutableStateOf(receipts to message?.id) }
+            SideEffect { if (showReceipts) lastReceipts = receipts to message?.id }
+            AnimatedVisibility(
+                visible = showReceipts,
+                enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
+                exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+            ) {
+                val (items, id) = if (showReceipts) receipts to message?.id else lastReceipts
+                ReceiptLine(items, onUndo = { picked -> if (id != null) vm.undoReceipts(id, picked) })
+            }
 
-        val sharedText = share
-        val status: HerStatus? = when {
-            !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
-            !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
-            else -> null
-        }
-        AnimatedContent(
-            targetState = status,
-            transitionSpec = {
-                (fadeIn(HerMotion.enter()) + slideInVertically(HerMotion.enter()) { it / 2 }) togetherWith
-                    fadeOut(HerMotion.exit()) using SizeTransform(clip = false)
-            },
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxWidth(),
-            label = "her-status",
-        ) { current ->
-            if (current != null) {
-                Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                    StatusChip(current)
+            val sharedText = share
+            val status: HerStatus? = when {
+                !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
+                !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
+                else -> null
+            }
+            AnimatedContent(
+                targetState = status,
+                transitionSpec = {
+                    (fadeIn(HerMotion.enter()) + slideInVertically(HerMotion.enter()) { it / 2 }) togetherWith
+                        fadeOut(HerMotion.exit()) using SizeTransform(clip = false)
+                },
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth(),
+                label = "her-status",
+            ) { current ->
+                if (current != null) {
+                    Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
+                        StatusChip(current)
+                    }
                 }
             }
-        }
 
-        var noticeShake by remember { mutableIntStateOf(0) }
-        LaunchedEffect(notice) {
-            if (notice != null) {
-                haptics.reject()
-                noticeShake += 1
+            var noticeShake by remember { mutableIntStateOf(0) }
+            LaunchedEffect(notice) {
+                if (notice != null) {
+                    haptics.reject()
+                    noticeShake += 1
+                }
             }
-        }
-        val shake = rememberShake(noticeShake)
+            val shake = rememberShake(noticeShake)
 
-        // Not a chat message: it is never saved or sent to the model, and clears on the next send.
-        AnimatedVisibility(
-            visible = notice != null,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            val uriHandler = LocalUriHandler.current
-            var lastNotice by remember { mutableStateOf(notice) }
-            SideEffect { notice?.let { lastNotice = it } }
-            val shown = notice ?: lastNotice
-            val failure = shown?.failure
-            GlassPill(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-                    .shake(shake)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-                shape = RoundedCornerShape(24.dp),
+            // Not a chat message: it is never saved or sent to the model, and clears on the next send.
+            AnimatedVisibility(
+                visible = notice != null,
+                enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+                exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
             ) {
-                NoteWithDetails(
-                    text = shown?.notice.orEmpty(),
-                    details = shown?.error,
-                    color = scheme.onSurface,
-                    centered = true,
+                val uriHandler = LocalUriHandler.current
+                var lastNotice by remember { mutableStateOf(notice) }
+                SideEffect { notice?.let { lastNotice = it } }
+                val shown = notice ?: lastNotice
+                val failure = shown?.failure
+                GlassPill(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                        .padding(bottom = 8.dp)
+                        .shake(shake)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    shape = RoundedCornerShape(24.dp),
                 ) {
-                    when (failure) {
-                        TurnFailure.OutOfCredit -> HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
-                        TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton("Settings", onClick = onOpenSettings)
-                        else -> Unit
+                    NoteWithDetails(
+                        text = shown?.notice.orEmpty(),
+                        details = shown?.error,
+                        color = scheme.onSurface,
+                        centered = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
+                    ) {
+                        when (failure) {
+                            TurnFailure.OutOfCredit -> HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                            TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton("Settings", onClick = onOpenSettings)
+                            else -> Unit
+                        }
+                        val hasOwnFix = failure == TurnFailure.OutOfCredit || failure == TurnFailure.BadKey || failure == TurnFailure.BadSettings
+                        HerButton(
+                            "Try again",
+                            tone = if (hasOwnFix) HerButtonTone.Quiet else HerButtonTone.Primary,
+                            onClick = vm::retry,
+                        )
                     }
-                    val hasOwnFix = failure == TurnFailure.OutOfCredit || failure == TurnFailure.BadKey || failure == TurnFailure.BadSettings
-                    HerButton(
-                        "Try again",
-                        tone = if (hasOwnFix) HerButtonTone.Quiet else HerButtonTone.Primary,
-                        onClick = vm::retry,
-                    )
                 }
             }
         }
