@@ -40,6 +40,7 @@ Gradle properties (passed through as system properties):
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |
 | `scenario.mode` | `live` (default), `record`, or `replay` |
+| `scenario.start` | ISO instant every live attempt's clock starts at, instead of now (for example `2026-11-04T04:30:00Z`, 08:00 in Tehran). Use a morning time for briefing scenarios: run in the evening, a morning note reads as "hope your evening…" and today's events are already over |
 
 ## Record and replay
 
