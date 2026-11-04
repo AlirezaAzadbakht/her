@@ -64,7 +64,7 @@ The morning briefing is scheduled at the **end** of quiet hours, not at a fixed 
 
 ## Foreground and battery exemption
 
-Hourly, nightly, and briefing call `setForeground()` on a low-importance **Background work** channel so a long LLM pass is not killed at WorkManager’s ~10 minute limit. Manifest: `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC`.
+Hourly, nightly, and briefing call `setForeground()` on a low-importance **Background work** channel so a long LLM pass is not killed at WorkManager’s ~10 minute limit. They do it through `onPassStart`, once a pass holds the run lock and will call the model, so a skipped or waiting pass shows nothing. All three share one notification id, so overlapping passes are one row. A pass waiting its turn can be stopped at that limit; WorkManager runs it again. Manifest: `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_DATA_SYNC`.
 
 Settings, under quiet hours: if the app is still battery-optimized, **Allow background work** opens `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`. This is user-initiated so OEM savers do not silently defer hourly/nightly. There is no first-launch prompt.
 
