@@ -51,6 +51,23 @@ class CallBudget(val maxCalls: Int) {
     }
 }
 
+/** Why a model call failed, in words for the person. */
+enum class TurnFailure(val english: String, val persian: String) {
+    OutOfCredit("Your API credit has run out.", "اعتبار API تمام شده."),
+    BadKey("Your API key was refused.", "کلید API پذیرفته نشد."),
+    BadSettings(
+        "The model settings don't look right. Check the model name and Base URL.",
+        "تنظیمات مدل درست به نظر نمی‌رسد. نام مدل و Base URL را بررسی کن.",
+    ),
+    Busy("The model is getting too many requests right now.", "مدل الان درخواست‌های زیادی دریافت می‌کند."),
+    ServerDown("The model's server is having trouble right now.", "سرور مدل الان مشکل دارد."),
+    Unreachable(
+        "I can't reach the model. Check your connection and the Base URL.",
+        "به مدل دسترسی ندارم. اینترنت و Base URL را بررسی کن.",
+    ),
+    Glitch("Something went wrong while I was answering.", "موقع جواب دادن مشکلی پیش آمد."),
+}
+
 data class TurnResult(
     val assistantText: String?,
     val failed: Boolean,
@@ -59,7 +76,7 @@ data class TurnResult(
     val runId: String,
     /** Why a chat turn failed, for the screen only: never saved to chat or sent to the model. */
     val notice: String? = null,
-    val outOfCredit: Boolean = false,
+    val failure: TurnFailure? = null,
 )
 
 sealed class TurnState {
@@ -438,10 +455,8 @@ class AgentOrchestrator(
             val error = redactSecrets(e.message ?: "Unknown error")
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
-            val credit = isOutOfCredit(e)
-            val lastText = latestUserText.orEmpty()
-            val notice = if (!persistAssistant) null else if (credit) creditNotice(lastText) else failureReply(lastText)
-            TurnResult(null, true, error, budget.used, runId, notice, credit)
+            val notice = if (persistAssistant) failureNotice(e, latestUserText.orEmpty()) else null
+            TurnResult(null, true, error, budget.used, runId, notice, failureOf(e))
         } finally {
             tools.runType = AgentRunType.CHAT
             if (streamToUi) _turnState.value = TurnState.Idle
@@ -567,12 +582,32 @@ class AgentOrchestrator(
             }
         }
 
-        internal fun failureReply(lastUserText: String): String =
-            if (persianScript.containsMatchIn(lastUserText)) {
-                "الان نتوانستم به مدل وصل شوم. پیامت ذخیره شده — کمی بعد دوباره امتحان کن."
-            } else {
-                "I couldn't reach the model just now. Your message is saved — try again in a moment."
+        /** Sorts a failed model call by what the person can do about it. */
+        internal fun failureOf(e: Throwable): TurnFailure {
+            val status = (e as? LlmException)?.status
+            return when {
+                isOutOfCredit(e) -> TurnFailure.OutOfCredit
+                status == 401 || status == 403 -> TurnFailure.BadKey
+                status == 429 -> TurnFailure.Busy
+                status != null && status >= 500 -> TurnFailure.ServerDown
+                status != null -> TurnFailure.BadSettings
+                // OkHttp throws IllegalArgumentException for a Base URL it can't parse.
+                e is IllegalArgumentException -> TurnFailure.BadSettings
+                e is LlmException -> if (e.message.orEmpty().contains("not configured")) TurnFailure.BadSettings else TurnFailure.Glitch
+                e is IOException -> TurnFailure.Unreachable
+                else -> TurnFailure.Glitch
             }
+        }
+
+        /** Credit keeps its varied lines; the rest say what happened and that nothing was lost. */
+        internal fun failureNotice(e: Throwable, lastUserText: String): String {
+            val failure = failureOf(e)
+            return when {
+                failure == TurnFailure.OutOfCredit -> creditNotice(lastUserText)
+                persianScript.containsMatchIn(lastUserText) -> "${failure.persian} پیامت ذخیره شده."
+                else -> "${failure.english} Your message is saved."
+            }
+        }
 
         internal fun forModel(payload: String): String =
             if (payload.length <= MAX_TOOL_PAYLOAD_CHARS) {

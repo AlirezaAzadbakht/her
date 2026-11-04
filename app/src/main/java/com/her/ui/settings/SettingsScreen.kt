@@ -78,6 +78,7 @@ import com.her.ui.components.HerButton
 import com.her.ui.components.HerButtonTone
 import com.her.ui.components.HerSwitch
 import com.her.ui.components.HerTextField
+import com.her.ui.components.NoteWithDetails
 import com.her.ui.components.SectionCard
 import com.her.ui.onboarding.HerCloudConnect
 import com.her.ui.onboarding.rememberCalendarPermissionRequester
@@ -112,6 +113,7 @@ fun SettingsScreen(vm: HerViewModel) {
     val debug by vm.debugEvents.collectAsState()
     val runs by vm.runs.collectAsState()
     val connection by vm.connectionMessage.collectAsState()
+    val connectionDetail by vm.connectionDetail.collectAsState()
     val checking by vm.checkingConnection.collectAsState()
     val google by vm.googleMessage.collectAsState()
     val googleConsent by vm.googleConsent.collectAsState()
@@ -223,7 +225,7 @@ fun SettingsScreen(vm: HerViewModel) {
                     enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
                     exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
                 ) {
-                    Hint(connection.orEmpty(), Modifier.padding(top = 6.dp))
+                    NoteWithDetails(connection.orEmpty(), connectionDetail, Modifier.padding(top = 6.dp))
                 }
                 Spacer(Modifier.height(12.dp))
                 HerCloudConnect { cloud ->

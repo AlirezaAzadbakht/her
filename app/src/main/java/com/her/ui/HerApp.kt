@@ -98,6 +98,7 @@ fun HerApp(vm: HerViewModel) {
     val settings by vm.settings.collectAsState()
     val profile by vm.profile.collectAsState()
     val connectionMessage by vm.connectionMessage.collectAsState()
+    val connectionDetail by vm.connectionDetail.collectAsState()
     val checkingConnection by vm.checkingConnection.collectAsState()
     val named = !profile?.userName.isNullOrBlank() && !profile?.assistantName.isNullOrBlank()
     val stage = when {
@@ -137,6 +138,7 @@ fun HerApp(vm: HerViewModel) {
                             Stage.Setup -> SetupScreen(
                                 initial = vm.llmSettings(),
                                 message = connectionMessage,
+                                details = connectionDetail,
                                 checking = checkingConnection,
                                 onSave = { next: LlmSettings -> vm.saveAndTest(next) },
                             )
@@ -226,7 +228,7 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
                 label = "dest",
             ) { current ->
                 when (current) {
-                    Dest.Her -> HerScreen(vm)
+                    Dest.Her -> HerScreen(vm, onOpenSettings = { onDest(Dest.Settings) })
                     Dest.Memory -> SqlNavigatorScreen(vm)
                     Dest.Settings -> SettingsScreen(vm)
                 }

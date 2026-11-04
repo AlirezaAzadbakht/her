@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
+import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.runner.Receipt
 import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnResult
@@ -45,9 +46,9 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val settings = graph.settings.state
     val sqlBrowser = graph.sqlBrowser
 
-    val sendError = MutableStateFlow<String?>(null)
     val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
+    val connectionDetail = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val googleMessage = MutableStateFlow<String?>(null)
     val googleConsent = MutableStateFlow<PendingIntent?>(null)
@@ -67,14 +68,14 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect
                 val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
-                showFailure(result)
+                showOutcome(result)
             }
         }
     }
 
-    private fun showFailure(result: TurnResult?) {
-        if (result?.failed != true) return
-        if (result.notice != null) notice.value = result else sendError.value = result.error
+    /** A later success clears the notice, so it never outlives the message it was about. */
+    private fun showOutcome(result: TurnResult?) {
+        notice.value = result?.takeIf { it.failed }
     }
 
     fun saveUserName(name: String) {
@@ -113,6 +114,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (checkingConnection.value) return
         checkingConnection.value = true
         connectionMessage.value = "Checking…"
+        connectionDetail.value = null
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -127,9 +129,12 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                         withContext(Dispatchers.IO) { graph.orchestrator.seedOnboardingIfNeeded() }
                     }
                     connectionMessage.value = "Connected."
+                    // A message stuck on the old settings can go now.
+                    if (notice.value != null) retry()
                 },
                 onFailure = {
-                    connectionMessage.value = redactSecrets(it.message ?: "Could not connect")
+                    connectionMessage.value = AgentOrchestrator.failureOf(it).english
+                    connectionDetail.value = redactSecrets(it.message ?: it::class.java.simpleName)
                 },
             )
             checkingConnection.value = false
@@ -139,19 +144,26 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
-        sendError.value = null
+        runPending {
+            graph.orchestrator.enqueueUserMessage(
+                trimmed,
+                pendingShare.value?.let { JSONObject().put("shared", it).toString() },
+            )
+            pendingShare.value = null
+        }
+    }
+
+    /** Sends whatever a failed turn left waiting. */
+    fun retry() = runPending {}
+
+    private fun runPending(before: suspend () -> Unit) {
         notice.value = null
         turnJob?.cancel()
         turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                graph.orchestrator.enqueueUserMessage(
-                    trimmed,
-                    pendingShare.value?.let { JSONObject().put("shared", it).toString() },
-                )
-                pendingShare.value = null
+                before()
                 if (graph.connectivity.online.value) {
-                    val result = graph.orchestrator.processOutbox()
-                    showFailure(result)
+                    showOutcome(graph.orchestrator.processOutbox())
                 } else {
                     graph.scheduler.enqueueOutbox()
                 }
