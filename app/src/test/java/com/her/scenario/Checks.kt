@@ -1,5 +1,6 @@
 package com.her.scenario
 
+import com.her.agent.prompt.Identity
 import com.her.core.RelativeTimeParser
 import com.her.core.normalizeDigits
 import com.her.data.repository.HerRepository
@@ -163,6 +164,16 @@ object Checks {
                 detail = "wanted $wanted; reply reads as ${actual ?: "(no letters)"}",
             )
         }
+        // Every scenario: what they read never carries a tool name, the silence marker, or inline thinking.
+        val internal = outcome.toolNames.filter { '_' in it } + Identity.NO_NOTIFICATION + "<think"
+        val read = outcome.messages.filter { it.role == MessageRole.ASSISTANT }.map { it.content } +
+            outcome.notifications.map { it.text } + listOfNotNull(lastReply)
+        val leaked = internal.filter { word -> read.any { it.contains(word, ignoreCase = true) } }
+        results += CheckResult(
+            name = "no_internal_text",
+            passed = leaked.isEmpty(),
+            detail = if (leaked.isEmpty()) "no internal text" else "reply or notification contains $leaked",
+        )
         return results
     }
 

@@ -136,6 +136,8 @@ A `where` field may be a scalar (treated as `equals`) or an object of matchers. 
 | `reply.must_not_mention` | strings | None appear in the last reply |
 | `reply.language` | `english` / `persian` | Most letters in the last reply are in that script |
 
+Every scenario also gets `no_internal_text` without asking for it: no assistant message, reply or notification may contain a tool name with an underscore, `NO_NOTIFICATION`, or `<think`.
+
 ## Tables and fields
 
 Rows are flattened by an explicit mapper, not reflection.

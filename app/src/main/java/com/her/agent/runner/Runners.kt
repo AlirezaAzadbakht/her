@@ -315,10 +315,10 @@ class AgentOrchestrator(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens} ms=${response.usage.latencyMs}",
                 )
-                repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
                 val roundText = msg.content?.trim().orEmpty().ifBlank { visibleText(round.toString()) }
                 val calls = msg.toolCalls.orEmpty()
+                repo.logDebug("llm", "responseChars=${response.rawJson.length} contentChars=${roundText.length} toolCalls=${calls.size}")
                 if (calls.isEmpty()) {
                     if (Identity.isSilence(roundText)) break
                     // Only this message reaches them. Text beside a tool call is the model's working notes.
