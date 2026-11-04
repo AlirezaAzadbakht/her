@@ -108,7 +108,8 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         } catch (_: Exception) {
             return Result.success()
         } finally {
-            if (scheduleNext) graph.scheduler.enqueueNextNightly()
+            // A stopped worker (network lost, time limit) runs again as this same request; queuing one here would pile up runs.
+            if (scheduleNext && !isStopped) graph.scheduler.enqueueNextNightly()
         }
     }
 }
@@ -141,7 +142,8 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
         } catch (_: Exception) {
             return Result.success()
         } finally {
-            if (scheduleNext) graph.scheduler.enqueueNextBriefing()
+            // A stopped worker (network lost, time limit) runs again as this same request; queuing one here would pile up runs.
+            if (scheduleNext && !isStopped) graph.scheduler.enqueueNextBriefing()
         }
     }
 }

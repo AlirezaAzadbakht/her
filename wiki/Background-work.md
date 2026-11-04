@@ -14,9 +14,9 @@
 | `SyncWorker` | `her-sync` | Periodic, every 6 hours; no-ops if Drive is disabled or battery is low | Network + battery not low |
 | `OutboxWorker` | `her-outbox` | One-shot when `PENDING` user rows exist | Network |
 
-Nightly and briefing are **not** 24-hour periodic work. A one-shot delayed to the wall clock keeps the 50-call nightly pass at night. After success, skip, or LLM failure the worker appends the next occurrence. `enqueueAll()` / boot restore a missing next run without resetting an already-pending one.
+Nightly and briefing are **not** 24-hour periodic work. A one-shot delayed to the wall clock keeps the 50-call nightly pass at night. After success, skip, or LLM failure the worker appends the next occurrence. A worker WorkManager stopped (network lost, time limit) appends nothing, because the same request runs again; an appended run's delay only starts when it is unblocked, so an extra one would fire at the wrong hour. `enqueueAll()` / boot restore a missing next run without resetting an already-pending one.
 
-A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v2`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour.
+A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v3`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour. Bumping the version also rebuilds the nightly and briefing chains once.
 
 ## Policy
 
