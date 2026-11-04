@@ -23,6 +23,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Fixed
 - Her no longer says she saved a goal, task, or promise with a date when the date was actually lost. If she can't read a date she tries again or asks you. A month on its own, like "by March 2027", now works and means the end of that month.
+- You see at most one "Her is working" notification, and only while she's really working. Before, several could stack up, even when she had nothing to do.
+- The nightly review and morning briefing stay on schedule when your connection drops while they run. Before, each drop could leave an extra run that later fired at an odd hour, such as the middle of the afternoon.
 - Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.
 - Your own birthday and other dates you tell Her now show up in the Memory tab's "Lately" list. Before, she saved them but they didn't appear there, so it looked like she had forgotten.
 - The morning briefing no longer reads out your scheduled reminders or what's missing from your lists. Reminders still ring on their own.
