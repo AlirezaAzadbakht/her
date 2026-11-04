@@ -17,7 +17,7 @@ The look is warm glow. A deep warm night palette applies in dark mode and a dawn
 - **Motion tokens:** every animation uses `ui/theme/Motion.kt`: durations, emphasized easings, and gentle/snappy springs.
 - **Reduced motion:** when the system animator scale is 0, `LocalReducedMotion` freezes ambient drift, halos, and orbs on a still frame.
 - **Haptics:** `ui/theme/Haptics.kt` names each moment: send (confirm), her first words (soft), tab change and buttons (tick), toggles, and errors (reject).
-- **Components:** reusable pieces live in `ui/components/`: `GlassPill`, `HerButton` (label → loading orb → drawn check), `HerTextField` (warming label and a gradient underline that grows from the centre), `HerSwitch`, `SectionCard`, `ShimmerText`, `SkeletonRows`, and `StaggeredText`.
+- **Components:** reusable pieces live in `ui/components/`: `GlassPill`, `HerButton` (label → loading orb → drawn check), `HerTextField` (warming label and a gradient underline that grows from the centre), `HerSwitch`, `NoteWithDetails`, `SectionCard`, `ShimmerText`, `SkeletonRows`, and `StaggeredText`.
 
 ### Loaders
 
@@ -55,7 +55,7 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
 3. Then `SetupScreen` until `apiConfiguredOnce` is true.
 4. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
    - Without a key, `HerCloudConnect` (also in Settings → Her mind) links to [Her Cloud](https://cloud.her-project.ir/) to buy credit. **Paste settings** reads the clipboard and **Scan QR code** opens the ZXing scanner (it asks for the camera). **Load QR image** opens the photo picker (no permission needed), reads every QR in the picture with ZXing's `QRCodeMultiReader` (`qrTexts`), and keeps the first that parses, so the Cafe Bazaar link on Her Cloud's cards is skipped. All three take Her Cloud's `{base_url, model_name, api_key}` JSON through `LlmSettings.fromJson`, fill the fields, and run `saveAndTest()` at once. Anything else shows "That isn't Her Cloud settings."
-5. `saveAndTest()` writes the credentials, then runs `LlmClient.ping()` (a short chat request with a ~35s timeout) on a background thread. The button becomes a `connecting` orb with a shimmering **Checking…**. On failure, the fields shake, a reject haptic plays, and the message slides in.
+5. `saveAndTest()` writes the credentials, then runs `LlmClient.ping()` (a short chat request with a ~35s timeout) on a background thread. The button becomes a `connecting` orb with a shimmering **Checking…**. On failure, the fields shake, a reject haptic plays, and a plain sentence from `AgentOrchestrator.failureOf` slides in, with the redacted raw error behind **Details**.
 6. On success, the button draws a check, the halo flares, `apiConfiguredOnce = true`, and `seedOnboardingIfNeeded()` runs:
    - Assistant: *“Hi, {user}. I'm {her}.”*
    - Agent queue item: learn timezone and what matters — slowly, not as an interview.
@@ -92,7 +92,10 @@ Optional later, in Settings: Calendar access (requests permission if needed), we
   - On send, the text floats up and fades, and a confirm haptic plays.
   - The composer always enqueues; send is never blocked by an in-flight turn.
 - **Offline:** messages are stored as `PENDING`, and a status chip reads `offline · N waiting` beside a `weaving` orb. When the network returns, `processOutbox()` sends the whole batch as **one** turn.
-- **Send errors:** they appear as a chip that shakes once.
+- **Send errors:** a glass card above the composer shakes once with a reject haptic while the orb dims. It is never saved to chat or sent to the model.
+  - `AgentOrchestrator.failureOf` sorts the failure into a `TurnFailure`, and `failureNotice` words it in English or Persian, following their last message.
+  - **Her Cloud** answers no credit, **Settings** answers a refused key or wrong settings, and **Try again** runs `processOutbox()` again. **Details** shows the redacted raw error.
+  - The card clears on the next send or when a later attempt works. A successful **Save & test** sends the waiting message.
 - History still lives in Room and still feeds `ContextBuilder`. It is simply not displayed.
 
 Assistant replies are markdown (`**bold**`, lists, headings). Parsing and Compose rendering are local:

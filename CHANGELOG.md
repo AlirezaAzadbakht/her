@@ -12,6 +12,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Load QR image** connects Her Cloud from a saved picture of the QR code, such as a connect or gift card you downloaded. If the picture also has the store-link QR, Her skips it and uses the settings one.
 
 ### Changed
+- When a message can't go through, Her now says what went wrong in plain words and in your language, such as a refused API key or a busy server. The next step is right there: **Try again**, **Settings**, or **Her Cloud**. The technical error stays behind **Details**, and setup and **Save & test** explain errors the same way.
 - Her sends less of your older chat to the model with each reply, so long conversations stay faster and cheaper. She still remembers earlier days through her notes and by searching your chat.
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
@@ -22,6 +23,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
+- A message that failed now sends as soon as **Save & test** succeeds, and the failure note no longer stays on screen after a later attempt works.
 - Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.
 - Your own birthday and other dates you tell Her now show up in the Memory tab's "Lately" list. Before, she saved them but they didn't appear there, so it looked like she had forgotten.
 - The morning briefing no longer reads out your scheduled reminders or what's missing from your lists. Reminders still ring on their own.

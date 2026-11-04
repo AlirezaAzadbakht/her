@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -76,8 +77,10 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -95,6 +98,8 @@ import com.her.agent.runner.TurnState
 import androidx.compose.ui.platform.LocalUriHandler
 import com.her.ui.HerViewModel
 import com.her.ui.components.HerButton
+import com.her.ui.components.HerButtonTone
+import com.her.ui.components.NoteWithDetails
 import com.her.ui.onboarding.HerCloudUrl
 import com.her.ui.components.GlassPill
 import com.her.ui.components.sharedPresence
@@ -131,10 +136,9 @@ private sealed interface HerStatus {
 }
 
 @Composable
-fun HerScreen(vm: HerViewModel) {
+fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
     val latest by vm.latestAssistant.collectAsState()
     val turn by vm.turnState.collectAsState()
-    val error by vm.sendError.collectAsState()
     val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
@@ -248,7 +252,7 @@ fun HerScreen(vm: HerViewModel) {
     val replyText = if (shown.isNotBlank()) shown else lastText
     val hasText = shown.isNotBlank()
 
-    val mood = presenceFor(turn, revealing = showCaret, draftNotEmpty = draft.text.isNotBlank(), hasError = error != null)
+    val mood = presenceFor(turn, revealing = showCaret, draftNotEmpty = draft.text.isNotBlank(), hasError = notice != null)
     val ink = lerp(scheme.onBackground, scheme.onSurfaceVariant, 0.35f)
 
     Column(
@@ -313,35 +317,14 @@ fun HerScreen(vm: HerViewModel) {
             }
         }
 
-        var errorShake by remember { mutableIntStateOf(0) }
-        LaunchedEffect(error) {
-            if (error != null) {
+        var noticeShake by remember { mutableIntStateOf(0) }
+        LaunchedEffect(notice) {
+            if (notice != null) {
                 haptics.reject()
-                errorShake += 1
+                noticeShake += 1
             }
         }
-        val shake = rememberShake(errorShake)
-        var lastError by remember { mutableStateOf("") }
-        SideEffect { error?.let { lastError = it } }
-        AnimatedVisibility(
-            visible = error != null,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    error ?: lastError,
-                    color = scheme.error,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .shake(shake)
-                        .clip(CircleShape)
-                        .border(1.dp, scheme.error.copy(alpha = 0.35f), CircleShape)
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                )
-            }
-        }
+        val shake = rememberShake(noticeShake)
 
         // Not a chat message: it is never saved or sent to the model, and clears on the next send.
         AnimatedVisibility(
@@ -353,13 +336,36 @@ fun HerScreen(vm: HerViewModel) {
             var lastNotice by remember { mutableStateOf(notice) }
             SideEffect { notice?.let { lastNotice = it } }
             val shown = notice ?: lastNotice
-            Column(
-                Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            val failure = shown?.failure
+            GlassPill(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .shake(shake)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                shape = RoundedCornerShape(24.dp),
             ) {
-                Text(shown?.notice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
-                if (shown?.failure == TurnFailure.OutOfCredit) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                NoteWithDetails(
+                    text = shown?.notice.orEmpty(),
+                    details = shown?.error,
+                    color = scheme.onSurface,
+                    centered = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                ) {
+                    when (failure) {
+                        TurnFailure.OutOfCredit -> HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                        TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton("Settings", onClick = onOpenSettings)
+                        else -> Unit
+                    }
+                    val hasOwnFix = failure == TurnFailure.OutOfCredit || failure == TurnFailure.BadKey || failure == TurnFailure.BadSettings
+                    HerButton(
+                        "Try again",
+                        tone = if (hasOwnFix) HerButtonTone.Quiet else HerButtonTone.Primary,
+                        onClick = vm::retry,
+                    )
+                }
             }
         }
 
