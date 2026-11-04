@@ -132,8 +132,11 @@ class AgentOrchestrator(
         return result
     }
 
-    /** [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it. */
-    suspend fun runHourly(gated: Boolean = false): TurnResult = runMutex.withLock {
+    /**
+     * [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it.
+     * [onPassStart] runs once a pass holds the lock and will call the model, not when it skips or waits its turn.
+     */
+    suspend fun runHourly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val app = settings.read()
         val last = app.lastHourlyRunAt
         val now = nowMillis()
@@ -147,6 +150,7 @@ class AgentOrchestrator(
             repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        onPassStart()
         val result = runTurn(
             type = if (now - last > 3 * 60 * 60 * 1000 && last > 0) AgentRunType.CATCH_UP else AgentRunType.HOURLY,
             budget = CallBudget(10),
@@ -164,7 +168,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runNightly(gated: Boolean = false): TurnResult = runMutex.withLock {
+    suspend fun runNightly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
         val app = settings.read()
         if (app.lastNightlyDate == today) {
@@ -177,6 +181,7 @@ class AgentOrchestrator(
             repo.logActivity("nightly", "Skipped; nothing new since last night.")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        onPassStart()
         val started = nowMillis()
         val result = runTurn(
             type = AgentRunType.NIGHTLY,
@@ -196,7 +201,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runBriefing(gated: Boolean = false): TurnResult = runMutex.withLock {
+    suspend fun runBriefing(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val now = repo.now()
         val today = now.toLocalDate().toString()
         if (settings.read().lastBriefingDate == today) {
@@ -214,6 +219,7 @@ class AgentOrchestrator(
                 return TurnResult(null, false, null, 0, "skipped")
             }
         }
+        onPassStart()
         val result = runTurn(
             type = AgentRunType.BRIEFING,
             budget = CallBudget(8),

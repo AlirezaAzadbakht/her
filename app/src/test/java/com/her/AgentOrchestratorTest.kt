@@ -439,6 +439,34 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("Morning. The day is open.") })
+        val orchestrator = orchestrator(llm)
+        var passes = 0
+
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals("nothing is due", 0, passes)
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals(1, passes)
+
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("the first night always runs", 2, passes)
+        clock.advance(24 * HOUR)
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("nothing new since last night", 2, passes)
+
+        orchestrator.enqueueUserMessage("hi")
+        clock.advance(8 * 24 * HOUR)
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals("away for over a week", 2, passes)
+        orchestrator.enqueueUserMessage("I'm back")
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals(3, passes)
+        assertEquals("every model call was announced", llm.calls, passes)
+    }
+
+    @Test
     fun swipedNudgesReachContextUntilTheyWriteAgain() = runBlocking {
         settings.update { it.copy(swipedNudges = 3) }
         assertTrue(contextBuilder.build().systemBundle.contains("Their last 3 notifications were swiped away"))

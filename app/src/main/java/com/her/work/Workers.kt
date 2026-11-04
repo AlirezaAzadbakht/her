@@ -40,7 +40,6 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     override suspend fun doWork(): Result {
         val graph = graph() ?: return Result.retry()
         val manual = inputData.getBoolean(KEY_MANUAL, false)
-        runCatching { becomeForeground(NOTIF_HOURLY) }
         // A safety net for alarms the system delayed or dropped; runs even when the LLM pass is skipped.
         runCatching {
             graph.reminderDelivery.fireDue()
@@ -64,7 +63,7 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
                     return Result.success()
                 }
             }
-            graph.orchestrator.runHourly(gated = !manual)
+            graph.orchestrator.runHourly(gated = !manual) { becomeForeground() }
             Result.success()
         } catch (_: Exception) {
             Result.success()
@@ -77,7 +76,6 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         val graph = graph() ?: return Result.retry()
         val manual = inputData.getBoolean(KEY_MANUAL, false)
         var scheduleNext = !manual
-        runCatching { becomeForeground(NOTIF_NIGHTLY) }
         try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -99,7 +97,7 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                     RunDecision.RUN -> { }
                 }
             }
-            if (graph.orchestrator.runNightly(gated = !manual).error == AgentOrchestrator.YIELDED) {
+            if (graph.orchestrator.runNightly(gated = !manual) { becomeForeground() }.error == AgentOrchestrator.YIELDED) {
                 // A chat message went first; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
@@ -108,7 +106,8 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
         } catch (_: Exception) {
             return Result.success()
         } finally {
-            if (scheduleNext) graph.scheduler.enqueueNextNightly()
+            // A stopped worker (network lost, time limit) runs again as this same request; queuing one here would pile up runs.
+            if (scheduleNext && !isStopped) graph.scheduler.enqueueNextNightly()
         }
     }
 }
@@ -118,7 +117,6 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val graph = graph() ?: return Result.retry()
         val manual = inputData.getBoolean(KEY_MANUAL, false)
         var scheduleNext = !manual
-        runCatching { becomeForeground(NOTIF_BRIEFING) }
         try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -132,7 +130,7 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     return Result.success()
                 }
             }
-            if (graph.orchestrator.runBriefing(gated = !manual).error == AgentOrchestrator.YIELDED) {
+            if (graph.orchestrator.runBriefing(gated = !manual) { becomeForeground() }.error == AgentOrchestrator.YIELDED) {
                 // A chat message went first; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
@@ -141,7 +139,8 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
         } catch (_: Exception) {
             return Result.success()
         } finally {
-            if (scheduleNext) graph.scheduler.enqueueNextBriefing()
+            // A stopped worker (network lost, time limit) runs again as this same request; queuing one here would pile up runs.
+            if (scheduleNext && !isStopped) graph.scheduler.enqueueNextBriefing()
         }
     }
 }
@@ -183,7 +182,8 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
 private fun CoroutineWorker.graph(): AppGraph? =
     (applicationContext as? HerApplication)?.graph
 
-private suspend fun CoroutineWorker.becomeForeground(notificationId: Int) {
+/** All passes share one notification; a failure here only means the pass runs as a plain job. */
+private suspend fun CoroutineWorker.becomeForeground() = runCatching {
     val context = applicationContext
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -209,7 +209,7 @@ private suspend fun CoroutineWorker.becomeForeground(notificationId: Int) {
         .build()
     setForeground(
         ForegroundInfo(
-            notificationId,
+            NOTIF_WORK,
             notification,
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         ),
@@ -418,9 +418,7 @@ class HerWorkerFactory(private val graphProvider: () -> AppGraph) : androidx.wor
 
 internal const val KEY_MANUAL = "manual"
 internal const val WORK_CHANNEL = "her-work"
-internal const val NOTIF_HOURLY = 41
-internal const val NOTIF_NIGHTLY = 42
-internal const val NOTIF_BRIEFING = 43
+internal const val NOTIF_WORK = 41
 
 private fun networkOnly(): Constraints =
     Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
