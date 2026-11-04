@@ -7,6 +7,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.OffsetDateTime
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -141,6 +142,9 @@ object RelativeTimeParser {
     ).map { pattern ->
         DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(pattern).toFormatter(Locale.US)
     }
+    private val monthYears = listOf("MMMM yyyy", "MMM yyyy").map { pattern ->
+        DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern(pattern).toFormatter(Locale.US)
+    }
     private val naturalDateTime: DateTimeFormatter = DateTimeFormatterBuilder()
         .parseCaseInsensitive()
         .appendPattern("EEEE, MMMM d, yyyy 'at' h:mm a")
@@ -214,6 +218,19 @@ object RelativeTimeParser {
             }
         }
         return parseBareDateTime(text, now)
+    }
+
+    /**
+     * [parse], plus a whole month: "March 2027" as a due date means its last day, so nothing reads as overdue
+     * while that month is still running. Events and reminders stay on [parse], because they need an actual day.
+     */
+    fun parseDeadline(phrase: String, now: ZonedDateTime): ZonedDateTime? {
+        parse(phrase, now)?.let { return it }
+        val text = deadlineWords.fold(normalizeDigits(phrase).trim().lowercase(Locale.US)) { acc, word -> acc.removePrefix(word) }
+        monthYears.forEach { formatter ->
+            runCatching { return YearMonth.parse(text, formatter).atEndOfMonth().atStartOfDay(now.zone) }
+        }
+        return null
     }
 
     /** "Thursday at 9am" said on Thursday afternoon means next week's Thursday, not a time already gone. */

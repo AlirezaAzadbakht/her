@@ -164,7 +164,7 @@ internal fun ToolRegistry.registerReminderTools() {
         val dayNames = args.optStringList("days")
         val days = dayNames.map { day -> calendarWeekday(day) ?: throw ToolValidationException("Unknown weekday: $day") }
         val now = nowMillis()
-        val parsed = requiredWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
+        val parsed = parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
         if (parsed < now - 24 * HOUR_MS) throw ToolValidationException("That time has already passed: $raw")
         // A bare time means its next occurrence.
         var at = Instant.ofEpochMilli(parsed).atZone(nowZoned().zone)
@@ -231,7 +231,7 @@ private fun dayOfWeek(calendarDay: Int): DayOfWeek = DayOfWeek.of((calendarDay +
 
 /** A reminder time must be in the future and name a time of day, so "Thursday" does not ring at midnight. */
 private suspend fun ToolRegistry.reminderTime(raw: String): Long {
-    val at = requiredWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
+    val at = parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
     val local = Instant.ofEpochMilli(at).atZone(nowZoned().zone)
     val text = raw.lowercase(Locale.US)
     val saysMidnight = raw.trim().toLongOrNull() != null || 'T' in raw ||

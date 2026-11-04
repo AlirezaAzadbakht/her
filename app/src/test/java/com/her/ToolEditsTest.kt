@@ -16,11 +16,13 @@ import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.domain.PendingConfirmation
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -109,6 +111,43 @@ class ToolEditsTest {
     fun updateTaskRejectsATimeItCannotRead() = runBlocking {
         tools.execute("create_task", """{"title":"Call the bank"}""")
         assertFalse(tools.execute("update_task", """{"id":"Call the bank","dueAt":"blorp"}""").ok)
+    }
+
+    @Test
+    fun createToolsRejectADateTheyCannotReadAndSaveNothing() = runBlocking {
+        listOf(
+            "create_goal" to """{"title":"Run a half marathon","targetDate":"blorp"}""",
+            "create_task" to """{"title":"Call the bank","dueAt":"blorp"}""",
+            "create_commitment" to """{"title":"Send Ali the report","dueAt":"blorp"}""",
+            "create_recurring_responsibility" to """{"title":"Pay rent","cadence":"monthly","nextDueAt":"blorp"}""",
+            "add_agent_queue_item" to """{"description":"Follow up","dueAt":"blorp"}""",
+        ).forEach { (tool, args) ->
+            val result = tools.execute(tool, args)
+            assertFalse(tool, result.ok)
+            assertTrue(result.payloadJson, result.payloadJson.contains("blorp"))
+        }
+        assertTrue(repo.goals().isEmpty())
+        assertTrue(repo.tasks().isEmpty())
+        assertTrue(repo.commitments().isEmpty())
+        assertTrue(repo.responsibilities().isEmpty())
+        assertTrue(repo.agentQueue().isEmpty())
+    }
+
+    @Test
+    fun createToolsStillSaveADateTheyCanRead() = runBlocking {
+        val zone = tools.nowZoned().zone
+        fun idOf(payload: String) = JSONObject(payload).getString("id")
+        val goal = idOf(tools.execute("create_goal", """{"title":"Run a half marathon","targetDate":"March 2027"}""").payloadJson)
+        assertEquals(LocalDate.of(2027, 3, 31).atStartOfDay(zone).toInstant().toEpochMilli(), repo.getGoal(goal)?.targetDate)
+        val dated = idOf(tools.execute("create_task", """{"title":"Call the bank","dueAt":"2027-03-15"}""").payloadJson)
+        assertEquals(LocalDate.of(2027, 3, 15).atStartOfDay(zone).toInstant().toEpochMilli(), repo.getTask(dated)?.dueAt)
+        val undated = idOf(tools.execute("create_task", """{"title":"Buy stamps"}""").payloadJson)
+        assertNull(repo.getTask(undated)?.dueAt)
+    }
+
+    @Test
+    fun aCalendarEventStillNeedsAnActualDay() = runBlocking {
+        assertFalse(tools.execute("create_calendar_event", """{"title":"Race","when":"March 2027"}""").ok)
     }
 
     @Test

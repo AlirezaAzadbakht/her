@@ -99,9 +99,7 @@ internal fun ToolRegistry.registerCalendarTools() {
         val existing = requireCalendarEvent(args.requiredString("id"))
         refuseGoogleWrite(existing)
         val title = args.optStringOrNull("title") ?: existing.title
-        val start = args.optStringOrNull("when")?.let {
-            parseWhen(it) ?: throw ToolValidationException("Could not understand the time")
-        } ?: existing.startAt
+        val start = parseWhen(args.optStringOrNull("when")) ?: existing.startAt
         val duration = (existing.endAt ?: (existing.startAt + HOUR_MS)) - existing.startAt
         val end = if (args.optStringOrNull("when") != null) start + duration else existing.endAt
         val notes = args.optStringOrNull("notes") ?: existing.notes
