@@ -102,7 +102,8 @@ class ScenarioEngineTest {
         val kept = mutableListOf<CassetteAttempt>()
         val outcomes = (0 until attempts).map { index ->
             val started = System.currentTimeMillis()
-            val tape = replay?.attempts?.get(index) ?: CassetteAttempt(startMillis = started)
+            val startAt = stringProp("scenario.start")?.let { java.time.Instant.parse(it).toEpochMilli() } ?: started
+            val tape = replay?.attempts?.get(index) ?: CassetteAttempt(startMillis = startAt)
             val client = ScenarioLlmClient(mode, live, tape, spec.faults)
             val harness = ScenarioHarness(spec, settings, client, index, tape.startMillis)
             try {

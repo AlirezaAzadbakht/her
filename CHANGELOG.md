@@ -22,6 +22,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
+- Her's private working notes no longer appear in her replies, the morning note or notifications. They could show up above the real message, or arrive as a notification when she meant to stay quiet.
+- The morning note sticks to what's actually on your day. It no longer goes through what's empty, or says your calendar is clear when she can't see it.
 - You see at most one "Her is working" notification, and only while she's really working. Before, several could stack up, even when she had nothing to do.
 - The nightly review and morning briefing stay on schedule when your connection drops while they run. Before, each drop could leave an extra run that later fired at an odd hour, such as the middle of the afternoon.
 - Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.

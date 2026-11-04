@@ -3,6 +3,7 @@ package com.her
 import android.app.Application
 import com.her.data.remote.StreamAccumulator
 import com.her.data.remote.sseData
+import com.her.data.remote.visibleText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -60,6 +61,37 @@ class StreamAccumulatorTest {
         assertEquals("call_1", call.id)
         assertEquals("remember", call.name)
         assertEquals("""{"content":"hi"}""", call.arguments)
+    }
+
+    @Test
+    fun hidesInlineThinkingSplitAcrossDeltas() {
+        val acc = StreamAccumulator()
+        acc.accept("""{"choices":[{"delta":{"content":"<thi"}}]}""")
+        acc.accept("""{"choices":[{"delta":{"content":"nk>Need to call a tool.</th"}}]}""")
+        acc.accept("""{"choices":[{"delta":{"content":"ink>\n\nGood morning."}}]}""")
+        assertEquals("Good morning.", acc.toResponse(1).message.content)
+    }
+
+    @Test
+    fun inlineThinkingWithNothingElseLeavesNoContent() {
+        val acc = StreamAccumulator()
+        acc.accept("""{"choices":[{"delta":{"content":"<think>Still working it out"}}]}""")
+        assertNull(acc.toResponse(1).message.content)
+    }
+
+    @Test
+    fun reasoningFieldNeverReachesTheReply() {
+        val acc = StreamAccumulator()
+        val delta = acc.accept("""{"choices":[{"delta":{"reasoning_content":"Need to call a tool."}}]}""")
+        assertNull(delta.contentDelta)
+        assertNull(acc.toResponse(1).message.content)
+    }
+
+    @Test
+    fun visibleTextRemovesOnlyThinking() {
+        assertEquals("Good morning.", visibleText("<THINKING>plan\nmore</Thinking>Good morning."))
+        assertEquals("Before", visibleText("Before<think>never closed"))
+        assertEquals("a < b and 2 > 1", visibleText(" a < b and 2 > 1 "))
     }
 
     @Test

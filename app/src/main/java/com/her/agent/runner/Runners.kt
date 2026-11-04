@@ -6,6 +6,7 @@ import com.her.agent.tools.ToolRegistry
 import com.her.core.redactSecrets
 import com.her.data.remote.LlmClient
 import com.her.data.remote.LlmException
+import com.her.data.remote.visibleText
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
@@ -280,8 +281,7 @@ class AgentOrchestrator(
             repo.logDebug("prompt", "contextChars=${built.systemBundle.length} historyMsgs=${messages.count { it.role == "user" || it.role == "assistant" }} totalChars=${messages.sumOf { it.content?.length ?: 0 }} buildMs=${nowMillis() - buildStarted}")
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
             var lastText: String? = null
-            var preamble = ""
-            var silent = false
+            var withholdTools = false
             var proactive: String? = null
             var proactivePersisted = false
             var companionAttempted = false
@@ -295,7 +295,7 @@ class AgentOrchestrator(
                     return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
                 }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall()) emptyList() else tools.specsFor(type)
+                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type)
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {
@@ -303,8 +303,7 @@ class AgentOrchestrator(
                     if (streamToUi) {
                         llm.stream(configured, messages, roundTools) { delta ->
                             round.append(delta)
-                            val display = if (preamble.isNotEmpty()) "$preamble\n\n$round" else round.toString()
-                            _turnState.value = TurnState.Streaming(display)
+                            _turnState.value = TurnState.Streaming(visibleText(round.toString()))
                         }
                     } else {
                         llm.complete(configured, messages, roundTools)
@@ -322,34 +321,24 @@ class AgentOrchestrator(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens} ms=${response.usage.latencyMs}",
                 )
-                repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
-                val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
+                val roundText = msg.content?.trim().orEmpty().ifBlank { visibleText(round.toString()) }
                 val calls = msg.toolCalls.orEmpty()
+                repo.logDebug("llm", "responseChars=${response.rawJson.length} contentChars=${roundText.length} toolCalls=${calls.size}")
                 if (calls.isEmpty()) {
-                    // A silent final answer wins over any text written before tool calls.
-                    if (Identity.isSilence(roundText)) {
-                        silent = true
+                    if (Identity.isSilence(roundText)) break
+                    // Only this message reaches them. Text beside a tool call is the model's working notes.
+                    if (roundText.isNotBlank()) {
+                        lastText = roundText
                         break
                     }
-                    lastText = when {
-                        preamble.isNotEmpty() && roundText.isNotBlank() -> "$preamble\n\n$roundText"
-                        roundText.isNotBlank() -> roundText
-                        preamble.isNotBlank() -> preamble
-                        else -> null
-                    }
-                    break
+                    // Chat and the briefing owe them words, so a blank ending gets one more call, without tools.
+                    val owesReply = (type == AgentRunType.CHAT || type == AgentRunType.BRIEFING) && proactive == null && !companionAttempted
+                    if (!owesReply || withholdTools) break
+                    withholdTools = true
+                    continue
                 }
-                if (roundText.isNotBlank()) {
-                    preamble = if (preamble.isEmpty()) roundText else "$preamble\n\n$roundText"
-                }
-                if (streamToUi) {
-                    _turnState.value = if (preamble.isNotBlank()) {
-                        TurnState.Streaming(preamble)
-                    } else {
-                        TurnState.Thinking
-                    }
-                }
+                if (streamToUi) _turnState.value = TurnState.Thinking
                 messages += msg
                 calls.forEachIndexed { index, call ->
                     val key = "${call.name}\n${call.arguments}"
@@ -403,10 +392,7 @@ class AgentOrchestrator(
                 }
                 elideToolResults(messages)
             }
-            if (lastText == null && preamble.isNotBlank() && !silent) {
-                lastText = preamble
-            }
-            val cleaned = (if (companionAttempted && type != AgentRunType.CHAT) null else lastText)?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
+            val cleaned = if (companionAttempted && type != AgentRunType.CHAT) null else lastText
             if (persistAssistant && cleaned != null) {
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }

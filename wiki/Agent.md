@@ -11,10 +11,11 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
+6. Only the final message, the one with no tool calls, reaches the person. Text beside a tool call is the model's working notes and is dropped. A chat or briefing turn that ends blank gets one more call with tools withheld; an hourly pass that ends blank stays silent. A message containing `NO_NOTIFICATION` counts as silence.
 
 Chat, hourly, nightly, and briefing share one lock. A chat message waiting for it makes a background run stop before its next call (run status `CANCELLED`), so the message waits for at most one background call. A run that already has a nudge to deliver finishes first. A stopped hourly runs again next period; nightly and briefing retry shortly. A pending user batch that already wrote rows (then failed) is told what was already done on retry, and those writes are not repeated. The composer Stop control cancels the in-flight HTTP call.
 
-The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
+The orchestrator logs prompt sizes, retrieved memory ids, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), the shape of each response (kind `llm`: its size, how many characters of text and how many tool calls, never the text itself), and tool I/O to `debug_events`, and token usage per run type to `api_usage`. A round with both text and tool calls is the model writing notes beside a tool call.
 
 ## Context
 
@@ -110,3 +111,5 @@ HTTP: the client has a 180s call timeout, cancels when the coroutine is cancelle
 ## LLM settings
 
 `LlmSettings.isConfigured` requires a non-blank base URL, API key, and model. `ping()` is the setup health check.
+
+After changing what is sent to the provider, run the briefing and hourly scenarios live as well as chat. Background runs use a different prompt and can behave differently on the same model.
