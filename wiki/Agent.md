@@ -99,7 +99,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 
 An autonomous pass that notifies with plain text (not `send_user_message`) saves that text as an assistant message first. Opening the app from the notification then shows the same words.
 
-`requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A `dueAt` that does not parse is an error, not a silent no-op. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
+`requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A date or time that does not parse is an error on every tool that takes one, create and update alike, and nothing is saved. Due dates and goal targets (`parseDeadline`) also accept a whole month: `March 2027` means March 31. Calendar events and reminders need an actual day. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
 
 Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event. A `confirmId` is only valid after a later user message — the model cannot confirm in the same turn. `confirmed: true` is ignored.
 

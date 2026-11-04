@@ -119,7 +119,7 @@ internal fun ToolRegistry.registerEntityTools() {
         val now = nowMillis()
         val id = newId()
         repo.saveGoal(
-            Goal(id, args.requiredString("title"), args.optStringOrNull("description"), GoalStatus.ACTIVE, args.optDoubleOr("priority", 0.6), parseWhen(args.optStringOrNull("targetDate")), args.optStringOrNull("relatedProjectId"), null, now, now, repo.deviceId, 1, null),
+            Goal(id, args.requiredString("title"), args.optStringOrNull("description"), GoalStatus.ACTIVE, args.optDoubleOr("priority", 0.6), parseDeadline(args.optStringOrNull("targetDate")), args.optStringOrNull("relatedProjectId"), null, now, now, repo.deviceId, 1, null),
         )
         jsonObjectOf("ok" to true, "id" to id)
     }
@@ -140,7 +140,7 @@ internal fun ToolRegistry.registerEntityTools() {
     register("create_task", "Create a task only when they intend to do something.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "relatedProjectId" to str(), "relatedGoalId" to str(), required = listOf("title"))) { args ->
         val now = nowMillis()
         val id = newId()
-        repo.saveTask(TaskItem(id, args.requiredString("title"), args.optStringOrNull("description"), TaskStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedProjectId"), args.optStringOrNull("relatedGoalId"), now, now, repo.deviceId, 1, null))
+        repo.saveTask(TaskItem(id, args.requiredString("title"), args.optStringOrNull("description"), TaskStatus.OPEN, parseDeadline(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedProjectId"), args.optStringOrNull("relatedGoalId"), now, now, repo.deviceId, 1, null))
         jsonObjectOf("ok" to true, "id" to id)
     }
     register(
@@ -157,7 +157,7 @@ internal fun ToolRegistry.registerEntityTools() {
             existing.copy(
                 title = args.optStringOrNull("title") ?: existing.title,
                 description = args.optStringOrNull("description") ?: existing.description,
-                dueAt = requiredWhen(args.optStringOrNull("dueAt")) ?: existing.dueAt,
+                dueAt = parseDeadline(args.optStringOrNull("dueAt")) ?: existing.dueAt,
                 status = status,
                 updatedAt = nowMillis(),
                 version = existing.version + 1,
@@ -171,7 +171,7 @@ internal fun ToolRegistry.registerEntityTools() {
     register("create_commitment", "Create a commitment the person actually promised.", objSchema("title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "promisedTo" to str(), required = listOf("title"))) { args ->
         val now = nowMillis()
         val id = newId()
-        repo.saveCommitment(Commitment(id, args.requiredString("title"), args.optStringOrNull("description"), CommitmentStatus.OPEN, parseWhen(args.optStringOrNull("dueAt")), args.optStringOrNull("promisedTo"), null, now, now, repo.deviceId, 1, null))
+        repo.saveCommitment(Commitment(id, args.requiredString("title"), args.optStringOrNull("description"), CommitmentStatus.OPEN, parseDeadline(args.optStringOrNull("dueAt")), args.optStringOrNull("promisedTo"), null, now, now, repo.deviceId, 1, null))
         jsonObjectOf("ok" to true, "id" to id)
     }
     register(
@@ -193,7 +193,7 @@ internal fun ToolRegistry.registerEntityTools() {
             existing.copy(
                 title = args.optStringOrNull("title") ?: existing.title,
                 description = args.optStringOrNull("description") ?: existing.description,
-                dueAt = requiredWhen(args.optStringOrNull("dueAt")) ?: existing.dueAt,
+                dueAt = parseDeadline(args.optStringOrNull("dueAt")) ?: existing.dueAt,
                 promisedTo = args.optStringOrNull("promisedTo") ?: existing.promisedTo,
                 status = status,
                 updatedAt = nowMillis(),
@@ -324,7 +324,7 @@ internal fun ToolRegistry.registerEntityTools() {
     register("create_recurring_responsibility", "Create a recurring responsibility.", objSchema("title" to str(), "cadence" to str(), "nextDueAt" to str(WHEN_HINT), "notes" to str(), required = listOf("title", "cadence"))) { args ->
         val now = nowMillis()
         val id = newId()
-        repo.saveResponsibility(RecurringResponsibility(id, args.requiredString("title"), args.requiredString("cadence"), parseWhen(args.optStringOrNull("nextDueAt")), null, args.optStringOrNull("notes"), now, now, repo.deviceId, 1, null))
+        repo.saveResponsibility(RecurringResponsibility(id, args.requiredString("title"), args.requiredString("cadence"), parseDeadline(args.optStringOrNull("nextDueAt")), null, args.optStringOrNull("notes"), now, now, repo.deviceId, 1, null))
         jsonObjectOf("ok" to true, "id" to id)
     }
     register("update_recurring_responsibility", "Update a recurring responsibility.", objSchema("id" to str(), "title" to str(), "cadence" to str(), required = listOf("id"))) { args ->

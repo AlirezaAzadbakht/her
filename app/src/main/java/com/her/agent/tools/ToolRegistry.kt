@@ -283,11 +283,16 @@ open class ToolRegistry(
         return Instant.ofEpochMilli(nowMillis()).atZone(zone)
     }
 
-    internal suspend fun parseWhen(raw: String?): Long? {
+    /** Null only when no time was sent. One that was sent must parse: dropping it would report success for a date never saved. */
+    internal suspend fun parseWhen(raw: String?, parser: (String, ZonedDateTime) -> ZonedDateTime? = RelativeTimeParser::parse): Long? {
         if (raw.isNullOrBlank()) return null
         raw.toLongOrNull()?.let { return it }
-        return RelativeTimeParser.parse(raw, nowZoned())?.toInstant()?.toEpochMilli()
+        return parser(raw, nowZoned())?.toInstant()?.toEpochMilli()
+            ?: throw ToolValidationException("Could not understand the time '$raw', so nothing was saved. Use $WHEN_HINT.")
     }
+
+    /** A due date or target, where a whole month ("March 2027") is enough. */
+    internal suspend fun parseDeadline(raw: String?): Long? = parseWhen(raw, RelativeTimeParser::parseDeadline)
 
     internal suspend fun requireTask(idOrTitle: String): TaskItem {
         repo.getTask(idOrTitle)?.let { return it }
@@ -314,12 +319,6 @@ open class ToolRegistry(
                 if (exact.isEmpty() && loose.isEmpty()) "Commitment not found: $idOrTitle"
                 else "Multiple commitments match '$idOrTitle'; pass the id from context",
             )
-    }
-
-    /** A time the model explicitly sent must parse; silently keeping the old value would hide the failure. */
-    internal suspend fun requiredWhen(raw: String?): Long? {
-        if (raw.isNullOrBlank()) return null
-        return parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
     }
 }
 
