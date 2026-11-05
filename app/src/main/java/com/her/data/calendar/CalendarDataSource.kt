@@ -21,15 +21,10 @@ open class CalendarDataSource(private val context: Context) {
         return read == PackageManager.PERMISSION_GRANTED && write == PackageManager.PERMISSION_GRANTED
     }
 
-    open fun eventsBetween(
-        from: Long,
-        to: Long,
-        excludeGoogleAccounts: Boolean = false,
-    ): Result<List<CalendarEvent>> {
+    open fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
         if (!hasPermission()) {
             return Result.failure(IllegalStateException("Calendar permission is not granted"))
         }
-        val skipCalendars = if (excludeGoogleAccounts) googleCalendarIds() else emptySet()
         val projection = arrayOf(
             CalendarContract.Instances.EVENT_ID,
             CalendarContract.Instances.TITLE,
@@ -61,7 +56,6 @@ open class CalendarDataSource(private val context: Context) {
             val now = nowMillis()
             while (cursor.moveToNext()) {
                 val calendarId = cursor.getString(calIdx)
-                if (calendarId != null && calendarId in skipCalendars) continue
                 val eventId = cursor.getLong(idIdx)
                 val begin = cursor.getLong(startIdx)
                 items += CalendarEvent(
@@ -161,22 +155,5 @@ open class CalendarDataSource(private val context: Context) {
             if (cursor.moveToFirst()) return cursor.getLong(0)
         }
         return null
-    }
-
-    private fun googleCalendarIds(): Set<String> {
-        val ids = mutableSetOf<String>()
-        context.contentResolver.query(
-            CalendarContract.Calendars.CONTENT_URI,
-            arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.ACCOUNT_TYPE),
-            "${CalendarContract.Calendars.ACCOUNT_TYPE} = ?",
-            arrayOf(CalendarWindows.GOOGLE_ACCOUNT_TYPE),
-            null,
-        )?.use { cursor ->
-            val idIdx = cursor.getColumnIndexOrThrow(CalendarContract.Calendars._ID)
-            while (cursor.moveToNext()) {
-                ids += cursor.getLong(idIdx).toString()
-            }
-        }
-        return ids
     }
 }

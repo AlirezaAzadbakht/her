@@ -33,7 +33,6 @@ data class ScenarioSeed(
     val profile: Map<String, String>,
     val tools: List<SeedToolCall>,
     val systemCalendar: List<SeedCalendarEvent>,
-    val googleCalendar: List<SeedCalendarEvent>,
     val webSearch: List<SeedWebSearch>,
 )
 
@@ -145,7 +144,6 @@ object ScenarioTables {
         "recurring_responsibilities",
         "calendar_events",
         "system_calendar",
-        "google_calendar",
         "agent_queue",
         "agent_state",
         "memories_long",
@@ -168,7 +166,7 @@ object ScenarioLoader {
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect", "faults",
     )
     private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled")
-    private val seedKeys = setOf("profile", "tools", "system_calendar", "google_calendar", "web_search")
+    private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search")
     private val seedWebSearchKeys = setOf("query", "title", "snippets")
     private val seedWebSearchQueryKeys = setOf("contains_any")
     private val seedCalendarKeys = setOf("title", "when", "notes")
@@ -293,7 +291,7 @@ object ScenarioLoader {
     }
 
     private fun parseSeed(file: File, obj: JSONObject?, path: String): ScenarioSeed {
-        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList(), emptyList(), emptyList())
+        if (obj == null) return ScenarioSeed(emptyMap(), emptyList(), emptyList(), emptyList())
         rejectUnknown(obj, seedKeys, path, file)
         val profileObj = obj.optJSONObject("profile")
         val profile = if (profileObj == null) {
@@ -321,9 +319,8 @@ object ScenarioLoader {
             }
         }
         val systemCalendar = parseSeedCalendar(file, obj.optJSONArray("system_calendar"), "$path.system_calendar")
-        val googleCalendar = parseSeedCalendar(file, obj.optJSONArray("google_calendar"), "$path.google_calendar")
         val webSearch = parseSeedWebSearch(file, obj.optJSONArray("web_search"), "$path.web_search")
-        return ScenarioSeed(profile, tools, systemCalendar, googleCalendar, webSearch)
+        return ScenarioSeed(profile, tools, systemCalendar, webSearch)
     }
 
     private fun parseSeedWebSearch(file: File, array: JSONArray?, path: String): List<SeedWebSearch> {

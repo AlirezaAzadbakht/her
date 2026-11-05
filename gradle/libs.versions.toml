@@ -17,7 +17,6 @@ junit = "4.13.2"
 robolectric = "4.16.1"
 robolectricAndroidAll = "10-robolectric-5803371-i7"
 mockwebserver = "4.12.0"
-playServicesAuth = "21.4.0"
 zxingEmbedded = "4.3.0"
 
 [libraries]
@@ -50,7 +49,6 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 robolectric-android-all-instrumented = { group = "org.robolectric", name = "android-all-instrumented", version.ref = "robolectricAndroidAll" }
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.7.0" }
-play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxingEmbedded" }
 
 [plugins]

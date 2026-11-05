@@ -8,7 +8,6 @@ import com.her.companion.*
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.*
-import com.her.data.drive.SyncCodec
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -175,17 +174,14 @@ class ExecutiveTest {
         assertEquals(2L, repo.getCompanionRecord(id)!!.version)
     }
 
-    @Test fun recordsSyncAndForgetAndBriefingPagesWithoutWrites() = runBlocking {
+    @Test fun recordsForgetAndBriefingPagesWithoutWrites() = runBlocking {
         repeat(7) { delegation("Owner$it") }
-        val before = repo.pendingSyncOps().size
+        val before = repo.companionRecords()
         val first = briefing()
         val next = call("get_executive_briefing", JSONObject().put("offset", first.getInt("nextOffset")))
         assertEquals(7, first.getJSONArray("items").length() + next.getJSONArray("items").length())
-        assertEquals(before, repo.pendingSyncOps().size)
+        assertEquals(before, repo.companionRecords())
         val id = first.getJSONArray("items").getJSONObject(0).getString("id")
-        val row = repo.getCompanionRecord(id)!!
-        repo.applyingRemote { assertTrue(SyncCodec.persist(repo, "companion_records", JSONObject(row.toJson()))) }
-        assertEquals(row, repo.getCompanionRecord(id))
         call("forget_memory", JSONObject().put("id", id))
         assertEquals(6, briefing().getInt("activeDelegations"))
         assertFalse(tools.execute("get_executive_briefing", "{\"offset\":-1}").ok)

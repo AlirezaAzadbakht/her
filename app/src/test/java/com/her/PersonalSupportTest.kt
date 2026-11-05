@@ -8,7 +8,6 @@ import com.her.companion.*
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.*
-import com.her.data.drive.SyncCodec
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -92,7 +91,7 @@ class PersonalSupportTest {
         assertEquals(MemoryStatus.HISTORICAL, repo.getLong(id)!!.status)
     }
 
-    @Test fun forgettingSuppressesLateDerivedRecordsAndEmbeddingCacheWithoutSyncEcho() = runBlocking {
+    @Test fun forgettingSuppressesLateDerivedRecordsAndEmbeddingCache() = runBlocking {
         val id = memory("Private employment fact")
         val original = repo.getLong(id)!!
         val derived = original.copy(id = "derived", content = "Employment summary", derivedFromJson = JSONArray().put(id).toString())
@@ -104,10 +103,6 @@ class PersonalSupportTest {
         repo.upsertLong(original.copy(updatedAt = clock.peek() + 9999))
         repo.upsertLong(derived.copy(id = "late-summary"))
         assertTrue(repo.activeLong().isEmpty())
-        val count = repo.pendingSyncOps().size
-        repo.applyingRemote { SyncCodec.persist(repo, "long_term_memories", JSONObject().put("id", "unknown").put("deletedAt", clock.peek())) }
-        assertTrue(repo.knowledgeForgotten("unknown"))
-        assertEquals(count, repo.pendingSyncOps().size)
     }
 
     @Test fun planningFitsMeetingAndDependenciesAndNeverChangesCommitments() = runBlocking {
@@ -284,20 +279,6 @@ class PersonalSupportTest {
         assertTrue(receipt.undoable)
         assertTrue(tools.undo(receipt.entityType, receipt.entityId))
         assertNotNull(repo.getCompanionRecord(created.getString("id"))!!.deletedAt)
-    }
-
-    @Test fun scheduleAndAcceptedPlanRoundTripThroughSyncWithoutEcho() = runBlocking {
-        val scheduleId = schedule()
-        val taskId = task("Reply"); capacity(taskId, 10)
-        val a = evidence("I accept the reply plan").put("id", "accepted").put("minutes", 20).put("actionIds", JSONArray().put(taskId)); a.remove("basis")
-        val planId = call("accept_daily_plan", a).getString("id")
-        val count = repo.pendingSyncOps().size
-        for (id in listOf(scheduleId, planId)) {
-            val row = repo.getCompanionRecord(id)!!
-            repo.applyingRemote { assertTrue(SyncCodec.persist(repo, "companion_records", JSONObject(row.toJson()))) }
-            assertEquals(row, repo.getCompanionRecord(id))
-        }
-        assertEquals(count, repo.pendingSyncOps().size)
     }
 
     @Test fun personBriefingExcludesSensitiveUnrelatedMemoriesAndLabelsStaleness() = runBlocking {

@@ -16,7 +16,6 @@ class FakeCalendarDataSource(
         val endAt: Long?,
         val notes: String?,
         val calendarId: String = "1",
-        val accountType: String = "LOCAL",
     )
 
     private val events = linkedMapOf<String, Stored>()
@@ -29,10 +28,9 @@ class FakeCalendarDataSource(
         startAt: Long,
         endAt: Long? = startAt + 60 * 60 * 1000,
         notes: String? = null,
-        accountType: String = "LOCAL",
     ): String {
         val id = (nextId++).toString()
-        events[id] = Stored(id, title, startAt, endAt, notes, accountType = accountType)
+        events[id] = Stored(id, title, startAt, endAt, notes)
         return id
     }
 
@@ -50,17 +48,12 @@ class FakeCalendarDataSource(
 
     override fun hasPermission(): Boolean = granted
 
-    override fun eventsBetween(
-        from: Long,
-        to: Long,
-        excludeGoogleAccounts: Boolean,
-    ): Result<List<CalendarEvent>> {
+    override fun eventsBetween(from: Long, to: Long): Result<List<CalendarEvent>> {
         if (!granted) return Result.failure(IllegalStateException("Calendar permission is not granted"))
         val now = nowMillis()
         return Result.success(
             events.values
                 .filter { CalendarWindows.overlaps(it.startAt, it.endAt, from, to) }
-                .filter { !excludeGoogleAccounts || it.accountType != CalendarWindows.GOOGLE_ACCOUNT_TYPE }
                 .map { it.toDomain(now) },
         )
     }

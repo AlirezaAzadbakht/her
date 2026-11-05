@@ -82,14 +82,6 @@ object BackgroundRunPolicy {
         return RunVerdict(RunDecision.RUN, "run")
     }
 
-    fun decideSync(driveEnabled: Boolean, power: DevicePower): RunVerdict {
-        if (!driveEnabled) return RunVerdict(RunDecision.SKIP, "Drive sync is off.")
-        if (power.criticallyLow) {
-            return RunVerdict(RunDecision.SKIP, "Skipped; battery is low.")
-        }
-        return RunVerdict(RunDecision.RUN, "run")
-    }
-
     fun isCatchUp(lastSuccessAt: Long, nowMs: Long): Boolean =
         lastSuccessAt > 0 && nowMs - lastSuccessAt > CATCH_UP_GAP_MS
 

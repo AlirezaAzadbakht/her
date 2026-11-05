@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -73,7 +72,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.her.core.QuietHours
 import com.her.data.secure.LlmSettings
+import com.her.ui.BACKUP_TYPES
 import com.her.ui.HerViewModel
+import com.her.ui.backupFileName
 import com.her.ui.components.HerButton
 import com.her.ui.components.HerButtonTone
 import com.her.ui.components.HerSwitch
@@ -115,23 +116,15 @@ fun SettingsScreen(vm: HerViewModel) {
     val connection by vm.connectionMessage.collectAsState()
     val connectionDetail by vm.connectionDetail.collectAsState()
     val checking by vm.checkingConnection.collectAsState()
-    val google by vm.googleMessage.collectAsState()
-    val googleConsent by vm.googleConsent.collectAsState()
+    val backupBusy by vm.backupBusy.collectAsState()
+    val backupMessage by vm.backupMessage.collectAsState()
     val scheme = MaterialTheme.colorScheme
     val haptics = rememberHerHaptics()
-    var connectingGoogle by remember { mutableStateOf(false) }
-    val googleConsentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
-    ) {
-        vm.finishGoogleConnect()
+    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        uri?.let(vm::saveBackup)
     }
-    LaunchedEffect(googleConsent) {
-        val pending = googleConsent ?: return@LaunchedEffect
-        connectingGoogle = false
-        vm.clearGoogleConsent()
-        googleConsentLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
-    }
-    LaunchedEffect(google) { if (google != null) connectingGoogle = false }
+    var importing by remember { mutableStateOf<Uri?>(null) }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importing = it }
 
     val llm = remember { vm.llmSettings() }
     var base by remember { mutableStateOf(llm.baseUrl) }
@@ -294,20 +287,6 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
                 ToggleRow(
-                    "Drive sync",
-                    app.driveEnabled,
-                    description = "Keeps her records in step across your devices through a private Google Drive app folder. API keys never sync.",
-                ) { vm.updateSettings { it.copy(driveEnabled = !it.driveEnabled) } }
-                ToggleRow(
-                    "Google Tasks",
-                    app.googleTasksEnabled,
-                    description = "Mirrors her tasks to a “Her” list in Google Tasks, both ways. Google keeps the date, not the time.",
-                ) {
-                    val turningOn = !app.googleTasksEnabled
-                    vm.updateSettings { it.copy(googleTasksEnabled = turningOn) }
-                    if (turningOn) vm.connectGoogle()
-                }
-                ToggleRow(
                     "Web search",
                     app.webSearchEnabled,
                     description = "Uses the same Base URL, API key, and model.",
@@ -339,28 +318,27 @@ fun SettingsScreen(vm: HerViewModel) {
                     searchKey = it
                     vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
                 }
-                HerButton(
-                    "Connect Google",
-                    onClick = {
-                        // Clear the old answer so the same answer again still ends the wait.
-                        vm.googleMessage.value = null
-                        connectingGoogle = true
-                        vm.connectGoogle()
-                    },
-                    loading = connectingGoogle,
-                    loadingText = "Connecting…",
-                )
+            }
+        }
+        item(key = "backup") {
+            SectionCard("Backup", Modifier.animateItem().introRise(4, intro)) {
+                Hint("A zip of everything she knows and your settings. Your API keys stay on this phone.")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    HerButton("Save backup", onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
+                    HerButton("Share", tone = HerButtonTone.Quiet, onClick = { vm.shareBackup() }, enabled = !backupBusy)
+                    HerButton("Import", tone = HerButtonTone.Quiet, onClick = { pickBackup.launch(BACKUP_TYPES) }, enabled = !backupBusy)
+                }
                 AnimatedVisibility(
-                    visible = google != null,
+                    visible = backupMessage != null,
                     enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
                     exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
                 ) {
-                    Hint(google.orEmpty(), Modifier.padding(top = 6.dp))
+                    Hint(backupMessage.orEmpty(), Modifier.padding(top = 6.dp))
                 }
             }
         }
         item(key = "today") {
-            SectionCard("Today", Modifier.animateItem().introRise(4, intro)) {
+            SectionCard("Today", Modifier.animateItem().introRise(5, intro)) {
                 val u = usage
                 if (u == null) {
                     Hint("No requests yet.")
@@ -381,7 +359,7 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "advanced-toggle") {
-            AdvancedToggle(advanced, Modifier.animateItem().introRise(5, intro)) { advanced = !advanced }
+            AdvancedToggle(advanced, Modifier.animateItem().introRise(6, intro)) { advanced = !advanced }
         }
         if (advanced) {
             item(key = "experimental") {
@@ -402,7 +380,6 @@ fun SettingsScreen(vm: HerViewModel) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         HerButton("Run hourly", tone = HerButtonTone.Quiet, onClick = { vm.runHourly() })
                         HerButton("Run nightly", tone = HerButtonTone.Quiet, onClick = { vm.runNightly() })
-                        HerButton("Sync now", tone = HerButtonTone.Quiet, onClick = { vm.runSync() })
                     }
                 }
             }
@@ -423,6 +400,21 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "about") { AboutLine(Modifier.animateItem()) }
+    }
+
+    importing?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { importing = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    importing = null
+                    vm.importBackup(uri)
+                }) { Text("Replace") }
+            },
+            dismissButton = { TextButton(onClick = { importing = null }) { Text("Cancel") } },
+            title = { Text("Import this backup?") },
+            text = { Text("Everything Her knows on this phone is replaced with the backup, then the app restarts.") },
+        )
     }
 
     editingQuiet?.let { edge ->

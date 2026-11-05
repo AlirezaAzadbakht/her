@@ -130,7 +130,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
 
-    implementation(libs.play.services.auth)
     implementation(libs.zxing.android.embedded)
 
     testImplementation(libs.junit)

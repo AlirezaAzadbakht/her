@@ -170,13 +170,6 @@ class BackgroundRunPolicyTest {
     }
 
     @Test
-    fun syncSkipsWhenDriveOffOrBatteryLow() {
-        assertEquals(RunDecision.SKIP, BackgroundRunPolicy.decideSync(driveEnabled = false, power = charged).decision)
-        assertEquals(RunDecision.SKIP, BackgroundRunPolicy.decideSync(driveEnabled = true, power = low).decision)
-        assertEquals(RunDecision.RUN, BackgroundRunPolicy.decideSync(driveEnabled = true, power = charged).decision)
-    }
-
-    @Test
     fun scheduleFingerprintTracksBriefingEnd() {
         val morning = BackgroundRunPolicy.scheduleFingerprint(LocalTime.of(8, 0))
         val later = BackgroundRunPolicy.scheduleFingerprint(LocalTime.of(9, 30))
