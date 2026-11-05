@@ -4,6 +4,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-05
+
 ### Added
 - Back up everything Her knows to a file. In Settings → Backup, **Save backup** puts a zip wherever you choose, **Share** sends it to another app, and **Import** brings one back. On a new phone, tap **Restore from a backup** on the first screen. Your settings come along, but never your API key.
 - Ask Her to talk differently, more formal, warmer, or plainer, or just tell her you don't like her tone. She changes right away and keeps talking that way.
@@ -205,7 +207,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.6...v0.1.7
