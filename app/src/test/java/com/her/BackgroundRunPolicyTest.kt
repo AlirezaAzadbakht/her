@@ -173,8 +173,8 @@ class BackgroundRunPolicyTest {
     fun scheduleFingerprintTracksBriefingEnd() {
         val morning = BackgroundRunPolicy.scheduleFingerprint(LocalTime.of(8, 0))
         val later = BackgroundRunPolicy.scheduleFingerprint(LocalTime.of(9, 30))
-        assertEquals("hourly:1h|nightly:03:00|briefing:08:00|sync:6h|v3", morning)
-        assertEquals("hourly:1h|nightly:03:00|briefing:09:30|sync:6h|v3", later)
+        assertEquals("hourly:1h|nightly:03:00|briefing:08:00|v3", morning)
+        assertEquals("hourly:1h|nightly:03:00|briefing:09:30|v3", later)
         assertTrue(morning != later)
     }
 

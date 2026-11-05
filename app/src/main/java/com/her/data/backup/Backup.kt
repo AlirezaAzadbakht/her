@@ -30,6 +30,7 @@ object Backup {
         // Fold the WAL into the main file, then hold a write transaction so nothing changes it while it is copied.
         db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
         ZipOutputStream(out).use { zip ->
+            // ponytail: writers wait while the file streams to `out`; copy to a temp file first if slow destinations stall chat.
             db.runInTransaction {
                 zip.putNextEntry(ZipEntry(DB))
                 context.getDatabasePath(DB).inputStream().use { it.copyTo(zip) }

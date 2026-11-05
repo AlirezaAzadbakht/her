@@ -125,6 +125,6 @@ object BackgroundRunPolicy {
     fun scheduleFingerprint(briefingEnd: LocalTime): String {
         val end = briefingEnd.format(DateTimeFormatter.ofPattern("HH:mm"))
         val nightly = NIGHTLY_AT.format(DateTimeFormatter.ofPattern("HH:mm"))
-        return "hourly:1h|nightly:$nightly|briefing:$end|sync:6h|$SCHEDULE_VERSION"
+        return "hourly:1h|nightly:$nightly|briefing:$end|$SCHEDULE_VERSION"
     }
 }
