@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy policy — Her</title>
+  <meta name="description" content="How Her, the Android assistant, handles your data and your Google account data.">
+  <link rel="canonical" href="https://her-project.ir/privacy">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .policy { max-width: 44rem; margin: 0 auto; padding: 2rem 0 4rem; line-height: 1.65; }
+    .policy h2 { margin-top: 2.2rem; font-size: 1.45rem; }
+    .policy li { margin-bottom: 0.4rem; }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <a class="mark" href="./">Her</a>
+    <nav>
+      <a href="https://github.com/AlirezaAzadbakht/her">GitHub</a>
+    </nav>
+  </header>
+
+  <main class="policy">
+    <h1>Privacy policy</h1>
+    <p>Last updated: 5 November 2026</p>
+
+    <p>Her is an open-source Android assistant. This page explains what data the app handles, where it goes, and what it does with your Google account data. The app has no server of its own: the developer does not receive, store, or see your conversations or your data.</p>
+
+    <h2>Data stored on your phone</h2>
+    <p>Your conversation with Her, and what she organizes from it (memories, tasks, groceries, people, dates, reminders and similar records), is stored in a database on your phone. Your AI provider API key is kept in encrypted storage backed by the Android Keystore. It is never written to the database and never synced.</p>
+
+    <h2>Your AI provider</h2>
+    <p>Her works with an AI model that you choose and configure, using your own API key (any OpenAI-compatible service). To answer you, the app sends the relevant parts of your conversation and records to that provider. When you have connected Google, this can include Google Calendar events and Google Tasks that are relevant to your request. That provider's own privacy policy and terms apply to what it receives. If you turn on web search, your search queries, and the country and time zone from your profile, are sent to the same provider.</p>
+
+    <h2>Google account data</h2>
+    <p>Connecting a Google account is optional and is done from Settings. Her asks only for these permissions:</p>
+    <ul>
+      <li><strong>Google Drive app data</strong> (<code>drive.appdata</code>): to back up and sync your Her records between your devices, in a hidden app folder in your own Drive. Her cannot see your other Drive files.</li>
+      <li><strong>Google Calendar, read-only</strong> (<code>calendar.readonly</code>): to show your events and plan around them. Her does not change or delete Google Calendar events.</li>
+      <li><strong>Google Tasks</strong> (<code>tasks</code>): to keep her tasks in step with a list named “Her” in your Google Tasks.</li>
+    </ul>
+    <p>Google data is used only to provide these features to you. It is stored on your phone and in your own Google account, and is sent only to the AI provider you configured, as described above, when it is needed to answer you. It is not sold, not used for advertising, not shared with anyone else, and not used by the developer to train AI models.</p>
+    <p>Her's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+    <h2>What Her does not do</h2>
+    <ul>
+      <li>No analytics, tracking, or advertising SDKs.</li>
+      <li>No account with the developer, and no developer server.</li>
+      <li>No sale or sharing of your data.</li>
+    </ul>
+
+    <h2>Your control</h2>
+    <p>You can look at and delete what Her remembers from inside the app. You can turn Drive, Calendar and Tasks off in Settings at any time, and revoke Her's Google access at <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>. Uninstalling the app deletes its data from your phone. The Drive backup stays in your account until you remove it in Google Drive's settings under “Manage apps”.</p>
+
+    <h2>Changes and contact</h2>
+    <p>Changes to this policy are published on this page. Questions: open an issue at <a href="https://github.com/AlirezaAzadbakht/her/issues">github.com/AlirezaAzadbakht/her/issues</a>.</p>
+  </main>
+
+  <footer class="bar foot">
+    <p>MIT License. © 2026 Alireza Azadbakht</p>
+  </footer>
+</body>
+</html>
