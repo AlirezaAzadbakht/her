@@ -10,8 +10,6 @@ import com.her.companion.companionContext
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
-import com.her.data.drive.MergeEngine
-import com.her.data.drive.SyncCodec
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -150,24 +148,12 @@ class CompanionTest {
         assertTrue(repo.recentMessages(20).all { it.role == MessageRole.USER })
     }
 
-    @Test fun forgettingCascadesAndSyncTombstoneWinsAgainstNewerStaleCopy() = runBlocking {
+    @Test fun forgettingCascadesToDevelopments() = runBlocking {
         val id = thread().getString("id")
         call("save_thread_development", evidence("An interview is scheduled").put("id", "interview").put("threadId", id).put("summary", "Interview scheduled"))
-        val original = repo.getCompanionRecord(id)!!
-        val db2 = Room.inMemoryDatabaseBuilder(context, HerDatabase::class.java).allowMainThreadQueries().build()
-        val repo2 = HerRepository(db2, AppSettingsStore(context, "other_${System.nanoTime()}"), clock)
-        repo2.applyingRemote { assertTrue(SyncCodec.persist(repo2, "companion_records", JSONObject(original.toJson()))) }
-        assertEquals(original, repo2.getCompanionRecord(id))
-        assertTrue(repo2.pendingSyncOps().isEmpty())
         call("forget_memory", JSONObject().put("id", id))
         assertTrue(repo.companionRecords().isEmpty())
         assertEquals("{}", repo.getCompanionRecord("DEVELOPMENT:interview")!!.content)
-        val tombstone = SyncCodec.current(repo, "companion_records", id)!!
-        val op = repo.pendingSyncOps().last { it.entityType == "companion_records" && it.entityId == id }
-        val stale = JSONObject(original.toJson()).put("updatedAt", clock.peek() + 9999)
-        assertFalse(MergeEngine.merge(tombstone, stale, op).isNull("deletedAt"))
-        assertFalse(MergeEngine.merge(stale, tombstone, op).isNull("deletedAt"))
-        db2.close()
     }
 
     @Test fun readsArePagedAndContextIsBoundedEvenWithManyOldSituations() = runBlocking {
@@ -202,11 +188,11 @@ class CompanionTest {
         assertNotNull(repo.getCompanionRecord(id)!!.deletedAt)
     }
 
-    @Test fun remoteChildArrivingAfterForgottenParentStaysForgotten() = runBlocking {
+    @Test fun childSavedAfterForgottenParentStaysForgotten() = runBlocking {
         val id = thread().getString("id")
         val child = com.her.data.db.CompanionRecord("DEVELOPMENT:late", id, "DEVELOPMENT", "{\"summary\":\"private\"}", clock.peek(), clock.peek(), "remote", 1)
         repo.forgetCompanion(id)
-        repo.applyingRemote { SyncCodec.persist(repo, "companion_records", JSONObject(child.toJson())) }
+        repo.saveCompanionRecord(child)
         assertNotNull(repo.getCompanionRecord(child.id)!!.deletedAt)
         assertEquals("{}", repo.getCompanionRecord(child.id)!!.content)
     }
@@ -264,9 +250,6 @@ class CompanionTest {
         call("save_checkin_preferences", evidence("Enable social check-ins again").put("id", "preferences").put("socialEnabled", true))
         val after = repo.getCompanionRecord(before.id)!!
         assertNull(after.deletedAt)
-        val op = repo.pendingSyncOps().last { it.entityType == "companion_records" }
-        assertNull(com.her.data.db.CompanionRecord.fromJson(MergeEngine.merge(JSONObject(tombstone.toJson()), JSONObject(after.toJson()), op)).deletedAt)
-        assertNull(com.her.data.db.CompanionRecord.fromJson(MergeEngine.merge(JSONObject(after.toJson()), JSONObject(tombstone.toJson()), op)).deletedAt)
     }
 
     @Test fun statusEditRetainsEarlierTentativeFieldProvenance() = runBlocking {
@@ -291,7 +274,7 @@ class CompanionTest {
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
             it.execSQL("DROP TABLE companion_records"); it.version = 6
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10).allowMainThreadQueries().build()
         assertNotNull(disk.learningDao().get("keep"))
         val id = thread().getString("id")
         disk.companionDao().upsert(repo.getCompanionRecord(id)!!)

@@ -9,8 +9,6 @@ import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
 import com.her.core.normalizeStatusKey
 import com.her.data.calendar.CalendarDataSource
-import com.her.data.calendar.GoogleCalendar
-import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.calendar.SystemCalendar
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -51,14 +49,12 @@ open class ToolRegistry(
     internal val calendar: CalendarDataSource,
     internal val webSearch: WebSearchClient,
     internal val onUserMessage: suspend (String) -> Unit = {},
-    googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
     internal val reminderAlarms: ReminderAlarms = ReminderAlarms.NONE,
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
     internal val focus: FocusTimer? = null,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
-    internal val googleCalendar = googleCalendar
     /** Chat may use every tool; autonomous runs cannot wipe or rewrite identity. */
     var runType: AgentRunType = AgentRunType.CHAT
 
@@ -262,7 +258,6 @@ open class ToolRegistry(
             }
             "calendar_events" -> {
                 val event = repo.getCalendarEvent(id)?.takeIf { it.deletedAt == null } ?: return false
-                if (event.source == CalendarSource.GOOGLE) return false
                 if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
                 repo.deleteCalendarEvent(id)
             }

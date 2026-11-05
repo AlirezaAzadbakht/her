@@ -63,8 +63,8 @@
 📴 پیام‌هایتان با قطع اینترنت از دست نمی‌روند
 اگر آفلاین باشید، پیام‌ها ذخیره می‌شوند تا بعد از وصل‌شدن اینترنت به آن‌ها رسیدگی شود.
 
-☁️ همراهتان در دستگاه‌های مختلف
-می‌توانید اطلاعاتتان را با کمک Google Drive شخصی خودتان بین دستگاه‌ها هماهنگ نگه دارید.
+💾 پشتیبان در یک فایل
+از همهٔ اطلاعاتتان یک فایل پشتیبان بگیرید و در گوشی تازه برگردانید. کلید API داخل آن نیست.
 
 حریم خصوصی و انتخاب با شماست
 
@@ -121,7 +121,7 @@ Her remembers useful details about your preferences, plans, and everyday life. Y
 From "remind me at 8" to "next time I see Reza, remind me to return his book," Her helps you keep track of the things you don't want to forget. Time-based reminders can still ring when you're offline.
 
 📅 Keeps your plans organized
-Her can check your phone or Google Calendar and create new events. She also understands Persian expressions and Jalali dates.
+Her can check your phone calendar and create new events. She also understands Persian expressions and Jalali dates.
 
 🛒 Keeps track of groceries
 Mention you're out of coffee or rice, and Her can add it to your shopping list without interrupting the conversation.
@@ -144,8 +144,8 @@ Chat in Persian, use Jalali dates, and read replies with proper right-to-left fo
 📴 Doesn't lose your messages offline
 Messages you send without an internet connection are saved and handled once you're back online.
 
-☁️ Stays with you across devices
-Keep your information in sync through your own Google Drive account.
+💾 Moves with you to a new phone
+Save everything to one backup file and restore it on your next phone. Your API key is never in it.
 
 Your assistant. Your choice.
 

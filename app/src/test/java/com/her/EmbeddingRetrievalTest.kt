@@ -134,7 +134,7 @@ class EmbeddingRetrievalTest {
             it.version = 2
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10)
             .build()
         assertEquals(0, migrated.embeddingDao().count())
         migrated.close()
@@ -156,7 +156,7 @@ class EmbeddingRetrievalTest {
             it.version = 3
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10)
             .build()
         assertEquals(0, migrated.reminderDao().allActive().size)
         migrated.close()
@@ -171,13 +171,13 @@ class EmbeddingRetrievalTest {
             openHelper.writableDatabase
             close()
         }
-        // Roll the file back to version 4, before alarms, cached and background tokens, and Google Tasks ids.
+        // Roll the file back to version 4, before alarms and cached and background tokens.
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
             rollBackToVersionFour(it)
             it.version = 4
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10)
             .build()
         assertEquals(0, migrated.reminderDao().allActive().size)
         migrated.close()
@@ -197,7 +197,7 @@ class EmbeddingRetrievalTest {
             it.version = 4
         }
         val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name)
-            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9)
+            .addMigrations(HerDatabase.MIGRATION_1_2, HerDatabase.MIGRATION_2_3, HerDatabase.MIGRATION_3_4, HerDatabase.MIGRATION_4_5, HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10)
             .build()
         assertEquals(0, migrated.feelingDao().recent(10).size)
         migrated.close()

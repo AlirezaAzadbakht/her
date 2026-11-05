@@ -14,16 +14,16 @@ Attempts are separate records, attributed to real user message IDs. A retry for 
 
 ## Optional study reminders
 
-Agree a local study time in chat. Learning nudges use the existing background passes, so they are approximate rather than exact alarms. They require an active path and explicit opt-in, respect quiet hours and existing notification limits, and attempt at most one nudge per path per local day. Pause/archive or disable reminders to stop them. Review dates alone never authorize a notification. Devices that have not yet synced can independently claim the same day's nudge; sync is eventual.
+Agree a local study time in chat. Learning nudges use the existing background passes, so they are approximate rather than exact alarms. They require an active path and explicit opt-in, respect quiet hours and existing notification limits, and attempt at most one nudge per path per local day. Pause/archive or disable reminders to stop them. Review dates alone never authorize a notification.
 
 ## Implementation
 
 - Room version 6 adds `learning_records` through migration 5→6, preserving existing data.
-- PATH, LESSON, EXERCISE, ATTEMPT and NUDGE records have independent IDs and sync metadata. Content is versioned JSON. Exercises are immutable; lessons retain attempts when edited.
-- `LearningTools.kt` validates references, statuses, answer attribution and optimistic update versions. Storage and its sync enqueue are transactional.
+- PATH, LESSON, EXERCISE, ATTEMPT and NUDGE records have independent IDs and version metadata. Content is versioned JSON. Exercises are immutable; lessons retain attempts when edited.
+- `LearningTools.kt` validates references, statuses, answer attribution and optimistic update versions. Storage is transactional.
 - `LearningContext.kt` supplies bounded path summaries, roadmap coverage, latest exercises and review counts; `get_learning` retrieves full details and recent user message IDs.
-- `LearningProgress.kt` calculates review dates deterministically from attempts. Independent attempt IDs preserve concurrent practice; edits to the same record use timestamp/device ordering consistently across sync.
+- `LearningProgress.kt` calculates review dates deterministically from attempts. Independent attempt IDs preserve concurrent practice; edits to the same record are version-checked.
 - `send_learning_reminder` claims a daily nudge. The orchestrator applies notification policy and saves its text only when delivering it.
 - Offline answers use the existing outbox. Saved learning stays on-device; new teaching/grading requires the configured model connection.
 
-Run `testDebugUnitTest` for deterministic storage, migration, tools, sync and delivery checks. Live-model scenarios `learning-chat-roadmap` and `learning-resume` exercise conversational behavior separately with the configured provider. The `capability-learning-*.json` cases additionally cover correct and incorrect answers, hints without recorded attempts, ambiguous course selection, and pausing study nudges. They assert persisted learning records as well as replies; see [Scenario engine](Scenario-engine.md#additional-capability-scenarios).
+Run `testDebugUnitTest` for deterministic storage, migration, tools and delivery checks. Live-model scenarios `learning-chat-roadmap` and `learning-resume` exercise conversational behavior separately with the configured provider. The `capability-learning-*.json` cases additionally cover correct and incorrect answers, hints without recorded attempts, ambiguous course selection, and pausing study nudges. They assert persisted learning records as well as replies; see [Scenario engine](Scenario-engine.md#additional-capability-scenarios).

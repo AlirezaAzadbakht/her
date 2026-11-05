@@ -199,13 +199,6 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     suspend fun allActive(): List<TaskEntity>
 
-    /** Deleted rows too, so a delete reaches Google Tasks. */
-    @Query("SELECT * FROM tasks WHERE updatedAt > :since")
-    suspend fun changedSince(since: Long): List<TaskEntity>
-
-    @Query("SELECT * FROM tasks WHERE googleTaskId = :googleTaskId LIMIT 1")
-    suspend fun byGoogleTaskId(googleTaskId: String): TaskEntity?
-
     @Query("SELECT * FROM tasks WHERE deletedAt IS NULL ORDER BY dueAt IS NULL, dueAt ASC")
     fun observeAll(): Flow<List<TaskEntity>>
 
@@ -430,27 +423,6 @@ interface LogDao {
 
     @Query("SELECT * FROM api_usage WHERE day = :day LIMIT 1")
     fun observeUsage(day: String): Flow<ApiUsageEntity?>
-}
-
-@Dao
-interface SyncDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertOp(entity: SyncOpEntity)
-
-    @Query("SELECT * FROM sync_ops WHERE uploaded = 0 ORDER BY seq ASC")
-    suspend fun pending(): List<SyncOpEntity>
-
-    @Query("SELECT COALESCE(MAX(seq), 0) FROM sync_ops WHERE deviceId = :deviceId")
-    suspend fun lastSeq(deviceId: String): Long
-
-    @Query("UPDATE sync_ops SET uploaded = 1 WHERE id IN (:ids)")
-    suspend fun markUploaded(ids: List<String>)
-
-    @Query("SELECT * FROM sync_cursors WHERE remoteDeviceId = :id LIMIT 1")
-    suspend fun cursor(id: String): SyncCursorEntity?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertCursor(entity: SyncCursorEntity)
 }
 
 @Dao

@@ -132,7 +132,7 @@ fun NameOnboarding(
                     )
                     Spacer(Modifier.height(8.dp))
                     HerButton(
-                        "Restore from Google Drive",
+                        "Restore from a backup",
                         onClick = onRestore,
                         tone = HerButtonTone.Quiet,
                         loading = restoring,

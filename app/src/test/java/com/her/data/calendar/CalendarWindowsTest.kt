@@ -1,15 +1,12 @@
 package com.her.data.calendar
 
 import android.app.Application
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,29 +33,6 @@ class CalendarWindowsTest {
         assertEquals("42", CalendarWindows.deviceEventId(external))
         assertEquals(42L, CalendarWindows.parseDeviceEventId(external))
         assertEquals(42L, CalendarWindows.parseDeviceEventId("42"))
-    }
-
-    @Test
-    fun parseGoogleDateTimeAndAllDay() {
-        val timed = GoogleCalendarClient.parseGoogleTime("2026-09-13T10:30:00Z", null)
-        assertEquals(Instant.parse("2026-09-13T10:30:00Z").toEpochMilli(), timed)
-        val offset = GoogleCalendarClient.parseGoogleTime("2026-09-13T14:00:00+03:30", null)
-        assertEquals(Instant.parse("2026-09-13T10:30:00Z").toEpochMilli(), offset)
-        val allDay = GoogleCalendarClient.parseGoogleTime(null, "2026-09-13")
-        assertNotNull(allDay)
-        assertTrue(allDay!! > 0)
-        val event = GoogleCalendarClient.parseEvent(
-            JSONObject()
-                .put("id", "abc")
-                .put("summary", "Design review")
-                .put("start", JSONObject().put("dateTime", "2026-09-13T12:30:00Z"))
-                .put("end", JSONObject().put("dateTime", "2026-09-13T13:30:00Z")),
-            "primary",
-            1L,
-        )
-        assertEquals("Design review", event!!.title)
-        assertEquals("google:primary:abc", event.externalId)
-        assertEquals(com.her.domain.CalendarSource.GOOGLE, event.source)
     }
 
     @Test

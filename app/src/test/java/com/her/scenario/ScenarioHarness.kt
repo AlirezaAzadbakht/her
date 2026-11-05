@@ -11,8 +11,6 @@ import com.her.core.FakeClock
 import com.her.core.RelativeTimeParser
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.calendar.FakeCalendarDataSource
-import com.her.data.calendar.FakeGoogleCalendarClient
-import com.her.data.calendar.GoogleCalendar
 import com.her.data.db.HerDatabase
 import com.her.data.remote.FakeWebSearchClient
 import com.her.data.remote.WebSearchClient
@@ -52,11 +50,10 @@ class RecordingToolRegistry(
     calendar: CalendarDataSource,
     webSearch: WebSearchClient,
     onUserMessage: suspend (String) -> Unit,
-    googleCalendar: GoogleCalendar,
     reminderAlarms: ReminderAlarms,
     alarmClock: AlarmClockPort,
     focus: FocusTimer,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, googleCalendar, reminderAlarms, alarmClock, focus) {
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -132,19 +129,17 @@ class ScenarioHarness(
         .build()
     val repo = HerRepository(db, settings, clock)
     val calendar = FakeCalendarDataSource(context)
-    val google = FakeGoogleCalendarClient()
     val webSearch = FakeWebSearchClient()
     private val ranker = HybridRanker(repo)
-    private val googleCalendar = GoogleCalendar(repo, google)
     val reminderAlarms = FakeReminderAlarms()
     val alarmClock = FakeAlarmClock()
     private val notifier = RecordingNotifier(context)
     private val focus = FocusTimer(settings, repo, notifier, SilentFocusAlarm)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, googleCalendar, reminderAlarms, alarmClock, focus)
+    }, reminderAlarms, alarmClock, focus)
     private val reminders = ReminderDelivery(repo, notifier)
-    private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar, googleCalendar = googleCalendar)
+    private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
     private val orchestrator = AgentOrchestrator(
         repo = repo,
         llm = llm,
@@ -248,7 +243,6 @@ class ScenarioHarness(
     fun extraTables(): Map<String, List<Map<String, Any?>>> =
         mapOf(
             "system_calendar" to calendar.rows(),
-            "google_calendar" to google.rows(),
             "alarms" to alarmClock.rows(),
         )
 
@@ -292,14 +286,6 @@ class ScenarioHarness(
             val start = parseSeedWhen(event.whenPhrase)
                 ?: error("Could not parse system_calendar when '${event.whenPhrase}'")
             calendar.seed(event.title, start, start + 60 * 60 * 1000, event.notes)
-        }
-        if (spec.seed.googleCalendar.isNotEmpty()) {
-            google.granted = true
-            spec.seed.googleCalendar.forEach { event ->
-                val start = parseSeedWhen(event.whenPhrase)
-                    ?: error("Could not parse google_calendar when '${event.whenPhrase}'")
-                google.seed(event.title, start, start + 60 * 60 * 1000, event.notes)
-            }
         }
         val seedResults = mutableListOf<JSONObject>()
         spec.seed.tools.forEach { call ->

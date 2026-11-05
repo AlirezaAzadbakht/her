@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Back up everything Her knows to a file. In Settings → Backup, **Save backup** puts a zip wherever you choose, **Share** sends it to another app, and **Import** brings one back. On a new phone, tap **Restore from a backup** on the first screen. Your settings come along, but never your API key.
 - Ask Her to talk differently, more formal, warmer, or plainer, or just tell her you don't like her tone. She changes right away and keeps talking that way.
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
 - When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
@@ -12,6 +13,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Load QR image** connects Her Cloud from a saved picture of the QR code, such as a connect or gift card you downloaded. If the picture also has the store-link QR, Her skips it and uses the settings one.
 
 ### Changed
+- Google is gone: no more Connect Google, Drive sync, reading Google Calendar through your account, or Google Tasks. Use a backup file to move to a new phone. Google Calendar events that sync to your phone's calendar still show up.
 - When a message can't go through, Her now says what went wrong in plain words and in your language, such as a refused API key or a busy server. The next step is right there: **Try again**, **Settings**, or **Her Cloud**. The technical error stays behind **Details**, and setup and **Save & test** explain errors the same way.
 - Her sends less of your older chat to the model with each reply, so long conversations stay faster and cheaper. She still remembers earlier days through her notes and by searching your chat.
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.

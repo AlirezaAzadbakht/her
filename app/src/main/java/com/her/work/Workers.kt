@@ -45,8 +45,6 @@ class HourlyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             graph.reminderDelivery.fireDue()
             graph.reminderAlarms.rearmAll(graph.repo)
         }
-        // No model call; a task finished in Google Tasks stops her nudging about it within the hour.
-        runCatching { graph.googleTasks.sync() }
         return try {
             if (!manual) {
                 val app = graph.settings.read()
@@ -157,28 +155,6 @@ class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     }
 }
 
-class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
-    override suspend fun doWork(): Result {
-        val graph = graph() ?: return Result.retry()
-        runCatching { graph.googleTasks.sync() }
-        val verdict = BackgroundRunPolicy.decideSync(
-            driveEnabled = graph.settings.read().driveEnabled,
-            power = readDevicePower(applicationContext),
-        )
-        if (verdict.decision != RunDecision.RUN) return Result.success()
-        val auth = graph.googleAuth.authorize(drive = true, calendar = false)
-        val token = auth.accessToken ?: return Result.success()
-        return try {
-            graph.syncEngine.sync(token)
-            // Another device may have moved or cancelled a reminder this one armed.
-            graph.reminderAlarms.rearmAll(graph.repo)
-            Result.success()
-        } catch (_: Exception) {
-            Result.success()
-        }
-    }
-}
-
 private fun CoroutineWorker.graph(): AppGraph? =
     (applicationContext as? HerApplication)?.graph
 
@@ -240,13 +216,8 @@ class Scheduler(private val context: Context, private val settings: com.her.data
                 .setConstraints(networkAndBattery())
                 .build(),
         )
-        wm.enqueueUniquePeriodicWork(
-            SYNC,
-            periodicPolicy,
-            PeriodicWorkRequestBuilder<SyncWorker>(6, TimeUnit.HOURS)
-                .setConstraints(networkAndBattery())
-                .build(),
-        )
+        // Drive sync is gone; drop the job older installs still have scheduled.
+        wm.cancelUniqueWork(SYNC)
         enqueueDailyIfNeeded(NIGHTLY, changed) {
             OneTimeWorkRequestBuilder<NightlyWorker>()
                 .setInitialDelay(delayUntil(BackgroundRunPolicy.NIGHTLY_AT), TimeUnit.MILLISECONDS)
@@ -312,14 +283,6 @@ class Scheduler(private val context: Context, private val settings: com.her.data
                 .setInputData(workDataOf(KEY_MANUAL to true))
                 .setConstraints(networkOnly())
                 .build(),
-        )
-    }
-
-    fun runSyncNow() {
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "sync-now",
-            ExistingWorkPolicy.REPLACE,
-            OneTimeWorkRequestBuilder<SyncWorker>().build(),
         )
     }
 
@@ -409,7 +372,6 @@ class HerWorkerFactory(private val graphProvider: () -> AppGraph) : androidx.wor
             HourlyWorker::class.java.name -> HourlyWorker(appContext, workerParameters)
             NightlyWorker::class.java.name -> NightlyWorker(appContext, workerParameters)
             BriefingWorker::class.java.name -> BriefingWorker(appContext, workerParameters)
-            SyncWorker::class.java.name -> SyncWorker(appContext, workerParameters)
             OutboxWorker::class.java.name -> OutboxWorker(appContext, workerParameters)
             else -> null
         }

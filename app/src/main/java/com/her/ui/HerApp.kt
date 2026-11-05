@@ -1,8 +1,6 @@
 package com.her.ui
 
-import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -158,23 +156,10 @@ private fun AnimatedContentTransitionScope<Stage>.stageTransition(): ContentTran
 
 @Composable
 private fun NamesStage(vm: HerViewModel, userName: String?) {
-    val restoring by vm.restoring.collectAsState()
-    val restoreMessage by vm.restoreMessage.collectAsState()
-    val googleConsent by vm.googleConsent.collectAsState()
-    val consentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            vm.restoreFromDrive()
-        } else {
-            vm.restoring.value = false
-            vm.restoreMessage.value = "Google permission was not granted."
-        }
-    }
-    LaunchedEffect(googleConsent) {
-        val pending = googleConsent ?: return@LaunchedEffect
-        vm.clearGoogleConsent()
-        consentLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+    val restoring by vm.backupBusy.collectAsState()
+    val restoreMessage by vm.backupMessage.collectAsState()
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(vm::importBackup)
     }
     NameOnboarding(
         userName = userName,
@@ -182,7 +167,7 @@ private fun NamesStage(vm: HerViewModel, userName: String?) {
         onSaveAssistantName = { vm.saveAssistantName(it) },
         restoring = restoring,
         restoreMessage = restoreMessage,
-        onRestore = { vm.restoreFromDrive() },
+        onRestore = { pickBackup.launch(BACKUP_TYPES) },
     )
 }
 

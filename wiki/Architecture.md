@@ -10,10 +10,10 @@ UI (Compose + HerViewModel)
       → ContextBuilder         system prompt + structured snapshot + recent messages
       → LlmClient              POST {baseUrl}/chat/completions (stream for chat)
       → ToolRegistry           schema + execute
-          → HerRepository      domain ↔ Room, usage, sync ops
+          → HerRepository      domain ↔ Room, usage
               → HerDatabase    her.db
   ↘ background Scheduler       WorkManager
-  ↘ DriveSync                  NDJSON change log in Drive appDataFolder
+  ↘ Backup                     zip of her.db + settings, swapped in on restart
 ```
 
 ## Entry points
@@ -41,9 +41,8 @@ WorkManager’s default initializer is disabled in the manifest. The Application
 | `com.her.data.repository` | `HerRepository` |
 | `com.her.data.secure` | Encrypted LLM creds, plain app settings |
 | `com.her.data.remote` | LLM client, web search |
-| `com.her.data.drive` | Drive NDJSON sync + `MergeEngine` |
-| `com.her.data.google` | OAuth (Drive appdata + calendar readonly) |
-| `com.her.data.calendar` | Device calendar via `CalendarContract.Instances`; Google Calendar API after Connect Google |
+| `com.her.data.backup` | Backup zip export, staged import, restart |
+| `com.her.data.calendar` | Device calendar via `CalendarContract.Instances` |
 | `com.her.data.retrieval` | `HybridRanker` (FTS + lexical/recency, plus cosine similarity from `/embeddings` when enabled) |
 | `com.her.core` | IDs, quiet hours, relative time, JSON helpers, secret redaction, enum aliases |
 | `com.her.work` | Workers, scheduler, boot receiver |
@@ -68,12 +67,13 @@ Dropped tasks also set `deletedAt` so they leave the live lists.
 `app/src/main/AndroidManifest.xml`:
 
 - Permissions: internet, network state, notifications, boot, read/write calendar, foreground data-sync, request ignore battery optimizations
-- `allowBackup="false"`
+- `allowBackup="false"`; backups are the in-app zip instead
+- `FileProvider` (`${applicationId}.files`, `res/xml/backup_paths.xml`) shares a backup zip from `cache/backup/`
 - `usesCleartextTraffic="true"` (local / custom LLM endpoints)
 - Debug application id: `com.her.debug`
 
 ## Companion support
 
-`CompanionTools` and `companion/Companion.kt` extend the existing repository, context builder and background runner. Room version 7 adds bounded versioned companion records, linked to existing open loops, tasks, commitments and events. Notification eligibility is checked before reservation and again before delivery. See [Ongoing support](Ongoing-support.md) for data, sync and delivery limitations.
+`CompanionTools` and `companion/Companion.kt` extend the existing repository, context builder and background runner. Room version 7 adds bounded versioned companion records, linked to existing open loops, tasks, commitments and events. Notification eligibility is checked before reservation and again before delivery. See [Ongoing support](Ongoing-support.md) for data and delivery limitations.
 
-See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including sync and notification limitations.
+See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including notification limitations.

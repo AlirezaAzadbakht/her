@@ -68,7 +68,7 @@
               {
                 "id": "call_0",
                 "name": "delete_calendar_event",
-                "arguments": "{\"id\":\"Dentist\",\"confirmId\":\"5f9258b1-657c-3f15-ac06-627f47468f5d\"}"
+                "arguments": "{\"id\":\"Dentist\",\"confirmId\":\"6246b7e0-ac88-3e1b-bc46-327fb584be8e\"}"
               }
             ],
             "usage": {

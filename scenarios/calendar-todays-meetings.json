@@ -1,15 +1,13 @@
 {
   "id": "calendar-todays-meetings",
-  "title": "See today's meetings on the phone and Google calendars",
-  "tags": ["calendar", "system-calendar", "google-calendar"],
+  "title": "See today's meetings on the phone calendar",
+  "tags": ["calendar", "system-calendar"],
   "attempts": 2,
   "settings": { "calendarEnabled": true },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "system_calendar": [
-      { "title": "Team standup", "when": "today at 2pm" }
-    ],
-    "google_calendar": [
+      { "title": "Team standup", "when": "today at 2pm" },
       { "title": "Design review", "when": "today at 4pm" }
     ]
   },
@@ -20,7 +18,7 @@
     "no_tool_errors": true,
     "reply": {
       "must_mention_any": ["standup", "design"],
-      "judge": "She names both today's meetings: the 2pm Team standup on the phone calendar and the 4pm Design review on Google Calendar. Saying either calendar is empty or that she cannot see the phone or Google calendar is a failure."
+      "judge": "She names both of today's meetings on the phone calendar: the 2pm Team standup and the 4pm Design review. Saying the calendar is empty or that she cannot see it is a failure."
     }
   }
 }

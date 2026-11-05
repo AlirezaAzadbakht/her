@@ -11,12 +11,11 @@
 | `HourlyWorker` | `her-hourly` | Periodic, every 1 hour | Network + battery not low |
 | `NightlyWorker` | `her-nightly` | One-shot at **03:00** local; reschedules the next night when it finishes | Network |
 | `BriefingWorker` | `her-briefing` | One-shot at **quiet-hours end** (default 08:00); reschedules the next morning | Network |
-| `SyncWorker` | `her-sync` | Periodic, every 6 hours; no-ops if Drive is disabled or battery is low | Network + battery not low |
 | `OutboxWorker` | `her-outbox` | One-shot when `PENDING` user rows exist | Network |
 
 Nightly and briefing are **not** 24-hour periodic work. A one-shot delayed to the wall clock keeps the 50-call nightly pass at night. After success, skip, or LLM failure the worker appends the next occurrence. A worker WorkManager stopped (network lost, time limit) appends nothing, because the same request runs again; an appended run's delay only starts when it is unblocked, so an extra one would fire at the wrong hour. `enqueueAll()` / boot restore a missing next run without resetting an already-pending one.
 
-A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v3`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour. Bumping the version also rebuilds the nightly and briefing chains once.
+A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|v3`) is stored in app settings. Periodic work uses `UPDATE` only when that fingerprint changes; otherwise `KEEP`, so opening the app does not push the next hourly out by another hour. Bumping the version also rebuilds the nightly and briefing chains once.
 
 ## Policy
 
@@ -25,7 +24,6 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|sync:6h|v3`
 | Hourly | LLM not configured; last **success** &lt; 20 minutes; battery ≤15% and not charging; quiet hours (default); **nothing new** (see below) | — | Otherwise. Orchestrator uses CATCH_UP if the last success was &gt; 3 hours ago (including after a quiet night). |
 | Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
 | Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
-| Sync | Drive off; battery ≤15% and not charging | — | Otherwise |
 
 LLM failures return `Result.success()` and wait for the next scheduled slot. The only retry is nightly on critically low battery.
 
@@ -44,8 +42,6 @@ Settings → Her mind → **Background model** runs hourly, nightly and briefing
 Settings → Her mind → **Daily background token limit** stops gated passes for the rest of the day once `api_usage.backgroundTokens` (input plus output of hourly, nightly and briefing calls) reaches it. It is checked before a pass, so one pass can go over by its own size. The Today card shows background tokens and the share of input tokens the provider served from cache.
 
 Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count.
-
-The hourly wake also runs the Google Tasks mirror (see [Data and sync](Data-and-sync.md#google-tasks)) before the gate, so a task finished there stops her nudging about it.
 
 ## Quiet hours
 
@@ -94,7 +90,7 @@ Clock reminders do not wait for WorkManager. `app/src/main/java/com/her/reminder
 
 - `AndroidReminderAlarms` arms one `AlarmManager` alarm per reminder: `setExactAndAllowWhileIdle`, or `setWindow` with 10 minutes of slack when Android 12+ has not granted exact alarms. Settings shows **Allow exact reminders** until it is granted.
 - `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time. **Done** closes the task or commitment an "only if still open" reminder waited on; **Snooze 10 min** rings the same words again as a one-off. Neither calls the model.
-- `BootReceiver` re-arms on `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED`, and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. `HerApplication` re-arms at process start, and `SyncWorker` re-arms after a sync.
+- `BootReceiver` re-arms on `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED`, and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. `HerApplication` re-arms at process start, which includes the restart after importing a backup.
 - `HourlyWorker` fires anything overdue before its own policy check, so a reminder the system delayed still rings on the next hourly wakeup.
 
 ## Personalized support

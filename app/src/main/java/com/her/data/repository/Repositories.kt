@@ -31,7 +31,6 @@ import com.her.data.db.RecurringResponsibilityEntity
 import com.her.data.db.ReminderEntity
 import com.her.data.db.RoutineEntity
 import com.her.data.db.ShortTermMemoryEntity
-import com.her.data.db.SyncOpEntity
 import com.her.data.db.TaskEntity
 import com.her.data.db.UserProfileEntity
 import com.her.data.db.UserUnderstandingEntity
@@ -68,8 +67,6 @@ import com.her.domain.RecurringResponsibility
 import com.her.domain.Reminder
 import com.her.domain.Routine
 import com.her.domain.ShortTermMemory
-import com.her.domain.SyncOp
-import com.her.domain.SyncOpType
 import com.her.domain.TaskItem
 import com.her.domain.TaskStatus
 import com.her.domain.UserProfile
@@ -80,10 +77,7 @@ import com.her.core.TimeProvider
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
 import com.her.domain.CalendarSource
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -148,11 +142,6 @@ class HerRepository(
         if (ids.isEmpty()) return
         val at = nowMillis()
         chatDao.markStatus(ids, MessageStatus.SENT, at)
-        ids.forEach { id ->
-            chatDao.get(id)?.toDomain()?.let { msg ->
-                enqueue("chat_messages", msg.id, SyncOpType.UPSERT, msg.toJson())
-            }
-        }
     }
 
     suspend fun recentMessages(limit: Int): List<ChatMessage> =
@@ -172,9 +161,8 @@ class HerRepository(
             .take(limit)
     }
 
-    suspend fun saveMessage(message: ChatMessage, enqueueSync: Boolean = true) {
+    suspend fun saveMessage(message: ChatMessage) {
         chatDao.upsert(message.toEntity())
-        if (enqueueSync) enqueue("chat_messages", message.id, SyncOpType.UPSERT, message.toJson())
     }
 
     suspend fun upsertShort(memory: ShortTermMemory) {
@@ -184,7 +172,6 @@ class HerRepository(
         val retiredAt = getCompanionRecord("superseded:${memory.id}")?.createdAt
         val row = if (retiredAt != null) memory.copy(expiresAt = retiredAt) else memory
         memoryDao.upsertShort(row.toEntity())
-        enqueue("short_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun upsertLong(memory: LongTermMemory) {
@@ -195,7 +182,6 @@ class HerRepository(
         val superseded = getCompanionRecord("superseded:${memory.id}") != null || memoryDependencies(memory).any { getLong(it)?.status == MemoryStatus.HISTORICAL } || allLong().any { it.id != memory.id && runCatching { JSONObject(it.metadataJson ?: "{}").optString("supersedes") == memory.id }.getOrDefault(false) }
         val row = if (superseded && memory.status == MemoryStatus.ACTIVE) memory.copy(status = MemoryStatus.HISTORICAL) else memory
         memoryDao.upsertLong(row.toEntity())
-        enqueue("long_term_memories", row.id, SyncOpType.UPSERT, row.toJson())
         val previousId = runCatching { JSONObject(row.metadataJson ?: "{}").optString("supersedes") }.getOrDefault("")
         if (previousId.isNotBlank()) getLong(previousId)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
             upsertLong(it.copy(status = MemoryStatus.HISTORICAL, validUntil = row.validFrom, updatedAt = row.updatedAt, version = it.version + 1))
@@ -255,11 +241,9 @@ class HerRepository(
         }
         getLong(id)?.takeIf { it.deletedAt == null }?.let {
             memoryDao.upsertLong(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
-            enqueue("long_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
         }
         getShort(id)?.takeIf { it.deletedAt == null }?.let {
             memoryDao.upsertShort(it.copy(content = "", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1).toEntity())
-            enqueue("short_term_memories", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
         }
         db.embeddingDao().deleteFor(id)
         allLong().filter { id in memoryDependencies(it) }.forEach { forgetKnowledge(it.id) }
@@ -315,7 +299,6 @@ class HerRepository(
     suspend fun saveProfile(profile: UserProfile) {
         val previousZone = db.profileDao().get(UserProfile.PROFILE_ID)?.timezone
         db.profileDao().upsert(profile.toEntity())
-        enqueue("user_profile", profile.id, SyncOpType.UPSERT, profile.toJson())
         if (previousZone != null && previousZone != profile.timezone) companionRecords().filter { it.kind == "SCHEDULE" && it.data().optString("zonePolicy") == "PROFILE" }.forEach {
             com.her.companion.refreshScheduleReminder(this, it, com.her.reminders.ReminderAlarms.NONE)
         }
@@ -342,7 +325,6 @@ class HerRepository(
         if (item.deletedAt == null && (knowledgeForgotten(item.id) || item.sourceMessageId?.let { knowledgeForgotten(it) } == true)) return
         val row = if (getCompanionRecord("superseded:${item.id}") != null && item.status == MemoryStatus.ACTIVE) item.copy(status = MemoryStatus.HISTORICAL) else item
         db.userUnderstandingDao().upsert(row.toEntity())
-        enqueue("user_understandings", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun people() = db.personDao().allActive().map { it.toDomain() }
@@ -350,7 +332,6 @@ class HerRepository(
     suspend fun searchPeople(q: String) = db.personDao().search("%$q%").map { it.toDomain() }
     suspend fun savePerson(person: Person) {
         db.personDao().upsert(person.toEntity())
-        enqueue("people", person.id, SyncOpType.UPSERT, person.toJson())
     }
 
     suspend fun projects() = db.projectDao().allActive().map { it.toDomain() }
@@ -358,51 +339,42 @@ class HerRepository(
     suspend fun searchProjects(q: String) = db.projectDao().search("%$q%").map { it.toDomain() }
     suspend fun saveProject(project: Project) {
         db.projectDao().upsert(project.toEntity())
-        enqueue("projects", project.id, SyncOpType.UPSERT, project.toJson())
     }
 
     suspend fun goals() = db.goalDao().allActive().map { it.toDomain() }
     suspend fun getGoal(id: String) = db.goalDao().get(id)?.toDomain()
     suspend fun saveGoal(goal: Goal) {
         db.goalDao().upsert(goal.toEntity())
-        enqueue("goals", goal.id, SyncOpType.UPSERT, goal.toJson())
     }
 
     suspend fun tasks() = db.taskDao().allActive().map { it.toDomain() }
     suspend fun getTask(id: String) = db.taskDao().get(id)?.toDomain()
-    suspend fun tasksChangedSince(since: Long) = db.taskDao().changedSince(since).map { it.toDomain() }
-    suspend fun taskByGoogleId(googleTaskId: String) = db.taskDao().byGoogleTaskId(googleTaskId)?.toDomain()
     suspend fun saveTask(task: TaskItem) {
         db.taskDao().upsert(task.toEntity())
-        enqueue("tasks", task.id, SyncOpType.UPSERT, task.toJson())
     }
 
     suspend fun commitments() = db.commitmentDao().allActive().map { it.toDomain() }
     suspend fun getCommitment(id: String) = db.commitmentDao().get(id)?.toDomain()
     suspend fun saveCommitment(item: Commitment) {
         db.commitmentDao().upsert(item.toEntity())
-        enqueue("commitments", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun openLoops() = db.openLoopDao().allActive().map { it.toDomain() }
     suspend fun getOpenLoop(id: String) = db.openLoopDao().get(id)?.toDomain()
     suspend fun saveOpenLoop(item: OpenLoop) {
         db.openLoopDao().upsert(item.toEntity())
-        enqueue("open_loops", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun routines() = db.routineDao().allActive().map { it.toDomain() }
     suspend fun getRoutine(id: String) = db.routineDao().get(id)?.toDomain()
     suspend fun saveRoutine(item: Routine) {
         db.routineDao().upsert(item.toEntity())
-        enqueue("routines", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun groceries() = db.groceryDao().allActive().map { it.toDomain() }
     suspend fun getGrocery(id: String) = db.groceryDao().get(id)?.toDomain()
     suspend fun saveGrocery(item: GroceryItem) {
         db.groceryDao().upsert(item.toEntity())
-        enqueue("groceries", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun markGroceriesPurchased(exceptNames: List<String>) {
@@ -418,33 +390,23 @@ class HerRepository(
     suspend fun getImportantDate(id: String) = db.importantDateDao().get(id)?.toDomain()
     suspend fun saveImportantDate(item: ImportantDate) {
         db.importantDateDao().upsert(item.toEntity())
-        enqueue("important_dates", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun responsibilities() = db.responsibilityDao().allActive().map { it.toDomain() }
     suspend fun getResponsibility(id: String) = db.responsibilityDao().get(id)?.toDomain()
     suspend fun saveResponsibility(item: RecurringResponsibility) {
         db.responsibilityDao().upsert(item.toEntity())
-        enqueue("recurring_responsibilities", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun calendarInRange(from: Long, to: Long) = db.calendarDao().inRange(from, to).map { it.toDomain() }
     suspend fun getCalendarEvent(id: String) = db.calendarDao().get(id)?.toDomain()
     suspend fun getCalendarByExternalId(externalId: String) = db.calendarDao().getByExternalId(externalId)?.toDomain()
-    // Device and Google calendar rows are local mirrors, refreshed on every read; only internal events sync.
     suspend fun saveCalendarEvent(item: CalendarEvent) {
         db.calendarDao().upsert(item.toEntity())
-        if (item.source == CalendarSource.INTERNAL) {
-            enqueue("calendar_events", item.id, SyncOpType.UPSERT, item.toJson())
-        }
     }
 
     suspend fun deleteCalendarEvent(id: String) {
-        val source = db.calendarDao().get(id)?.source
         db.calendarDao().softDelete(id, nowMillis())
-        if (source == null || source == CalendarSource.INTERNAL) {
-            enqueue("calendar_events", id, SyncOpType.DELETE, JSONObject().put("id", id).toString())
-        }
     }
 
     suspend fun reminders() = db.reminderDao().allActive().map { it.toDomain() }
@@ -455,14 +417,12 @@ class HerRepository(
 
     suspend fun saveReminder(item: Reminder) {
         db.reminderDao().upsert(item.toEntity())
-        enqueue("reminders", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun relationships() = db.relationshipDao().allActive().map { it.toDomain() }
     suspend fun relationshipsFor(type: String, id: String) = db.relationshipDao().forEntity(type, id).map { it.toDomain() }
     suspend fun saveRelationship(item: MemoryRelationship) {
         db.relationshipDao().upsert(item.toEntity())
-        enqueue("memory_relationships", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun agentState() = db.agentDao().stateEntries().map { it.toDomain() }
@@ -471,7 +431,6 @@ class HerRepository(
     suspend fun getAgentQueue(id: String) = db.agentDao().getQueue(id)?.toDomain()
     suspend fun saveAgentState(item: AgentStateEntry) {
         db.agentDao().upsertState(item.toEntity())
-        enqueue("agent_state", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     /** Current source evidence for a question; elapsed time never completes an item. */
@@ -494,7 +453,6 @@ class HerRepository(
             else -> item
         }
         db.wonderingDao().upsert(row)
-        enqueue("wondering", row.id, SyncOpType.UPSERT, row.toJson())
     }
 
     suspend fun companionRecords() = db.companionDao().all()
@@ -521,7 +479,6 @@ class HerRepository(
             }
         }
         db.companionDao().upsert(row)
-        enqueue("companion_records", row.id, SyncOpType.UPSERT, row.toJson())
         if (row.kind == "SUPERSESSION" && row.deletedAt == null) {
             val target = row.data().getString("targetId")
             getLong(target)?.takeIf { it.deletedAt == null && it.status == MemoryStatus.ACTIVE }?.let {
@@ -566,9 +523,8 @@ class HerRepository(
     suspend fun learningPathRecords(pathId: String) = db.learningDao().forPath(pathId)
     suspend fun getLearningRecord(id: String) = db.learningDao().get(id)
     suspend fun <T> learningTransaction(block: suspend () -> T): T = db.withTransaction { block() }
-    suspend fun saveLearningRecord(item: LearningRecord) = db.withTransaction {
+    suspend fun saveLearningRecord(item: LearningRecord) {
         db.learningDao().upsert(item)
-        enqueue("learning_records", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
@@ -600,12 +556,10 @@ class HerRepository(
     }
     suspend fun saveFeeling(item: HerFeeling) {
         db.feelingDao().upsert(item.toEntity())
-        enqueue("feelings", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun saveAgentQueue(item: AgentQueueItem) {
         db.agentDao().upsertQueue(item.toEntity())
-        enqueue("agent_queue", item.id, SyncOpType.UPSERT, item.toJson())
     }
 
     suspend fun logActivity(category: String, message: String, details: String? = null) {
@@ -676,74 +630,19 @@ class HerRepository(
 
     suspend fun deleteConfirmation(id: String) = db.confirmationDao().delete(id)
 
-    suspend fun pendingSyncOps(): List<SyncOp> = db.syncDao().pending().map { it.toDomain() }
-    suspend fun markUploaded(ids: List<String>) {
-        if (ids.isNotEmpty()) db.syncDao().markUploaded(ids)
-    }
-
-    suspend fun lastSeq(): Long = db.syncDao().lastSeq(deviceId)
-
-    /** Applies changes that came from another device without queueing them to be uploaded again. */
-    suspend fun <T> applyingRemote(block: suspend () -> T): T = withContext(RemoteChanges()) { block() }
-
-    private suspend fun enqueue(type: String, id: String, op: SyncOpType, payload: String) {
-        if (currentCoroutineContext()[RemoteChanges] != null) return
-        val seq = db.syncDao().lastSeq(deviceId) + 1
-        db.syncDao().upsertOp(
-            SyncOpEntity(
-                id = newId(),
-                entityType = type,
-                entityId = id,
-                opType = op,
-                payloadJson = payload,
-                createdAt = nowMillis(),
-                deviceId = deviceId,
-                seq = seq,
-                uploaded = false,
-            ),
-        )
-    }
-}
-
-/** Marks writes made while applying another device's changes, so they are not uploaded back. */
-private class RemoteChanges : AbstractCoroutineContextElement(Key) {
-    companion object Key : CoroutineContext.Key<RemoteChanges>
 }
 
 fun ChatMessageEntity.toDomain() = ChatMessage(id, role, content, createdAt, updatedAt, deviceId, version, deletedAt, status, metadataJson)
 fun ChatMessage.toEntity() = ChatMessageEntity(id, role, content, createdAt, updatedAt, deviceId, version, deletedAt, status, metadataJson)
-fun ChatMessage.toJson() = JSONObject()
-    .put("id", id).put("role", role.name).put("content", content).put("createdAt", createdAt)
-    .put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version)
-    .put("deletedAt", deletedAt).put("status", status.name).put("metadataJson", metadataJson).toString()
 
 fun ShortTermMemoryEntity.toDomain() = ShortTermMemory(id, content, type, confidence, importance, createdAt, updatedAt, expiresAt, sourceMessageId, source, metadataJson, deviceId, version, deletedAt)
 fun ShortTermMemory.toEntity() = ShortTermMemoryEntity(id, content, type, confidence, importance, createdAt, updatedAt, expiresAt, sourceMessageId, source, metadataJson, deviceId, version, deletedAt)
-fun ShortTermMemory.toJson() = JSONObject()
-    .put("id", id).put("content", content).put("type", type).put("confidence", confidence)
-    .put("importance", importance).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("expiresAt", expiresAt).put("sourceMessageId", sourceMessageId).put("source", source.name)
-    .put("metadataJson", metadataJson).put("deviceId", deviceId).put("version", version)
-    .put("deletedAt", deletedAt).toString()
 
 fun LongTermMemoryEntity.toDomain() = LongTermMemory(id, content, category, confidence, importance, createdAt, updatedAt, lastConfirmedAt, source, sourceMessageId, derivedFromJson, validFrom, validUntil, status, metadataJson, deviceId, version, deletedAt)
 fun LongTermMemory.toEntity() = LongTermMemoryEntity(id, content, category, confidence, importance, createdAt, updatedAt, lastConfirmedAt, source, sourceMessageId, derivedFromJson, validFrom, validUntil, status, metadataJson, deviceId, version, deletedAt)
-fun LongTermMemory.toJson() = JSONObject()
-    .put("id", id).put("content", content).put("category", category).put("confidence", confidence)
-    .put("importance", importance).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("lastConfirmedAt", lastConfirmedAt).put("source", source.name).put("sourceMessageId", sourceMessageId)
-    .put("derivedFromJson", derivedFromJson).put("validFrom", validFrom).put("validUntil", validUntil)
-    .put("status", status.name).put("metadataJson", metadataJson).put("deviceId", deviceId)
-    .put("version", version).put("deletedAt", deletedAt).toString()
 
 fun UserProfileEntity.toDomain() = UserProfile(id, userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext, firstUseDate, updatedAt, deviceId, version)
 fun UserProfile.toEntity() = UserProfileEntity(id, userName, assistantName, timezone, preferredLanguage, country, typicalWakeTime, typicalSleepTime, occupationOrStudyContext, firstUseDate, updatedAt, deviceId, version)
-fun UserProfile.toJson() = JSONObject()
-    .put("id", id).put("userName", userName).put("assistantName", assistantName).put("timezone", timezone)
-    .put("preferredLanguage", preferredLanguage).put("country", country).put("typicalWakeTime", typicalWakeTime)
-    .put("typicalSleepTime", typicalSleepTime).put("occupationOrStudyContext", occupationOrStudyContext)
-    .put("firstUseDate", firstUseDate).put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version)
-    .toString()
 
 fun UserUnderstandingEntity.toDomain() = UserUnderstanding(
     id, facet, content, confidence, importance, source, sourceMessageId, status,
@@ -753,12 +652,6 @@ fun UserUnderstanding.toEntity() = UserUnderstandingEntity(
     id, facet, content, confidence, importance, source, sourceMessageId, status,
     createdAt, updatedAt, deviceId, version, deletedAt,
 )
-fun UserUnderstanding.toJson() = JSONObject()
-    .put("id", id).put("facet", facet).put("content", content).put("confidence", confidence)
-    .put("importance", importance).put("source", source.name).put("sourceMessageId", sourceMessageId)
-    .put("status", status.name).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt)
-    .toString()
 
 fun PersonEntity.toDomain() = Person(id, name, relationship, birthday, importantNotes, preferences, lastMentioned, confidence, createdAt, updatedAt, deviceId, version, deletedAt)
 fun Person.toEntity() = PersonEntity(id, name, relationship, birthday, importantNotes, preferences, lastMentioned, confidence, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -784,13 +677,13 @@ fun Goal.toJson() = JSONObject()
     .put("progressSummary", progressSummary).put("createdAt", createdAt).put("updatedAt", updatedAt)
     .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
 
-fun TaskEntity.toDomain() = TaskItem(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt, googleTaskId)
-fun TaskItem.toEntity() = TaskEntity(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt, googleTaskId)
+fun TaskEntity.toDomain() = TaskItem(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt)
+fun TaskItem.toEntity() = TaskEntity(id, title, description, status, dueAt, relatedProjectId, relatedGoalId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun TaskItem.toJson() = JSONObject()
     .put("id", id).put("title", title).put("description", description).put("status", status.name)
     .put("dueAt", dueAt).put("relatedProjectId", relatedProjectId).put("relatedGoalId", relatedGoalId)
     .put("createdAt", createdAt).put("updatedAt", updatedAt).put("deviceId", deviceId)
-    .put("version", version).put("deletedAt", deletedAt).put("googleTaskId", googleTaskId).toString()
+    .put("version", version).put("deletedAt", deletedAt).toString()
 
 fun CommitmentEntity.toDomain() = Commitment(id, title, description, status, dueAt, promisedTo, relatedTaskId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun Commitment.toEntity() = CommitmentEntity(id, title, description, status, dueAt, promisedTo, relatedTaskId, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -860,11 +753,6 @@ fun Reminder.toJson() = JSONObject()
 
 fun MemoryRelationshipEntity.toDomain() = MemoryRelationship(id, sourceType, sourceId, relationshipType, targetType, targetId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun MemoryRelationship.toEntity() = MemoryRelationshipEntity(id, sourceType, sourceId, relationshipType, targetType, targetId, createdAt, updatedAt, deviceId, version, deletedAt)
-fun MemoryRelationship.toJson() = JSONObject()
-    .put("id", id).put("sourceType", sourceType).put("sourceId", sourceId).put("relationshipType", relationshipType)
-    .put("targetType", targetType).put("targetId", targetId).put("createdAt", createdAt)
-    .put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt)
-    .toString()
 
 fun AgentStateEntity.toDomain() = AgentStateEntry(id, kind, content, confidence, createdAt, updatedAt, deviceId, version, deletedAt)
 fun AgentStateEntry.toEntity() = AgentStateEntity(id, kind, content, confidence, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -875,10 +763,6 @@ fun AgentStateEntry.toJson() = JSONObject()
 
 fun FeelingEntity.toDomain() = HerFeeling(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun HerFeeling.toEntity() = FeelingEntity(id, feeling, intensity, note, sourceMessageId, createdAt, updatedAt, deviceId, version, deletedAt)
-fun HerFeeling.toJson() = JSONObject()
-    .put("id", id).put("feeling", feeling.name).put("intensity", intensity).put("note", note)
-    .put("sourceMessageId", sourceMessageId).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
 
 fun AgentQueueEntity.toDomain() = AgentQueueItem(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)
 fun AgentQueueItem.toEntity() = AgentQueueEntity(id, description, status, priority, dueAt, relatedEntityType, relatedEntityId, createdAt, updatedAt, deviceId, version, deletedAt)
@@ -893,4 +777,3 @@ fun DebugEventEntity.toDomain() = DebugEvent(id, createdAt, kind, payload)
 fun AgentRunEntity.toDomain() = AgentRun(id, type, startedAt, finishedAt, callsUsed, status, error, notes)
 fun AgentRun.toEntity() = AgentRunEntity(id, type, startedAt, finishedAt, callsUsed, status, error, notes)
 fun ApiUsageEntity.toDomain() = ApiUsageDay(day, requests, inputTokens, outputTokens, hourlyCalls, nightlyCalls, briefingCalls, chatCalls, totalLatencyMs, errors, cachedInputTokens, backgroundTokens)
-fun SyncOpEntity.toDomain() = SyncOp(id, entityType, entityId, opType, payloadJson, createdAt, deviceId, seq, uploaded)

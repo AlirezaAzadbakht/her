@@ -76,7 +76,6 @@ data class AppSettings(
     val webSearchEndpoint: String,
     val webSearchApiKey: String,
     val calendarEnabled: Boolean,
-    val driveEnabled: Boolean,
     val chatToolCallLimit: Int,
     val lastHourlyRunAt: Long,
     val lastNightlyDate: String,
@@ -101,9 +100,6 @@ data class AppSettings(
     val swipedNudges: Int = 0,
     /** The running pomodoro, if any. */
     val focus: FocusSession? = null,
-    /** Mirror her tasks to a "Her" list in Google Tasks. */
-    val googleTasksEnabled: Boolean = false,
-    val lastTasksSyncAt: Long = 0L,
 )
 
 const val DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small"
@@ -129,7 +125,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             webSearchEndpoint = prefs.getString(KEY_WEB_URL, "") ?: "",
             webSearchApiKey = prefs.getString(KEY_WEB_KEY, "") ?: "",
             calendarEnabled = prefs.getBoolean(KEY_CAL, false),
-            driveEnabled = prefs.getBoolean(KEY_DRIVE, false),
             chatToolCallLimit = prefs.getInt(KEY_CHAT_LIMIT, 12),
             lastHourlyRunAt = prefs.getLong(KEY_HOURLY, 0L),
             lastNightlyDate = prefs.getString(KEY_NIGHTLY, "") ?: "",
@@ -149,8 +144,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
             focus = FocusSession.fromJson(prefs.getString(KEY_FOCUS, null)),
-            googleTasksEnabled = prefs.getBoolean(KEY_GTASKS, false),
-            lastTasksSyncAt = prefs.getLong(KEY_GTASKS_AT, 0L),
         )
     }
 
@@ -166,7 +159,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putString(KEY_WEB_URL, next.webSearchEndpoint)
             putString(KEY_WEB_KEY, next.webSearchApiKey)
             putBoolean(KEY_CAL, next.calendarEnabled)
-            putBoolean(KEY_DRIVE, next.driveEnabled)
             putInt(KEY_CHAT_LIMIT, next.chatToolCallLimit)
             putLong(KEY_HOURLY, next.lastHourlyRunAt)
             putString(KEY_NIGHTLY, next.lastNightlyDate)
@@ -186,8 +178,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
             putString(KEY_FOCUS, next.focus?.toJson())
-            putBoolean(KEY_GTASKS, next.googleTasksEnabled)
-            putLong(KEY_GTASKS_AT, next.lastTasksSyncAt)
         }
         _state.value = next
     }
@@ -208,7 +198,6 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_WEB_URL = "web_search_url"
         private const val KEY_WEB_KEY = "web_search_key"
         private const val KEY_CAL = "calendar_enabled"
-        private const val KEY_DRIVE = "drive_enabled"
         private const val KEY_CHAT_LIMIT = "chat_tool_limit"
         private const val KEY_HOURLY = "last_hourly"
         private const val KEY_NIGHTLY = "last_nightly"
@@ -229,7 +218,5 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_BG_CAP = "background_token_cap"
         private const val KEY_SWIPED = "swiped_nudges"
         private const val KEY_FOCUS = "focus_session"
-        private const val KEY_GTASKS = "google_tasks_enabled"
-        private const val KEY_GTASKS_AT = "google_tasks_synced_at"
     }
 }
