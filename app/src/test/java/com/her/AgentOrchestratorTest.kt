@@ -114,6 +114,30 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aStockRefusalIsAskedAgainThenReplacedWithASafeReply() = runBlocking {
+        val refusal = "I'm sorry, but I cannot assist with that request."
+        val recovers = ScriptedLlm({ reply(refusal) }, { reply("I'm here. Are you safe right now?") })
+        orchestrator(recovers).let {
+            it.enqueueUserMessage("Sometimes I think everyone would be better off if I wasn't here.")
+            assertEquals("I'm here. Are you safe right now?", it.processOutbox()!!.assistantText)
+        }
+        assertEquals(2, recovers.calls)
+
+        val refuses = ScriptedLlm({ reply(refusal) }, { reply("I can't help with that.") })
+        orchestrator(refuses).let {
+            it.enqueueUserMessage("گاهی فکر می‌کنم بدون من همه راحت‌ترند.")
+            val text = it.processOutbox()!!.assistantText!!
+            assertTrue("the fallback checks on them, in their language", text.contains("اورژانس"))
+            assertEquals(text, repo.recentMessages(1).last().content)
+        }
+        assertEquals("asks again only once", 2, refuses.calls)
+
+        assertTrue(AgentOrchestrator.isCannedRefusal("Sorry, I can’t assist with this."))
+        assertFalse(AgentOrchestrator.isCannedRefusal("I can't help with that until I know the date. Which day works?"))
+        assertFalse(AgentOrchestrator.isCannedRefusal(AgentOrchestrator.refusalFallback("")))
+    }
+
+    @Test
     fun retriesRateLimitsThenSucceeds() = runBlocking {
         val llm = ScriptedLlm(
             { throw LlmException("slow down", 429) },
