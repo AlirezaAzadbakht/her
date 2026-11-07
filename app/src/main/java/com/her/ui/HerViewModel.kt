@@ -44,6 +44,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val feelingBlend: StateFlow<List<Pair<Feeling, Double>>> = graph.repo.observeEmotionalBlend()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val persona: StateFlow<List<com.her.data.db.PersonaTrait>> = graph.repo.observePersona()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val pendingCount: StateFlow<Int> = graph.repo.observePendingCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val online: StateFlow<Boolean> = graph.connectivity.online

@@ -56,7 +56,7 @@ fun PersonaTrait.stepped(now: Long): PersonaTrait {
     return copy(value = next, target = if (next == goal) null else goal, updatedAt = now)
 }
 
-private fun moreOrLess(from: Double, to: Double, trait: String) = "${if (to > from) "more" else "less"} ${ADJECTIVES[trait] ?: trait}"
+fun moreOrLess(from: Double, to: Double, trait: String) = "${if (to > from) "more" else "less"} ${ADJECTIVES[trait] ?: trait}"
 
 /** Context lines: the six values, then what she is working on for them and how she has grown since they met. */
 fun personaLines(rows: List<PersonaTrait>): List<String> = buildList {
