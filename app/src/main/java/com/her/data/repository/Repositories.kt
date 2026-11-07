@@ -39,14 +39,12 @@ import com.her.data.secure.AppSettingsStore
 import com.her.domain.ActivityLogEntry
 import com.her.domain.AgentQueueItem
 import com.her.domain.AgentRun
-import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
 import com.her.domain.AgentStateEntry
 import com.her.domain.ApiUsageDay
 import com.her.domain.CalendarEvent
 import com.her.domain.ChatMessage
 import com.her.domain.Commitment
-import com.her.domain.ConfirmationKind
 import com.her.domain.DebugEvent
 import com.her.domain.CommitmentStatus
 import com.her.domain.Feeling
@@ -459,7 +457,6 @@ class HerRepository(
     }
 
     suspend fun relationships() = db.relationshipDao().allActive().map { it.toDomain() }
-    suspend fun relationshipsFor(type: String, id: String) = db.relationshipDao().forEntity(type, id).map { it.toDomain() }
     suspend fun saveRelationship(item: MemoryRelationship) {
         db.relationshipDao().upsert(item.toEntity())
         enqueue("memory_relationships", item.id, SyncOpType.UPSERT, item.toJson())

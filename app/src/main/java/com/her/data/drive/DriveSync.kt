@@ -15,11 +15,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class MergeResult(
-    val entity: JSONObject,
-    val discarded: Boolean = false,
-)
-
 object MergeEngine {
     fun applyOps(existing: JSONObject?, ops: List<SyncOp>): JSONObject? {
         var current = existing

@@ -272,7 +272,6 @@ internal fun ToolRegistry.registerMemoryTools() {
 
 }
 
-private const val EPISODE_DAY_MS = 24L * 60 * 60 * 1000
 private const val DAYS_BEFORE_WEEKLY = 14L
 private const val DAYS_BEFORE_MONTHLY = 60L
 

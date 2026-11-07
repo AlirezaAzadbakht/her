@@ -125,7 +125,7 @@ private fun Halo(energy: () -> Float, live: Boolean, palette: List<Color>, modif
     SubscribeOrbClock(clock, animate)
     val shader = if (Build.VERSION.SDK_INT >= 33) remember { HaloShader() } else null
     Canvas(modifier) {
-        val t = if (animate) clock!!.seconds.toFloat() else 0f
+        val t = if (animate) clock.seconds.toFloat() else 0f
         val e = energy().coerceIn(0f, 1f)
         if (shader != null && Build.VERSION.SDK_INT >= 33) {
             shader.update(size.width, size.height, t, e, c1, c2, c3)

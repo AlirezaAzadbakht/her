@@ -14,8 +14,6 @@ import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.*
-import com.her.notify.Notifier
-import com.her.reminders.ReminderDelivery
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -26,7 +24,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
-import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], application = Application::class)

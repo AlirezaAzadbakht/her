@@ -146,7 +146,7 @@ fun ThinkingOrb(
     val label = state.label
     val design = size.value.toDouble()
     Canvas(modifier.size(displaySize).semantics { contentDescription = label }) {
-        val seconds = if (live) clock!!.seconds else 0.0
+        val seconds = if (live) clock.seconds else 0.0
         val t = (if (live) seconds else OrbSpec.REDUCED_MOTION_T) * preset.speed * speed
         val frame = orbFrame(preset, design, t)
         val zoom = (this.size.minDimension / design).toFloat()
