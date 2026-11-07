@@ -69,6 +69,7 @@ Core principles:
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
+| 🕸️ **Personality** | Six traits seeded from the name you give her, growing slowly from your time together; ask her to be more playful or less blunt and she works on it over a few days; shown as a web chart in the Memory tab. [How it works](wiki/Personality.md) |
 | 💗 **Emotional understanding** | Feels how each message landed right after replying and sorts it out in a nightly review; keeps an unresolved worry in mind and asks after it later; is glad for your good news; assesses her contribution and uncertainty, remembers ongoing experiences, learns scoped support lessons from feedback, and keeps her internal feelings separate from the tone you need; keeps feelings scoped to individual situations and recognizes emotional transitions; her orb can mix two feelings |
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
@@ -189,6 +190,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Architecture](wiki/Architecture.md) | Packages, data flow, entry points |
 | [UI and flows](wiki/UI-and-flows.md) | Screens, first run, single-utterance Her, SQL Memory tab, share |
 | [Emotional understanding](wiki/Emotional-understanding.md) | Experiences, purpose, mixed feelings, corrections and reflection |
+| [Personality](wiki/Personality.md) | Her traits: seeded from her name, nightly growth, gradual change on request |
 | [Wondering](wiki/Wondering.md) | Memory review, unanswered questions and learning from answers |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |

@@ -19,7 +19,6 @@ data class EmotionalState(
     val emotions: Map<Feeling, Double>,
     val mood: Map<Feeling, Double>,
     val purpose: Map<String, Double>,
-    val disposition: Map<String, Double> = mapOf("warmth" to 0.7, "curiosity" to 0.6, "patience" to 0.8),
 ) {
     val dominant: Feeling get() = Feeling.entries.maxByOrNull { score(it) } ?: Feeling.CALM
     fun score(feeling: Feeling) = (emotions[feeling] ?: 0.0) + (mood[feeling] ?: 0.0) * 0.35
@@ -33,7 +32,6 @@ data class EmotionalState(
     fun toJson() = JSONObject().put("immediate", JSONObject(emotions.mapKeys { it.key.name }))
         .put("mood", JSONObject(mood.mapKeys { it.key.name }))
         .put("purpose", JSONObject(purpose))
-        .put("disposition", JSONObject(disposition))
 }
 
 fun saturate(sum: Double): Double = 1.0 - exp(-sum.coerceAtLeast(0.0))
@@ -52,7 +50,6 @@ fun emotionalState(rows: List<CompanionRecord>, now: Long, dueAts: List<Long> = 
     val immediate = mutableMapOf<Feeling, Double>()
     val mood = mutableMapOf<Feeling, Double>()
     val purposeDelta = mutableMapOf("usefulness" to 0.0, "understanding" to 0.0, "competence" to 0.0, "fulfillment" to 0.0)
-    val traitDelta = mutableMapOf("curiosity" to 0.0, "patience" to 0.0)
     distinctEmotionalEvents(rows).forEach { row ->
             val d = row.data()
             val ageHours = (now - d.optLong("occurredAt", row.createdAt)).coerceAtLeast(0) / 3_600_000.0
@@ -71,10 +68,8 @@ fun emotionalState(rows: List<CompanionRecord>, now: Long, dueAts: List<Long> = 
                 "MISUNDERSTANDING" -> {
                     purposeDelta["understanding"] = purposeDelta.getValue("understanding") - 0.1 * strength * purposeDecay
                     purposeDelta["competence"] = purposeDelta.getValue("competence") - 0.08 * strength * purposeDecay
-                    traitDelta["patience"] = traitDelta.getValue("patience") + 0.08 * strength * purposeDecay
                 }
                 "UNDERSTANDING_IMPROVED" -> purposeDelta["understanding"] = purposeDelta.getValue("understanding") + 0.12 * strength * purposeDecay
-                "UNRESOLVED_QUESTION" -> traitDelta["curiosity"] = traitDelta.getValue("curiosity") + 0.08 * strength * purposeDecay
             }
             appraisedFeelings(d).forEach { (feeling, value) ->
                 val intensity = value * d.optDouble("confidence", 0.5).coerceIn(0.0, 1.0)
@@ -108,11 +103,6 @@ fun emotionalState(rows: List<CompanionRecord>, now: Long, dueAts: List<Long> = 
             "understanding" to aroundBaseline(purposeDelta.getValue("understanding"), 0.5, 0.5),
             "competence" to aroundBaseline(purposeDelta.getValue("competence"), 0.5, 0.5),
             "fulfillment" to aroundBaseline(purposeDelta.getValue("fulfillment"), 0.5, 0.5),
-        ),
-        mapOf(
-            "warmth" to 0.7,
-            "curiosity" to aroundBaseline(traitDelta.getValue("curiosity"), 0.6, 0.1),
-            "patience" to aroundBaseline(traitDelta.getValue("patience"), 0.8, 0.1),
         ),
     )
 }

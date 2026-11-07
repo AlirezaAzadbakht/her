@@ -91,7 +91,7 @@ One deterministic ID per source/event makes retries and repeated reviews idempot
 
 ## Continuity
 
-A deterministic projection derives mixed immediate emotions, a slower mood, four purpose dimensions and a small trait drift from events. Immediate contributions decay exponentially with a four-hour time constant, mood with 48 hours, and purpose and traits with seven days. Contributions combine with diminishing returns (`1 - exp(-sum)`), so repeated events approach 1.0 without reaching it. Purpose scores move around a 0.5 baseline the same way. Calm yields to stronger feelings: `baseline × (1 − strongest other feeling)`. Warmth stays 0.7; curiosity (0.6) and patience (0.8) may move by at most 0.1. These are initial design constants, not psychological measurements.
+A deterministic projection derives mixed immediate emotions, a slower mood, and four purpose dimensions from events. Immediate contributions decay exponentially with a four-hour time constant, mood with 48 hours, and purpose with seven days. Contributions combine with diminishing returns (`1 - exp(-sum)`), so repeated events approach 1.0 without reaching it. Purpose scores move around a 0.5 baseline the same way. Calm yields to stronger feelings: `baseline × (1 − strongest other feeling)`. Her lasting character (warmth, curiosity, patience and the rest) is not part of this projection; see [Personality](Personality.md). These are initial design constants, not psychological measurements.
 
 Open tasks and commitments due within 24 hours add a small CONCERNED contribution that grows as the deadline approaches and stops when the item is done. No record is written. Silence still creates no inference about the user's feelings.
 

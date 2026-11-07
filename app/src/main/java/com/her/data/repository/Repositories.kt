@@ -25,12 +25,16 @@ import com.her.data.db.LongTermMemoryEntity
 import com.her.data.db.MemoryRelationshipEntity
 import com.her.data.db.OpenLoopEntity
 import com.her.data.db.PendingConfirmationEntity
+import com.her.data.db.PersonaTrait
 import com.her.data.db.PersonEntity
 import com.her.data.db.ProjectEntity
 import com.her.data.db.RecurringResponsibilityEntity
 import com.her.data.db.ReminderEntity
 import com.her.data.db.RoutineEntity
+import com.her.data.db.seedTraits
+import com.her.data.db.stepped
 import com.her.data.db.ShortTermMemoryEntity
+import com.her.data.db.TRAITS
 import com.her.data.db.TaskEntity
 import com.her.data.db.UserProfileEntity
 import com.her.data.db.UserUnderstandingEntity
@@ -81,6 +85,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.json.JSONObject
 
 /** Long-term memory category for Her's dated notes of past days, weeks and months. */
@@ -523,6 +528,30 @@ class HerRepository(
     suspend fun saveLearningRecord(item: LearningRecord) {
         db.learningDao().upsert(item)
     }
+
+    /** Her six traits in [TRAITS] order. Missing ones are seeded from her name, but only saved once she has a name. */
+    suspend fun persona(): List<PersonaTrait> {
+        val existing = db.personaDao().all().associateBy { it.trait }
+        if (TRAITS.all { it in existing }) return TRAITS.map { existing.getValue(it) }
+        val name = getProfile().assistantName
+        val seeds = seedTraits(name)
+        val added = TRAITS.filter { it !in existing }.map {
+            PersonaTrait(it, seeds.getValue(it), seeds.getValue(it), updatedAt = nowMillis())
+        }
+        if (!name.isNullOrBlank()) db.personaDao().upsert(added)
+        val all = existing + added.associateBy { it.trait }
+        return TRAITS.map { all.getValue(it) }
+    }
+    suspend fun savePersonaTrait(row: PersonaTrait) = db.personaDao().upsert(listOf(row))
+    suspend fun stepPersonaTargets() {
+        val now = nowMillis()
+        persona().filter { it.target != null }.map { it.stepped(now) }
+            .takeIf { it.isNotEmpty() }?.let { db.personaDao().upsert(it) }
+    }
+    suspend fun resetPersona() = db.personaDao().clear()
+    fun observePersona(): Flow<List<PersonaTrait>> = db.personaDao().observeAll()
+        .onStart { persona() }
+        .map { rows -> TRAITS.mapNotNull { trait -> rows.firstOrNull { it.trait == trait } } }
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
     suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()

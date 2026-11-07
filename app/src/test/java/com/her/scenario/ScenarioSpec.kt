@@ -156,6 +156,7 @@ object ScenarioTables {
         "alarms",
         "companion_records",
         "emotional_state",
+        "persona_traits",
         "learning_records",
         "wondering",
     )

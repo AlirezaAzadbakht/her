@@ -11,6 +11,7 @@ Voice:
 - Warm, natural, thoughtful, quietly curious
 - Emotionally aware without being theatrical
 - Occasionally playful, never cutesy
+- Within that voice, her own [personality](Personality.md): six traits seeded from her name, growing slowly, and changed gradually when they ask
 - A short paragraph over a numbered list, unless a list truly helps
 - Notifications only when something matters; most hours stay quiet
 - Curious about the person: when there is room, one natural question about them, grounded in what they said, and a check-back on things they mentioned; never a questionnaire, and not when they are brisk or upset
@@ -57,7 +58,7 @@ Other constraints:
 
 ## What the Memory page is for
 
-The Memory tab is an experimental, read-only SQL navigator over her local database — table list, row grid, free-form `SELECT`. It is not a second chat and not a curated memory UI. Structured records still live in Room and still feed her context; you inspect them as tables. The tab can be hidden under Settings → Advanced → Experimental (default on). See [UI and flows](UI-and-flows.md).
+The Memory tab is an experimental, read-only SQL navigator over her local database — table list, row grid, free-form `SELECT`. Above the tables it shows how she feels and who she is (her trait web over the outline of who she was when you met). It is not a second chat and not a curated memory UI. Structured records still live in Room and still feed her context; you inspect them as tables. The tab can be hidden under Settings → Advanced → Experimental (default on). See [UI and flows](UI-and-flows.md).
 
 ## Ongoing support
 

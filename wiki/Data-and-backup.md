@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 10 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`).
+`HerDatabase` — file `her.db`, version 11 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`). 10→11 creates `persona_traits`; its rows are seeded from her name on first read ([Personality](Personality.md)).
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
