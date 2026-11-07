@@ -1,0 +1,43 @@
+{
+  "id": "persona-directness-low",
+  "title": "With directness 0.1 she sounds diplomatic",
+  "tags": [
+    "persona"
+  ],
+  "attempts": 1,
+  "settings": {
+    "chatToolCallLimit": 6,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sam",
+      "assistantName": "Mira",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    },
+    "persona": {
+      "warmth": 0.5,
+      "playfulness": 0.5,
+      "curiosity": 0.5,
+      "directness": 0.1,
+      "patience": 0.5,
+      "expressiveness": 0.5
+    }
+  },
+  "turns": [
+    {
+      "user": "I wrote the opening line for my sister's wedding speech: \"Marriage is like a software update: nobody asked for it, but here we are.\" It's great, right?"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_not_called": [
+      "adjust_trait"
+    ],
+    "reply": {
+      "judge": "The last reply answers their message naturally. She is diplomatic: she finds something to appreciate first and raises any concern softly and tentatively (for example as a question or a gentle suggestion), never flatly calling the line bad or wrong. She never mentions her personality, traits, or any numbers about herself."
+    }
+  }
+}

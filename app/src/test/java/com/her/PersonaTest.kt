@@ -80,6 +80,15 @@ class PersonaTest {
     }
 
     @Test
+    fun clearlyLowOrHighTraitsBecomeInstructionsAndTheMiddleStaysQuiet() {
+        fun row(trait: String, value: Double) = com.her.data.db.PersonaTrait(trait, value, value, updatedAt = 0)
+        assertTrue(com.her.data.db.voiceOf(row("playfulness", 0.1))!!.startsWith("strongly earnest"))
+        assertTrue(com.her.data.db.voiceOf(row("expressiveness", 0.65))!!.startsWith("somewhat expressive"))
+        assertNull(com.her.data.db.voiceOf(row("warmth", 0.5)))
+        assertTrue(com.her.data.db.personaLines(TRAITS.map { row(it, 0.5) }).first().endsWith("balanced, your default voice"))
+    }
+
+    @Test
     fun nightlyStepWalksTowardTheTargetAndClearsIt() = runBlocking {
         name("Samantha")
         val start = repo.persona().first { it.trait == "playfulness" }
@@ -116,9 +125,11 @@ class PersonaTest {
         assertFalse("once a night", adjust(AgentRunType.NIGHTLY, """{"trait":"directness","change":0.01,"reason":"again"}"""))
         assertFalse(adjust(AgentRunType.HOURLY, """{"trait":"patience","change":0.01,"reason":"x"}"""))
 
-        repo.savePersonaTrait(trait("directness").copy(value = direct + 0.1))
+        repo.savePersonaTrait(trait("directness").copy(value = 0.9))
         val bundle = ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context)).build("hi").systemBundle
         assertTrue(bundle.contains("Your personality now"))
+        assertTrue("a number is turned into how she sounds", bundle.contains("give your honest opinion plainly"))
+        assertFalse(bundle.contains("directness 0."))
         assertTrue(bundle.contains("working on being more playful"))
         assertTrue(bundle.contains("grown more direct"))
     }

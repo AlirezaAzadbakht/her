@@ -282,6 +282,11 @@ class ScenarioHarness(
                 ),
             )
         }
+        if (spec.seed.persona.isNotEmpty()) {
+            repo.persona().forEach { row ->
+                spec.seed.persona[row.trait]?.let { repo.savePersonaTrait(row.copy(value = it, seed = it)) }
+            }
+        }
         spec.seed.systemCalendar.forEach { event ->
             val start = parseSeedWhen(event.whenPhrase)
                 ?: error("Could not parse system_calendar when '${event.whenPhrase}'")

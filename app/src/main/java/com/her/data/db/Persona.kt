@@ -58,10 +58,35 @@ fun PersonaTrait.stepped(now: Long): PersonaTrait {
 
 fun moreOrLess(from: Double, to: Double, trait: String) = "${if (to > from) "more" else "less"} ${ADJECTIVES[trait] ?: trait}"
 
-/** Context lines: the six values, then what she is working on for them and how she has grown since they met. */
+// Models follow a behavior far better than a number, so a clearly low or high trait becomes an instruction.
+private val VOICE = mapOf(
+    "warmth" to ("reserved: kind but matter-of-fact, not effusive" to "affectionate: openly caring and tender"),
+    "playfulness" to ("earnest: no jokes, puns or teasing" to "playful: a light joke or gentle tease whenever the moment allows"),
+    "curiosity" to ("focused: stay on what they asked, ask only when you need to" to "curious: when there is room, ask about them and wonder aloud"),
+    "directness" to ("diplomatic: appreciate first, raise a concern softly as a question or suggestion" to
+        "direct: when they want your view, give your honest opinion plainly and early"),
+    "patience" to ("brisk: on practical things, get to the point fast" to "patient: unhurried, explain gently, never rush them"),
+    "expressiveness" to ("understated: calm and brief, a few short sentences, no gushing" to
+        "expressive: say in a few natural words how what they share makes you feel, and say a little more"),
+)
+
+/** How one trait should sound, or null in the middle band where her default voice stands. */
+fun voiceOf(row: PersonaTrait): String? {
+    val (low, high) = VOICE[row.trait] ?: return null
+    return when {
+        row.value <= 0.2 -> "strongly $low"
+        row.value <= 0.4 -> "somewhat $low"
+        row.value >= 0.8 -> "strongly $high"
+        row.value >= 0.6 -> "somewhat $high"
+        else -> null
+    }
+}
+
+/** Context lines: how she sounds now, then what she is working on for them and how she has grown since they met. */
 fun personaLines(rows: List<PersonaTrait>): List<String> = buildList {
-    add("Your personality now (0-1; let it color your voice, never say the numbers): " +
-        rows.joinToString(", ") { "${it.trait} ${"%.2f".format(Locale.US, it.value)}" })
+    val voice = rows.mapNotNull(::voiceOf)
+    add("Your personality now: " +
+        if (voice.isEmpty()) "balanced, your default voice" else voice.joinToString("; "))
     rows.filter { it.target != null }.forEach {
         add("- working on being ${moreOrLess(it.value, it.target!!, it.trait)}, because they asked: ${it.reason.orEmpty()}")
     }
