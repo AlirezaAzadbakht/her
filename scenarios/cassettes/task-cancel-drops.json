@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "212a0233ce026f78",
-          "summary": "tools=90 [user(The conference got cance)]",
+          "fingerprint": "0778112eabdf5b71",
+          "summary": "tools=91 [user(The conference got cance)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "05fd618a496bd826",
-          "summary": "tools=90 [user(The conference got cance) assistant->update_task tool:update_task]",
+          "fingerprint": "a0970640c81251ae",
+          "summary": "tools=91 [user(The conference got cance) assistant->update_task tool:update_task]",
           "response": {
             "role": "assistant",
             "content": "The flight booking is dropped.",

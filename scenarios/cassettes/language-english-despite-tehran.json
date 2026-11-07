@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "21ced7c97637eacf",
-          "summary": "tools=90 [user(Can you add eggs to the )]",
+          "fingerprint": "4789ce59d5cfdde7",
+          "summary": "tools=91 [user(Can you add eggs to the )]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "3ce7cc6d33e39cf8",
-          "summary": "tools=90 [user(Can you add eggs to the ) assistant->add_grocery tool:add_grocery]",
+          "fingerprint": "df08f3c13e666eaa",
+          "summary": "tools=91 [user(Can you add eggs to the ) assistant->add_grocery tool:add_grocery]",
           "response": {
             "role": "assistant",
             "content": "Eggs are on the list.",
