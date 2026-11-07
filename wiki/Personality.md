@@ -19,9 +19,26 @@ Every turn's context carries one line describing how she sounds, in the slow-cha
 
 ## Seed from her name
 
-The first time the traits are read, a SHA-256 of her name (trimmed and lowercased) gives one byte per trait, mapped to `0.35 + 0.5 × byte / 255`. The same name always gives the same starting character, and it is never extreme. The seed is kept in each row, and the Memory tab draws it as a dashed outline.
+The first time the traits are read, a SHA-256 of her name gives one byte per trait, mapped to `0.35 + 0.5 × byte / 255`. The same name always gives the same starting character, and it is never extreme. The seed is kept in each row, and the Memory tab draws it as a dashed outline.
 
-Rows are seeded on read, not in the 10 → 11 migration. That way fresh installs, upgrades and restored older backups are all covered by one path. Nothing is saved while her name is still blank, so an early read can't fix the wrong seed. Renaming her later keeps who she has become.
+Rows are seeded on read, not in the 10 → 11 migration. That way fresh installs, upgrades and restored older backups are all covered by one path. Nothing is saved while her name is still blank, so an early read can't fix the wrong seed. Renaming her later keeps who she has become, unless the new name is one of the special names below.
+
+The name goes through `nameKey()` first, so case, spaces, ZWNJ, Persian diacritics and Arabic yeh/kaf (ي ك) don't matter: "MAX", " max " and "Max" are the same name, as are "علیرضا", "عليرضا" and "علی‌رضا".
+
+### Special names
+
+A few names have a story and a fixed personality instead of the hash (`SPECIAL` in `Persona.kt`). Values go outside the hash's 0.35–0.85 range on purpose, up to the 0.05–0.95 limits.
+
+| Name | Also | warmth | playful | curious | direct | patience | express | Why |
+|------|------|--------|---------|---------|--------|----------|---------|-----|
+| Samantha | سامانتا | 0.90 | 0.80 | 0.95 | 0.60 | 0.80 | 0.90 | The original, from the film *Her*: affectionate, playful, endlessly curious |
+| Alireza | علیرضا | 0.65 | 0.80 | 0.70 | 0.65 | 0.55 | 0.55 | Her maker: balanced and playful, curious, says what he thinks |
+| Her | هِر, no name | 0.50 | 0.50 | 0.50 | 0.50 | 0.50 | 0.50 | Perfectly balanced, her plain default voice |
+| Max | مکس | 0.95 | 0.95 | 0.95 | 0.95 | 0.95 | 0.95 | Every trait at the top |
+| Min | | 0.05 | 0.05 | 0.05 | 0.05 | 0.05 | 0.05 | Every trait at the bottom |
+| Zen | | 0.70 | 0.30 | 0.50 | 0.40 | 0.95 | 0.20 | Calm and patient, quiet in feeling |
+
+Renaming her to a special name (a different `nameKey`, so not just a change of case) clears `persona_traits` in `saveProfile`, and the next read seeds that profile: growth, targets and reasons start over. Any other rename leaves the table alone.
 
 ## How traits change
 
