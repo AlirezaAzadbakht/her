@@ -196,7 +196,7 @@ class AgentOrchestratorTest {
         assertEquals("credit errors are not retried", 1, llm.calls)
         assertEquals(TurnFailure.OutOfCredit, result.failure)
         assertTrue(result.notice!!.contains("Her Cloud"))
-        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice!!))
+        assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice))
         assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
     }
 

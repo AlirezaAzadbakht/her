@@ -45,8 +45,6 @@ interface CompanionDao {
     @Query("SELECT * FROM companion_records WHERE id = :id") suspend fun get(id: String): CompanionRecord?
     @Query("SELECT * FROM companion_records WHERE deletedAt IS NULL ORDER BY createdAt, id")
     suspend fun all(): List<CompanionRecord>
-    @Query("SELECT * FROM companion_records WHERE parentId = :parentId AND deletedAt IS NULL ORDER BY createdAt, id")
-    suspend fun forParent(parentId: String): List<CompanionRecord>
     @Query("SELECT * FROM companion_records WHERE deletedAt IS NULL ORDER BY createdAt, id")
     fun observeAll(): kotlinx.coroutines.flow.Flow<List<CompanionRecord>>
     @Upsert suspend fun upsert(record: CompanionRecord)

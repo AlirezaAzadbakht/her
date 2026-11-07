@@ -87,7 +87,7 @@ class ReminderDelivery(
                 val alreadyHandled = occurrence?.data()?.optString("status") in setOf("SKIPPED", "COMPLETED", "NOTIFIED")
                 val deferred = occurrence?.data()?.optString("status") == "POSTPONED" && occurrence.data().optLong("until") > now
                 val wanted = stillWanted(reminder)
-                val next = if (deferred) occurrence!!.data().getLong("until") else if (schedule != null) com.her.companion.nextScheduleAt(repo, schedule, now) else nextFireAt(reminder, now)
+                val next = if (deferred) occurrence.data().getLong("until") else if (schedule != null) com.her.companion.nextScheduleAt(repo, schedule, now) else nextFireAt(reminder, now)
                 val key = "reminder-delivery:${reminder.id}:${reminder.fireAt}"
                 val reserved = repo.getCompanionRecord(key) != null
                 repo.saveReminder(reminder.copy(status = when {

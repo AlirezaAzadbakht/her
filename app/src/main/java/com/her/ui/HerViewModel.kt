@@ -109,10 +109,6 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun llmSettings(): LlmSettings = graph.secure.read()
 
-    fun saveLlm(settings: LlmSettings) {
-        graph.secure.write(settings)
-    }
-
     fun saveAndTest(settings: LlmSettings) {
         if (checkingConnection.value) return
         checkingConnection.value = true
@@ -198,10 +194,6 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeShare(shared: String) {
         pendingShare.value = shared
-    }
-
-    fun testConnection() {
-        saveAndTest(graph.secure.read())
     }
 
     fun updateSettings(transform: (com.her.data.secure.AppSettings) -> com.her.data.secure.AppSettings) {

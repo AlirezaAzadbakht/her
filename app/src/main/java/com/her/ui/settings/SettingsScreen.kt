@@ -623,12 +623,3 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
 private fun canScheduleExactAlarms(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
         context.getSystemService(AlarmManager::class.java)?.canScheduleExactAlarms() == true
-
-private fun parseMinutes(value: String): Int? {
-    val parts = value.trim().split(":")
-    if (parts.size != 2) return null
-    val h = parts[0].toIntOrNull() ?: return null
-    val m = parts[1].toIntOrNull() ?: return null
-    if (h !in 0..23 || m !in 0..59) return null
-    return h * 60 + m
-}

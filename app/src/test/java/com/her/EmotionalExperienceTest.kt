@@ -14,14 +14,8 @@ import com.her.data.secure.AppSettingsStore
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.data.db.CompanionRecord
-import com.her.data.db.LearningRecord
 import com.her.domain.Feeling
-import com.her.domain.Reminder
-import com.her.domain.ReminderRepeat
-import com.her.domain.ReminderStatus
-import com.her.domain.ReminderTrigger
 import com.her.feelings.emotionalState
-import com.her.feelings.rankSupportLessons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray

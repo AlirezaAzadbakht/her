@@ -286,13 +286,13 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
             val showReceipts = message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
                 turn is TurnState.Idle && nextHeld.isBlank()
             var lastReceipts by remember { mutableStateOf(receipts to message?.id) }
-            SideEffect { if (showReceipts) lastReceipts = receipts to message?.id }
+            SideEffect { if (showReceipts) lastReceipts = receipts to message.id }
             AnimatedVisibility(
                 visible = showReceipts,
                 enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
                 exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
             ) {
-                val (items, id) = if (showReceipts) receipts to message?.id else lastReceipts
+                val (items, id) = if (showReceipts) receipts to message.id else lastReceipts
                 ReceiptLine(items, onUndo = { picked -> if (id != null) vm.undoReceipts(id, picked) })
             }
 

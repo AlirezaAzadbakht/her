@@ -340,9 +340,6 @@ interface RelationshipDao {
     @Query("SELECT * FROM memory_relationships WHERE deletedAt IS NULL")
     suspend fun allActive(): List<MemoryRelationshipEntity>
 
-    @Query("SELECT * FROM memory_relationships WHERE deletedAt IS NULL AND ((sourceType = :type AND sourceId = :id) OR (targetType = :type AND targetId = :id))")
-    suspend fun forEntity(type: String, id: String): List<MemoryRelationshipEntity>
-
     @Query("UPDATE memory_relationships SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }
@@ -366,18 +363,6 @@ interface AgentDao {
 
     @Query("SELECT * FROM agent_queue WHERE id = :id LIMIT 1")
     suspend fun getQueue(id: String): AgentQueueEntity?
-
-    @Query("SELECT * FROM agent_state WHERE deletedAt IS NULL")
-    fun observeState(): Flow<List<AgentStateEntity>>
-
-    @Query("SELECT * FROM agent_queue WHERE deletedAt IS NULL")
-    fun observeQueue(): Flow<List<AgentQueueEntity>>
-
-    @Query("UPDATE agent_state SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
-    suspend fun deleteState(id: String, at: Long)
-
-    @Query("UPDATE agent_queue SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
-    suspend fun deleteQueue(id: String, at: Long)
 }
 
 @Dao
