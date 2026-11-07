@@ -4,6 +4,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
+
 ## [0.2.2] - 2026-11-05
 
 ### Added
