@@ -6,12 +6,15 @@ Workflow: `.github/workflows/android.yml`.
 
 | Trigger | What happens |
 |---------|----------------|
-| Push to `main` (PR merge) | `build` only |
-| Pull request | `build` only |
-| `workflow_dispatch` | `build` only |
+| Pull request into `main` | `build` only (required to merge) |
+| Pull request into `dev` | nothing |
+| Push to `main` or `dev` | nothing |
+| `workflow_dispatch` | `build` only (run it on `dev` by hand if you want a check before the `dev → main` PR) |
 | Tag `v*` | `build`, then `release` if build passed |
 
 In-progress runs on the same ref are cancelled, **except** tag pushes.
+
+A merge to `main` is not rebuilt: `build` is a strict required check, so the PR already built the exact tree that lands.
 
 ## Build job
 
@@ -28,7 +31,7 @@ Unit tests must stay offline for Robolectric (prefetch task in `app/build.gradle
 
 ## Version tags
 
-Before tagging, move the `[Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under `[x.y.z] - YYYY-MM-DD`, start a new empty `[Unreleased]`, update the compare links, and commit that on a branch. Merge it to `main` through a PR first, then tag the merge commit.
+Before tagging, move the `[Unreleased]` notes in [CHANGELOG.md](../CHANGELOG.md) under `[x.y.z] - YYYY-MM-DD`, start a new empty `[Unreleased]`, update the compare links, and commit that on a branch. Merge it into `dev`, open a `dev → main` PR, wait for `build`, merge it with **Create a merge commit**, then tag that merge commit on `main`.
 
 ```bash
 git tag -a v0.1.2 -m "Her 0.1.2
@@ -84,7 +87,12 @@ keytool -genkeypair -v \
 
 ## Pushing from this machine
 
-`main` is protected by the `basic-protection` ruleset: no direct pushes, PRs only, squash-merge, required `build` check, no force-push or deletion. Push a branch and open a PR; only tags go straight to GitHub.
+Two rulesets, both with no bypass:
+
+- `dev-protection` on `dev` (the default branch): PRs only, squash-merge, threads resolved, no status checks, no force-push or deletion.
+- `basic-protection` on `main`: PRs only, squash or merge commit, required strict `build` check, threads resolved, no force-push or deletion. Use a **merge commit** for `dev → main`; a squash gives `main` a commit `dev` doesn't have, and the next `dev → main` PR conflicts.
+
+Branch off `origin/dev`, push the branch and open a PR into `dev`; only tags go straight to GitHub.
 
 Port 22 to `github.com` is often closed here. Tag and branch pushes that worked used SSH on **443**:
 

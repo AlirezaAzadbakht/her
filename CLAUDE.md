@@ -15,16 +15,15 @@ Keep these in step with the code, in the same commit as the change:
 
 ## Development rules
 
-GitHub ruleset `basic-protection` on `main` (no bypass):
+Branches: day-to-day work lands in `dev` (the default branch); `main` only gets batched `dev → main` PRs.
 
-- **No direct pushes to `main`.** Work on a branch and open a PR.
-- PRs are **squash-merge only**, with required status check `build` passing and all review threads resolved (0 approvals needed).
-- No force-push to `main`, no deleting it.
-- Tags (`v*`) are not covered; push them after the release commit has been merged to `main`.
+- **`dev`** (ruleset `dev-protection`): PRs only, **squash-merge**, review threads resolved, **no build check**. No force-push, no deleting it.
+- **`main`** (ruleset `basic-protection`, no bypass): PRs only, required status check `build` passing (branch must be up to date), threads resolved, 0 approvals. Merge `dev → main` with a **merge commit**, never squash, or `dev` and `main` drift apart. No force-push, no deleting it.
+- Tags (`v*`) are not covered; push them after the release has been merged to `main`.
 
 Working here:
 
-- Several sessions share this checkout: never switch branches in it. Use a worktree (`git worktree add ../her-<topic> -b <branch>`).
+- Several sessions share this checkout: never switch branches in it. Use a worktree off `dev` (`git worktree add ../her-<topic> -b <branch> origin/dev`) and open the PR into `dev`.
 - Once the branch is pushed and its PR is open, remove the worktree (`git worktree remove ../her-<topic>`). Only `her` stays on disk; branches live on GitHub.
 - Commit each verified step by explicit path (not `git add -A`), as you go.
 - Push over SSH port 443 if port 22 is blocked (see [wiki/CI-and-release.md](wiki/CI-and-release.md)).

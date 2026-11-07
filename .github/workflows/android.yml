@@ -1,10 +1,12 @@
 name: Android
 
 on:
+  # PRs into dev get no build; only PRs into main do. A merge to main is not
+  # rebuilt: the strict required check already built that exact result.
   push:
-    branches: [main]
     tags: ["v*"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
