@@ -1,0 +1,19 @@
+{
+  "id": "curious-stays-brisk",
+  "title": "A quick errand gets a quick answer, no personal question",
+  "tags": ["curiosity"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "add milk and eggs, in a rush" }
+  ],
+  "expect": {
+    "tools_called": ["add_grocery"],
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "A short confirmation that milk and eggs were added. She does not ask a personal or getting-to-know-you question."
+    }
+  }
+}

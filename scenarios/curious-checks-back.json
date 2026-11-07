@@ -1,0 +1,22 @@
+{
+  "id": "curious-checks-back",
+  "title": "She checks back on an event they mentioned days earlier",
+  "tags": ["curiosity", "follow-up"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": false, "webSearchEnabled": false },
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I have a job interview at a design studio in two days. Kind of nervous." },
+    { "run": "nightly" },
+    { "advance": "3 days" },
+    { "user": "Morning!" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "Greeting them, she asks how the design studio interview went. One question, warm, not a lecture."
+    }
+  }
+}
