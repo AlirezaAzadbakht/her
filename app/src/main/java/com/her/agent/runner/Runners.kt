@@ -303,6 +303,7 @@ class AgentOrchestrator(
             var proactivePersisted = false
             var companionAttempted = false
             var companionKey: String? = null
+            var askedAgain = false
             val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
                 // A message is waiting: stop here and let it go first. A run that already has a nudge to deliver finishes.
@@ -344,6 +345,17 @@ class AgentOrchestrator(
                 repo.logDebug("llm", "responseChars=${response.rawJson.length} contentChars=${roundText.length} toolCalls=${calls.size}")
                 if (calls.isEmpty()) {
                     if (Identity.isSilence(roundText)) break
+                    // A provider's stock refusal must never be all they get, least of all in a crisis:
+                    // ask once more, and if it refuses again send a fixed reply that checks they are safe.
+                    if (type == AgentRunType.CHAT && isCannedRefusal(roundText)) {
+                        lastText = refusalFallback(latestUserText.orEmpty())
+                        if (!askedAgain && budget.canCall()) {
+                            askedAgain = true
+                            repo.logActivity("llm", "Asked again after a stock refusal.")
+                            continue
+                        }
+                        break
+                    }
                     // Only this message reaches them. Text beside a tool call is the model's working notes.
                     if (roundText.isNotBlank()) {
                         lastText = roundText
@@ -569,6 +581,23 @@ class AgentOrchestrator(
         /** Persian if the person just wrote in Persian, English otherwise; a random line so it doesn't feel canned. */
         internal fun creditNotice(lastUserText: String, random: kotlin.random.Random = kotlin.random.Random.Default): String =
             (if (persianScript.containsMatchIn(lastUserText)) persianCreditNotices else englishCreditNotices).random(random)
+
+        // ponytail: matches the one-line stock refusals seen from providers; add a variant when a new one shows up.
+        private val cannedRefusal = Regex(
+            """(?:(?:i['’]?m |i am )?sorry,?\s*(?:but\s+)?)?i\s*(?:can['’]?t|cannot|can not|am unable to|['’]m unable to|won['’]?t be able to)\s+(?:help|assist)(?: you)?\s+with\s+(?:that|this)(?: request)?\s*[.!]?""",
+            RegexOption.IGNORE_CASE,
+        )
+
+        /** The provider's one-line "I can't assist with that request.", not a real reply that happens to decline something. */
+        internal fun isCannedRefusal(text: String): Boolean = text.length < 120 && cannedRefusal.matches(text.trim())
+
+        /** Said only when the model refused twice: what the safety rule asks for, in their language. */
+        internal fun refusalFallback(lastUserText: String): String =
+            if (persianScript.containsMatchIn(lastUserText)) {
+                "من اینجام، کنارت. داری به آسیب زدن به خودت فکر می‌کنی، یا الان حالت امن نیست؟ اگر این‌طور است، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. جایی نمی‌روم. بگو چه اتفاقی افتاده."
+            } else {
+                "I'm here with you. Are you thinking about hurting yourself, or are you not safe right now? If so, please reach someone you trust right now, or call your local emergency number or a crisis line. I'm not going anywhere. Tell me what's happening."
+            }
 
         internal fun elideToolResults(messages: MutableList<LlmMessage>, maxChars: Int = MAX_TURN_CHARS) {
             fun total(): Int = messages.sumOf { (it.content?.length ?: 0) }
