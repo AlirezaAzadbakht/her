@@ -34,6 +34,8 @@ data class ScenarioSeed(
     val tools: List<SeedToolCall>,
     val systemCalendar: List<SeedCalendarEvent>,
     val webSearch: List<SeedWebSearch>,
+    /** Exact trait values, written as both value and seed. */
+    val persona: Map<String, Double> = emptyMap(),
 )
 
 data class SeedWebSearch(
@@ -156,6 +158,7 @@ object ScenarioTables {
         "alarms",
         "companion_records",
         "emotional_state",
+        "persona_traits",
         "learning_records",
         "wondering",
     )
@@ -166,7 +169,7 @@ object ScenarioLoader {
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect", "faults",
     )
     private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled")
-    private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search")
+    private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search", "persona")
     private val seedWebSearchKeys = setOf("query", "title", "snippets")
     private val seedWebSearchQueryKeys = setOf("contains_any")
     private val seedCalendarKeys = setOf("title", "when", "notes")
@@ -320,7 +323,15 @@ object ScenarioLoader {
         }
         val systemCalendar = parseSeedCalendar(file, obj.optJSONArray("system_calendar"), "$path.system_calendar")
         val webSearch = parseSeedWebSearch(file, obj.optJSONArray("web_search"), "$path.web_search")
-        return ScenarioSeed(profile, tools, systemCalendar, webSearch)
+        val personaObj = obj.optJSONObject("persona")
+        val persona = personaObj?.let { traits ->
+            rejectUnknown(traits, com.her.data.db.TRAITS.toSet(), "$path.persona", file)
+            traits.keysList().associateWith { key ->
+                traits.optDouble(key).takeIf { it in 0.0..1.0 }
+                    ?: throw ScenarioParseException(file, "$path.persona.$key must be a number from 0 to 1")
+            }
+        }.orEmpty()
+        return ScenarioSeed(profile, tools, systemCalendar, webSearch, persona)
     }
 
     private fun parseSeedWebSearch(file: File, array: JSONArray?, path: String): List<SeedWebSearch> {

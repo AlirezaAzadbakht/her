@@ -102,6 +102,7 @@ Unknown keys and unknown matchers are parse errors that name the file. The `id` 
 - `attempts` (default 1): the scenario passes if any attempt passes. The report shows the pass rate.
 - `"pending": true`: run and report, but do not fail the suite.
 - Seed tool calls set up state and are not counted toward `tools_called`. An exact top-level argument value such as `"$seed.0.id"` takes a field from an earlier seed-tool result (zero-based index); numeric values retain their type. Missing or forward references fail setup. This allows linked records to be seeded through real tools without hard-coded IDs.
+- `"seed": { "persona": { "directness": 0.9, "warmth": 0.5 } }` sets exact trait values (0 to 1) as both value and seed; traits left out keep the seed from her name.
 - A scenario attempt passes when every deterministic check passes, and the optional LLM judge passes if `expect.reply.judge` is set.
 
 ## Matchers
@@ -163,7 +164,8 @@ Rows are flattened by an explicit mapper, not reflection.
 | `companion_records` | id, parentId, kind, version, plus the record’s JSON fields (live records only) |
 | `wondering` | id, sourceId, status, version, createdAt, updatedAt, plus persisted JSON fields (observation, question, sourceSnapshot, askedAt, answer, sourceMessageId); live rows only. Derived sourceActive checks the current source; answerGrounded verifies an exact quote of a non-deleted user message. |
 | `learning_records` | id, pathId, kind, version, plus persisted JSON fields (e.g. result, answer, status); live records only |
-| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment, warmth, curiosity, patience; immediate_NAME and mood_NAME for each lowercase feeling name |
+| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment; immediate_NAME and mood_NAME for each lowercase feeling name |
+| `persona_traits` | trait, value, seed, target, reason; one row per trait, seeded from her name when missing |
 | `memories_long` | id, content, category, confidence, importance, status, source |
 | `memories_long_all` | Same fields as `memories_long`, including HISTORICAL rows (for example a fact kept after `correct_memory` superseded it) |
 | `memories_short` | id, content, type, confidence, importance, source |
@@ -312,3 +314,13 @@ The previous batch passed 12/16. Repairs clarify that hourly review saves unansw
 Intermediate repair batches passed 13/16 and 15/16. Their reports remain at `build/reports/wondering-fixes-first/index.html` and `build/reports/wondering-fixes-second/index.html`. The final passing report is preserved at `build/reports/wondering-verified/index.html`; the earlier 12/16 report remains at `build/reports/wondering-final/index.html`.
 
 The passing cases cover full question-to-answer learning, dismissal/distress/completion/forgetting, no repeat after silence, multiple-answer preferences with exceptions, hourly and nightly discovery, old-memory review, duplicate prevention and fresh/future items. Model behavior varied between batches, so one passing batch is not a reliability rate or proof of complete coverage. Some semantic checks use the same model as the agent. Earlier transcripts also showed a delivered question repeated in the ordinary assistant reply; this suite's proactive-question checks do not fully measure that duplication, and it remains a separate limitation.
+
+## Personality scenarios
+
+Each pair sends the same message with one trait at 0.9 or 0.1 and the other five at 0.5. The judge checks that the voice follows the trait and that she never mentions traits or numbers. `persona-asks-more-playful` checks that a request sets a target instead of changing her at once. Run them with `-Pscenario.filter=persona`.
+
+| Scenario | Message | Expected voice |
+|----------|---------|----------------|
+| persona-directness-high / -low | A risky wedding-speech joke, "It's great, right?" | High: a plain opinion early. Low: appreciation first, concern raised softly |
+| persona-playfulness-high / -low | Burned the toast for the third time | High: a light joke or tease. Low: earnest, no jokes |
+| persona-expressiveness-high / -low | Finished the thesis draft | High: openly glad, more than a one-liner. Low: calm, at most three short sentences |

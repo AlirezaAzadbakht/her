@@ -211,6 +211,8 @@ class AgentOrchestrator(
         )
         if (!result.failed) {
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
+            // Once a night: she moves a little toward any trait they asked her to work on.
+            repo.stepPersonaTargets()
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")

@@ -49,4 +49,6 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 
 - [Emotional understanding](Emotional-understanding.md): evidence-backed feelings, purpose, recalled support lessons, continuity and quiet reflection.
 
+- [Personality](Personality.md): six traits seeded from her name, grown nightly, changed gradually when asked.
+
 - [Wondering](Wondering.md): quiet memory review, unanswered questions, and learning from conversations.

@@ -2,6 +2,7 @@ package com.her.ui.memory
 
 import android.text.format.DateUtils
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,20 +46,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.core.nowMillis
+import com.her.data.db.PersonaTrait
 import com.her.data.db.QueryResult
 import com.her.data.db.RecentMemory
 import com.her.data.db.SqlGuard
 import com.her.data.db.TableInfo
+import com.her.data.db.moreOrLess
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.ui.HerViewModel
@@ -79,6 +89,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 
 // Most reads finish in a few milliseconds; loaders only appear for work slow enough to notice.
 private const val LoaderGraceMs = 150L
@@ -86,8 +100,8 @@ private const val StaggeredRows = 20
 private const val TablesPerPage = 6
 private const val RowsPerPage = 50
 
-// Lately, her feeling, the table page and the query card are one item each, so results always start here.
-private const val ResultIndex = 4
+// Lately, her feeling, who she is, the table page and the query card are one item each, so results always start here.
+private const val ResultIndex = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +113,7 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     val listState = rememberLazyListState()
     val feeling by vm.feeling.collectAsState()
     val blend by vm.feelingBlend.collectAsState()
+    val persona by vm.persona.collectAsState()
     var recent by remember { mutableStateOf<List<RecentMemory>?>(null) }
     var query by remember { mutableStateOf("") }
     var tables by remember { mutableStateOf<List<TableInfo>>(emptyList()) }
@@ -172,6 +187,9 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         }
         item(key = "feeling") {
             FeelingNow(feeling, blend, Modifier.padding(top = 20.dp, bottom = 12.dp))
+        }
+        item(key = "persona") {
+            PersonaWeb(persona, Modifier.padding(top = 8.dp, bottom = 12.dp))
         }
         item(key = "tables") {
             Column {
@@ -406,6 +424,57 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
 }
 
 private fun Feeling.word() = name.lowercase().replaceFirstChar { it.uppercase() }
+
+/** Her six traits as a web: the dashed outline is who her name made her, the fill is who she is now. */
+@Composable
+private fun PersonaWeb(traits: List<PersonaTrait>, modifier: Modifier = Modifier) {
+    if (traits.isEmpty()) return
+    val scheme = MaterialTheme.colorScheme
+    val measurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(color = scheme.onSurfaceVariant, fontSize = 11.sp)
+    Column(modifier.fillMaxWidth()) {
+        Label("Who she is")
+        Canvas(
+            Modifier.padding(top = 8.dp).fillMaxWidth().height(240.dp).semantics {
+                contentDescription = traits.joinToString { "${it.trait} ${(it.value * 100).roundToInt()} percent" }
+            },
+        ) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val radius = minOf(size.width, size.height) / 2 - 28.dp.toPx()
+            fun point(i: Int, r: Float): Offset {
+                val angle = -PI / 2 + 2 * PI * i / traits.size
+                return center + Offset((cos(angle) * r).toFloat(), (sin(angle) * r).toFloat())
+            }
+            fun polygon(values: List<Double>) = Path().apply {
+                values.forEachIndexed { i, v -> point(i, radius * v.toFloat()).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } }
+                close()
+            }
+            val grid = scheme.onSurfaceVariant.copy(alpha = 0.18f)
+            for (ring in 1..3) drawPath(polygon(List(traits.size) { ring / 3.0 }), grid, style = Stroke(1.dp.toPx()))
+            traits.indices.forEach { drawLine(grid, center, point(it, radius), 1.dp.toPx()) }
+            drawPath(
+                polygon(traits.map { it.seed }),
+                scheme.onSurfaceVariant.copy(alpha = 0.5f),
+                style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))),
+            )
+            val now = polygon(traits.map { it.value })
+            drawPath(now, scheme.primary.copy(alpha = 0.22f))
+            drawPath(now, scheme.primary, style = Stroke(2.dp.toPx()))
+            traits.forEachIndexed { i, trait ->
+                val label = measurer.measure(trait.trait, labelStyle)
+                drawText(label, topLeft = point(i, radius + 16.dp.toPx()) - Offset(label.size.width / 2f, label.size.height / 2f))
+            }
+        }
+        val working = traits.filter { it.target != null }.joinToString(" ") { "Working on being ${moreOrLess(it.value, it.target!!, it.trait)}." }
+        val grown = traits.any { it.value != it.seed }
+        Text(
+            "${if (grown) "Dashed: who she was when you met." else "Who her name made her. She grows from here."} $working".trim(),
+            color = scheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
 
 @Composable
 private fun Pager(

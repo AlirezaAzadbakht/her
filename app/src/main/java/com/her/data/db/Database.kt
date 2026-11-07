@@ -28,7 +28,7 @@ import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.domain.TaskStatus
 
-const val DB_VERSION = 10
+const val DB_VERSION = 11
 
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
@@ -106,6 +106,7 @@ class HerConverters {
         LearningRecord::class,
         CompanionRecord::class,
         WonderingRecord::class,
+        PersonaTrait::class,
     ],
     version = DB_VERSION,
     exportSchema = false,
@@ -137,12 +138,13 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun companionDao(): CompanionDao
     abstract fun wonderingDao(): WonderingDao
     abstract fun feelingDao(): FeelingDao
+    abstract fun personaDao(): PersonaDao
 
     companion object {
         /** The app's database, or a backup being checked under another file name. */
         fun build(context: Context, name: String = "her.db"): HerDatabase =
             Room.databaseBuilder(context, HerDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                 .build()
 
         /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
@@ -152,6 +154,14 @@ abstract class HerDatabase : RoomDatabase() {
                 generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
             }
             if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        /** Her personality traits; rows are seeded from her name on first read, not here. */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `persona_traits` (`trait` TEXT NOT NULL, `value` REAL NOT NULL,
+                    `seed` REAL NOT NULL, `target` REAL, `reason` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`trait`))""")
+            }
         }
 
         /** Drive sync and Google Tasks are gone: drop their tables, Google calendar mirrors, and the task id column. */

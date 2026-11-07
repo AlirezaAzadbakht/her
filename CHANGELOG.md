@@ -4,6 +4,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- Her has a personality of her own. The name you gave her sets six traits: warmth, playfulness, curiosity, directness, patience and expressiveness. They grow a little from your time together. Ask her to be more playful or less blunt and she'll work on it over the next few days. The Memory tab shows her as a web chart, with an outline of who she was when you met.
+
 ### Changed
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
 
