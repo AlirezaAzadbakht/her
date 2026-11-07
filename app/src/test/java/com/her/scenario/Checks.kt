@@ -242,6 +242,7 @@ object Checks {
                     com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
                     com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
             }
+            "persona_traits" -> repo.persona().map { mapOf("trait" to it.trait, "value" to it.value, "seed" to it.seed, "target" to it.target, "reason" to it.reason) }
             "companion_records" -> repo.companionRecords().map { row ->
                 val data = row.data()
                 data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +

@@ -163,7 +163,8 @@ Rows are flattened by an explicit mapper, not reflection.
 | `companion_records` | id, parentId, kind, version, plus the record’s JSON fields (live records only) |
 | `wondering` | id, sourceId, status, version, createdAt, updatedAt, plus persisted JSON fields (observation, question, sourceSnapshot, askedAt, answer, sourceMessageId); live rows only. Derived sourceActive checks the current source; answerGrounded verifies an exact quote of a non-deleted user message. |
 | `learning_records` | id, pathId, kind, version, plus persisted JSON fields (e.g. result, answer, status); live records only |
-| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment, warmth, curiosity, patience; immediate_NAME and mood_NAME for each lowercase feeling name |
+| `emotional_state` | One derived row: dominant, usefulness, understanding, competence, fulfillment; immediate_NAME and mood_NAME for each lowercase feeling name |
+| `persona_traits` | trait, value, seed, target, reason; one row per trait, seeded from her name when missing |
 | `memories_long` | id, content, category, confidence, importance, status, source |
 | `memories_long_all` | Same fields as `memories_long`, including HISTORICAL rows (for example a fact kept after `correct_memory` superseded it) |
 | `memories_short` | id, content, type, confidence, importance, source |
