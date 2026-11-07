@@ -43,8 +43,30 @@ fun round2(v: Double): Double = Math.round(v * 100) / 100.0
 fun clampTrait(v: Double): Double = round2(v.coerceIn(0.05, 0.95))
 
 /** The same name always gives the same starting character, and never an extreme one. */
+/** One rule for "the same name": case, spaces, Persian diacritics and Arabic yeh/kaf do not matter. */
+fun nameKey(name: String?): String = name.orEmpty().lowercase(Locale.ROOT)
+    .replace(Regex("[\\s\u200C\u064B-\u065F]"), "").replace('ي', 'ی').replace('ك', 'ک').ifBlank { "her" }
+
+private val SAMANTHA = listOf(0.90, 0.80, 0.95, 0.60, 0.80, 0.90)
+private val ALIREZA = listOf(0.65, 0.80, 0.70, 0.65, 0.55, 0.55)
+private val HER = List(6) { 0.50 }
+private val MAX = List(6) { 0.95 }
+
+/** Names with a story, in [TRAITS] order. Documented in wiki/Personality.md, the README and the website. */
+private val SPECIAL = mapOf(
+    "samantha" to SAMANTHA, "سامانتا" to SAMANTHA, // the original, from the film Her
+    "alireza" to ALIREZA, "علیرضا" to ALIREZA, // her maker: balanced and playful
+    "her" to HER, "هر" to HER, // perfectly balanced, her plain default voice
+    "max" to MAX, "مکس" to MAX,
+    "min" to List(6) { 0.05 },
+    "zen" to listOf(0.70, 0.30, 0.50, 0.40, 0.95, 0.20),
+)
+
+fun specialTraits(name: String?): Map<String, Double>? = SPECIAL[nameKey(name)]?.let { TRAITS.zip(it).toMap() }
+
 fun seedTraits(name: String?): Map<String, Double> {
-    val key = name.orEmpty().trim().ifBlank { "her" }.lowercase(Locale.ROOT)
+    specialTraits(name)?.let { return it }
+    val key = nameKey(name)
     val bytes = MessageDigest.getInstance("SHA-256").digest(key.toByteArray())
     return TRAITS.withIndex().associate { (i, trait) -> trait to round2(0.35 + 0.5 * (bytes[i].toInt() and 0xFF) / 255.0) }
 }

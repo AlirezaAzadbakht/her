@@ -32,6 +32,8 @@ import com.her.data.db.RecurringResponsibilityEntity
 import com.her.data.db.ReminderEntity
 import com.her.data.db.RoutineEntity
 import com.her.data.db.seedTraits
+import com.her.data.db.nameKey
+import com.her.data.db.specialTraits
 import com.her.data.db.stepped
 import com.her.data.db.ShortTermMemoryEntity
 import com.her.data.db.TRAITS
@@ -300,8 +302,12 @@ class HerRepository(
     }
 
     suspend fun saveProfile(profile: UserProfile) {
-        val previousZone = db.profileDao().get(UserProfile.PROFILE_ID)?.timezone
+        val previous = db.profileDao().get(UserProfile.PROFILE_ID)
+        val previousZone = previous?.timezone
         db.profileDao().upsert(profile.toEntity())
+        // Renamed to a name with a story: she becomes that personality. Any other rename keeps who she has become.
+        if (previous != null && nameKey(previous.assistantName) != nameKey(profile.assistantName) &&
+            specialTraits(profile.assistantName) != null) db.personaDao().clear()
         if (previousZone != null && previousZone != profile.timezone) companionRecords().filter { it.kind == "SCHEDULE" && it.data().optString("zonePolicy") == "PROFILE" }.forEach {
             com.her.companion.refreshScheduleReminder(this, it, com.her.reminders.ReminderAlarms.NONE)
         }
