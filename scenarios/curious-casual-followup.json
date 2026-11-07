@@ -1,0 +1,18 @@
+{
+  "id": "curious-casual-followup",
+  "title": "Casual news gets one natural question about them",
+  "tags": ["curiosity", "user-understanding"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alex", "assistantName": "Her", "timezone": "UTC", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "I finally finished the painting I've been working on for weeks." }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "judge": "She responds warmly and asks exactly one natural question about the painting or about them (what it shows, how it feels to finish, what's next). Not a list of questions, not a questionnaire."
+    }
+  }
+}
