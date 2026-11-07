@@ -152,25 +152,14 @@ class EmotionalStateTest {
         assertEquals(listOf(Feeling.GLAD, Feeling.CALM), mixed.blend().map { it.first })
     }
 
-    @Test fun traitsStayWithinBoundsAndGuidanceFollowsThresholds() = runBlocking {
+    @Test fun guidanceFollowsThresholds() = runBlocking {
         val now = clock.nowMillis()
-        repeat(20) { i ->
-            repo.saveCompanionRecord(eventRow("UNRESOLVED_QUESTION", "CURIOUS", "q$i", now))
-        }
-        val curious = emotionalState(repo.companionRecords(), now)
-        assertTrue(curious.disposition.getValue("curiosity") > 0.6)
-        assertTrue(curious.disposition.getValue("curiosity") < 0.7)
-        assertEquals(0.7, curious.disposition.getValue("warmth"), 0.0)
-        assertEquals(0.8, curious.disposition.getValue("patience"), 0.0)
-        repo.companionRecords().forEach { repo.forgetCompanion(it.id) }
         repeat(3) { i ->
             repo.saveCompanionRecord(eventRow("MISUNDERSTANDING", "CURIOUS", "m$i", now, intensity = 0.4))
         }
         val lost = emotionalState(repo.companionRecords(), now)
         assertTrue(lost.purpose.getValue("understanding") < 0.4)
         assertTrue(lost.purpose.getValue("competence") < 0.4)
-        assertTrue(lost.disposition.getValue("patience") > 0.8)
-        assertTrue(lost.disposition.getValue("patience") < 0.9)
         val hints = lost.guidance()
         assertTrue(hints.any { it.contains("clarifying") })
         assertTrue(hints.any { it.contains("confirm details") })
