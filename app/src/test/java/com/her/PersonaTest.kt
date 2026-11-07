@@ -65,18 +65,48 @@ class PersonaTest {
 
     @Test
     fun seedComesFromTheNameAndIsSavedOnlyOnceSheHasOne() = runBlocking {
-        assertEquals(seedTraits("Samantha"), seedTraits("  samantha "))
-        assertNotEquals(seedTraits("Samantha"), seedTraits("Ava"))
+        assertEquals(seedTraits("Leila"), seedTraits("  leila "))
+        assertNotEquals(seedTraits("Leila"), seedTraits("Ava"))
         assertTrue(seedTraits("Ava").values.all { it in 0.35..0.85 })
 
         assertEquals(TRAITS, repo.persona().map { it.trait })
         assertTrue("nothing saved before she has a name", db.personaDao().all().isEmpty())
 
-        name("Samantha")
+        name("Leila")
         val seeded = repo.persona()
-        assertEquals(seedTraits("Samantha"), seeded.associate { it.trait to it.value })
+        assertEquals(seedTraits("Leila"), seeded.associate { it.trait to it.value })
         name("Ava")
         assertEquals("a rename keeps who she is", seeded, repo.persona())
+    }
+
+    @Test
+    fun specialNamesIgnoreCaseAndSpelling() {
+        assertEquals(TRAITS.associateWith { 0.95 }, seedTraits("MAX"))
+        assertEquals(seedTraits("Max"), seedTraits(" max "))
+        assertEquals(TRAITS.associateWith { 0.05 }, seedTraits("Min"))
+        assertEquals(0.95, seedTraits("SAMANTHA").getValue("curiosity"), 1e-9)
+        assertEquals(seedTraits("samantha"), seedTraits("سامانتا"))
+        assertEquals(seedTraits("Alireza"), seedTraits("عليرضا"))
+        assertEquals(seedTraits("Alireza"), seedTraits("علی‌رضا"))
+        assertEquals(seedTraits("Ali Reza"), seedTraits("alireza"))
+        assertEquals(TRAITS.associateWith { 0.5 }, seedTraits("هِر"))
+        assertEquals(seedTraits("Her"), seedTraits(""))
+        assertNull(com.her.data.db.specialTraits("Leila"))
+        assertTrue(seedTraits("Leila").values.all { it in 0.35..0.85 })
+    }
+
+    @Test
+    fun renamingToASpecialNameReseedsHerAndOrdinaryRenamesDoNot() = runBlocking {
+        name("Leila")
+        repo.savePersonaTrait(trait("warmth").copy(value = 0.9, target = 0.95, reason = "they opened up"))
+        name("Max")
+        assertTrue(repo.persona().all { it.value == 0.95 && it.seed == 0.95 && it.target == null && it.reason == null })
+        repo.savePersonaTrait(trait("patience").copy(value = 0.6))
+        name("MAX")
+        assertEquals("a change of case is not a new name", 0.6, trait("patience").value, 1e-9)
+        name("Sam")
+        assertEquals("an ordinary rename keeps who she is", 0.6, trait("patience").value, 1e-9)
+        assertEquals(0.95, trait("warmth").value, 1e-9)
     }
 
     @Test
@@ -90,7 +120,7 @@ class PersonaTest {
 
     @Test
     fun nightlyStepWalksTowardTheTargetAndClearsIt() = runBlocking {
-        name("Samantha")
+        name("Leila")
         val start = repo.persona().first { it.trait == "playfulness" }
         repo.savePersonaTrait(start.copy(target = start.value + 0.12))
         repo.stepPersonaTargets()
@@ -102,12 +132,12 @@ class PersonaTest {
         assertNull(done.target)
 
         repo.resetPersona()
-        assertEquals("forgetting returns her to who she was", seedTraits("Samantha"), repo.persona().associate { it.trait to it.value })
+        assertEquals("forgetting returns her to who she was", seedTraits("Leila"), repo.persona().associate { it.trait to it.value })
     }
 
     @Test
     fun theirRequestSetsWhereSheIsHeadingAndNightDriftStaysSmall() = runBlocking {
-        name("Samantha")
+        name("Leila")
         val start = trait("playfulness")
         val reply = say("Sure.", MessageRole.ASSISTANT)
         assertFalse("her own words do not change her", adjust(AgentRunType.CHAT, """{"trait":"playfulness","change":0.2,"reason":"x","sourceMessageId":"$reply"}"""))
@@ -136,13 +166,13 @@ class PersonaTest {
 
     @Test
     fun forgettingEverythingResetsHerToHerName() = runBlocking {
-        name("Samantha")
+        name("Leila")
         repo.savePersonaTrait(trait("warmth").copy(value = 0.9, reason = "they opened up"))
         tools.runType = AgentRunType.CHAT
         val confirmId = JSONObject(tools.execute("forget_memory", """{"everything":true}""").payloadJson).getString("confirmId")
         say("Yes, forget everything.")
         assertTrue(tools.execute("forget_memory", """{"everything":true,"confirmId":"$confirmId"}""").ok)
-        assertEquals(seedTraits("Samantha").getValue("warmth"), trait("warmth").value, 1e-9)
+        assertEquals(seedTraits("Leila").getValue("warmth"), trait("warmth").value, 1e-9)
         assertNull(trait("warmth").reason)
     }
 }
