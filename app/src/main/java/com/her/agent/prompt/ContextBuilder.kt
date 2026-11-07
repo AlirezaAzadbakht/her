@@ -111,6 +111,7 @@ class ContextBuilder(
                     appendLine("- ${it.id} | ${it.facet} | ${it.content} (c=${"%.2f".format(it.confidence)})")
                 }
             }
+            com.her.data.db.personaLines(repo.persona()).forEach { appendLine(it) }
             appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })
             appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" })

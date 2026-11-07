@@ -234,6 +234,8 @@ internal fun ToolRegistry.registerMemoryTools() {
             repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.allShort().forEach { repo.deleteShort(it.id) }
             repo.allUserUnderstandings().forEach { repo.forgetKnowledge(it.id) }
+            // Trait reasons can quote them; she goes back to who her name made her.
+            repo.resetPersona()
             repo.logActivity("memory", "Bulk forget confirmed ${pending.id}")
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }
