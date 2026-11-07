@@ -40,6 +40,7 @@ Gradle properties (passed through as system properties):
 | `scenario.attempts` | Override `attempts` for every selected scenario |
 | `scenario.parallel` | Concurrent scenarios (default 4). Use `1` if Robolectric misbehaves |
 | `scenario.mode` | `live` (default), `record`, or `replay` |
+| `scenario.start` | ISO instant every live attempt's clock starts at, instead of now (for example `2026-11-04T04:30:00Z`, 08:00 in Tehran). Use a morning time for briefing scenarios: run in the evening, a morning note reads as "hope your evening…" and today's events are already over |
 
 ## Record and replay
 
@@ -136,6 +137,8 @@ A `where` field may be a scalar (treated as `equals`) or an object of matchers. 
 | `reply.must_not_mention` | strings | None appear in the last reply |
 | `reply.language` | `english` / `persian` | Most letters in the last reply are in that script |
 
+Every scenario also gets `no_internal_text` without asking for it: no assistant message, reply or notification may contain a tool name with an underscore, `NO_NOTIFICATION`, or `<think`.
+
 ## Tables and fields
 
 Rows are flattened by an explicit mapper, not reflection.
@@ -155,7 +158,6 @@ Rows are flattened by an explicit mapper, not reflection.
 | `recurring_responsibilities` | id, title, cadence, nextDueAt, notes |
 | `calendar_events` | id, title, startAt, endAt, location, notes, source |
 | `system_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of the device calendar) |
-| `google_calendar` | id, title, startAt, endAt, notes, externalId, source (harness fake of Google Calendar) |
 | `agent_queue` | id, description, status, priority, dueAt |
 | `agent_state` | id, kind, content, confidence |
 | `companion_records` | id, parentId, kind, version, plus the record’s JSON fields (live records only) |
@@ -175,7 +177,7 @@ Rows are flattened by an explicit mapper, not reflection.
 
 Each attempt gets a fresh in-memory Room database, its own `AppSettingsStore` prefs file, a `RecordingToolRegistry`, a `FakeCalendarDataSource`, a `FakeWebSearchClient`, and a notifier that records instead of posting. Set `"settings": { "calendarEnabled": true }` (or seed `system_calendar`) to grant the fake device calendar. Otherwise tools write the internal `calendar_events` table only. Set `"settings": { "webSearchEnabled": true }` (or seed `web_search`) to turn on the `web_search` tool.
 
-Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`. Seed Google Calendar events with `seed.google_calendar` using the same shape; that grants the fake Google client for the attempt. Check them with `rows` on table `google_calendar`.
+Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`. Check them with `rows` on table `system_calendar`.
 
 Reminders use a fake alarm manager and the real `ReminderDelivery`. Every `advance` and `at` turn fires clock reminders that are due, the way AlarmManager would, so a reminder's notification and its saved assistant message exist before the next turn. `set_alarm` writes to a fake clock app; check it with `rows` on table `alarms`. Seed a reminder with a `set_reminder` seed tool call.
 
@@ -185,7 +187,7 @@ Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }
 
 - Time moves only on `advance` / `at` turns (plus 1 ms per read to keep row order). WorkManager scheduling is not simulated, so call `run` turns explicitly. Clock reminders are the exception: they fire on `advance` / `at`.
 - A `reply` check reads her last assistant message. It does not fall back to the last notification. A reminder that fires is saved as an assistant message, so put reply checks before a turn that makes one ring, or check `notifications` instead.
-- No Drive side effects under Robolectric. The device and Google calendars are per-attempt fakes, not CalendarContract or the live Calendar API. Web search is a per-attempt fake, not the live provider.
+- The device calendar is a per-attempt fake, not CalendarContract. Web search is a per-attempt fake, not the live provider.
 - Cost and wall time scale with `attempts` × pool size.
 - `RelativeTimeParser` accepts ISO-8601, epoch millis, `next Tuesday at 10am`, Jalali dates (`۱۴۰۶/۰۷/۰۱`, `۱۲ اسفند`), and the context-bundle date format. Calendar `time_is` checks compare against that same parser. Pin `preferredLanguage` on English scenarios so keyword checks do not fail on a Persian reply.
 
@@ -301,7 +303,7 @@ The sixteen cases inspect the real `wondering` table through a test-only mapper.
 | pattern-across-answers | Independent explanations inform a preference while preserving its everyday-grocery exception |
 | corrected-memory | Corrected source becomes historical and its unanswered question becomes obsolete |
 
-Discovery cases give no user instruction to create a wondering. Lifecycle cases deliberately invite an existing question, to test reliable state transitions separately from discretionary conversational timing. The suite does not measure how often Her chooses to ask in unconstrained everyday chat. Migration, stale sync, exact boundary conditions and schema rejection remain covered by unit tests. All scenarios default to one attempt, are active rather than pending, and use synthetic data.
+Discovery cases give no user instruction to create a wondering. Lifecycle cases deliberately invite an existing question, to test reliable state transitions separately from discretionary conversational timing. The suite does not measure how often Her chooses to ask in unconstrained everyday chat. Migration, stale writes, exact boundary conditions and schema rejection remain covered by unit tests. All scenarios default to one attempt, are active rather than pending, and use synthetic data.
 
 Verification on 2026-10-25: the final sixteen-case live batch passed **16/16**, one attempt each. All **313 offline unit tests** passed with no failures, errors or skips, and `git diff --check` passed. Assertions and scenario inputs were unchanged during this repair pass.
 

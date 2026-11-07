@@ -13,9 +13,9 @@ class SystemCalendar(
 ) {
     fun live(): Boolean = settings.read().calendarEnabled && device.hasPermission()
 
-    suspend fun mirror(from: Long, to: Long, excludeGoogleAccounts: Boolean = false): List<CalendarEvent> {
+    suspend fun mirror(from: Long, to: Long): List<CalendarEvent> {
         if (!live()) return emptyList()
-        val remote = device.eventsBetween(from, to, excludeGoogleAccounts).getOrDefault(emptyList())
+        val remote = device.eventsBetween(from, to).getOrDefault(emptyList())
         val now = repo.clock.nowMillis()
         val kept = remote.mapNotNull { incoming ->
             val externalId = incoming.externalId ?: return@mapNotNull null

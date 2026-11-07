@@ -11,8 +11,6 @@ data class CalendarSlice(
 )
 
 object CalendarWindows {
-    const val GOOGLE_ACCOUNT_TYPE = "com.google"
-    const val GOOGLE_TTL_MS = 2 * 60 * 1000L
     const val MAX_SLICE_DAYS = 400L
 
     fun overlaps(startAt: Long, endAt: Long?, from: Long, to: Long): Boolean {

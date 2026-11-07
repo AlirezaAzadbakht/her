@@ -5,9 +5,11 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.her.agent.prompt.ContextBuilder
 import com.her.agent.runner.AgentOrchestrator
+import com.her.agent.runner.TurnFailure
 import com.her.agent.tools.ToolRegistry
 import com.her.core.FakeClock
 import com.her.core.QuietHours
+import com.her.core.RelativeTimeParser
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.HerDatabase
 import com.her.data.remote.LlmClient
@@ -33,6 +35,7 @@ import com.her.domain.MessageStatus
 import com.her.domain.ToolSpec
 import com.her.notify.NotificationPolicy
 import com.her.notify.Notifier
+import java.io.IOException
 import java.time.Instant
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -141,9 +144,45 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals(1, llm.calls)
-        assertFalse(result.outOfCredit)
-        assertEquals("I couldn't reach the model just now. Your message is saved — try again in a moment.", result.notice)
+        assertEquals(TurnFailure.BadSettings, result.failure)
+        assertEquals("The model settings don't look right. Check the model name and Base URL. Your message is saved.", result.notice)
+        assertEquals("the raw error stays available for Details", "bad request", result.error)
         assertTrue("failures stay out of chat history", repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
+    }
+
+    @Test
+    fun sortsFailuresByWhatThePersonCanDo() {
+        listOf(
+            LlmException("Payment required", 402) to TurnFailure.OutOfCredit,
+            LlmException("""{"code":"insufficient_quota"}""", 429) to TurnFailure.OutOfCredit,
+            LlmException("unauthorized", 401) to TurnFailure.BadKey,
+            LlmException("forbidden", 403) to TurnFailure.BadKey,
+            LlmException("bad request", 400) to TurnFailure.BadSettings,
+            LlmException("model not found", 404) to TurnFailure.BadSettings,
+            LlmException("LLM is not configured. Add a base URL, API key, and model in Settings.") to TurnFailure.BadSettings,
+            IllegalArgumentException("Expected URL scheme 'http' or 'https'") to TurnFailure.BadSettings,
+            LlmException("slow down", 429) to TurnFailure.Busy,
+            LlmException("server error", 500) to TurnFailure.ServerDown,
+            LlmException("bad gateway", 502) to TurnFailure.ServerDown,
+            IOException("timeout") to TurnFailure.Unreachable,
+            LlmException("LLM stream truncated") to TurnFailure.Glitch,
+            LlmException("malformed LLM JSON: oops") to TurnFailure.Glitch,
+            IllegalStateException("a bug") to TurnFailure.Glitch,
+        ).forEach { (error, expected) ->
+            assertEquals(error.message, expected, AgentOrchestrator.failureOf(error))
+        }
+    }
+
+    @Test
+    fun failureNoticesArePlainWordsInTheirLanguage() {
+        val raw = LlmException("""LLM request failed (401): {"error":{"message":"Provider API error"}}""", 401)
+
+        assertEquals("Your API key was refused. Your message is saved.", AgentOrchestrator.failureNotice(raw, "hi there"))
+
+        val persian = AgentOrchestrator.failureNotice(raw, "سلام، خوبی؟")
+        assertTrue(Regex("[\\u0600-\\u06FF]").containsMatchIn(persian))
+        assertFalse(persian.contains("Provider API error"))
+        assertFalse(persian.contains("LLM request failed"))
     }
 
     @Test
@@ -155,7 +194,7 @@ class AgentOrchestratorTest {
 
         assertTrue(result.failed)
         assertEquals("credit errors are not retried", 1, llm.calls)
-        assertTrue(result.outOfCredit)
+        assertEquals(TurnFailure.OutOfCredit, result.failure)
         assertTrue(result.notice!!.contains("Her Cloud"))
         assertTrue("Persian message gets a Persian notice", Regex("[\\u0600-\\u06FF]").containsMatchIn(result.notice))
         assertTrue(repo.recentMessages(10).none { it.role == MessageRole.ASSISTANT })
@@ -188,6 +227,88 @@ class AgentOrchestratorTest {
         assertNull(result.assistantText)
         assertTrue(shown.isEmpty())
         assertTrue(repo.recentMessages(10).isEmpty())
+    }
+
+    @Test
+    fun briefingShowsOnlyTheFinalMessageNotNotesBesideAToolCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val orchestrator = orchestrator(
+            ScriptedLlm(
+                { toolCall("get_current_time", text = "Commitments section not provided, call get_commitments.") },
+                { reply("The dentist is at ten.") },
+            ),
+        )
+        val result = orchestrator.runBriefing()
+
+        assertEquals("The dentist is at ten.", result.assistantText)
+        assertEquals(listOf("The dentist is at ten."), shown)
+        assertEquals("The dentist is at ten.", repo.recentMessages(10).last { it.role == MessageRole.ASSISTANT }.content)
+    }
+
+    @Test
+    fun hourlyThatEndsBlankStaysSilentDespiteNotesBesideAToolCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm(
+            { toolCall("get_current_time", text = "Nothing is due, so stay quiet.") },
+            { reply("") },
+        )
+        val result = orchestrator(llm).runHourly()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertTrue(repo.recentMessages(10).isEmpty())
+        assertEquals("an hourly pass may end blank, no extra call", 2, llm.calls)
+    }
+
+    @Test
+    fun notesEndingInTheSilenceMarkerStaySilent() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val result = orchestrator(ScriptedLlm({ reply("Nothing is due, so stay quiet.\nNO_NOTIFICATION") })).runHourly()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertTrue(repo.recentMessages(10).isEmpty())
+    }
+
+    @Test
+    fun chatThatEndsBlankAsksOnceMoreWithoutTools() = runBlocking {
+        val llm = ScriptedLlm(
+            { toolCall("get_current_time", text = "Need the time first.") },
+            { reply("") },
+            { reply("It's two in the morning.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("What time is it?")
+        val result = orchestrator.processOutbox()!!
+
+        assertEquals("It's two in the morning.", result.assistantText)
+        assertTrue(llm.toolsSeen[1].isNotEmpty())
+        assertTrue("the extra call must not offer tools", llm.toolsSeen[2].isEmpty())
+    }
+
+    @Test
+    fun briefingThatStaysBlankGivesUpAfterOneExtraCall() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm({ reply("") }, { reply("") })
+        val result = orchestrator(llm).runBriefing()
+
+        assertNull(result.assistantText)
+        assertTrue(shown.isEmpty())
+        assertEquals(2, llm.calls)
+    }
+
+    @Test
+    fun blankEndingAfterSendUserMessageDoesNotAskAgain() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm(
+            { toolCall("send_user_message", """{"content":"The dentist is at ten."}""") },
+            { reply("") },
+        )
+        val result = orchestrator(llm).runBriefing()
+
+        assertNull(result.assistantText)
+        assertEquals(listOf("The dentist is at ten."), shown)
+        assertEquals("the message was already delivered", 2, llm.calls)
     }
 
     @Test
@@ -357,6 +478,34 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("Morning. The day is open.") })
+        val orchestrator = orchestrator(llm)
+        var passes = 0
+
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals("nothing is due", 0, passes)
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        orchestrator.runHourly(gated = true) { passes++ }
+        assertEquals(1, passes)
+
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("the first night always runs", 2, passes)
+        clock.advance(24 * HOUR)
+        orchestrator.runNightly(gated = true) { passes++ }
+        assertEquals("nothing new since last night", 2, passes)
+
+        orchestrator.enqueueUserMessage("hi")
+        clock.advance(8 * 24 * HOUR)
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals("away for over a week", 2, passes)
+        orchestrator.enqueueUserMessage("I'm back")
+        orchestrator.runBriefing(gated = true) { passes++ }
+        assertEquals(3, passes)
+        assertEquals("every model call was announced", llm.calls, passes)
+    }
+
+    @Test
     fun swipedNudgesReachContextUntilTheyWriteAgain() = runBlocking {
         settings.update { it.copy(swipedNudges = 3) }
         assertTrue(contextBuilder.build().systemBundle.contains("Their last 3 notifications were swiped away"))
@@ -364,6 +513,24 @@ class AgentOrchestratorTest {
         orchestrator(ScriptedLlm()).enqueueUserMessage("sorry, busy day")
         assertEquals(0, settings.read().swipedNudges)
         assertFalse(contextBuilder.build().systemBundle.contains("swiped away"))
+    }
+
+    @Test
+    fun dateOnlyDeadlineReadsDueTodayUntilTheDayEnds() = runBlocking {
+        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { title in it }
+        val today = RelativeTimeParser.parse("today", repo.now())!!.toInstant().toEpochMilli()
+        val insurance = task("Renew insurance", dueAt = today)
+        repo.saveTask(insurance)
+        repo.saveTask(task("Call the bank", dueAt = clock.peek() - HOUR))
+
+        assertTrue(line("Renew insurance"), line("Renew insurance").endsWith(" due today"))
+        assertFalse("a date has no clock time", "12:00 AM" in line("Renew insurance"))
+        assertTrue(line("Call the bank"), line("Call the bank").endsWith(" OVERDUE"))
+        assertTrue("due:${insurance.id}:$today:today" in contextBuilder.triggers(HOUR))
+
+        clock.advance(24 * HOUR)
+        assertTrue(line("Renew insurance"), line("Renew insurance").endsWith(" OVERDUE"))
+        assertTrue("due:${insurance.id}:$today:overdue" in contextBuilder.triggers(HOUR))
     }
 
     @Test
@@ -663,8 +830,8 @@ class AgentOrchestratorTest {
     private fun reply(text: String) =
         LlmResponse(LlmMessage(role = "assistant", content = text), LlmUsage(10, 5, 1), "{}")
 
-    private fun toolCall(name: String, arguments: String = "{}") = LlmResponse(
-        LlmMessage(role = "assistant", toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
+    private fun toolCall(name: String, arguments: String = "{}", text: String? = null) = LlmResponse(
+        LlmMessage(role = "assistant", content = text, toolCalls = listOf(LlmToolCall("call_1", name, arguments))),
         LlmUsage(10, 5, 1),
         "{}",
     )

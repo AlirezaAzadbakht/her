@@ -9,8 +9,6 @@ import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
 import com.her.core.normalizeStatusKey
 import com.her.data.calendar.CalendarDataSource
-import com.her.data.calendar.GoogleCalendar
-import com.her.data.calendar.GoogleCalendarClient
 import com.her.data.calendar.SystemCalendar
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
@@ -51,14 +49,12 @@ open class ToolRegistry(
     internal val calendar: CalendarDataSource,
     internal val webSearch: WebSearchClient,
     internal val onUserMessage: suspend (String) -> Unit = {},
-    googleCalendar: GoogleCalendar = GoogleCalendar(repo, GoogleCalendarClient()),
     internal val reminderAlarms: ReminderAlarms = ReminderAlarms.NONE,
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
     internal val focus: FocusTimer? = null,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
-    internal val googleCalendar = googleCalendar
     /** Chat may use every tool; autonomous runs cannot wipe or rewrite identity. */
     var runType: AgentRunType = AgentRunType.CHAT
 
@@ -262,7 +258,6 @@ open class ToolRegistry(
             }
             "calendar_events" -> {
                 val event = repo.getCalendarEvent(id)?.takeIf { it.deletedAt == null } ?: return false
-                if (event.source == CalendarSource.GOOGLE) return false
                 if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
                 repo.deleteCalendarEvent(id)
             }
@@ -283,11 +278,16 @@ open class ToolRegistry(
         return Instant.ofEpochMilli(nowMillis()).atZone(zone)
     }
 
-    internal suspend fun parseWhen(raw: String?): Long? {
+    /** Null only when no time was sent. One that was sent must parse: dropping it would report success for a date never saved. */
+    internal suspend fun parseWhen(raw: String?, parser: (String, ZonedDateTime) -> ZonedDateTime? = RelativeTimeParser::parse): Long? {
         if (raw.isNullOrBlank()) return null
         raw.toLongOrNull()?.let { return it }
-        return RelativeTimeParser.parse(raw, nowZoned())?.toInstant()?.toEpochMilli()
+        return parser(raw, nowZoned())?.toInstant()?.toEpochMilli()
+            ?: throw ToolValidationException("Could not understand the time '$raw', so nothing was saved. Use $WHEN_HINT.")
     }
+
+    /** A due date or target, where a whole month ("March 2027") is enough. */
+    internal suspend fun parseDeadline(raw: String?): Long? = parseWhen(raw, RelativeTimeParser::parseDeadline)
 
     internal suspend fun requireTask(idOrTitle: String): TaskItem {
         repo.getTask(idOrTitle)?.let { return it }
@@ -314,12 +314,6 @@ open class ToolRegistry(
                 if (exact.isEmpty() && loose.isEmpty()) "Commitment not found: $idOrTitle"
                 else "Multiple commitments match '$idOrTitle'; pass the id from context",
             )
-    }
-
-    /** A time the model explicitly sent must parse; silently keeping the old value would hide the failure. */
-    internal suspend fun requiredWhen(raw: String?): Long? {
-        if (raw.isNullOrBlank()) return null
-        return parseWhen(raw) ?: throw ToolValidationException("Could not understand the time: $raw")
     }
 }
 

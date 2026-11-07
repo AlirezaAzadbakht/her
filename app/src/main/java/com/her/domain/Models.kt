@@ -11,10 +11,9 @@ enum class CommitmentStatus { OPEN, DONE, MISSED, DROPPED }
 enum class OpenLoopStatus { OPEN, CLOSED, DROPPED }
 enum class GroceryStatus { ACTIVE, PURCHASED, DROPPED }
 enum class QueueStatus { OPEN, DONE, DROPPED }
-enum class CalendarSource { INTERNAL, SYSTEM, GOOGLE }
+enum class CalendarSource { INTERNAL, SYSTEM }
 enum class AgentRunType { CHAT, HOURLY, NIGHTLY, BRIEFING, CATCH_UP }
 enum class AgentRunStatus { RUNNING, COMPLETED, FAILED, CANCELLED }
-enum class SyncOpType { UPSERT, DELETE }
 enum class ConfirmationKind { CALENDAR_DELETE, BULK_FORGET, EXTERNAL_DESTRUCTIVE }
 enum class ReminderTrigger { TIME, PERSON, PLACE }
 enum class ReminderStatus { SCHEDULED, FIRED, SKIPPED, CANCELLED }
@@ -184,8 +183,6 @@ data class TaskItem(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
-    /** Its row in the "Her" list of Google Tasks, when mirrored. */
-    val googleTaskId: String? = null,
 )
 
 data class Commitment(
@@ -393,18 +390,6 @@ data class AgentRun(
     val status: AgentRunStatus,
     val error: String?,
     val notes: String?,
-)
-
-data class SyncOp(
-    val id: String,
-    val entityType: String,
-    val entityId: String,
-    val opType: SyncOpType,
-    val payloadJson: String,
-    val createdAt: Long,
-    val deviceId: String,
-    val seq: Long,
-    val uploaded: Boolean,
 )
 
 data class ApiUsageDay(

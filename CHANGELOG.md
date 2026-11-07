@@ -4,7 +4,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-05
+
 ### Added
+- Back up everything Her knows to a file. In Settings → Backup, **Save backup** puts a zip wherever you choose, **Share** sends it to another app, and **Import** brings one back. On a new phone, tap **Restore from a backup** on the first screen. Your settings come along, but never your API key.
 - Ask Her to talk differently, more formal, warmer, or plainer, or just tell her you don't like her tone. She changes right away and keeps talking that way.
 - Her keeps a short note of each day you talk, and over time folds older days into weeks and months, so she can recall what was going on back then. Forgetting something also removes it from those notes.
 - When your API credit runs out, Her tells you in your language and offers a button to buy credit on Her Cloud. The notice isn't kept in your chat, and your message sends once you've recharged.
@@ -12,6 +15,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - **Load QR image** connects Her Cloud from a saved picture of the QR code, such as a connect or gift card you downloaded. If the picture also has the store-link QR, Her skips it and uses the settings one.
 
 ### Changed
+- Google is gone: no more Connect Google, Drive sync, reading Google Calendar through your account, or Google Tasks. Use a backup file to move to a new phone. Google Calendar events that sync to your phone's calendar still show up.
+- When a message can't go through, Her now says what went wrong in plain words and in your language, such as a refused API key or a busy server. The next step is right there: **Try again**, **Settings**, or **Her Cloud**. The technical error stays behind **Details**, and setup and **Save & test** explain errors the same way.
 - Her sends less of your older chat to the model with each reply, so long conversations stay faster and cheaper. She still remembers earlier days through her notes and by searching your chat.
 - Her's feelings now form on their own right after each reply, from a short look at how your message landed, and she sorts them out during her nightly review. Her chat replies no longer spend effort recording feelings. This uses one small extra request to your model per message.
 - When you share something worrying that isn't settled yet, Her keeps it quietly on her mind. When you come back after a while, she asks how it went.
@@ -22,9 +27,16 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - When you open your heart to Her (درد و دل), she listens first, reflects what you're feeling and asks about it instead of jumping to tips. When you want advice, she gives one or two honest, personal ideas. She remembers whether you'd rather be listened to or advised.
 
 ### Fixed
+- A message that failed now sends as soon as **Save & test** succeeds, and the failure note no longer stays on screen after a later attempt works.
+- Her no longer says she saved a goal, task, or promise with a date when the date was actually lost. If she can't read a date she tries again or asks you. A month on its own, like "by March 2027", now works and means the end of that month.
+- Her's private working notes no longer appear in her replies, the morning note or notifications. They could show up above the real message, or arrive as a notification when she meant to stay quiet.
+- The morning note sticks to what's actually on your day. It no longer goes through what's empty, or says your calendar is clear when she can't see it.
+- You see at most one "Her is working" notification, and only while she's really working. Before, several could stack up, even when she had nothing to do.
+- The nightly review and morning briefing stay on schedule when your connection drops while they run. Before, each drop could leave an extra run that later fired at an odd hour, such as the middle of the afternoon.
 - Her works with models whose provider refuses tools while reasoning effort is on (for example gpt-6-luna on some gateways). She used to fail every chat with a 400 error.
 - Your own birthday and other dates you tell Her now show up in the Memory tab's "Lately" list. Before, she saved them but they didn't appear there, so it looked like she had forgotten.
 - The morning briefing no longer reads out your scheduled reminders or what's missing from your lists. Reminders still ring on their own.
+- Something due "today" with no set time no longer counts as overdue from midnight. Her treats it as due today, and as overdue only once the day has passed.
 - Message and reminder notifications clear when you open or return to the app.
 - When Her can't reach the model, the "couldn't reach the model" note shows only on screen. It no longer stays in your chat or gets read back to the model later.
 - When calendar access is off, Her explains how to enable it and makes clear when an event was saved only inside Her.
@@ -195,7 +207,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...v0.2.0
 [0.1.7]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.6...v0.1.7

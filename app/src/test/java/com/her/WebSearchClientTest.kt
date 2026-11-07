@@ -167,7 +167,6 @@ class WebSearchClientTest {
         webSearchEndpoint = endpoint,
         webSearchApiKey = apiKey,
         calendarEnabled = false,
-        driveEnabled = false,
         chatToolCallLimit = 12,
         lastHourlyRunAt = 0L,
         lastNightlyDate = "",

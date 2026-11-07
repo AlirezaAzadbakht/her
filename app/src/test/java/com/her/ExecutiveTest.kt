@@ -8,7 +8,6 @@ import com.her.companion.*
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.*
-import com.her.data.drive.SyncCodec
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -88,6 +87,17 @@ class ExecutiveTest {
         assertTrue(briefing().getJSONArray("items").getJSONObject(0).isNull("blocker"))
     }
 
+    @Test fun dateOnlyDeadlineIsNotOverdueUntilTheDayEnds() = runBlocking {
+        val today = repo.now().toLocalDate().atStartOfDay(repo.profileZone()).toInstant().toEpochMilli()
+        delegation("Sara", JSONObject().put("deadline", today))
+        suspend fun reasons() = briefing().getJSONArray("items").getJSONObject(0).getJSONArray("reasons").toString()
+        assertTrue(reasons(), "DUE_WITHIN_24H" in reasons())
+        assertFalse(reasons(), "OVERDUE" in reasons())
+
+        clock.advance(24 * 60 * 60 * 1000L)
+        assertTrue(reasons(), "OVERDUE" in reasons())
+    }
+
     @Test fun briefingRanksDecisionsBeforeOverdueAndNeverInfersFailure() = runBlocking {
         delegation("Overdue", JSONObject().put("deadline", clock.peek() - 1000))
         val decision = delegation("Sara", JSONObject().put("decisionNeeded", "Need pricing decision").put("priority", 3))
@@ -161,17 +171,14 @@ class ExecutiveTest {
         assertEquals(2L, repo.getCompanionRecord(id)!!.version)
     }
 
-    @Test fun recordsSyncAndForgetAndBriefingPagesWithoutWrites() = runBlocking {
+    @Test fun recordsForgetAndBriefingPagesWithoutWrites() = runBlocking {
         repeat(7) { delegation("Owner$it") }
-        val before = repo.pendingSyncOps().size
+        val before = repo.companionRecords()
         val first = briefing()
         val next = call("get_executive_briefing", JSONObject().put("offset", first.getInt("nextOffset")))
         assertEquals(7, first.getJSONArray("items").length() + next.getJSONArray("items").length())
-        assertEquals(before, repo.pendingSyncOps().size)
+        assertEquals(before, repo.companionRecords())
         val id = first.getJSONArray("items").getJSONObject(0).getString("id")
-        val row = repo.getCompanionRecord(id)!!
-        repo.applyingRemote { assertTrue(SyncCodec.persist(repo, "companion_records", JSONObject(row.toJson()))) }
-        assertEquals(row, repo.getCompanionRecord(id))
         call("forget_memory", JSONObject().put("id", id))
         assertEquals(6, briefing().getInt("activeDelegations"))
         assertFalse(tools.execute("get_executive_briefing", "{\"offset\":-1}").ok)

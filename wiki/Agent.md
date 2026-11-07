@@ -11,10 +11,11 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
+6. Only the final message, the one with no tool calls, reaches the person. Text beside a tool call is the model's working notes and is dropped. A chat or briefing turn that ends blank gets one more call with tools withheld; an hourly pass that ends blank stays silent. A message containing `NO_NOTIFICATION` counts as silence.
 
 Chat, hourly, nightly, and briefing share one lock. A chat message waiting for it makes a background run stop before its next call (run status `CANCELLED`), so the message waits for at most one background call. A run that already has a nudge to deliver finishes first. A stopped hourly runs again next period; nightly and briefing retry shortly. A pending user batch that already wrote rows (then failed) is told what was already done on retry, and those writes are not repeated. The composer Stop control cancels the in-flight HTTP call.
 
-The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), and tool I/O to `debug_events`, and token usage per run type to `api_usage`.
+The orchestrator logs prompt sizes, retrieved memory ids, per-call token usage (kind `usage`, including prompt tokens the provider served from cache), the shape of each response (kind `llm`: its size, how many characters of text and how many tool calls, never the text itself), and tool I/O to `debug_events`, and token usage per run type to `api_usage`. A round with both text and tool calls is the model writing notes beside a tool call.
 
 ## Context
 
@@ -24,7 +25,7 @@ The orchestrator logs prompts, retrieved memories, raw LLM JSON, per-call token 
 2. Optional extra system text (hourly / nightly / briefing)
 3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
    - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
-   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system / Google calendar (7-day window; live sources stay visible even when empty), agent state and queue
+   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system calendar (7-day window; live sources stay visible even when empty), agent state and queue
 4. Recent chat: up to 24 messages (8 for hourly / catch-up), newest first until 12,000 characters. The newest message always goes whole; the four newest are never clipped, older ones are cut to 1,200 characters. What falls out is covered by the digest note and `search_chat_history`. Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
@@ -39,7 +40,7 @@ When Settings → **Embeddings** is on, `OpenAiEmbeddingProvider` calls `{baseUr
 
 Chat retrieval is cued by the current message and, at 0.6 weight, by the two messages before it, so a short follow-up keeps the topic. The 0.10 association term spreads one hop from the top three hits and from people named in the message. It reaches memories saved from the same message, memories linked through `derivedFrom` in either direction, and the other end of any `relate_memories` row. Associated memories outside the FTS pool are pulled in. Visibility is checked again after any embedding request, so a forget that lands mid-search still wins.
 
-A long-term memory gets stronger when the person brings it up: if at least half its words appear in a chat message that retrieved it, `lastConfirmedAt` is set, at most once a day. Recency uses the later of `updatedAt` and `lastConfirmedAt`. Her reading a memory, and background passes, never strengthen it. The confirmation is a device-local column update with no version bump or sync op, so it reaches other devices only when the row syncs for another reason.
+A long-term memory gets stronger when the person brings it up: if at least half its words appear in a chat message that retrieved it, `lastConfirmedAt` is set, at most once a day. Recency uses the later of `updatedAt` and `lastConfirmedAt`. Her reading a memory, and background passes, never strengthen it. The confirmation is a device-local column update with no version bump.
 
 ## Write receipts
 
@@ -64,7 +65,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - Routines, groceries, important dates, recurring responsibilities
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
 - `update_user_profile`, `update_user_understanding`
-- Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal, system, and Google; Google rows are read-only)
+- Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal and system events)
 - `web_search`, `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
@@ -81,7 +82,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 
 - `onlyIfOpen`: a task or commitment. A due reminder is marked `SKIPPED` without ringing when that record is no longer open.
 - `repeat`: `DAILY` / `WEEKLY` / `MONTHLY`, for clock reminders only. A repeating reminder moves to its next time after it rings.
-- Only the device that set a reminder arms its alarm. Other devices get the row through sync. Alarms are re-armed on app start, boot, app update, time or timezone change, exact-alarm permission change, and after sync. `HourlyWorker` also calls `fireDue()` as a safety net.
+- Only the device that set a reminder arms its alarm; a restored backup carries the device id, so the new phone takes them over. Alarms are re-armed on app start (including after importing a backup), boot, app update, time or timezone change, and exact-alarm permission change. `HourlyWorker` also calls `fireDue()` as a safety net.
 - `set_alarm`, when exact alarms are allowed, stores a TIME reminder with `alarm = true`, any day ahead; `days` becomes one WEEKLY alarm per weekday. `AndroidReminderAlarms` arms it with `setAlarmClock`, so it shows in the status bar and gets through Doze on the minute. When it fires, `Notifier.showAlarm` rings on the **Alarms** channel at alarm volume with an insistent sound until **Stop** or **Snooze 10 min**. There is no full-screen alarm screen yet. It is undoable from its receipt like a reminder.
 - Without exact alarms, `set_alarm` falls back to `AlarmClock.ACTION_SET_ALARM` in the phone's clock app: a one-off alarm must ring within 24 hours, and only while Her is on screen, because Android silently drops activity starts from the background. From a notification reply or a background pass it fails and says to set a reminder, or to allow exact reminders in Settings.
 - `create_calendar_event` on the device calendar adds a 10-minute alert, so the calendar app notifies (and a Google-account calendar syncs the alert to their other devices).
@@ -99,7 +100,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 
 An autonomous pass that notifies with plain text (not `send_user_message`) saves that text as an assistant message first. Opening the app from the notification then shows the same words.
 
-`requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A `dueAt` that does not parse is an error, not a silent no-op. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
+`requireTask` and `requireCommitment` resolve by **id or title**. `update_task` and `update_commitment` take `dueAt` to move a deadline without dropping and recreating the row. A date or time that does not parse is an error on every tool that takes one, create and update alike, and nothing is saved. Due dates and goal targets (`parseDeadline`) also accept a whole month: `March 2027` means March 31. Calendar events and reminders need an actual day. Status, scope, source, and facet fields list their allowed values as JSON-Schema `enum`. Status strings still go through `parseEnum` with aliases (`cancelled` → `DROPPED`, `bought` → `PURCHASED`, and so on).
 
 Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event. A `confirmId` is only valid after a later user message — the model cannot confirm in the same turn. `confirmed: true` is ignored.
 
@@ -110,3 +111,5 @@ HTTP: the client has a 180s call timeout, cancels when the coroutine is cancelle
 ## LLM settings
 
 `LlmSettings.isConfigured` requires a non-blank base URL, API key, and model. `ping()` is the setup health check.
+
+After changing what is sent to the provider, run the briefing and hourly scenarios live as well as chat. Background runs use a different prompt and can behave differently on the same model.

@@ -1,22 +1,25 @@
 package com.her.ui
 
 import android.app.Application
-import android.app.PendingIntent
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
+import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.runner.Receipt
 import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnResult
 import com.her.agent.runner.TurnState
 import com.her.core.redactSecrets
 import com.her.core.nowMillis
+import com.her.data.backup.Backup
 import com.her.data.secure.LlmSettings
 import com.her.domain.ChatMessage
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
-import com.her.reminders.rearmAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,9 +28,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.time.LocalDate
 import org.json.JSONObject
 
 class HerViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application
     private val graph = (application as HerApplication).graph
 
     val latestAssistant: StateFlow<ChatMessage?> = graph.repo.observeLatestAssistant()
@@ -45,17 +51,15 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val settings = graph.settings.state
     val sqlBrowser = graph.sqlBrowser
 
-    val sendError = MutableStateFlow<String?>(null)
     val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
+    val connectionDetail = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
-    val googleMessage = MutableStateFlow<String?>(null)
-    val googleConsent = MutableStateFlow<PendingIntent?>(null)
-    val restoring = MutableStateFlow(false)
-    val restoreMessage = MutableStateFlow<String?>(null)
+    val backupBusy = MutableStateFlow(false)
+    val backupMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
     private var turnJob: Job? = null
-    private var restoreJob: Job? = null
+    private var backupJob: Job? = null
 
     val activity = graph.repo.observeActivity().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val debugEvents = graph.repo.observeDebug().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -67,14 +71,14 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect
                 val result = withContext(Dispatchers.IO) { graph.orchestrator.processOutbox() }
-                showFailure(result)
+                showOutcome(result)
             }
         }
     }
 
-    private fun showFailure(result: TurnResult?) {
-        if (result?.failed != true) return
-        if (result.notice != null) notice.value = result else sendError.value = result.error
+    /** A later success clears the notice, so it never outlives the message it was about. */
+    private fun showOutcome(result: TurnResult?) {
+        notice.value = result?.takeIf { it.failed }
     }
 
     fun saveUserName(name: String) {
@@ -109,6 +113,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (checkingConnection.value) return
         checkingConnection.value = true
         connectionMessage.value = "Checking…"
+        connectionDetail.value = null
         viewModelScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -123,9 +128,12 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                         withContext(Dispatchers.IO) { graph.orchestrator.seedOnboardingIfNeeded() }
                     }
                     connectionMessage.value = "Connected."
+                    // A message stuck on the old settings can go now.
+                    if (notice.value != null) retry()
                 },
                 onFailure = {
-                    connectionMessage.value = redactSecrets(it.message ?: "Could not connect")
+                    connectionMessage.value = AgentOrchestrator.failureOf(it).english
+                    connectionDetail.value = redactSecrets(it.message ?: it::class.java.simpleName)
                 },
             )
             checkingConnection.value = false
@@ -135,19 +143,26 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun send(text: String) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
-        sendError.value = null
+        runPending {
+            graph.orchestrator.enqueueUserMessage(
+                trimmed,
+                pendingShare.value?.let { JSONObject().put("shared", it).toString() },
+            )
+            pendingShare.value = null
+        }
+    }
+
+    /** Sends whatever a failed turn left waiting. */
+    fun retry() = runPending {}
+
+    private fun runPending(before: suspend () -> Unit) {
         notice.value = null
         turnJob?.cancel()
         turnJob = viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                graph.orchestrator.enqueueUserMessage(
-                    trimmed,
-                    pendingShare.value?.let { JSONObject().put("shared", it).toString() },
-                )
-                pendingShare.value = null
+                before()
                 if (graph.connectivity.online.value) {
-                    val result = graph.orchestrator.processOutbox()
-                    showFailure(result)
+                    showOutcome(graph.orchestrator.processOutbox())
                 } else {
                     graph.scheduler.enqueueOutbox()
                 }
@@ -191,61 +206,53 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun runHourly() = graph.scheduler.runHourlyNow()
     fun runNightly() = graph.scheduler.runNightlyNow()
-    fun runSync() = graph.scheduler.runSyncNow()
-
-    fun connectGoogle() {
-        viewModelScope.launch {
-            val outcome = withContext(Dispatchers.IO) {
-                graph.googleAuth.authorize(drive = true, calendar = true, tasks = graph.settings.read().googleTasksEnabled)
-            }
-            googleConsent.value = outcome.pendingIntent
-            googleMessage.value = outcome.message
+    fun saveBackup(uri: Uri) = backupJob {
+        withContext(Dispatchers.IO) {
+            val out = app.contentResolver.openOutputStream(uri) ?: error("Could not open that file.")
+            out.use { Backup.write(app, graph.db, graph.settings.read(), it) }
         }
+        backupMessage.value = "Backup saved. Your API key is not in it."
     }
 
-    fun clearGoogleConsent() {
-        googleConsent.value = null
+    fun shareBackup() = backupJob {
+        val file = withContext(Dispatchers.IO) {
+            val dir = File(app.cacheDir, "backup").apply { deleteRecursively(); mkdirs() }
+            File(dir, backupFileName()).also { f -> f.outputStream().use { Backup.write(app, graph.db, graph.settings.read(), it) } }
+        }
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("application/zip")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        app.startActivity(Intent.createChooser(send, "Share backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    fun finishGoogleConnect() {
-        googleConsent.value = null
-        connectGoogle()
+    /** Replaces everything on this phone with the backup, then restarts the app to open it. */
+    fun importBackup(uri: Uri) = backupJob {
+        withContext(Dispatchers.IO) {
+            val input = app.contentResolver.openInputStream(uri) ?: error("Could not open that file.")
+            input.use { Backup.stage(app, it) }
+        }
+        Backup.restart(app)
     }
 
-    fun restoreFromDrive() {
-        if (restoreJob?.isActive == true) return
-        restoreJob = viewModelScope.launch {
-            restoring.value = true
-            restoreMessage.value = null
+    private fun backupJob(block: suspend () -> Unit) {
+        if (backupJob?.isActive == true) return
+        backupJob = viewModelScope.launch {
+            backupBusy.value = true
+            backupMessage.value = null
             try {
-                val outcome = withContext(Dispatchers.IO) {
-                    graph.googleAuth.authorize(drive = true, calendar = false)
-                }
-                if (outcome.pendingIntent != null) {
-                    googleConsent.value = outcome.pendingIntent
-                    return@launch
-                }
-                val token = outcome.accessToken
-                if (token.isNullOrBlank()) {
-                    restoreMessage.value = outcome.message
-                    return@launch
-                }
-                graph.settings.update { it.copy(driveEnabled = true) }
-                val summary = withContext(Dispatchers.IO) {
-                    val result = graph.syncEngine.sync(token)
-                    graph.reminderAlarms.rearmAll(graph.repo)
-                    result
-                }
-                restoreMessage.value = if (summary.applied == 0) {
-                    "Nothing to restore in this Google account."
-                } else {
-                    "Restored ${summary.applied} items."
-                }
+                block()
             } catch (e: Exception) {
-                restoreMessage.value = e.message ?: "Restore failed."
+                backupMessage.value = e.message ?: "Backup failed."
             } finally {
-                if (googleConsent.value == null) restoring.value = false
+                backupBusy.value = false
             }
         }
     }
 }
+
+fun backupFileName(): String = "her-backup-${LocalDate.now()}.zip"
+
+/** Zip types file pickers report; some label a zip as plain bytes. */
+val BACKUP_TYPES = arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")

@@ -1,8 +1,6 @@
 package com.her.ui
 
-import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -98,6 +96,7 @@ fun HerApp(vm: HerViewModel) {
     val settings by vm.settings.collectAsState()
     val profile by vm.profile.collectAsState()
     val connectionMessage by vm.connectionMessage.collectAsState()
+    val connectionDetail by vm.connectionDetail.collectAsState()
     val checkingConnection by vm.checkingConnection.collectAsState()
     val named = !profile?.userName.isNullOrBlank() && !profile?.assistantName.isNullOrBlank()
     val stage = when {
@@ -137,6 +136,7 @@ fun HerApp(vm: HerViewModel) {
                             Stage.Setup -> SetupScreen(
                                 initial = vm.llmSettings(),
                                 message = connectionMessage,
+                                details = connectionDetail,
                                 checking = checkingConnection,
                                 onSave = { next: LlmSettings -> vm.saveAndTest(next) },
                             )
@@ -156,23 +156,10 @@ private fun AnimatedContentTransitionScope<Stage>.stageTransition(): ContentTran
 
 @Composable
 private fun NamesStage(vm: HerViewModel, userName: String?) {
-    val restoring by vm.restoring.collectAsState()
-    val restoreMessage by vm.restoreMessage.collectAsState()
-    val googleConsent by vm.googleConsent.collectAsState()
-    val consentLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartIntentSenderForResult(),
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            vm.restoreFromDrive()
-        } else {
-            vm.restoring.value = false
-            vm.restoreMessage.value = "Google permission was not granted."
-        }
-    }
-    LaunchedEffect(googleConsent) {
-        val pending = googleConsent ?: return@LaunchedEffect
-        vm.clearGoogleConsent()
-        consentLauncher.launch(IntentSenderRequest.Builder(pending.intentSender).build())
+    val restoring by vm.backupBusy.collectAsState()
+    val restoreMessage by vm.backupMessage.collectAsState()
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(vm::importBackup)
     }
     NameOnboarding(
         userName = userName,
@@ -180,7 +167,7 @@ private fun NamesStage(vm: HerViewModel, userName: String?) {
         onSaveAssistantName = { vm.saveAssistantName(it) },
         restoring = restoring,
         restoreMessage = restoreMessage,
-        onRestore = { vm.restoreFromDrive() },
+        onRestore = { pickBackup.launch(BACKUP_TYPES) },
     )
 }
 
@@ -226,7 +213,7 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
                 label = "dest",
             ) { current ->
                 when (current) {
-                    Dest.Her -> HerScreen(vm)
+                    Dest.Her -> HerScreen(vm, onOpenSettings = { onDest(Dest.Settings) })
                     Dest.Memory -> SqlNavigatorScreen(vm)
                     Dest.Settings -> SettingsScreen(vm)
                 }

@@ -6,6 +6,7 @@ import com.her.agent.tools.ToolRegistry
 import com.her.core.redactSecrets
 import com.her.data.remote.LlmClient
 import com.her.data.remote.LlmException
+import com.her.data.remote.visibleText
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
@@ -50,6 +51,23 @@ class CallBudget(val maxCalls: Int) {
     }
 }
 
+/** Why a model call failed, in words for the person. */
+enum class TurnFailure(val english: String, val persian: String) {
+    OutOfCredit("Your API credit has run out.", "اعتبار API تمام شده."),
+    BadKey("Your API key was refused.", "کلید API پذیرفته نشد."),
+    BadSettings(
+        "The model settings don't look right. Check the model name and Base URL.",
+        "تنظیمات مدل درست به نظر نمی‌رسد. نام مدل و Base URL را بررسی کن.",
+    ),
+    Busy("The model is getting too many requests right now.", "مدل الان درخواست‌های زیادی دریافت می‌کند."),
+    ServerDown("The model's server is having trouble right now.", "سرور مدل الان مشکل دارد."),
+    Unreachable(
+        "I can't reach the model. Check your connection and the Base URL.",
+        "به مدل دسترسی ندارم. اینترنت و Base URL را بررسی کن.",
+    ),
+    Glitch("Something went wrong while I was answering.", "موقع جواب دادن مشکلی پیش آمد."),
+}
+
 data class TurnResult(
     val assistantText: String?,
     val failed: Boolean,
@@ -58,7 +76,7 @@ data class TurnResult(
     val runId: String,
     /** Why a chat turn failed, for the screen only: never saved to chat or sent to the model. */
     val notice: String? = null,
-    val outOfCredit: Boolean = false,
+    val failure: TurnFailure? = null,
 )
 
 sealed class TurnState {
@@ -90,7 +108,7 @@ class AgentOrchestrator(
 
     suspend fun enqueueUserMessage(text: String, metadataJson: String? = null): ChatMessage {
         val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
-        repo.saveMessage(message, enqueueSync = false)
+        repo.saveMessage(message)
         if (settings.read().swipedNudges > 0) settings.update { it.copy(swipedNudges = 0) }
         return message
     }
@@ -131,8 +149,11 @@ class AgentOrchestrator(
         return result
     }
 
-    /** [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it. */
-    suspend fun runHourly(gated: Boolean = false): TurnResult = runMutex.withLock {
+    /**
+     * [gated] runs skip the model unless something it has not seen yet came due; scheduled wakeups pass it.
+     * [onPassStart] runs once a pass holds the lock and will call the model, not when it skips or waits its turn.
+     */
+    suspend fun runHourly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val app = settings.read()
         val last = app.lastHourlyRunAt
         val now = nowMillis()
@@ -146,6 +167,7 @@ class AgentOrchestrator(
             repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        onPassStart()
         val result = runTurn(
             type = if (now - last > 3 * 60 * 60 * 1000 && last > 0) AgentRunType.CATCH_UP else AgentRunType.HOURLY,
             budget = CallBudget(10),
@@ -163,7 +185,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runNightly(gated: Boolean = false): TurnResult = runMutex.withLock {
+    suspend fun runNightly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
         val app = settings.read()
         if (app.lastNightlyDate == today) {
@@ -176,6 +198,7 @@ class AgentOrchestrator(
             repo.logActivity("nightly", "Skipped; nothing new since last night.")
             return TurnResult(null, false, null, 0, "skipped")
         }
+        onPassStart()
         val started = nowMillis()
         val result = runTurn(
             type = AgentRunType.NIGHTLY,
@@ -195,7 +218,7 @@ class AgentOrchestrator(
         return result
     }
 
-    suspend fun runBriefing(gated: Boolean = false): TurnResult = runMutex.withLock {
+    suspend fun runBriefing(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val now = repo.now()
         val today = now.toLocalDate().toString()
         if (settings.read().lastBriefingDate == today) {
@@ -213,6 +236,7 @@ class AgentOrchestrator(
                 return TurnResult(null, false, null, 0, "skipped")
             }
         }
+        onPassStart()
         val result = runTurn(
             type = AgentRunType.BRIEFING,
             budget = CallBudget(8),
@@ -274,8 +298,7 @@ class AgentOrchestrator(
             repo.logDebug("prompt", "contextChars=${built.systemBundle.length} historyMsgs=${messages.count { it.role == "user" || it.role == "assistant" }} totalChars=${messages.sumOf { it.content?.length ?: 0 }} buildMs=${nowMillis() - buildStarted}")
             repo.logDebug("retrieved", built.retrieved.joinToString("\n") { "${it.memoryType}:${it.id}" })
             var lastText: String? = null
-            var preamble = ""
-            var silent = false
+            var withholdTools = false
             var proactive: String? = null
             var proactivePersisted = false
             var companionAttempted = false
@@ -289,7 +312,7 @@ class AgentOrchestrator(
                     return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
                 }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall()) emptyList() else tools.specsFor(type)
+                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type)
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {
@@ -297,8 +320,7 @@ class AgentOrchestrator(
                     if (streamToUi) {
                         llm.stream(configured, messages, roundTools) { delta ->
                             round.append(delta)
-                            val display = if (preamble.isNotEmpty()) "$preamble\n\n$round" else round.toString()
-                            _turnState.value = TurnState.Streaming(display)
+                            _turnState.value = TurnState.Streaming(visibleText(round.toString()))
                         }
                     } else {
                         llm.complete(configured, messages, roundTools)
@@ -316,34 +338,24 @@ class AgentOrchestrator(
                     "usage",
                     "in=${response.usage.inputTokens} cached=${response.usage.cachedInputTokens} out=${response.usage.outputTokens} ms=${response.usage.latencyMs}",
                 )
-                repo.logDebug("llm", "responseChars=${response.rawJson.length}")
                 val msg = response.message
-                val roundText = msg.content?.trim().orEmpty().ifBlank { round.toString().trim() }
+                val roundText = msg.content?.trim().orEmpty().ifBlank { visibleText(round.toString()) }
                 val calls = msg.toolCalls.orEmpty()
+                repo.logDebug("llm", "responseChars=${response.rawJson.length} contentChars=${roundText.length} toolCalls=${calls.size}")
                 if (calls.isEmpty()) {
-                    // A silent final answer wins over any text written before tool calls.
-                    if (Identity.isSilence(roundText)) {
-                        silent = true
+                    if (Identity.isSilence(roundText)) break
+                    // Only this message reaches them. Text beside a tool call is the model's working notes.
+                    if (roundText.isNotBlank()) {
+                        lastText = roundText
                         break
                     }
-                    lastText = when {
-                        preamble.isNotEmpty() && roundText.isNotBlank() -> "$preamble\n\n$roundText"
-                        roundText.isNotBlank() -> roundText
-                        preamble.isNotBlank() -> preamble
-                        else -> null
-                    }
-                    break
+                    // Chat and the briefing owe them words, so a blank ending gets one more call, without tools.
+                    val owesReply = (type == AgentRunType.CHAT || type == AgentRunType.BRIEFING) && proactive == null && !companionAttempted
+                    if (!owesReply || withholdTools) break
+                    withholdTools = true
+                    continue
                 }
-                if (roundText.isNotBlank()) {
-                    preamble = if (preamble.isEmpty()) roundText else "$preamble\n\n$roundText"
-                }
-                if (streamToUi) {
-                    _turnState.value = if (preamble.isNotBlank()) {
-                        TurnState.Streaming(preamble)
-                    } else {
-                        TurnState.Thinking
-                    }
-                }
+                if (streamToUi) _turnState.value = TurnState.Thinking
                 messages += msg
                 calls.forEachIndexed { index, call ->
                     val key = "${call.name}\n${call.arguments}"
@@ -364,7 +376,7 @@ class AgentOrchestrator(
                                         updatedAt = nowMillis(),
                                         version = current.version + 1,
                                     )
-                                    repo.saveMessage(updated, enqueueSync = false)
+                                    repo.saveMessage(updated)
                                     anchor = updated
                                 }
                             } else {
@@ -397,10 +409,7 @@ class AgentOrchestrator(
                 }
                 elideToolResults(messages)
             }
-            if (lastText == null && preamble.isNotBlank() && !silent) {
-                lastText = preamble
-            }
-            val cleaned = (if (companionAttempted && type != AgentRunType.CHAT) null else lastText)?.takeIf { it.isNotBlank() && !Identity.isSilence(it) }
+            val cleaned = if (companionAttempted && type != AgentRunType.CHAT) null else lastText
             if (persistAssistant && cleaned != null) {
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }
@@ -446,10 +455,8 @@ class AgentOrchestrator(
             val error = redactSecrets(e.message ?: "Unknown error")
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.FAILED, error, null))
             repo.logActivity("error", error)
-            val credit = isOutOfCredit(e)
-            val lastText = latestUserText.orEmpty()
-            val notice = if (!persistAssistant) null else if (credit) creditNotice(lastText) else failureReply(lastText)
-            TurnResult(null, true, error, budget.used, runId, notice, credit)
+            val notice = if (persistAssistant) failureNotice(e, latestUserText.orEmpty()) else null
+            TurnResult(null, true, error, budget.used, runId, notice, failureOf(e))
         } finally {
             tools.runType = AgentRunType.CHAT
             if (streamToUi) _turnState.value = TurnState.Idle
@@ -575,12 +582,32 @@ class AgentOrchestrator(
             }
         }
 
-        internal fun failureReply(lastUserText: String): String =
-            if (persianScript.containsMatchIn(lastUserText)) {
-                "الان نتوانستم به مدل وصل شوم. پیامت ذخیره شده — کمی بعد دوباره امتحان کن."
-            } else {
-                "I couldn't reach the model just now. Your message is saved — try again in a moment."
+        /** Sorts a failed model call by what the person can do about it. */
+        internal fun failureOf(e: Throwable): TurnFailure {
+            val status = (e as? LlmException)?.status
+            return when {
+                isOutOfCredit(e) -> TurnFailure.OutOfCredit
+                status == 401 || status == 403 -> TurnFailure.BadKey
+                status == 429 -> TurnFailure.Busy
+                status != null && status >= 500 -> TurnFailure.ServerDown
+                status != null -> TurnFailure.BadSettings
+                // OkHttp throws IllegalArgumentException for a Base URL it can't parse.
+                e is IllegalArgumentException -> TurnFailure.BadSettings
+                e is LlmException -> if (e.message.orEmpty().contains("not configured")) TurnFailure.BadSettings else TurnFailure.Glitch
+                e is IOException -> TurnFailure.Unreachable
+                else -> TurnFailure.Glitch
             }
+        }
+
+        /** Credit keeps its varied lines; the rest say what happened and that nothing was lost. */
+        internal fun failureNotice(e: Throwable, lastUserText: String): String {
+            val failure = failureOf(e)
+            return when {
+                failure == TurnFailure.OutOfCredit -> creditNotice(lastUserText)
+                persianScript.containsMatchIn(lastUserText) -> "${failure.persian} پیامت ذخیره شده."
+                else -> "${failure.english} Your message is saved."
+            }
+        }
 
         internal fun forModel(payload: String): String =
             if (payload.length <= MAX_TOOL_PAYLOAD_CHARS) {

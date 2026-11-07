@@ -8,7 +8,6 @@ import com.her.companion.*
 import com.her.core.FakeClock
 import com.her.data.calendar.CalendarDataSource
 import com.her.data.db.*
-import com.her.data.drive.SyncCodec
 import com.her.data.remote.WebSearchClient
 import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
@@ -114,14 +113,13 @@ class WonderingTest {
         assertEquals("OBSOLETE", repo.getWondering(id)!!.status)
     }
 
-    @Test fun forgettingSurvivesStaleSyncAndDuplicateWritesNeedVersion() = runBlocking {
+    @Test fun forgettingSurvivesStaleWriteAndDuplicateWritesNeedVersion() = runBlocking {
         val source = task()
         val id = wonder(source).getString("id")
         assertFalse(tools.execute("save_wondering", JSONObject().put("sourceId", source).put("status", "OPEN").toString()).ok)
         val snapshot = repo.getWondering(id)!!
-        assertTrue(SyncCodec.persist(repo, "wondering", JSONObject(snapshot.toJson())))
         repo.forgetKnowledge(source)
-        SyncCodec.persist(repo, "wondering", JSONObject(snapshot.copy(version = 50, updatedAt = clock.peek() + 100).toJson()))
+        repo.saveWondering(snapshot.copy(version = 50, updatedAt = clock.peek() + 100))
         assertNotNull(repo.getWondering(id)!!.deletedAt)
         assertEquals("{}", repo.getWondering(id)!!.content)
     }
@@ -134,7 +132,7 @@ class WonderingTest {
         android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE).use {
             it.execSQL("DROP TABLE wondering"); it.version = 7
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10).allowMainThreadQueries().build()
         assertNotNull(disk.companionDao().get("keep"))
         assertTrue(disk.wonderingDao().all().isEmpty())
         disk.close(); context.deleteDatabase(name); Unit

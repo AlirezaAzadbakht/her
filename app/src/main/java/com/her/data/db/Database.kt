@@ -1,6 +1,8 @@
 package com.her.data.db
 
+import android.content.Context
 import androidx.room.Database
+import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
@@ -24,8 +26,9 @@ import com.her.domain.QueueStatus
 import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
-import com.her.domain.SyncOpType
 import com.her.domain.TaskStatus
+
+const val DB_VERSION = 10
 
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
@@ -56,8 +59,6 @@ class HerConverters {
     @TypeConverter fun toAgentRunType(v: String?): AgentRunType? = v?.let { AgentRunType.valueOf(it) }
     @TypeConverter fun agentRunStatus(v: AgentRunStatus?): String? = v?.name
     @TypeConverter fun toAgentRunStatus(v: String?): AgentRunStatus? = v?.let { AgentRunStatus.valueOf(it) }
-    @TypeConverter fun syncOpType(v: SyncOpType?): String? = v?.name
-    @TypeConverter fun toSyncOpType(v: String?): SyncOpType? = v?.let { SyncOpType.valueOf(it) }
     @TypeConverter fun confirmationKind(v: ConfirmationKind?): String? = v?.name
     @TypeConverter fun toConfirmationKind(v: String?): ConfirmationKind? = v?.let { ConfirmationKind.valueOf(it) }
     @TypeConverter fun reminderTrigger(v: ReminderTrigger?): String? = v?.name
@@ -96,8 +97,6 @@ class HerConverters {
         AgentQueueEntity::class,
         ActivityLogEntity::class,
         AgentRunEntity::class,
-        SyncOpEntity::class,
-        SyncCursorEntity::class,
         ApiUsageEntity::class,
         DebugEventEntity::class,
         PendingConfirmationEntity::class,
@@ -108,7 +107,7 @@ class HerConverters {
         CompanionRecord::class,
         WonderingRecord::class,
     ],
-    version = 9,
+    version = DB_VERSION,
     exportSchema = false,
 )
 @TypeConverters(HerConverters::class)
@@ -131,7 +130,6 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun relationshipDao(): RelationshipDao
     abstract fun agentDao(): AgentDao
     abstract fun logDao(): LogDao
-    abstract fun syncDao(): SyncDao
     abstract fun confirmationDao(): ConfirmationDao
     abstract fun embeddingDao(): EmbeddingDao
     abstract fun reminderDao(): ReminderDao
@@ -141,6 +139,12 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun feelingDao(): FeelingDao
 
     companion object {
+        /** The app's database, or a backup being checked under another file name. */
+        fun build(context: Context, name: String = "her.db"): HerDatabase =
+            Room.databaseBuilder(context, HerDatabase::class.java, name)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                .build()
+
         /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
         private fun addColumn(db: SupportSQLiteDatabase, table: String, column: String, definition: String) {
             val exists = db.query("PRAGMA table_info(`$table`)").use { c ->
@@ -148,6 +152,24 @@ abstract class HerDatabase : RoomDatabase() {
                 generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
             }
             if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        /** Drive sync and Google Tasks are gone: drop their tables, Google calendar mirrors, and the task id column. */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `sync_ops`")
+                db.execSQL("DROP TABLE IF EXISTS `sync_cursors`")
+                db.execSQL("DELETE FROM `calendar_events` WHERE `source` = 'GOOGLE'")
+                // DROP COLUMN needs SQLite 3.35; minSdk 29 ships older, so rebuild the table.
+                val columns = "`id`, `title`, `description`, `status`, `dueAt`, `relatedProjectId`, `relatedGoalId`, `createdAt`, `updatedAt`, `deviceId`, `version`, `deletedAt`"
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `tasks_new` (`id` TEXT NOT NULL, `title` TEXT NOT NULL,
+                    `description` TEXT, `status` TEXT NOT NULL, `dueAt` INTEGER, `relatedProjectId` TEXT,
+                    `relatedGoalId` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL,
+                    `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL, `deletedAt` INTEGER, PRIMARY KEY(`id`))""")
+                db.execSQL("INSERT INTO `tasks_new` ($columns) SELECT $columns FROM `tasks`")
+                db.execSQL("DROP TABLE `tasks`")
+                db.execSQL("ALTER TABLE `tasks_new` RENAME TO `tasks`")
+            }
         }
 
         val MIGRATION_8_9 = object : Migration(8, 9) {

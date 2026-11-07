@@ -66,17 +66,17 @@ Core principles:
 | 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 🛒 **Groceries** | Maintains a shopping list from casual mentions |
-| 📅 **Calendar** | Creates and reads events via the system calendar or Google Calendar |
+| 📅 **Calendar** | Creates and reads events in the phone calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
 | 💗 **Emotional understanding** | Feels how each message landed right after replying and sorts it out in a nightly review; keeps an unresolved worry in mind and asks after it later; is glad for your good news; assesses her contribution and uncertainty, remembers ongoing experiences, learns scoped support lessons from feedback, and keeps her internal feelings separate from the tone you need; keeps feelings scoped to individual situations and recognizes emotional transitions; her orb can mix two feelings |
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
-| ☁️ **Multi-device sync** | Every record syncs through a Google Drive `appDataFolder` change log |
+| 💾 **Backup** | Save or share one zip of everything she knows and your settings, then import it on a new phone; API keys stay out |
 | 🔎 **Web search** | Optional, when she needs current information |
 | 🗄️ **Memory SQL navigator** | Inspect exactly what she has stored |
 | 🔑 **Her Cloud** | No API key? Buy credit on [Her Cloud](https://cloud.her-project.ir/), then paste or scan the settings it gives you, on the first screen or in Settings |
-| 🔐 **Private by design** | API keys in Android Keystore-backed storage; never written to the database, never synced |
+| 🔐 **Private by design** | API keys in Android Keystore-backed storage; never written to the database or a backup |
 
 ## Getting started
 
@@ -86,10 +86,10 @@ Get Her on [Cafe Bazaar](https://cafebazaar.ir/app/com.her), or grab the signed 
 
 ### First run
 
-1. Open the app. Give your name, then hers.
+1. Open the app. Give your name, then hers, or tap **Restore from a backup** to bring back a backup file.
 2. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. No key? Tap **Get credit on Her Cloud**, then **Paste settings**, **Scan QR code**, or **Load QR image** (a saved card) with what [Her Cloud](https://cloud.her-project.ir/) gives you.
 3. Continue. She greets you by those names once the connection works.
-4. *Optional:* grant calendar permission, tap Connect Google for Drive/Calendar, enable web search.
+4. *Optional:* grant calendar permission, enable web search.
 5. *Optional:* Settings → Advanced → Experimental to hide the Memory SQL navigator (shown by default).
 
 ## Build from source
@@ -144,14 +144,10 @@ See [Scenario engine](wiki/Scenario-engine.md).
 UI → Agent runners → Tool registry → Repositories → Room
                  ↘ OpenAI-compatible LLM (streaming chat, blocking background)
 Background: hourly (≤10 calls), nightly (≤50), morning briefing
-Sync: Drive appDataFolder NDJSON change log (not whole-database overwrite)
+Backup: a zip of the Room file plus portable settings, swapped in on restart
 ```
 
 The model only **proposes** tool calls. The app validates schemas and enforces call budgets, permissions, timestamps, and confirmation for destructive actions.
-
-## Google integrations
-
-Drive sync and direct Google Calendar access use Settings → Connect Google. Each device configures its API credentials independently. Developers register Android OAuth clients once in Google Cloud; see [Local development](wiki/Local-development.md).
 
 ## CI & release
 
@@ -198,8 +194,8 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |
-| [Data and sync](wiki/Data-and-sync.md) | Room, secrets, Drive, calendar, search |
-| [Background work](wiki/Background-work.md) | Hourly / nightly / briefing / sync, quiet hours |
+| [Data and backup](wiki/Data-and-backup.md) | Room, secrets, backup files, calendar, search |
+| [Background work](wiki/Background-work.md) | Hourly / nightly / briefing, quiet hours |
 | [Local development](wiki/Local-development.md) | Toolchain, Make, emulator, tests |
 | [Scenario engine](wiki/Scenario-engine.md) | Live-LLM capability pool, JSON format, how to run |
 | [CI and release](wiki/CI-and-release.md) | GitHub Actions, tags, signing, published APKs |

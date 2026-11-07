@@ -53,6 +53,7 @@ import com.her.data.secure.LlmSettings
 import com.her.ui.components.HerButton
 import com.her.ui.components.HerButtonTone
 import com.her.ui.components.HerTextField
+import com.her.ui.components.NoteWithDetails
 import com.her.ui.components.StaggeredText
 import com.her.ui.components.sharedPresence
 import com.her.ui.orbs.HerPresence
@@ -131,7 +132,7 @@ fun NameOnboarding(
                     )
                     Spacer(Modifier.height(8.dp))
                     HerButton(
-                        "Restore from Google Drive",
+                        "Restore from a backup",
                         onClick = onRestore,
                         tone = HerButtonTone.Quiet,
                         loading = restoring,
@@ -176,6 +177,7 @@ fun NameOnboarding(
 fun SetupScreen(
     initial: LlmSettings,
     message: String?,
+    details: String? = null,
     checking: Boolean = false,
     onSave: (LlmSettings) -> Unit,
 ) {
@@ -252,10 +254,10 @@ fun SetupScreen(
                 enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
                 exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
             ) {
-                Text(
+                NoteWithDetails(
                     message.orEmpty(),
+                    details,
                     color = if (failed) scheme.error else scheme.onSurfaceVariant,
-                    fontSize = 14.sp,
                     modifier = Modifier.padding(top = 14.dp),
                 )
             }

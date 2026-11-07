@@ -22,7 +22,6 @@ import com.her.domain.QueueStatus
 import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
-import com.her.domain.SyncOpType
 import com.her.domain.TaskStatus
 
 @Entity(tableName = "chat_messages")
@@ -194,7 +193,6 @@ data class TaskEntity(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
-    val googleTaskId: String? = null,
 )
 
 @Entity(tableName = "commitments")
@@ -410,25 +408,6 @@ data class AgentRunEntity(
     val status: AgentRunStatus,
     val error: String?,
     val notes: String?,
-)
-
-@Entity(tableName = "sync_ops")
-data class SyncOpEntity(
-    @PrimaryKey val id: String,
-    val entityType: String,
-    val entityId: String,
-    val opType: SyncOpType,
-    val payloadJson: String,
-    val createdAt: Long,
-    val deviceId: String,
-    val seq: Long,
-    val uploaded: Boolean,
-)
-
-@Entity(tableName = "sync_cursors")
-data class SyncCursorEntity(
-    @PrimaryKey val remoteDeviceId: String,
-    val lastSeq: Long,
 )
 
 @Entity(tableName = "api_usage")

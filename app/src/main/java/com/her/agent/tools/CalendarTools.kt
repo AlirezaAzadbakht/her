@@ -23,7 +23,7 @@ import org.json.JSONObject
 internal fun ToolRegistry.registerCalendarTools() {
     register(
         "get_calendar_events",
-        "Read internal, device, and Google events for any slice; context only has the next 7 days.",
+        "Read internal and device calendar events for any slice; context only has the next 7 days.",
         objSchema(
             "from" to str("Slice start: $WHEN_HINT"),
             "to" to str("Slice end: $WHEN_HINT. A date alone includes that whole day."),
@@ -41,9 +41,7 @@ internal fun ToolRegistry.registerCalendarTools() {
             throw ToolValidationException(e.message ?: "Could not understand the time slice")
         }
         val zone = nowZoned().zone
-        val googleConnected = googleCalendar.available()
-        val system = systemCalendar.mirror(slice.from, slice.to, excludeGoogleAccounts = googleConnected)
-        val google = googleCalendar.mirror(slice.from, slice.to)
+        val system = systemCalendar.mirror(slice.from, slice.to)
         val internal = repo.calendarInRange(slice.from, slice.to).filter { it.source == CalendarSource.INTERNAL }
         jsonObjectOf(
             "ok" to true,
@@ -53,10 +51,8 @@ internal fun ToolRegistry.registerCalendarTools() {
             "toWhen" to formatNaturalDate(Instant.ofEpochMilli(slice.to).atZone(zone)),
             "calendarPermission" to calendar.hasPermission(),
             "calendarEnabled" to settings.read().calendarEnabled,
-            "googleConnected" to googleConnected,
             "internal" to JSONArray(internal.map { calendarJson(it, zone) }),
             "system" to JSONArray(system.map { calendarJson(it, zone) }),
-            "google" to JSONArray(google.map { calendarJson(it, zone) }),
         )
     }
     register(
@@ -97,11 +93,8 @@ internal fun ToolRegistry.registerCalendarTools() {
         ),
     ) { args ->
         val existing = requireCalendarEvent(args.requiredString("id"))
-        refuseGoogleWrite(existing)
         val title = args.optStringOrNull("title") ?: existing.title
-        val start = args.optStringOrNull("when")?.let {
-            parseWhen(it) ?: throw ToolValidationException("Could not understand the time")
-        } ?: existing.startAt
+        val start = parseWhen(args.optStringOrNull("when")) ?: existing.startAt
         val duration = (existing.endAt ?: (existing.startAt + HOUR_MS)) - existing.startAt
         val end = if (args.optStringOrNull("when") != null) start + duration else existing.endAt
         val notes = args.optStringOrNull("notes") ?: existing.notes
@@ -120,7 +113,6 @@ internal fun ToolRegistry.registerCalendarTools() {
         ),
     ) { args ->
         val existing = requireCalendarEvent(args.requiredString("id"))
-        refuseGoogleWrite(existing)
         if (existing.source != CalendarSource.INTERNAL && existing.externalId != null) {
             val confirmId = args.optStringOrNull("confirmId")
             if (confirmId == null) {
@@ -158,9 +150,7 @@ private suspend fun ToolRegistry.requireCalendarEvent(idOrTitle: String): Calend
     repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
     repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
     val (from, to) = calendarWindow(400)
-    val googleConnected = googleCalendar.available()
-    systemCalendar.mirror(from, to, excludeGoogleAccounts = googleConnected)
-    googleCalendar.mirror(from, to)
+    systemCalendar.mirror(from, to)
     repo.getCalendarEvent(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
     repo.getCalendarByExternalId(idOrTitle)?.takeIf { it.deletedAt == null }?.let { return it }
     val all = repo.calendarInRange(from, to)
@@ -185,12 +175,4 @@ private fun calendarJson(event: CalendarEvent, zone: ZoneId): JSONObject {
         )
     }
     return obj
-}
-
-private fun refuseGoogleWrite(event: CalendarEvent) {
-    if (event.source == CalendarSource.GOOGLE) {
-        throw ToolValidationException(
-            "Google Calendar events are read-only. Change them in Google Calendar.",
-        )
-    }
 }

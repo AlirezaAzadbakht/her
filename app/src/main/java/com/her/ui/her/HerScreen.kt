@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -76,8 +77,10 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
@@ -90,10 +93,13 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.agent.runner.Receipts
+import com.her.agent.runner.TurnFailure
 import com.her.agent.runner.TurnState
 import androidx.compose.ui.platform.LocalUriHandler
 import com.her.ui.HerViewModel
 import com.her.ui.components.HerButton
+import com.her.ui.components.HerButtonTone
+import com.her.ui.components.NoteWithDetails
 import com.her.ui.onboarding.HerCloudUrl
 import com.her.ui.components.GlassPill
 import com.her.ui.components.sharedPresence
@@ -130,10 +136,9 @@ private sealed interface HerStatus {
 }
 
 @Composable
-fun HerScreen(vm: HerViewModel) {
+fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
     val latest by vm.latestAssistant.collectAsState()
     val turn by vm.turnState.collectAsState()
-    val error by vm.sendError.collectAsState()
     val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
@@ -247,7 +252,7 @@ fun HerScreen(vm: HerViewModel) {
     val replyText = if (shown.isNotBlank()) shown else lastText
     val hasText = shown.isNotBlank()
 
-    val mood = presenceFor(turn, revealing = showCaret, draftNotEmpty = draft.text.isNotBlank(), hasError = error != null)
+    val mood = presenceFor(turn, revealing = showCaret, draftNotEmpty = draft.text.isNotBlank(), hasError = notice != null)
     val ink = lerp(scheme.onBackground, scheme.onSurfaceVariant, 0.35f)
 
     Column(
@@ -255,110 +260,116 @@ fun HerScreen(vm: HerViewModel) {
             .fillMaxSize()
             .padding(horizontal = 22.dp),
     ) {
-        val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
-        PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
-        ReplyStage(
-            hasText = hasText,
-            thinking = awaitingFirstToken,
-            bump = bump,
-            orbState = look.state,
-            palette = palette,
-            scroll = scroll,
-            text = replyText,
-            ink = ink,
-            style = responseStyle,
-            showCaret = showCaret,
-            tailStrength = tail.value,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-        )
+        // The composer is measured first, so it keeps its height however tall the notice gets; the notice scrolls.
+        Column(Modifier.weight(1f).fillMaxWidth()) {
+            val palette = animatedPalette(feelingPalette(feelingBlend, Her.colors.feelingPalettes) ?: palettes[look.palette])
+            PresenceSlot(visible = hasText, mood = mood, bump = bump, palette = palette)
+            ReplyStage(
+                hasText = hasText,
+                thinking = awaitingFirstToken,
+                bump = bump,
+                orbState = look.state,
+                palette = palette,
+                scroll = scroll,
+                text = replyText,
+                ink = ink,
+                style = responseStyle,
+                showCaret = showCaret,
+                tailStrength = tail.value,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
 
-        val message = latest
-        val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
-        val showReceipts = message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
-            turn is TurnState.Idle && nextHeld.isBlank()
-        var lastReceipts by remember { mutableStateOf(receipts to message?.id) }
-        SideEffect { if (showReceipts) lastReceipts = receipts to message.id }
-        AnimatedVisibility(
-            visible = showReceipts,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            val (items, id) = if (showReceipts) receipts to message.id else lastReceipts
-            ReceiptLine(items, onUndo = { picked -> if (id != null) vm.undoReceipts(id, picked) })
-        }
+            val message = latest
+            val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
+            val showReceipts = message != null && appSettings.showReceipts && receipts.isNotEmpty() &&
+                turn is TurnState.Idle && nextHeld.isBlank()
+            var lastReceipts by remember { mutableStateOf(receipts to message?.id) }
+            SideEffect { if (showReceipts) lastReceipts = receipts to message.id }
+            AnimatedVisibility(
+                visible = showReceipts,
+                enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
+                exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+            ) {
+                val (items, id) = if (showReceipts) receipts to message.id else lastReceipts
+                ReceiptLine(items, onUndo = { picked -> if (id != null) vm.undoReceipts(id, picked) })
+            }
 
-        val sharedText = share
-        val status: HerStatus? = when {
-            !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
-            !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
-            else -> null
-        }
-        AnimatedContent(
-            targetState = status,
-            transitionSpec = {
-                (fadeIn(HerMotion.enter()) + slideInVertically(HerMotion.enter()) { it / 2 }) togetherWith
-                    fadeOut(HerMotion.exit()) using SizeTransform(clip = false)
-            },
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxWidth(),
-            label = "her-status",
-        ) { current ->
-            if (current != null) {
-                Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                    StatusChip(current)
+            val sharedText = share
+            val status: HerStatus? = when {
+                !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
+                !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
+                else -> null
+            }
+            AnimatedContent(
+                targetState = status,
+                transitionSpec = {
+                    (fadeIn(HerMotion.enter()) + slideInVertically(HerMotion.enter()) { it / 2 }) togetherWith
+                        fadeOut(HerMotion.exit()) using SizeTransform(clip = false)
+                },
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth(),
+                label = "her-status",
+            ) { current ->
+                if (current != null) {
+                    Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
+                        StatusChip(current)
+                    }
                 }
             }
-        }
 
-        var errorShake by remember { mutableIntStateOf(0) }
-        LaunchedEffect(error) {
-            if (error != null) {
-                haptics.reject()
-                errorShake += 1
+            var noticeShake by remember { mutableIntStateOf(0) }
+            LaunchedEffect(notice) {
+                if (notice != null) {
+                    haptics.reject()
+                    noticeShake += 1
+                }
             }
-        }
-        val shake = rememberShake(errorShake)
-        var lastError by remember { mutableStateOf("") }
-        SideEffect { error?.let { lastError = it } }
-        AnimatedVisibility(
-            visible = error != null,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    error ?: lastError,
-                    color = scheme.error,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .shake(shake)
-                        .clip(CircleShape)
-                        .border(1.dp, scheme.error.copy(alpha = 0.35f), CircleShape)
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                )
-            }
-        }
+            val shake = rememberShake(noticeShake)
 
-        // Not a chat message: it is never saved or sent to the model, and clears on the next send.
-        AnimatedVisibility(
-            visible = notice != null,
-            enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
-            exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
-        ) {
-            val uriHandler = LocalUriHandler.current
-            var lastNotice by remember { mutableStateOf(notice) }
-            SideEffect { notice?.let { lastNotice = it } }
-            val shown = notice ?: lastNotice
-            Column(
-                Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            // Not a chat message: it is never saved or sent to the model, and clears on the next send.
+            AnimatedVisibility(
+                visible = notice != null,
+                enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+                exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
             ) {
-                Text(shown?.notice.orEmpty(), color = scheme.onSurface, fontSize = 14.sp, textAlign = TextAlign.Center)
-                if (shown?.outOfCredit == true) HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                val uriHandler = LocalUriHandler.current
+                var lastNotice by remember { mutableStateOf(notice) }
+                SideEffect { notice?.let { lastNotice = it } }
+                val shown = notice ?: lastNotice
+                val failure = shown?.failure
+                GlassPill(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .shake(shake)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    shape = RoundedCornerShape(24.dp),
+                ) {
+                    NoteWithDetails(
+                        text = shown?.notice.orEmpty(),
+                        details = shown?.error,
+                        color = scheme.onSurface,
+                        centered = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 18.dp, vertical = 14.dp),
+                    ) {
+                        when (failure) {
+                            TurnFailure.OutOfCredit -> HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
+                            TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton("Settings", onClick = onOpenSettings)
+                            else -> Unit
+                        }
+                        val hasOwnFix = failure == TurnFailure.OutOfCredit || failure == TurnFailure.BadKey || failure == TurnFailure.BadSettings
+                        HerButton(
+                            "Try again",
+                            tone = if (hasOwnFix) HerButtonTone.Quiet else HerButtonTone.Primary,
+                            onClick = vm::retry,
+                        )
+                    }
+                }
             }
         }
 
