@@ -4,6 +4,8 @@ import com.her.data.secure.AppSettings
 import com.her.data.secure.LlmSettings
 import com.her.domain.LlmMessage
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -45,6 +47,9 @@ open class WebSearchClient(
                 .toString()
         }
     }
+
+    /** Reads one public page the person shared or named. Throws with a message she can relay. */
+    open suspend fun fetch(url: String): FetchedPage = withContext(Dispatchers.IO) { fetchPage(http, url) }
 
     private suspend fun searchWithProvider(query: String, country: String?, timezone: String?): String {
         val configured = llmSettings()
