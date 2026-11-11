@@ -720,6 +720,21 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun anElidedFailureStaysAFailure() {
+        val failed = """{"ok":false,"error":"${"x".repeat(100)}"}"""
+        val messages = mutableListOf(
+            LlmMessage(role = "tool", content = failed, toolCallId = "c0", name = "create_task"),
+            LlmMessage(role = "tool", content = """{"error":"Unknown tool: ${"y".repeat(100)}"}""", toolCallId = "c1", name = "nope"),
+            LlmMessage(role = "tool", content = """{"ok":true,"id":"${"z".repeat(100)}"}""", toolCallId = "c2", name = "create_task"),
+        )
+        AgentOrchestrator.elideToolResults(messages, maxChars = 10)
+        assertEquals(
+            listOf("""{"ok":false,"elided":true}""", """{"ok":false,"elided":true}""", """{"ok":true,"elided":true}"""),
+            messages.map { it.content },
+        )
+    }
+
+    @Test
     fun runsAreSerialized() = runBlocking {
         val started = mutableListOf<String>()
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()

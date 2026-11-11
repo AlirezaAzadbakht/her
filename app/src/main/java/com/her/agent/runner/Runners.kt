@@ -607,7 +607,9 @@ class AgentOrchestrator(
             for (i in messages.indices) {
                 val message = messages[i]
                 if (message.role == "tool" && (message.content?.length ?: 0) > 40) {
-                    messages[i] = message.copy(content = """{"ok":true,"elided":true}""")
+                    // A failed call stays failed, or she would read an elided error as a write that worked.
+                    val ok = runCatching { org.json.JSONObject(message.content.orEmpty()).let { it.optBoolean("ok", !it.has("error")) } }.getOrDefault(true)
+                    messages[i] = message.copy(content = """{"ok":$ok,"elided":true}""")
                 }
                 if (total() <= maxChars) return
             }

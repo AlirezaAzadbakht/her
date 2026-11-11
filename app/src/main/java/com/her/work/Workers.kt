@@ -94,8 +94,9 @@ class NightlyWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                     RunDecision.RUN -> { }
                 }
             }
-            if (graph.orchestrator.runNightly(gated = !manual) { becomeForeground() }.error == AgentOrchestrator.YIELDED) {
-                // A chat message went first; try again shortly instead of waiting for tomorrow.
+            val result = graph.orchestrator.runNightly(gated = !manual) { becomeForeground() }
+            if (result.error == AgentOrchestrator.YIELDED || (!manual && BackgroundRunPolicy.retryAfterFailure(result.failure, runAttemptCount))) {
+                // A chat message went first, or the model was briefly out of reach; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
             }
@@ -127,8 +128,9 @@ class BriefingWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     return Result.success()
                 }
             }
-            if (graph.orchestrator.runBriefing(gated = !manual) { becomeForeground() }.error == AgentOrchestrator.YIELDED) {
-                // A chat message went first; try again shortly instead of waiting for tomorrow.
+            val result = graph.orchestrator.runBriefing(gated = !manual) { becomeForeground() }
+            if (result.error == AgentOrchestrator.YIELDED || (!manual && BackgroundRunPolicy.retryAfterFailure(result.failure, runAttemptCount))) {
+                // A chat message went first, or the model was briefly out of reach; try again shortly instead of waiting for tomorrow.
                 scheduleNext = false
                 return Result.retry()
             }

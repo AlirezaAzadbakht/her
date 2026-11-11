@@ -183,7 +183,7 @@ Seed device events with `seed.system_calendar`: `{ "title", "when", "notes"? }`.
 
 Reminders use a fake alarm manager and the real `ReminderDelivery`. Every `advance` and `at` turn fires clock reminders that are due, the way AlarmManager would, so a reminder's notification and its saved assistant message exist before the next turn. `set_alarm` writes to a fake clock app; check it with `rows` on table `alarms`. Seed a reminder with a `set_reminder` seed tool call.
 
-Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }, "title", "snippets" }`. The fake matches the tool query against those needles and returns the snippets. There is no live provider search during scenarios.
+Seed search hits with `seed.web_search`: `{ "query": { "contains_any": ["…"] }, "title", "snippets" }`. The fake matches the tool query against those needles and returns the snippets. `fetch_url` reads from the same seed: a hit whose needle appears in the URL is returned as the page (title and snippets as its text). There is no live provider search or page fetch during scenarios.
 
 ## Limitations
 

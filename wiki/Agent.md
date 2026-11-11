@@ -7,7 +7,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 `AgentOrchestrator` in `app/src/main/java/com/her/agent/runner/Runners.kt`:
 
 1. `ContextBuilder` assembles messages.
-2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` is omitted from the tool list unless Settings → Web search is on; that tool then makes a separate, tool-free completion with `web_search_options`.
+2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` and `fetch_url` are omitted from the tool list unless Settings → Web search is on; `web_search` then makes a separate, tool-free completion with `web_search_options`.
 3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
@@ -67,7 +67,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
 - `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal and system events)
-- `web_search`, `send_user_message`
+- `web_search`, `fetch_url` (reads one public `http`/`https` page as text; refuses private and local addresses; both are offered only when Settings → Web search is on), `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
 

@@ -25,7 +25,7 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|v3`) is sto
 | Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
 | Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
 
-LLM failures return `Result.success()` and wait for the next scheduled slot. The only retry is nightly on critically low battery.
+A nightly or briefing pass that fails because the model is busy, down, or unreachable returns `Result.retry()` once (`BackgroundRunPolicy.retryAfterFailure`), so WorkManager runs it again after its backoff. Any other failure, a second failure, and every hourly failure return `Result.success()` and wait for the next scheduled slot. Nightly also retries on critically low battery.
 
 Hourly stamps `lastHourlyRunAt` only after a successful pass.
 

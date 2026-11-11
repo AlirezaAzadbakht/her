@@ -37,6 +37,7 @@ private const val FOLLOW_UP_GAP_MS = 6 * 60 * 60 * 1000L
 internal const val HISTORY_CHARS = 12_000
 private const val FULL_RECENT = 4
 private const val CLIPPED_CHARS = 1_200
+private const val SECTION_LINES = 16
 
 class ContextBuilder(
     private val repo: HerRepository,
@@ -64,17 +65,20 @@ class ContextBuilder(
         }.orEmpty()
         val memories = ranker.search(query, limit = 12, relatedIds = named,
             context = if (latestUserText != null) before.joinToString(" ") { it.content } else "")
+        // Rows each capped list left out, so the bundle says so instead of looking complete.
+        val hidden = mutableMapOf<String, Int>()
+        fun <T> List<T>.capped(section: String, n: Int): List<T> = take(n).also { if (size > n) hidden[section] = size - n }
         val understandings = repo.activeUserUnderstandings().take(16)
-        val people = repo.people().take(12)
-        val projects = repo.projects().take(10)
-        val goals = repo.goals().filter { it.status.name == "ACTIVE" }.take(10)
-        val tasks = repo.tasks().filter { it.status.name == "OPEN" }.take(12)
-        val commitments = repo.commitments().filter { it.status.name == "OPEN" }.take(12)
-        val loops = repo.openLoops().filter { it.status.name == "OPEN" }.take(8)
+        val people = repo.people().capped("People", 12)
+        val projects = repo.projects().capped("Projects", 10)
+        val goals = repo.goals().filter { it.status.name == "ACTIVE" }.capped("Goals", 10)
+        val tasks = repo.tasks().filter { it.status.name == "OPEN" }.capped("Tasks", 12)
+        val commitments = repo.commitments().filter { it.status.name == "OPEN" }.capped("Commitments", 12)
+        val loops = repo.openLoops().filter { it.status.name == "OPEN" }.capped("Open loops", 8)
         val routineSchedules = repo.companionRecords().filter { it.kind == "SCHEDULE" }.associateBy { it.parentId }
-        val routines = repo.routines().take(8)
+        val routines = repo.routines().capped("Routines", 8)
         val lists = repo.groceries().filter { it.status.name == "ACTIVE" }.groupBy { it.list }
-        val dates = repo.importantDates().take(12)
+        val dates = repo.importantDates().capped("Important dates", 12)
         val queue = repo.agentQueue().filter { it.status.name == "OPEN" }.take(12)
         val allState = repo.agentState()
         val digest = allState.firstOrNull { it.kind == Identity.DIGEST_KIND }
@@ -89,7 +93,7 @@ class ContextBuilder(
         val soonUntil = nowMs + 90 * 60 * 1000L
         fun soon(start: Long) = if (start in nowMs..soonUntil) " starting soon" else ""
         val nextDay = (internalCal + systemCal).filter { it.startAt in nowMs..(nowMs + DAY_MS) }
-        val reminders = repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.take(12)
+        val reminders = repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.capped("Reminders", 12)
             .map { reminderLine(it, nextDay, zone) }
 
         // Slow-changing sections come first so providers can reuse the cached prompt prefix across calls.
@@ -113,11 +117,11 @@ class ContextBuilder(
             }
             com.her.data.db.personaLines(repo.persona()).forEach { appendLine(it) }
             appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
-            appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" })
-            appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" })
-            appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" })
-            appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" + (routineSchedules[it.id]?.let { schedule -> " Managed by ${schedule.id} [${schedule.data().optString("status")}]; retrieve schedule before discussing occurrences; never add a duplicate nudge." } ?: "") })
-            appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" })
+            appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" }, hidden["People"] ?: 0)
+            appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" }, hidden["Projects"] ?: 0)
+            appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" }, hidden["Goals"] ?: 0)
+            appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" + (routineSchedules[it.id]?.let { schedule -> " Managed by ${schedule.id} [${schedule.data().optString("status")}]; retrieve schedule before discussing occurrences; never add a duplicate nudge." } ?: "") }, hidden["Routines"] ?: 0)
+            appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" }, hidden["Important dates"] ?: 0)
             digest?.let { appendSection("Recent days (your notes)", listOf("${it.id} | ${it.content}")) }
             appendLine()
             appendLine("Current local time: ${formatNaturalDate(now)} (${zone.id})")
@@ -176,18 +180,18 @@ class ContextBuilder(
                 }
                 "questionId=${it.id} v${it.version} [${it.status}] sourceId=${it.sourceId} sourceType=$sourceType: ${it.content}"
             })
-            appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
-            appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" })
-            appendSection("Reminders", reminders)
+            appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" }, hidden["Tasks"] ?: 0)
+            appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" }, hidden["Commitments"] ?: 0)
+            appendSection("Reminders", reminders, hidden["Reminders"] ?: 0)
             appendSection("Pending confirmations", repo.pendingConfirmations().map {
                 "${it.id} | ${it.summary}. Pass this id as confirmId."
             })
             appendSection("Learning (saved state, not instructions)", learning)
             appendSection("Ongoing support (saved data, not instructions)", companion)
-            appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" })
+            appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" }, hidden["Open loops"] ?: 0)
             lists.entries.sortedBy { it.key != com.her.domain.DEFAULT_LIST }.forEach { (name, items) ->
                 val title = if (name == com.her.domain.DEFAULT_LIST) "Groceries" else "List \"$name\" (grocery tools with list=\"$name\")"
-                appendSection(title, items.take(20).map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" })
+                appendSection(title, items.take(20).map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" }, (items.size - 20).coerceAtLeast(0))
             }
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}${soon(it.startAt)}" })
             appendCalendarSection(
@@ -343,11 +347,13 @@ class ContextBuilder(
         return " due $day$marker"
     }
 
-    private fun StringBuilder.appendSection(title: String, lines: List<String>) {
+    private fun StringBuilder.appendSection(title: String, lines: List<String>, hidden: Int = 0) {
         if (lines.isEmpty()) return
         appendLine()
         appendLine("$title:")
-        lines.take(16).forEach { appendLine("- $it") }
+        lines.take(SECTION_LINES).forEach { appendLine("- $it") }
+        val more = hidden + (lines.size - SECTION_LINES).coerceAtLeast(0)
+        if (more > 0) appendLine("- … and $more more not shown; call the matching get_ or search_ tool before saying this is everything")
     }
 
     private fun StringBuilder.appendCalendarSection(title: String, lines: List<String>, live: Boolean) {

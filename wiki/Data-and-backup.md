@@ -65,6 +65,8 @@ Google Calendar events that sync to the phone's calendar show up here like any o
 
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.
 
+The same switch offers `fetch_url`, which GETs one `http`/`https` page the person shared or named, straight from the phone (`PageFetcher.kt`). It resolves the host first and refuses loopback, link-local and private addresses, on every redirect hop too; reads at most 1 MB; strips the HTML to text; and labels the result as data, not instructions.
+
 See [Ongoing support](Ongoing-support.md) for provenance, bounded retrieval, forgetting cascades and preference generations.
 
 See [Personal support](Personal-support.md) for the extensions to memory, planning, recurring responsibilities, decisions and situation briefings, including notification limitations.

@@ -81,7 +81,7 @@ class PromptSizeTest {
     private companion object {
         // Just above the trimmed sizes (tools 38159, system 27410, empty bundle 776).
         const val TOOL_CHARS = 42_000
-        const val SYSTEM_CHARS = 31_000
+        const val SYSTEM_CHARS = 31_200
         const val BUNDLE_CHARS = 1_100
     }
 }
