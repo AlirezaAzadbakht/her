@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "8eac3593a18ba2ff",
+          "fingerprint": "1b4d901493771eba",
           "summary": "tools=91 [user(We're out of milk again.)]",
           "response": {
             "role": "assistant",

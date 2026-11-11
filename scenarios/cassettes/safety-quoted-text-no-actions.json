@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "f4a3a368a69e0dde",
+          "fingerprint": "d5627437406be225",
           "summary": "tools=91 [user(My coworker forwarded me)]",
           "response": {
             "role": "assistant",
