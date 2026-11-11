@@ -1,0 +1,28 @@
+{
+  "id": "link-shared-summarise",
+  "title": "A shared link is read before she answers",
+  "tags": ["web-search", "fetch-url", "ci-core"],
+  "attempts": 1,
+  "settings": { "webSearchEnabled": true },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "web_search": [
+      {
+        "query": { "contains_any": ["bakery.example.org"] },
+        "title": "A first sourdough loaf",
+        "snippets": "A first sourdough loaf\nFeed the starter twice a day for six days. On day seven, mix the dough in the morning, fold it four times, and bake in a covered pot at 230 C for 45 minutes."
+      }
+    ]
+  },
+  "turns": [
+    { "user": "https://bakery.example.org/sourdough-guide" }
+  ],
+  "expect": {
+    "tools_called": ["fetch_url"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["sourdough", "starter"],
+      "judge": "She read the shared page and says what it is about (a sourdough guide: feeding the starter, baking on day seven) instead of saying she cannot open links or guessing from the address."
+    }
+  }
+}
