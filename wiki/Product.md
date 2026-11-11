@@ -34,6 +34,7 @@ She decides the record type. The person should never need to say “create a tas
 | Fact, preference, household spec, “this is info” | `remember` — long-term if durable, short-term if temporary | “The living room needs a 15-watt lamp” is **information**, not a task, unless they say they will buy or do it |
 | Who they are — how they talk, how they want help, what chapter they are in | `update_user_understanding` | “Don’t write me essays” and “I’m in the middle of a job search” belong on the living picture of them, not a one-off fact |
 | Consumable they are out of or will restock | `add_grocery` | “We’re out of rice.” |
+| An item for another list they want kept | `add_grocery` with `list` | “Put my passport on the packing list.” |
 | Intent to do something, no hard promise | `create_task` | “I should buy a keyboard sometime.” |
 | Promise with a time or a person | `create_commitment` | “I’ll send that to Ali tomorrow.” |
 

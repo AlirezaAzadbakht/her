@@ -28,7 +28,7 @@ import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.domain.TaskStatus
 
-const val DB_VERSION = 11
+const val DB_VERSION = 12
 
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
@@ -144,7 +144,7 @@ abstract class HerDatabase : RoomDatabase() {
         /** The app's database, or a backup being checked under another file name. */
         fun build(context: Context, name: String = "her.db"): HerDatabase =
             Room.databaseBuilder(context, HerDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
                 .build()
 
         /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
@@ -154,6 +154,13 @@ abstract class HerDatabase : RoomDatabase() {
                 generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
             }
             if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        /** Groceries become one of many named lists; existing rows stay on the groceries list. */
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addColumn(db, "groceries", "list", "TEXT NOT NULL DEFAULT 'groceries'")
+            }
         }
 
         /** Her personality traits; rows are seeded from her name on first read, not here. */

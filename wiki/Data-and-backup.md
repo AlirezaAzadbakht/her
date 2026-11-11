@@ -16,7 +16,7 @@ Important record kinds:
 | `UserProfile` | Single row, id `user-profile` |
 | `UserUnderstanding` | Living picture of this person; always in context; one ACTIVE row per facet |
 | People, projects, goals, tasks, commitments, open loops | Structured life |
-| Groceries, routines, important dates, responsibilities | Household / repeating |
+| Groceries, routines, important dates, responsibilities | Household / repeating. The `groceries` table holds every named list; its `list` column says which (`groceries` by default) |
 | `AgentQueueItem`, `AgentStateEntry` | Private assistant todos and notes |
 | `CalendarEvent` | Internal and system events |
 | `PendingConfirmation` | Destructive-action gate |

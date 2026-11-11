@@ -274,7 +274,7 @@ class CompanionTest {
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READWRITE).use {
             it.execSQL("DROP TABLE companion_records"); it.version = 6
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10, HerDatabase.MIGRATION_10_11).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10, HerDatabase.MIGRATION_10_11, HerDatabase.MIGRATION_11_12).allowMainThreadQueries().build()
         assertNotNull(disk.learningDao().get("keep"))
         val id = thread().getString("id")
         disk.companionDao().upsert(repo.getCompanionRecord(id)!!)

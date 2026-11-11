@@ -1,0 +1,73 @@
+{
+  "id": "list-packing-kept-apart",
+  "title": "A packing list is kept as its own list, apart from groceries",
+  "tags": [
+    "lists",
+    "groceries"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "We're out of milk."
+    },
+    {
+      "user": "Start a packing list for my trip to Shiraz: passport, phone charger and sunglasses."
+    },
+    {
+      "user": "What's on my packing list?"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "add_grocery"
+    ],
+    "tools_not_called": [
+      "remember",
+      "create_task"
+    ],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "groceries",
+        "count": 3,
+        "where": {
+          "list": {
+            "equals": "packing"
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
+      },
+      {
+        "table": "groceries",
+        "count": 1,
+        "where": {
+          "list": {
+            "equals": "groceries"
+          },
+          "status": {
+            "equals": "ACTIVE"
+          }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": [
+        "passport"
+      ],
+      "must_not_mention": [
+        "milk"
+      ],
+      "judge": "The reply lists the passport, phone charger and sunglasses as the packing list and does not include milk."
+    }
+  }
+}

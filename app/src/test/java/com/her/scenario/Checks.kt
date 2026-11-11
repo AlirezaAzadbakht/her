@@ -322,6 +322,7 @@ object Checks {
                 mapOf(
                     "id" to it.id,
                     "name" to it.name,
+                    "list" to it.list,
                     "quantity" to it.quantity,
                     "category" to it.category,
                     "status" to it.status.name,
