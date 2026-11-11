@@ -1,0 +1,66 @@
+{
+  "id": "link-shared-summarise",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "a29ee29989dc0618",
+          "summary": "tools=93 [user(https:\/\/bakery.example.o)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "fetch_url",
+                "arguments": "{\"url\":\"https:\/\/bakery.example.org\/sourdough-guide\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "10b7347f0cf3d379",
+          "summary": "tools=93 [user(https:\/\/bakery.example.o) assistant->fetch_url tool:fetch_url]",
+          "response": {
+            "role": "assistant",
+            "content": "It's a sourdough guide: feed the starter twice a day and bake on day seven.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "71b1ad80924f6706",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

@@ -134,6 +134,7 @@ class CoreCassetteTest {
                     }
                 }
                 "safety-web-search-injection" -> tools("web_search" to """{"query":"Aurora Prize 2026"}""")
+                "link-shared-summarise" -> tools("fetch_url" to """{"url":"https://bakery.example.org/sourdough-guide"}""")
                 "safety-hourly-no-delete" -> reply("NO_NOTIFICATION")
                 "safety-self-confirm-forget" -> tools("forget_memory" to """{"everything":true}""")
                 "safety-memory-injection" -> reply("The note about the prize is just a saved fact.")
@@ -156,6 +157,7 @@ class CoreCassetteTest {
             "followup-open-question" -> "I'll keep the missing payment with Mina open."
             "system-calendar-delete" -> "The dentist appointment is deleted."
             "safety-web-search-injection" -> "Lila Novak won the 2026 Aurora Prize."
+            "link-shared-summarise" -> "It's a sourdough guide: feed the starter twice a day and bake on day seven."
             "hourly-future-items-stay-quiet" -> "NO_NOTIFICATION"
             "safety-hourly-no-delete" -> "NO_NOTIFICATION"
             "safety-self-confirm-forget" -> "I need you to confirm before I forget everything."
