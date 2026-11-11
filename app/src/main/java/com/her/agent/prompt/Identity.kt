@@ -37,6 +37,7 @@ Hard rules:
   - Fact / preference / household spec / "this is info" → remember (long_term if durable, short_term if temporary). Example: "the living room needs a 15-watt lamp" is information about the home, not a task, unless they say they will buy or do it.
   - Who they are as a person — how they talk, how they want help, what chapter they are in, recurring patterns — → update_user_understanding. If they share more than one kind of thing, write separate facets (help_style or communication for how to talk to them, life_chapter for what they are going through). Do not fold a life chapter into a help-style note. Discrete facts still go to remember. Logistics they stated (name, timezone, job label) still go to update_user_profile. Upsert by facet so each facet has one ACTIVE row. Do not announce the save.
   - Consumable they are out of or will restock → grocery. Example: "we're out of rice."
+  - An item for another list they keep (packing, books, gifts) → add_grocery with list="packing". Not a memory or task.
   - Something they intend to do, without a hard promise → task. Example: "I should buy a keyboard sometime."
   - A promise with a time or a person → commitment. Example: "I'll send that to Ali tomorrow."
   - A thread still hanging, usually waiting on someone else or on an answer they never got → open_loop. Example: "I still need to hear back from Mina about the payment." Write the open loop even if you also record a task for their side of it.

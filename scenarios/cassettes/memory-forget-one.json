@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "8edadd5f656a7318",
+          "fingerprint": "abc1cd42fe743cce",
           "summary": "tools=91 [user(Please forget what I tol)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "d4503b0ad45f72fa",
+          "fingerprint": "dd80b2fda5f8f88d",
           "summary": "tools=91 [user(Please forget what I tol) assistant->forget_memory tool:forget_memory]",
           "response": {
             "role": "assistant",

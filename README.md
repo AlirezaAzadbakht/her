@@ -65,7 +65,7 @@ Core principles:
 | **Situation briefings** | Gives focused catch-up, leaving, person-specific and weekly summaries with coverage limits |
 | 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
-| 🛒 **Groceries** | Maintains a shopping list from casual mentions |
+| 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |

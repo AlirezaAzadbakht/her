@@ -25,7 +25,7 @@ The orchestrator logs prompt sizes, retrieved memory ids, per-call token usage (
 2. Optional extra system text (hourly / nightly / briefing)
 3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
    - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
-   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system calendar (7-day window; live sources stay visible even when empty), agent state and queue
+   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries and each other named list under its own heading, internal / system calendar (7-day window; live sources stay visible even when empty), agent state and queue
 4. Recent chat: up to 24 messages (8 for hourly / catch-up), newest first until 12,000 characters. The newest message always goes whole; the four newest are never clipped, older ones are cut to 1,200 characters. What falls out is covered by the digest note and `search_chat_history`. Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
@@ -62,7 +62,8 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
-- Routines, groceries, important dates, recurring responsibilities
+- Routines, important dates, recurring responsibilities
+- Groceries and named lists: `get_groceries`, `add_grocery`, `update_grocery`, `remove_grocery`, `clear_purchased_groceries`. Each takes an optional `list` (trimmed and lowercased; omitted means `groceries`), so a packing list or books to read live in the same table under their own name. `update_grocery` with `list` moves an item
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
 - `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal and system events)

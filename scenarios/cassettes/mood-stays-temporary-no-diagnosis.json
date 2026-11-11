@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "564f78371172157b",
+          "fingerprint": "78153775525cc5f6",
           "summary": "tools=91 [user(I've felt really low all)]",
           "response": {
             "role": "assistant",

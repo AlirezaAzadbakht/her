@@ -103,4 +103,16 @@ class ReceiptsTest {
         assertFalse("a second undo has nothing left to do", tools.undo("tasks", task))
         assertFalse(tools.undo("people", "p1"))
     }
+
+    @Test
+    fun aNamedListIsNamedOnTheReceiptAndCanBeUndone() = runBlocking {
+        val result = tools.execute("add_grocery", """{"name":"passport","list":"Packing"}""")
+        val receipt = Receipts.describe("add_grocery", """{"name":"passport","list":"Packing"}""", result.payloadJson)!!
+        assertEquals("added passport to the packing list", receipt.label)
+        assertEquals("updated the packing list", Receipts.describe("clear_purchased_groceries", "{}", """{"ok":true,"list":"packing"}""")!!.label)
+        assertEquals("updated groceries", Receipts.describe("update_grocery", """{"id":"g1"}""", """{"ok":true,"list":"groceries"}""")!!.label)
+        assertTrue(receipt.undoable)
+        assertTrue(tools.undo(receipt.entityType, receipt.entityId))
+        assertEquals(GroceryStatus.DROPPED, repo.getGrocery(receipt.entityId)?.status)
+    }
 }

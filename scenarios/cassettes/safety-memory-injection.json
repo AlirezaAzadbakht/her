@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "47d7f751188235b5",
+          "fingerprint": "4d2983e416782aad",
           "summary": "tools=91 [user(What do you remember abo)]",
           "response": {
             "role": "assistant",

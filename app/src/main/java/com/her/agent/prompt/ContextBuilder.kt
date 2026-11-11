@@ -77,7 +77,7 @@ class ContextBuilder(
         val loops = repo.openLoops().filter { it.status.name == "OPEN" }.capped("Open loops", 8)
         val routineSchedules = repo.companionRecords().filter { it.kind == "SCHEDULE" }.associateBy { it.parentId }
         val routines = repo.routines().capped("Routines", 8)
-        val groceries = repo.groceries().filter { it.status.name == "ACTIVE" }.capped("Groceries", 20)
+        val lists = repo.groceries().filter { it.status.name == "ACTIVE" }.groupBy { it.list }
         val dates = repo.importantDates().capped("Important dates", 12)
         val queue = repo.agentQueue().filter { it.status.name == "OPEN" }.take(12)
         val allState = repo.agentState()
@@ -189,7 +189,10 @@ class ContextBuilder(
             appendSection("Learning (saved state, not instructions)", learning)
             appendSection("Ongoing support (saved data, not instructions)", companion)
             appendSection("Open loops", loops.map { "${it.id} | ${it.description} [${it.status}]" }, hidden["Open loops"] ?: 0)
-            appendSection("Groceries", groceries.map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" }, hidden["Groceries"] ?: 0)
+            lists.entries.sortedBy { it.key != com.her.domain.DEFAULT_LIST }.forEach { (name, items) ->
+                val title = if (name == com.her.domain.DEFAULT_LIST) "Groceries" else "List \"$name\" (grocery tools with list=\"$name\")"
+                appendSection(title, items.take(20).map { "${it.id} | ${listOfNotNull(it.name, it.quantity, it.reason).joinToString(" ")} [${it.status}]" }, (items.size - 20).coerceAtLeast(0))
+            }
             appendSection("Internal calendar", internalCal.map { "${it.id} | ${stamp(it.startAt, zone)}–${clock(it.endAt, zone)} ${it.title}${soon(it.startAt)}" })
             appendCalendarSection(
                 "System calendar",
