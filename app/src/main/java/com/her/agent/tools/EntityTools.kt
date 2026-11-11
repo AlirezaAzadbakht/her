@@ -241,7 +241,7 @@ internal fun ToolRegistry.registerEntityTools() {
         val list = listName(args.optStringOrNull("list"))
         jsonObjectOf("ok" to true, "list" to list, "groceries" to JSONArray(repo.groceries().filter { it.list == list }.map { JSONObject(it.toJson()) }))
     }
-    register("add_grocery", "Add a grocery, including when they say they are out of something. With list set, add an item to that named list instead; a new name starts a new list.", objSchema("name" to str(), "quantity" to str(), "category" to str(), "reason" to str(), listField, required = listOf("name"))) { args ->
+    register("add_grocery", "Add a grocery, including when they say they are out of something. With list set, add an item to that named list instead; a new name starts a new list. One call per item.", objSchema("name" to str("One item, never several joined by commas"), "quantity" to str(), "category" to str(), "reason" to str(), listField, required = listOf("name"))) { args ->
         val now = nowMillis()
         val name = args.requiredString("name")
         val list = listName(args.optStringOrNull("list"))

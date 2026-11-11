@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "3fad294568f50bd4",
+          "fingerprint": "a705de6ca8174356",
           "summary": "tools=91 [user(We're out of coffee. Als)]",
           "response": {
             "role": "assistant",
@@ -31,7 +31,7 @@
           }
         },
         {
-          "fingerprint": "bd4425d184f4bd9d",
+          "fingerprint": "dcb5bca3ec4c7868",
           "summary": "tools=91 [user(We're out of coffee. Als) assistant->add_grocery+add_grocery tool:add_grocery tool:add_grocery]",
           "response": {
             "role": "assistant",
@@ -64,7 +64,7 @@
           }
         },
         {
-          "fingerprint": "b96eb491b3387cdd",
+          "fingerprint": "050ba304b632ff0c",
           "summary": "tools=91 [user(We're out of coffee. Als) assistant user(I bought everything exce)]",
           "response": {
             "role": "assistant",
@@ -89,7 +89,7 @@
           }
         },
         {
-          "fingerprint": "19af80c9f6e010a1",
+          "fingerprint": "1689af411af08a38",
           "summary": "tools=91 [user(We're out of coffee. Als) assistant user(I bought everything exce) assistant->add_grocery+clear_purchased_groceries tool:add_grocery tool:clear_purchased_groceries]",
           "response": {
             "role": "assistant",

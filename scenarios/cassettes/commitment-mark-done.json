@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "3516b914b6eb1e9d",
+          "fingerprint": "9d2a4a7b7eec7524",
           "summary": "tools=91 [user(Just sent Mina the invoi)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "9be6d3b931382c66",
+          "fingerprint": "4a5b61b91948d147",
           "summary": "tools=91 [user(Just sent Mina the invoi) assistant->update_commitment tool:update_commitment]",
           "response": {
             "role": "assistant",
