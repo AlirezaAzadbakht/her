@@ -45,7 +45,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
     register(
         "update_person",
-        "Create or update a person.",
+        "Create or update a person. What they tell you about someone they know (diet, likes, relationship, birthday) goes here, not in remember.",
         objSchema(
             "id" to str(),
             "name" to str(),
@@ -124,7 +124,7 @@ internal fun ToolRegistry.registerEntityTools() {
         )
         jsonObjectOf("ok" to true, "id" to id)
     }
-    register("update_goal", "Update a goal.", objSchema("id" to str(), "title" to str(), "status" to enumField<GoalStatus>(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
+    register("update_goal", "Update a goal. Progress they report toward a goal in context (\"ran 12 km\" toward a half marathon) goes in progressSummary here, not in remember.", objSchema("id" to str(), "title" to str(), "status" to enumField<GoalStatus>(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
         val existing = repo.getGoal(args.requiredString("id")) ?: throw ToolValidationException("Goal not found")
         repo.saveGoal(existing.copy(
             title = args.optStringOrNull("title") ?: existing.title,

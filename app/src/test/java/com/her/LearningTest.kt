@@ -84,6 +84,9 @@ class LearningTest {
         message("a1", "4")
         assertFalse(tools.execute("record_learning_answer", """{"exerciseId":"exercise:first","sourceMessageId":"a1","answer":"4","feedback":"yes"}""").ok)
         assertFalse(call("send_learning_reminder", """{"pathId":"path:python","content":"Ready?"}""").getBoolean("queued"))
+        // A bare id, or one copied with its version from the context line, still finds the path.
+        assertFalse(call("send_learning_reminder", """{"pathId":"python","content":"Ready?"}""").getBoolean("queued"))
+        assertFalse(call("send_learning_reminder", """{"pathId":"path:python v2","content":"Ready?"}""").getBoolean("queued"))
         call("save_learning_path", """{"id":"python","expectedVersion":2,"status":"ACTIVE"}""")
         assertEquals("CORRECT", answer("a1", "4").getString("result"))
     }
