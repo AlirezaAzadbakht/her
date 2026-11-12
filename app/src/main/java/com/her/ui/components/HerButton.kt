@@ -49,7 +49,7 @@ import com.her.ui.theme.Her
 import com.her.ui.theme.HerMotion
 import com.her.ui.theme.rememberHerHaptics
 
-enum class HerButtonTone { Primary, Quiet }
+enum class HerButtonTone { Primary, Quiet, Outline }
 
 private enum class ButtonFace { Label, Loading, Success }
 
@@ -90,7 +90,7 @@ fun HerButton(
     val edge = if (primary) {
         Brush.horizontalGradient(listOf(colors.glowCoral.copy(alpha = 0.75f), colors.glowAmber.copy(alpha = 0.5f), colors.glowRose.copy(alpha = 0.65f)))
     } else {
-        SolidColor(Color.Transparent)
+        SolidColor(if (tone == HerButtonTone.Outline) colors.glassStroke else Color.Transparent)
     }
     Box(
         modifier = modifier
@@ -112,7 +112,7 @@ fun HerButton(
                 onClick()
             }
             .animateContentSize(HerMotion.gentle())
-            .padding(horizontal = if (primary) 22.dp else 12.dp, vertical = 11.dp),
+            .padding(horizontal = if (tone == HerButtonTone.Quiet) 12.dp else 22.dp, vertical = 11.dp),
         contentAlignment = Alignment.Center,
     ) {
         AnimatedContent(
@@ -127,7 +127,7 @@ fun HerButton(
             when (current) {
                 ButtonFace.Label -> Text(
                     text,
-                    color = if (primary) scheme.onBackground else scheme.primary,
+                    color = if (tone == HerButtonTone.Quiet) scheme.primary else scheme.onBackground,
                     style = MaterialTheme.typography.labelLarge.copy(letterSpacing = 0.6.sp),
                 )
                 ButtonFace.Loading -> Row(

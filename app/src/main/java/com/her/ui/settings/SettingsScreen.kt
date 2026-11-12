@@ -81,6 +81,7 @@ import com.her.ui.components.HerSwitch
 import com.her.ui.components.HerTextField
 import com.her.ui.components.NoteWithDetails
 import com.her.ui.components.SectionCard
+import com.her.ui.onboarding.Disclosure
 import com.her.ui.onboarding.HerCloudConnect
 import com.her.ui.onboarding.rememberCalendarPermissionRequester
 import com.her.ui.theme.ConversationStyle
@@ -136,6 +137,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
     var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
     var advanced by remember { mutableStateOf(false) }
+    var endpointOpen by remember { mutableStateOf(false) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
     var testedHere by remember { mutableStateOf(false) }
@@ -203,19 +205,32 @@ fun SettingsScreen(vm: HerViewModel) {
         }
         item(key = "mind") {
             SectionCard("Her mind", Modifier.animateItem().introRise(1, intro)) {
-                HerTextField("Base URL", base, shakeTrigger = keyShake) { base = it }
-                HerTextField("API key", key, secret = true, shakeTrigger = keyShake) { key = it }
-                HerTextField("Model", model, shakeTrigger = keyShake) { model = it }
-                HerButton(
-                    "Save & test",
-                    onClick = {
-                        testedHere = true
-                        vm.saveAndTest(LlmSettings(base, key, model))
-                    },
-                    loading = checking,
-                    loadingText = "Checking…",
-                    success = connectedCheck,
-                )
+                if (model.isNotBlank()) Hint(if (connectedCheck) "Connected · $model" else "Using $model")
+                HerCloudConnect(checking = checking) { cloud ->
+                    base = cloud.baseUrl
+                    key = cloud.apiKey
+                    model = cloud.model
+                    testedHere = true
+                    vm.saveAndTest(cloud)
+                }
+                val failedCheck = !checking && !connectedCheck && connection != null && connection != Connected
+                // A failed check opens it, so the fields that need fixing are in view.
+                Disclosure("Endpoint details", open = endpointOpen || failedCheck, onToggle = { endpointOpen = !endpointOpen }) {
+                    HerTextField("Base URL", base, shakeTrigger = keyShake) { base = it }
+                    HerTextField("API key", key, secret = true, shakeTrigger = keyShake) { key = it }
+                    HerTextField("Model", model, shakeTrigger = keyShake) { model = it }
+                    Spacer(Modifier.height(8.dp))
+                    HerButton(
+                        "Save & test",
+                        onClick = {
+                            testedHere = true
+                            vm.saveAndTest(LlmSettings(base, key, model))
+                        },
+                        loading = checking,
+                        loadingText = "Checking…",
+                        success = connectedCheck,
+                    )
+                }
                 AnimatedVisibility(
                     visible = !checking && !connectedCheck && connection != null,
                     enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
@@ -223,14 +238,7 @@ fun SettingsScreen(vm: HerViewModel) {
                 ) {
                     NoteWithDetails(connection.orEmpty(), connectionDetail, Modifier.padding(top = 6.dp))
                 }
-                Spacer(Modifier.height(12.dp))
-                HerCloudConnect { cloud ->
-                    base = cloud.baseUrl
-                    key = cloud.apiKey
-                    model = cloud.model
-                    testedHere = true
-                    vm.saveAndTest(cloud)
-                }
+                Spacer(Modifier.height(6.dp))
                 HerTextField("Background model (optional)", backgroundModel) {
                     backgroundModel = it
                     vm.updateSettings { s -> s.copy(backgroundModel = it) }
