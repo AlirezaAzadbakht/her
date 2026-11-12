@@ -33,6 +33,10 @@ object ReadableExport {
             "Reminders",
             repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.map { it.message + at(it.fireAt) },
         )
+        section(
+            "Spending",
+            repo.expensesBetween(0, Long.MAX_VALUE).map { words("${it.amount} ${it.currency.orEmpty()}".trim(), it.what, it.category) + at(it.spentAt) },
+        )
         repo.groceries().groupBy { it.list }.forEach { (list, items) ->
             section("List: $list", items.map { "[${it.status}] " + words(it.name, it.quantity, it.notes) })
         }

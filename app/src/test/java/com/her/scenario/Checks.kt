@@ -331,6 +331,9 @@ object Checks {
                     "store" to it.store,
                 )
             }
+            "expenses" -> repo.expensesBetween(0, Long.MAX_VALUE).map {
+                mapOf("id" to it.id, "amount" to it.amount, "currency" to it.currency, "what" to it.what, "category" to it.category, "spentAt" to it.spentAt)
+            }
             "important_dates" -> repo.importantDates().map {
                 mapOf(
                     "id" to it.id,

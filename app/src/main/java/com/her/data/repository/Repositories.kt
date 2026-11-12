@@ -396,6 +396,10 @@ class HerRepository(
         }
     }
 
+    suspend fun expensesBetween(from: Long, to: Long) = db.expenseDao().between(from, to)
+    suspend fun getExpense(id: String) = db.expenseDao().get(id)
+    suspend fun saveExpense(item: com.her.data.db.ExpenseEntity) = db.expenseDao().upsert(item)
+
     suspend fun importantDates() = db.importantDateDao().allActive().map { it.toDomain() }
     suspend fun getImportantDate(id: String) = db.importantDateDao().get(id)?.toDomain()
     suspend fun saveImportantDate(item: ImportantDate) {

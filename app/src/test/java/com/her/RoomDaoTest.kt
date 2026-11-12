@@ -159,7 +159,7 @@ class RoomDaoTest {
             it.execSQL("INSERT INTO groceries VALUES ('g1','eggs',NULL,NULL,'ACTIVE',NULL,0.0,NULL,NULL,1,1,'dev',1,NULL)")
             it.version = 11
         }
-        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_11_12).build()
+        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_11_12, HerDatabase.MIGRATION_12_13).build()
         assertEquals("groceries", migrated.groceryDao().get("g1")?.list)
         migrated.groceryDao().upsert(migrated.groceryDao().get("g1")!!.copy(id = "g2", name = "passport", list = "packing"))
         assertEquals(listOf("groceries", "packing"), migrated.groceryDao().allActive().map { it.list })

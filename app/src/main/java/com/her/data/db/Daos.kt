@@ -439,3 +439,15 @@ interface EmbeddingDao {
     @Query("SELECT COUNT(*) FROM memory_embeddings")
     suspend fun count(): Int
 }
+
+@Dao
+interface ExpenseDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: ExpenseEntity)
+
+    @Query("SELECT * FROM expenses WHERE id = :id LIMIT 1")
+    suspend fun get(id: String): ExpenseEntity?
+
+    @Query("SELECT * FROM expenses WHERE deletedAt IS NULL AND spentAt >= :from AND spentAt < :to ORDER BY spentAt DESC")
+    suspend fun between(from: Long, to: Long): List<ExpenseEntity>
+}
