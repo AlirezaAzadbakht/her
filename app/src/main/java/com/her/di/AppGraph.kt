@@ -72,6 +72,7 @@ class AppGraph(context: Context) {
 
     val orchestrator: AgentOrchestrator by lazy {
         AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy,
-            appraiser = FastAppraiser(repo, llm) { secure.read() })
+            appraiser = FastAppraiser(repo, llm) { secure.read() },
+            weekStart = { java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek })
     }
 }
