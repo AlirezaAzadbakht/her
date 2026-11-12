@@ -56,6 +56,8 @@ Hourly LLM passes skip quiet hours unless Settings → **Hourly during quiet hou
 - Gap between non-urgent notifications: 20 minutes
 - Hourly and catch-up also drop a near-duplicate of a proactive assistant message from the last 12 hours (`lexicalOverlap` ≥ 0.5). Chat and the morning briefing are not held to that guard.
 
+On the first day of the week (`WeekFields` for the device locale: Saturday in Iran, Monday in most of Europe, Sunday in the US) the briefing prompt gains `Identity.WEEKLY_REVIEW_PROMPT`, so the same note also looks back at last week through `get_situation_briefing`. There is no separate worker or notification. Scenarios leave it off unless `settings.weeklyReviewDay` names a day.
+
 The morning briefing is scheduled at the **end** of quiet hours, not at a fixed 8:00 if the user changed the window.
 
 ## Foreground and battery exemption

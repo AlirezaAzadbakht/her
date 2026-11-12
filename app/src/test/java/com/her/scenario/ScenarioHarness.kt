@@ -150,6 +150,7 @@ class ScenarioHarness(
         notifier = notifier,
         policy = NotificationPolicy(settings),
         appraiser = com.her.feelings.FastAppraiser(repo, llm) { llmSettings },
+        weekStart = { spec.settings.weeklyReviewDay },
     )
 
     suspend fun run(): HarnessOutcome = withContext(DeterministicIds(idPrefix)) {

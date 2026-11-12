@@ -311,6 +311,25 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun briefingLooksBackOnlyOnTheFirstDayOfTheirWeek() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val today = repo.now().dayOfWeek
+        val seen = mutableListOf<String>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(settings: LlmSettings, messages: List<LlmMessage>, tools: List<ToolSpec>, client: OkHttpClient, webSearch: WebSearchRequest?): LlmResponse {
+                seen += messages.joinToString("\n") { it.content.orEmpty() }
+                return reply("Morning.")
+            }
+        }
+        orchestrator(llm, weekStart = today.plus(1)).runBriefing()
+        assertFalse(seen.single().contains("first day of their week"))
+
+        clock.advance(24 * HOUR)
+        orchestrator(llm, weekStart = today.plus(1)).runBriefing()
+        assertTrue(seen.last().contains("first day of their week"))
+    }
+
+    @Test
     fun briefingThatStaysBlankGivesUpAfterOneExtraCall() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
         val llm = ScriptedLlm({ reply("") }, { reply("") })
@@ -841,7 +860,7 @@ class AgentOrchestratorTest {
         assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
     }
 
-    private fun orchestrator(llm: LlmClient, appraise: Boolean = false) = AgentOrchestrator(
+    private fun orchestrator(llm: LlmClient, appraise: Boolean = false, weekStart: java.time.DayOfWeek? = null) = AgentOrchestrator(
         repo = repo,
         llm = llm,
         llmSettings = { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") },
@@ -851,6 +870,7 @@ class AgentOrchestratorTest {
         notifier = notifier,
         policy = NotificationPolicy(settings),
         retryDelayMs = { 0L },
+        weekStart = { weekStart },
         appraiser = if (appraise) com.her.feelings.FastAppraiser(repo, llm) { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") } else null,
     )
 
