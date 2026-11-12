@@ -213,6 +213,7 @@ class AgentOrchestrator(
                 extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
                 persistAssistant = false,
                 allowNotify = false,
+                offers = phase.offers,
             )
             calls += result.callsUsed
             if (result.failed) break
@@ -281,6 +282,7 @@ class AgentOrchestrator(
         allowNotify: Boolean,
         streamToUi: Boolean = false,
         writeAnchor: com.her.domain.ChatMessage? = null,
+        offers: (String) -> Boolean = { true },
     ): TurnResult = withContext(Dispatchers.IO) {
         val runId = com.her.core.newId()
         val started = nowMillis()
@@ -325,7 +327,7 @@ class AgentOrchestrator(
                     return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
                 }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type)
+                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type).filter { offers(it.name) }
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {

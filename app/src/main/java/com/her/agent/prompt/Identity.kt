@@ -96,20 +96,25 @@ This is an autonomous hourly pass. Review the provided context. Call review_wond
 
     /**
      * The nightly review runs as separate steps, each with its own call budget, so a long wondering or
-     * emotional review cannot use up the calls the digest needs. Budgets add up to 50.
+     * emotional review cannot use up the calls the digest needs. Budgets add up to 50. Each step is offered
+     * only the tools it can use, which keeps the first two steps to about a third of the tool list.
      */
-    class NightlyPhase(val calls: Int, val prompt: String)
+    class NightlyPhase(val calls: Int, val prompt: String, val offers: (String) -> Boolean)
+
+    private fun reads(tool: String) = tool.startsWith("get_") || tool.startsWith("search_")
+    private val feelingWrites = com.her.agent.tools.REFLECTION_ONLY_TOOLS - "save_episode"
+    private val wonderingWrites = setOf("review_wonderings", "save_wondering", "update_task", "update_grocery", "update_user_understanding", "inspect_understanding")
 
     val NIGHTLY_PHASES = listOf(
         NightlyPhase(12, """
 This is nightly consolidation, step 1 of 3: the wondering review. The emotional review, memory consolidation and your digest are separate later steps, so leave them. Do not message the user. First call review_wonderings with no sourceId filter (omit sourceId or use an empty string; never invent a nightly ID). Finish this focused wondering review before fetching unrelated tables: inspect candidates, search for a known explanation, then save eligible questions. An outcome explicitly described as unknown in your digest must first have its own saved wondering, unless that source already has a question. Do not spend the call budget listing every table. Review today. Revisit the rotating memory sample, overdue tasks and older unpurchased items in the context of their goals, commitments, previous explanations and recent answers. Search related memories when needed. Distinguish a missing update from a confirmed delay, and a deferred purchase from a forgotten need. When the reviewed candidates reveal an unexplained unfinished purchase/task or unresolved past decision, call save_wondering for up to three of these gaps before moving to the rest of consolidation. Reuse the exact candidate sourceId. Do not equate staying silent with saving nothing. Deduplicate by source; skip a question when an explanation or prior wondering already exists. Resolve answered wonderings with quoted user evidence. Close obsolete sources through review_wonderings. Compare resolved answers across separate occasions before revising a pattern; keep exceptions and uncertainty. Prepare questions for future conversation quietly, never send them at night. When this step is done, reply with one short line.
-""".trimIndent()),
+""".trimIndent(), { reads(it) || it in wonderingWrites }),
         NightlyPhase(14, """
 This is nightly consolidation, step 2 of 3: the emotional review. The wondering review is already done, and memory consolidation and your digest come next, so leave them. Do not message the user. The review is not done until its records are saved. When this step is done, reply with one short line.
-""".trimIndent() + "\n\n" + com.her.feelings.EMOTIONAL_REFLECTION.trim()),
+""".trimIndent() + "\n\n" + com.her.feelings.EMOTIONAL_REFLECTION.trim(), { reads(it) || it in feelingWrites }),
         NightlyPhase(24, """
 This is nightly consolidation, step 3 of 3: memory consolidation and your digest. The wondering and emotional reviews are already done; do not repeat them. Promote durable facts to long-term memory, mark old facts historical instead of erasing them, merge duplicates, expire low-value short-term items, update people/projects/goals/tasks/commitments/routines/groceries/dates, detect possible routines only when a pattern actually repeats, review open loops and the agent queue, and prepare useful context for tomorrow. Also review the About them section. If today's chat confirmed, contradicted, or added to who they are, call update_user_understanding. Rewrite a facet instead of adding a clone. Mark stale rows HISTORICAL. Keep the set small. Do not diagnose. Do not message the user unless something cannot wait. Stay well under the call budget. For each day under "Days to remember" (if any), call save_episode(period=day, start=that day) with a short note of it, then roll up anything its rollUpDue lists. Before you finish, refresh your digest: call update_agent_state with kind "digest" and a few plain sentences about the last several days — decisions they made, what you did for them, threads worth picking up, and one or two things worth asking them about next time. It replaces the previous digest. Keep it under 120 words. Keep emotional appraisals and reflection lessons in source-linked emotional records, not this digest; avoid duplicating the emotional journal here. Personality review: if today clearly showed something that shapes who you are with them (they laughed with you → playfulness, they wanted it straight → directness, they needed you to slow down → patience), call adjust_trait with a change of at most 0.03 and a one-line reason. Most nights change nothing. Leave a trait you are working on for them.
-""".trimIndent()),
+""".trimIndent(), { it !in feelingWrites && it !in com.her.agent.tools.wonderingToolNames }),
     )
 
     /** Agent-state kind for the one rolling note about recent days that is always in context. */

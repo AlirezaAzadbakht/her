@@ -244,6 +244,19 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun eachNightlyStepIsOfferedOnlyItsOwnTools() = runBlocking {
+        val llm = ScriptedLlm({ reply("done") }, { reply("done") }, { reply("done") })
+        orchestrator(llm).runNightly()
+        val (wondering, emotional, consolidation) = llm.toolsSeen.map { seen -> seen.map { it.name }.toSet() }
+
+        assertTrue("save_wondering" in wondering && "save_emotional_thread" !in wondering && "remember" !in wondering)
+        assertTrue("save_emotional_thread" in emotional && "save_wondering" !in emotional && "search_memory" in emotional)
+        assertTrue(setOf("remember", "update_agent_state", "save_episode", "adjust_trait").all { it in consolidation })
+        assertTrue("save_wondering" !in consolidation && "save_emotional_thread" !in consolidation)
+        assertTrue(wondering.size < consolidation.size / 2 && emotional.size < consolidation.size / 2)
+    }
+
+    @Test
     fun nightlyThatFailsPartwayResumesAtTheStepThatFailed() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
         val llm = ScriptedLlm({ reply("done") }, { throw LlmException("bad request", 400) }, { reply("done") }, { reply("done") })
