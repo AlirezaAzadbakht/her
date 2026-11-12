@@ -3,6 +3,7 @@ package com.her.ui
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
@@ -62,10 +63,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.data.secure.LlmSettings
 import com.her.ui.components.AmbientBackground
 import com.her.ui.components.GlassPill
@@ -87,7 +92,11 @@ import com.her.ui.theme.HerMotion
 import com.her.ui.theme.rememberHerHaptics
 import kotlinx.coroutines.launch
 
-enum class Dest { Her, Memory, Settings }
+enum class Dest(@StringRes val label: Int) {
+    Her(R.string.tab_her),
+    Memory(R.string.tab_memory),
+    Settings(R.string.settings),
+}
 
 private enum class Stage { Loading, Names, Setup, Main }
 
@@ -97,6 +106,7 @@ fun HerApp(vm: HerViewModel) {
     val settings by vm.settings.collectAsState()
     val profile by vm.profile.collectAsState()
     val connectionMessage by vm.connectionMessage.collectAsState()
+    val connectionOk by vm.connectionOk.collectAsState()
     val connectionDetail by vm.connectionDetail.collectAsState()
     val checkingConnection by vm.checkingConnection.collectAsState()
     val named = !profile?.userName.isNullOrBlank() && !profile?.assistantName.isNullOrBlank()
@@ -142,6 +152,7 @@ fun HerApp(vm: HerViewModel) {
                             Stage.Setup -> SetupScreen(
                                 initial = vm.llmSettings(),
                                 message = connectionMessage,
+                                ok = connectionOk,
                                 details = connectionDetail,
                                 checking = checkingConnection,
                                 onSave = { next: LlmSettings -> vm.saveAndTest(next) },
@@ -215,9 +226,10 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
+            val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
             AnimatedContent(
                 targetState = dest,
-                transitionSpec = { tabTransition() },
+                transitionSpec = { tabTransition(rtl) },
                 label = "dest",
             ) { current ->
                 when (current) {
@@ -238,8 +250,9 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
 }
 
 /** Tabs slide in from the side they sit on, so the motion matches the nav. */
-private fun AnimatedContentTransitionScope<Dest>.tabTransition(): ContentTransform {
-    val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+private fun AnimatedContentTransitionScope<Dest>.tabTransition(rtl: Boolean): ContentTransform {
+    // In RTL the nav is mirrored, so a later tab sits to the left.
+    val direction = (if (targetState.ordinal > initialState.ordinal) 1 else -1) * (if (rtl) -1 else 1)
     return (
         fadeIn(HerMotion.enter(HerMotion.Emphasized)) +
             slideInHorizontally(HerMotion.enter(HerMotion.Emphasized)) { width -> direction * width * 6 / 100 } +
@@ -305,7 +318,7 @@ private fun FloatingNav(dest: Dest, tabs: List<Dest>, onSelect: (Dest) -> Unit) 
                         )
                         val scale by animateFloatAsState(if (selected) 1f else 0.96f, HerMotion.snappy(), label = "nav-scale")
                         Text(
-                            text = item.name,
+                            text = stringResource(item.label),
                             modifier = Modifier
                                 .onGloballyPositioned { coords ->
                                     bounds[item] = coords.positionInParent().x to coords.size.width.toFloat()

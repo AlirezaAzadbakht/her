@@ -1,20 +1,23 @@
 package com.her.ui.orbs
 
+import androidx.annotation.StringRes
+import com.her.R
+
 // Tunings transcribed from thinking-orbs' generated ThinkingOrbsKit/OrbSpec.swift
 // (spec 1.0.0, thinking-orbs 0.3.1, Libraries.dev @ 422180dd7a5ac646c85deedc65500c4a74339127).
 // Data only: retune upstream, then copy the numbers and the golden vectors together.
 
 /** Which animation to show. */
-enum class OrbState(val label: String, internal val mode: OrbMode) {
-    Working("Working…", OrbMode.Orbits),
-    Searching("Searching…", OrbMode.Globe),
-    Solving("Solving…", OrbMode.Rubik),
-    Listening("Listening…", OrbMode.Wave),
-    Connecting("Connecting…", OrbMode.Web),
-    Weaving("Weaving…", OrbMode.Braid),
-    Composing("Composing…", OrbMode.Ribbon),
-    Breathing("Thinking…", OrbMode.Ring),
-    Shaping("Shaping…", OrbMode.Morph),
+enum class OrbState(@StringRes val label: Int, internal val mode: OrbMode) {
+    Working(R.string.orb_working, OrbMode.Orbits),
+    Searching(R.string.orb_searching, OrbMode.Globe),
+    Solving(R.string.orb_solving, OrbMode.Rubik),
+    Listening(R.string.orb_listening, OrbMode.Wave),
+    Connecting(R.string.orb_connecting, OrbMode.Web),
+    Weaving(R.string.orb_weaving, OrbMode.Braid),
+    Composing(R.string.orb_composing, OrbMode.Ribbon),
+    Breathing(R.string.orb_thinking, OrbMode.Ring),
+    Shaping(R.string.orb_shaping, OrbMode.Morph),
     ;
 
     val key: String get() = name.lowercase()
