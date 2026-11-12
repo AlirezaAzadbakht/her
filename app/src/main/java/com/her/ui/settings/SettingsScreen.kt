@@ -162,6 +162,9 @@ fun SettingsScreen(vm: HerViewModel) {
     val requestCalendar = rememberCalendarPermissionRequester {
         vm.updateSettings { it.copy(calendarEnabled = true) }
     }
+    val requestContacts = com.her.ui.onboarding.rememberContactsPermissionRequester {
+        vm.updateSettings { it.copy(contactsEnabled = true) }
+    }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var unrestrictedBattery by remember {
@@ -284,6 +287,17 @@ fun SettingsScreen(vm: HerViewModel) {
                         vm.updateSettings { it.copy(calendarEnabled = false) }
                     } else {
                         requestCalendar()
+                    }
+                }
+                ToggleRow(
+                    "Contacts access",
+                    app.contactsEnabled,
+                    description = "Lets her look up a phone number or birthday when you ask. The contact she finds is sent to your model.",
+                ) {
+                    if (app.contactsEnabled) {
+                        vm.updateSettings { it.copy(contactsEnabled = false) }
+                    } else {
+                        requestContacts()
                     }
                 }
                 ToggleRow(

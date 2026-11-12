@@ -2,21 +2,26 @@
   "id": "contact-phone-lookup",
   "title": "Look up a phone number from device contacts",
   "tags": ["people", "contacts"],
-  "attempts": 1,
-  "pending": true,
+  "attempts": 2,
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [
       { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } }
+    ],
+    "contacts": [
+      { "name": "Reza Karimi", "phones": ["+98 912 555 0143"], "birthday": "1990-03-14" },
+      { "name": "Sara Patel", "phones": ["+98 935 555 0188"] }
     ]
   },
   "turns": [
     { "user": "What's Reza's phone number?" }
   ],
   "expect": {
+    "tools_called": ["search_contacts"],
     "no_tool_errors": true,
     "reply": {
-      "judge": "She reads Reza's number from the device contacts. Saying she has no access to contacts is a failure."
+      "must_mention_any": ["0143"],
+      "judge": "She reads Reza's number from the device contacts. Saying she has no access to contacts is a failure. She does not give Sara's number."
     }
   }
 }

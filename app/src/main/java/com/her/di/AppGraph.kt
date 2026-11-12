@@ -67,7 +67,7 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, reminderAlarms, SystemAlarmClock(appContext), focus)
+        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext))
     }
 
     val orchestrator: AgentOrchestrator by lazy {

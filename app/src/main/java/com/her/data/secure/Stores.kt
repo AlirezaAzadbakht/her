@@ -92,6 +92,8 @@ data class AppSettings(
     /** What the last hourly model call already saw; a skipped hour leaves it alone. */
     val lastHourlyTriggers: Set<String> = emptySet(),
     val lastNightlyRunAt: Long = 0L,
+    /** She may look people up in the phone's contacts. Off until they turn it on and grant the permission. */
+    val contactsEnabled: Boolean = false,
     /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
     val backgroundModel: String = "",
     /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
@@ -140,6 +142,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             embeddingModel = prefs.getString(KEY_EMBED_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL,
             lastHourlyTriggers = prefs.getStringSet(KEY_HOURLY_TRIGGERS, null)?.toSet().orEmpty(),
             lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
+            contactsEnabled = prefs.getBoolean(KEY_CONTACTS, false),
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
@@ -174,6 +177,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putString(KEY_EMBED_MODEL, next.embeddingModel)
             putStringSet(KEY_HOURLY_TRIGGERS, next.lastHourlyTriggers)
             putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
+            putBoolean(KEY_CONTACTS, next.contactsEnabled)
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
@@ -198,6 +202,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_WEB_URL = "web_search_url"
         private const val KEY_WEB_KEY = "web_search_key"
         private const val KEY_CAL = "calendar_enabled"
+        private const val KEY_CONTACTS = "contacts_enabled"
         private const val KEY_CHAT_LIMIT = "chat_tool_limit"
         private const val KEY_HOURLY = "last_hourly"
         private const val KEY_NIGHTLY = "last_nightly"
