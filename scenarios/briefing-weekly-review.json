@@ -1,0 +1,29 @@
+{
+  "id": "briefing-weekly-review",
+  "title": "On the first day of their week the morning note also looks back",
+  "tags": ["briefing", "proactive"],
+  "attempts": 2,
+  "settings": { "weeklyReviewDay": "MONDAY" },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Submit the visa application" } },
+      { "name": "create_task", "arguments": { "title": "Book the dentist", "dueAt": "yesterday" } },
+      { "name": "create_commitment", "arguments": { "title": "Send Mina the budget", "dueAt": "next thursday", "promisedTo": "Mina" } }
+    ]
+  },
+  "turns": [
+    { "user": "I submitted the visa application, finally." },
+    { "at": "next monday at 8am" },
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "tools_called": ["get_situation_briefing"],
+    "no_tool_errors": true,
+    "notifications": { "count": 1 },
+    "reply": {
+      "must_mention_any": ["visa"],
+      "judge": "One short morning note, no list or headings. It looks back at last week, saying the visa application got done and the dentist booking slipped, and looks ahead to the budget promised to Mina. It does not claim to have checked an inbox."
+    }
+  }
+}

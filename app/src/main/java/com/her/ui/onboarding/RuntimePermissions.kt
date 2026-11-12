@@ -49,6 +49,22 @@ fun RequestFirstRunPermissions(
     }
 }
 
+/** Asks for read access to contacts, or runs [onGranted] straight away when it is already allowed. */
+@Composable
+fun rememberContactsPermissionRequester(onGranted: () -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) onGranted()
+    }
+    return {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+            onGranted()
+        } else {
+            launcher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+}
+
 @Composable
 fun rememberCalendarPermissionRequester(
     onGranted: () -> Unit,

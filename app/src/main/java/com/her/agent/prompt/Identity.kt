@@ -117,6 +117,11 @@ This is nightly consolidation, step 3 of 3: memory consolidation and your digest
 """.trimIndent(), { it !in feelingWrites && it !in com.her.agent.tools.wonderingToolNames }),
     )
 
+    /** Added to the briefing on the first day of their week. */
+    val WEEKLY_REVIEW_PROMPT = """
+Today is also the first day of their week, so this note looks back as well as ahead. Before writing, call get_situation_briefing once with no arguments. Then, after today's items and in the same short message, add two or three sentences about last week: what got done, what slipped, and the one or two things that matter most this week. Mention only what is recorded; if little was recorded last week, say so in a few words instead of inventing a summary. No lists, no headings, and do not mention inboxes or monitoring.
+""".trimIndent()
+
     /** Agent-state kind for the one rolling note about recent days that is always in context. */
     const val DIGEST_KIND = "digest"
 

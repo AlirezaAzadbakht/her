@@ -27,6 +27,8 @@ data class ScenarioSettings(
     val chatToolCallLimit: Int?,
     val calendarEnabled: Boolean,
     val webSearchEnabled: Boolean,
+    /** The day the briefing also reviews the week; null (the default) keeps briefings the same on every weekday. */
+    val weeklyReviewDay: java.time.DayOfWeek? = null,
 )
 
 data class ScenarioSeed(
@@ -36,6 +38,8 @@ data class ScenarioSeed(
     val webSearch: List<SeedWebSearch>,
     /** Exact trait values, written as both value and seed. */
     val persona: Map<String, Double> = emptyMap(),
+    /** Contacts on the phone; seeding any turns contacts access on. */
+    val contacts: List<com.her.data.contacts.PhoneContact> = emptyList(),
 )
 
 data class SeedWebSearch(
@@ -169,8 +173,8 @@ object ScenarioLoader {
     private val topKeys = setOf(
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect", "faults",
     )
-    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled")
-    private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search", "persona")
+    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled", "weeklyReviewDay")
+    private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search", "persona", "contacts")
     private val seedWebSearchKeys = setOf("query", "title", "snippets")
     private val seedWebSearchQueryKeys = setOf("contains_any")
     private val seedCalendarKeys = setOf("title", "when", "notes")
@@ -291,6 +295,9 @@ object ScenarioLoader {
             limit,
             obj.optBoolean("calendarEnabled", false),
             obj.optBoolean("webSearchEnabled", false),
+            obj.optString("weeklyReviewDay").takeIf { it.isNotBlank() }?.let {
+                runCatching { java.time.DayOfWeek.valueOf(it.uppercase()) }.getOrElse { throw ScenarioParseException(file, "$path.weeklyReviewDay must be a weekday name") }
+            },
         )
     }
 
@@ -332,7 +339,19 @@ object ScenarioLoader {
                     ?: throw ScenarioParseException(file, "$path.persona.$key must be a number from 0 to 1")
             }
         }.orEmpty()
-        return ScenarioSeed(profile, tools, systemCalendar, webSearch, persona)
+        val contacts = obj.optJSONArray("contacts")?.let { array ->
+            (0 until array.length()).map { i ->
+                val item = array.optJSONObject(i) ?: throw ScenarioParseException(file, "$path.contacts[$i] must be an object")
+                rejectUnknown(item, setOf("name", "phones", "birthday"), "$path.contacts[$i]", file)
+                val phones = item.optJSONArray("phones")
+                com.her.data.contacts.PhoneContact(
+                    item.optString("name").ifBlank { throw ScenarioParseException(file, "$path.contacts[$i].name is required") },
+                    (0 until (phones?.length() ?: 0)).map { phones!!.getString(it) },
+                    item.optString("birthday").takeIf { it.isNotBlank() },
+                )
+            }
+        }.orEmpty()
+        return ScenarioSeed(profile, tools, systemCalendar, webSearch, persona, contacts)
     }
 
     private fun parseSeedWebSearch(file: File, array: JSONArray?, path: String): List<SeedWebSearch> {

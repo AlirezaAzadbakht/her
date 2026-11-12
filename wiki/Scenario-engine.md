@@ -65,7 +65,7 @@ Each completed scenario also saves a report under `build/reports/scenarios/compl
   "tags": ["calendar"],
   "attempts": 2,
   "pending": false,
-  "settings": { "chatToolCallLimit": 12, "calendarEnabled": false, "webSearchEnabled": false },
+  "settings": { "chatToolCallLimit": 12, "calendarEnabled": false, "webSearchEnabled": false, "weeklyReviewDay": "MONDAY" },
   "seed": {
     "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
     "tools": [{ "name": "update_person", "arguments": { "name": "Sara", "relationship": "colleague" } }]

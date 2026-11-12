@@ -96,6 +96,8 @@ class AgentOrchestrator(
     private val policy: NotificationPolicy,
     private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
     private val appraiser: com.her.feelings.FastAppraiser? = null,
+    /** The day their week starts, when the morning briefing also looks back at the week; null turns that off. */
+    private val weekStart: () -> java.time.DayOfWeek? = { null },
 ) {
     // ponytail: one lock for every run; a waiting chat makes a background run stop at its next round,
     // so chat waits at most one background call. Cancel that in-flight call too if one round is still too long.
@@ -254,7 +256,7 @@ class AgentOrchestrator(
             type = AgentRunType.BRIEFING,
             budget = CallBudget(8),
             latestUserText = null,
-            extraSystem = Identity.BRIEFING_PROMPT,
+            extraSystem = Identity.BRIEFING_PROMPT + if (now.dayOfWeek == weekStart()) "\n\n" + Identity.WEEKLY_REVIEW_PROMPT else "",
             persistAssistant = true,
             allowNotify = true,
         )

@@ -117,6 +117,7 @@ class ContextBuilder(
             }
             com.her.data.db.personaLines(repo.persona()).forEach { appendLine(it) }
             appendLine("Web search: ${if (settings.read().webSearchEnabled) "on" else "off"}")
+            appendLine("Phone contacts: ${if (settings.read().contactsEnabled) "on" else "off (Settings → Connections → Contacts access)"}")
             appendSection("People", people.map { "${it.id} | ${it.name} (${it.relationship ?: "?"}) bday=${it.birthday ?: "-"} ${it.importantNotes ?: ""}" }, hidden["People"] ?: 0)
             appendSection("Projects", projects.map { "${it.id} | ${it.name}: ${it.summary ?: it.description ?: it.status}" }, hidden["Projects"] ?: 0)
             appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" }, hidden["Goals"] ?: 0)
