@@ -1,5 +1,6 @@
 package com.her.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -108,6 +109,11 @@ fun HerApp(vm: HerViewModel) {
     }
     var dest by rememberSaveable { mutableStateOf(Dest.Her) }
 
+    // Text shared from another app lands on Her, where its chip and the composer are.
+    val share by vm.pendingShare.collectAsState()
+    LaunchedEffect(share) {
+        if (share != null) dest = Dest.Her
+    }
     LaunchedEffect(settings.memoryTabEnabled) {
         if (!settings.memoryTabEnabled && dest == Dest.Memory) dest = Dest.Her
     }
@@ -199,6 +205,8 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
         if (settings.memoryTabEnabled) add(Dest.Memory)
         add(Dest.Settings)
     }
+
+    BackHandler(enabled = dest != Dest.Her) { onDest(Dest.Her) }
 
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Column(Modifier.fillMaxSize().imePadding()) {
