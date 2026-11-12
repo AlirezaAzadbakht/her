@@ -2,6 +2,8 @@
 
 A capability suite, separate from the live LLM, that answers whether Her can actually do the things we claim: set a meeting, create a monthly task, remember a fact, and so on. It drives the real `AgentOrchestrator`. Live runs need an OpenAI-compatible LLM from `.env`; they are slow, cost tokens, and are non-deterministic. Recorded `ci-core` cassettes replay offline in CI (see [Record and replay](#record-and-replay)).
 
+A weekly GitHub Actions run does the live pass on `dev`; see [CI and release](CI-and-release.md#live-scenarios).
+
 Unit tests stay fast and LLM-free (`gradle :app:testDebugUnitTest`). That suite parses the pool (`ScenarioPoolValidationTest`) and records/replays the `ci-core` set with a scripted model (`CoreCassetteTest`).
 
 ## Workflow
