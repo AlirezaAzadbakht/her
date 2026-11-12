@@ -237,10 +237,26 @@ class AgentOrchestratorTest {
     @Test
     fun nightlyStampsTheProfileDayNotTheDeviceDay() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
-        val orchestrator = orchestrator(ScriptedLlm({ reply("done") }))
+        val orchestrator = orchestrator(ScriptedLlm({ reply("done") }, { reply("done") }, { reply("done") }))
         orchestrator.runNightly()
 
         assertEquals("2026-09-13", settings.read().lastNightlyDate)
+    }
+
+    @Test
+    fun nightlyThatFailsPartwayResumesAtTheStepThatFailed() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm({ reply("done") }, { throw LlmException("bad request", 400) }, { reply("done") }, { reply("done") })
+        val orchestrator = orchestrator(llm)
+
+        assertTrue(orchestrator.runNightly().failed)
+        assertEquals("", settings.read().lastNightlyDate)
+        assertEquals(2, llm.calls)
+
+        val second = orchestrator.runNightly()
+        assertFalse(second.failed)
+        assertEquals("the finished first step is not run again", 4, llm.calls)
+        assertEquals(repo.today().toString(), settings.read().lastNightlyDate)
     }
 
     @Test
@@ -473,18 +489,18 @@ class AgentOrchestratorTest {
 
     @Test
     fun gatedNightlySkipsWhenTheyHaveNotWritten() = runBlocking {
-        val llm = ScriptedLlm({ reply("done") }, { reply("done") })
+        val llm = ScriptedLlm(*Array(6) { { reply("done") } })
         val orchestrator = orchestrator(llm)
         orchestrator.runNightly(gated = true)
-        assertEquals("the first night always runs", 1, llm.calls)
+        assertEquals("the first night always runs, one call per step", 3, llm.calls)
 
         clock.advance(24 * HOUR)
         orchestrator.runNightly(gated = true)
-        assertEquals(1, llm.calls)
+        assertEquals(3, llm.calls)
 
         orchestrator.enqueueUserMessage("I started a new job today")
         orchestrator.runNightly(gated = true)
-        assertEquals(2, llm.calls)
+        assertEquals(6, llm.calls)
     }
 
     @Test
@@ -503,7 +519,7 @@ class AgentOrchestratorTest {
 
     @Test
     fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
-        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("Morning. The day is open.") })
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("done") }, { reply("done") }, { reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         var passes = 0
 
@@ -526,7 +542,7 @@ class AgentOrchestratorTest {
         orchestrator.enqueueUserMessage("I'm back")
         orchestrator.runBriefing(gated = true) { passes++ }
         assertEquals(3, passes)
-        assertEquals("every model call was announced", llm.calls, passes)
+        assertEquals("no other pass reached the model; the nightly one is three steps", passes + 2, llm.calls)
     }
 
     @Test

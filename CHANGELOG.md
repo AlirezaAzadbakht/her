@@ -11,6 +11,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Send Her a link, or share a page to her from another app, and she reads it before answering. She can tell you what it says or pick out the part you need. This works when Web search is on in Settings, and she won't open addresses on your own network.
 
 ### Changed
+- Her's nightly review now runs in three steps: questions she's wondering about, how the day felt, then tidying memory and her notes on recent days. A long review can no longer crowd out those notes, and a review that gets interrupted picks up at the step where it stopped.
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
 
 ### Fixed

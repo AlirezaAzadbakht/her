@@ -92,6 +92,8 @@ data class AppSettings(
     /** What the last hourly model call already saw; a skipped hour leaves it alone. */
     val lastHourlyTriggers: Set<String> = emptySet(),
     val lastNightlyRunAt: Long = 0L,
+    /** "<day>:<steps finished>", so a nightly review that stopped partway resumes at the next step. */
+    val nightlyProgress: String = "",
     /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
     val backgroundModel: String = "",
     /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
@@ -140,6 +142,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             embeddingModel = prefs.getString(KEY_EMBED_MODEL, DEFAULT_EMBEDDING_MODEL) ?: DEFAULT_EMBEDDING_MODEL,
             lastHourlyTriggers = prefs.getStringSet(KEY_HOURLY_TRIGGERS, null)?.toSet().orEmpty(),
             lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
+            nightlyProgress = prefs.getString(KEY_NIGHTLY_PROGRESS, "") ?: "",
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
@@ -174,6 +177,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putString(KEY_EMBED_MODEL, next.embeddingModel)
             putStringSet(KEY_HOURLY_TRIGGERS, next.lastHourlyTriggers)
             putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
+            putString(KEY_NIGHTLY_PROGRESS, next.nightlyProgress)
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
@@ -214,6 +218,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_SCHEDULE = "schedule_fingerprint"
         private const val KEY_HOURLY_TRIGGERS = "last_hourly_triggers"
         private const val KEY_NIGHTLY_AT = "last_nightly_at"
+        private const val KEY_NIGHTLY_PROGRESS = "nightly_progress"
         private const val KEY_BG_MODEL = "background_model"
         private const val KEY_BG_CAP = "background_token_cap"
         private const val KEY_SWIPED = "swiped_nudges"

@@ -200,15 +200,25 @@ class AgentOrchestrator(
         }
         onPassStart()
         val started = nowMillis()
-        val result = runTurn(
-            type = AgentRunType.NIGHTLY,
-            budget = CallBudget(50),
-            latestUserText = null,
-            extraSystem = Identity.NIGHTLY_PROMPT + com.her.agent.tools.daysToRemember(repo).takeIf { it.isNotEmpty() }
-                ?.let { days -> "\n\nDays to remember: ${days.joinToString(", ")}" }.orEmpty(),
-            persistAssistant = false,
-            allowNotify = false,
-        )
+        // Steps finished earlier today (a pass that failed or yielded to chat partway) are not run again.
+        val done = app.nightlyProgress.substringAfter("$today:", "0").toIntOrNull() ?: 0
+        var result = TurnResult(null, false, null, 0, "skipped")
+        var calls = 0
+        for ((index, phase) in Identity.NIGHTLY_PHASES.withIndex().drop(done)) {
+            val days = if (index == Identity.NIGHTLY_PHASES.lastIndex) com.her.agent.tools.daysToRemember(repo) else emptyList()
+            result = runTurn(
+                type = AgentRunType.NIGHTLY,
+                budget = CallBudget(phase.calls),
+                latestUserText = null,
+                extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
+                persistAssistant = false,
+                allowNotify = false,
+            )
+            calls += result.callsUsed
+            if (result.failed) break
+            settings.update { it.copy(nightlyProgress = "$today:${index + 1}") }
+        }
+        result = result.copy(callsUsed = calls)
         if (!result.failed) {
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             // Once a night: she moves a little toward any trait they asked her to work on.

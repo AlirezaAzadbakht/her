@@ -30,7 +30,7 @@ The orchestrator logs prompt sizes, retrieved memory ids, per-call token usage (
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
 
-The nightly pass rewrites one `update_agent_state(kind="digest")` note about the last several days: decisions, what she did, threads to pick up. `update_agent_state` upserts by kind for `digest`, and the bundle always shows it, so a decision survives after it scrolls out of the 24-message window.
+The nightly review is three model turns (`Identity.NIGHTLY_PHASES`): the wondering review, the emotional review, then consolidation and the digest. Each has its own call budget, so a long review cannot use the calls the digest needs. `AppSettings.nightlyProgress` records the steps finished today; a pass that failed or yielded to chat partway starts again at the step that stopped. The nightly pass rewrites one `update_agent_state(kind="digest")` note about the last several days: decisions, what she did, threads to pick up. `update_agent_state` upserts by kind for `digest`, and the bundle always shows it, so a decision survives after it scrolls out of the 24-message window.
 
 ## Retrieval
 
@@ -52,7 +52,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 |-----|---------------|-------------|
 | Chat | `chatToolCallLimit` (default 12, min 1) | User-driven |
 | Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. A scheduled pass skips when nothing new came due ([Background work](Background-work.md#nothing-new-no-model-call)). |
-| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one |
+| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one. Runs as three steps with their own budgets (wondering 12, emotional 14, consolidation and digest 24); a pass that stops partway resumes at the next step |
 | Briefing | 8 | Once per calendar day; a scheduled pass skips after 7 quiet days, or 3 when today is empty |
 
 ## Tools

@@ -54,7 +54,7 @@ class PromptSizeTest {
         assertFalse(system.contains("save_emotional_thread"))
         assertFalse(built.systemBundle.contains("save_emotional_thread"))
         assertTrue(specs.none { it.name in com.her.agent.tools.REFLECTION_ONLY_TOOLS })
-        assertTrue(com.her.agent.prompt.Identity.NIGHTLY_PROMPT.contains("save_emotional_thread"))
+        assertTrue(com.her.agent.prompt.Identity.NIGHTLY_PHASES.any { it.prompt.contains("save_emotional_thread") })
         assertTrue(tools.specsFor(AgentRunType.NIGHTLY).map { it.name }.containsAll(com.her.agent.tools.REFLECTION_ONLY_TOOLS))
         val clockAt = built.systemBundle.indexOf("Current local time")
         assertTrue(clockAt > 0)
