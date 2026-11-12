@@ -514,21 +514,25 @@ class HerRepository(
         var changed: Boolean
         do {
             changed = false
-            // Expression quotes describe a whole user message, including when saved before its experience.
-            // Forget them with any emotional evidence derived from that message, without deleting the chat.
+            // Expression quotes and understandings describe a whole user message, including when saved before its
+            // experience. Forget them with any emotional evidence derived from that message, without deleting the chat.
             val emotionalSources = rows.filter { it.id in pending && it.kind in com.her.feelings.emotionalKinds }
                 .flatMap { it.sourceIds() }.toSet()
             rows.forEach { row ->
                 val data = row.data()
                 val links = data.optJSONArray("relatedIds")
-                val derived = (row.kind == "EMOTION_EXPRESSION" && row.sourceIds().any { it in emotionalSources }) || row.parentId in pending || row.sourceIds().any { it in pending } ||
+                val derived = (row.kind in setOf("EMOTION_EXPRESSION", "EMOTION_UNDERSTANDING") && row.sourceIds().any { it in emotionalSources }) || row.parentId in pending || row.sourceIds().any { it in pending } ||
                     (links != null && (0 until links.length()).any { links.optString(it) in pending })
                 if (derived && pending.add(row.id)) changed = true
             }
         } while (changed)
+        // A day's episode retells its messages, so it would keep the feelings they asked to forget.
+        val retold = rows.filter { it.id in pending && it.kind in com.her.feelings.emotionalKinds }.flatMap { it.sourceIds() }.toSet()
         rows.filter { it.id in pending }.forEach {
             saveCompanionRecord(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
         }
+        if (retold.isNotEmpty()) allLong().filter { it.deletedAt == null && it.category == EPISODE_CATEGORY && memoryDependencies(it).any { dep -> dep in retold } }
+            .forEach { forgetKnowledge(it.id) }
         rows.filter { it.id in pending && it.id != id && it.deletedAt == null }.map { it.id }
     }
 

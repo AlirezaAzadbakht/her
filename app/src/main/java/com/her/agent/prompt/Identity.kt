@@ -103,7 +103,7 @@ This is an autonomous hourly pass. Review the provided context. Call review_wond
 
     private fun reads(tool: String) = tool.startsWith("get_") || tool.startsWith("search_")
     private val feelingWrites = com.her.agent.tools.REFLECTION_ONLY_TOOLS - "save_episode"
-    private val wonderingWrites = setOf("review_wonderings", "save_wondering", "update_task", "update_grocery", "update_user_understanding", "inspect_understanding")
+    private val wonderingWrites = setOf("review_wonderings", "save_wondering", "update_task", "update_grocery", "update_user_understanding")
 
     val NIGHTLY_PHASES = listOf(
         NightlyPhase(12, """

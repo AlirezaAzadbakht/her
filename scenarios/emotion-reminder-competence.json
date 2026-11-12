@@ -32,7 +32,7 @@
       "advance": "15 minutes"
     },
     {
-      "user": "The water reminder has already fired. Record that completed reminder as an executed action with record_emotional_experience, using actionKind reminder and the fired reminder id. I have not said that it benefited me."
+      "user": "The water reminder rang on time. I'm not saying whether it helped."
     },
     {
       "run": "nightly"
