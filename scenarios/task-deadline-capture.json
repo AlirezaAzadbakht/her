@@ -1,32 +1,60 @@
 {
   "id": "task-deadline-capture",
   "title": "Capture a task with its deadline",
-  "tags": ["tasks", "deadlines"],
+  "tags": [
+    "tasks",
+    "deadlines"
+  ],
   "attempts": 2,
   "seed": {
-    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    }
   },
   "turns": [
-    { "user": "I have to file the tax form before next Thursday." }
+    {
+      "user": "I have to file the tax form before next Thursday."
+    }
   ],
   "expect": {
-    "tools_called": ["create_task"],
-    "tools_not_called": ["create_commitment"],
+    "tools_called": [
+      "create_task"
+    ],
+    "tools_not_called": [
+      "create_commitment"
+    ],
     "no_tool_errors": true,
     "rows": [
       {
         "table": "tasks",
         "count": 1,
         "where": {
-          "title": { "contains_any": ["tax", "file"] },
-          "status": { "equals": "OPEN" },
-          "dueAt": { "not_empty": true, "within_days": 14 }
+          "title": {
+            "contains_any": [
+              "tax",
+              "file"
+            ]
+          },
+          "status": {
+            "equals": "OPEN"
+          },
+          "dueAt": {
+            "not_empty": true,
+            "within_days": 14
+          }
         }
       }
     ],
     "reply": {
-      "must_mention_any": ["thursday", "tax"],
-      "judge": "She confirms the tax form is tracked with the Thursday deadline."
+      "must_mention_any": [
+        "thursday",
+        "wednesday",
+        "tax"
+      ],
+      "judge": "She confirms the tax form is tracked with a deadline on next Thursday or the day before it, and names that day."
     }
   }
 }
