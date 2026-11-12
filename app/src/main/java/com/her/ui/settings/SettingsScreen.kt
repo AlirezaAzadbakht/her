@@ -161,10 +161,12 @@ fun SettingsScreen(vm: HerViewModel) {
         }
     }
 
-    val requestCalendar = rememberCalendarPermissionRequester {
+    var calendarBlocked by remember { mutableStateOf(false) }
+    var contactsBlocked by remember { mutableStateOf(false) }
+    val requestCalendar = rememberCalendarPermissionRequester(onBlocked = { calendarBlocked = true }) {
         vm.updateSettings { it.copy(calendarEnabled = true) }
     }
-    val requestContacts = com.her.ui.onboarding.rememberContactsPermissionRequester {
+    val requestContacts = com.her.ui.onboarding.rememberContactsPermissionRequester(onBlocked = { contactsBlocked = true }) {
         vm.updateSettings { it.copy(contactsEnabled = true) }
     }
     val context = LocalContext.current
@@ -249,18 +251,19 @@ fun SettingsScreen(vm: HerViewModel) {
                     vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
                 }
                 Hint("Background passes stop for the day once they use this many tokens. Blank or 0 means no limit.")
-            }
-            if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                Text(
-                    "Reminders can arrive a few minutes late until exact alarms are allowed.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-                TextButton(onClick = {
-                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                        .setData(Uri.parse("package:${context.packageName}"))
-                    runCatching { context.startActivity(intent) }
-                }) { Text("Allow exact reminders") }
+                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Hint("Reminders can arrive a few minutes late until exact alarms are allowed.", Modifier.padding(top = 10.dp))
+                    Spacer(Modifier.height(6.dp))
+                    HerButton(
+                        "Allow exact reminders",
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
+                }
             }
         }
         item(key = "quiet") {
@@ -297,6 +300,7 @@ fun SettingsScreen(vm: HerViewModel) {
                         requestCalendar()
                     }
                 }
+                if (calendarBlocked && !app.calendarEnabled) BlockedPermission("Calendar")
                 ToggleRow(
                     "Contacts access",
                     app.contactsEnabled,
@@ -308,6 +312,7 @@ fun SettingsScreen(vm: HerViewModel) {
                         requestContacts()
                     }
                 }
+                if (contactsBlocked && !app.contactsEnabled) BlockedPermission("Contacts")
                 ToggleRow(
                     "Web search",
                     app.webSearchEnabled,
@@ -468,6 +473,24 @@ private fun Modifier.introRise(index: Int, playing: Boolean): Modifier {
         remember { mutableFloatStateOf(1f) }
     }
     return rise(progress, 18.dp)
+}
+
+/** Shown once Android has stopped offering the permission prompt, so the toggle no longer looks dead. */
+@Composable
+private fun BlockedPermission(name: String) {
+    val context = LocalContext.current
+    Hint("$name access is turned off in Android's settings for Her. Allow it there, then turn this on.")
+    Spacer(Modifier.height(6.dp))
+    HerButton(
+        "Open Android settings",
+        tone = HerButtonTone.Quiet,
+        onClick = {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.parse("package:${context.packageName}"))
+            runCatching { context.startActivity(intent) }
+        },
+    )
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable

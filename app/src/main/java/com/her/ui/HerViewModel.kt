@@ -52,6 +52,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val turnState: StateFlow<TurnState> = graph.orchestrator.turnState
     val settings = graph.settings.state
     val sqlBrowser = graph.sqlBrowser
+    val memoryState = com.her.ui.memory.MemoryScreenState()
 
     val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
@@ -181,6 +182,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (targets.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             val reversed = targets.filter { runCatching { graph.tools.undo(it.entityType, it.entityId) }.getOrDefault(false) }
+            if (reversed.size < targets.size) {
+                notice.value = TurnResult(
+                    assistantText = null,
+                    failed = true,
+                    error = null,
+                    callsUsed = 0,
+                    runId = "",
+                    notice = "I couldn't undo that.",
+                )
+            }
             if (reversed.isEmpty()) return@launch
             graph.repo.getMessage(messageId)?.let { message ->
                 graph.repo.saveMessage(
