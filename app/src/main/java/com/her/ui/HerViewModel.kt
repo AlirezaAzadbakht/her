@@ -229,6 +229,20 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         app.startActivity(Intent.createChooser(send, "Share backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
+    /** Hands a Markdown file of what she knows to another app, for reading rather than restoring. */
+    fun shareReadable() = backupJob {
+        val file = withContext(Dispatchers.IO) {
+            val dir = File(app.cacheDir, "backup").apply { deleteRecursively(); mkdirs() }
+            File(dir, "her-${LocalDate.now()}.md").also { it.writeText(com.her.data.backup.ReadableExport.markdown(graph.repo)) }
+        }
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.files", file)
+        val send = Intent(Intent.ACTION_SEND)
+            .setType("text/markdown")
+            .putExtra(Intent.EXTRA_STREAM, uri)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        app.startActivity(Intent.createChooser(send, "Share what Her knows").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     /** Replaces everything on this phone with the backup, then restarts the app to open it. */
     fun importBackup(uri: Uri) = backupJob {
         withContext(Dispatchers.IO) {

@@ -322,11 +322,12 @@ fun SettingsScreen(vm: HerViewModel) {
         }
         item(key = "backup") {
             SectionCard("Backup", Modifier.animateItem().introRise(4, intro)) {
-                Hint("A zip of everything she knows and your settings. Your API keys stay on this phone.")
+                Hint("A zip of everything she knows and your settings. Your API keys stay on this phone. Export as text gives a file you can read; it cannot be imported.")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     HerButton("Save backup", onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
                     HerButton("Share", tone = HerButtonTone.Quiet, onClick = { vm.shareBackup() }, enabled = !backupBusy)
                     HerButton("Import", tone = HerButtonTone.Quiet, onClick = { pickBackup.launch(BACKUP_TYPES) }, enabled = !backupBusy)
+                    HerButton("Export as text", tone = HerButtonTone.Quiet, onClick = { vm.shareReadable() }, enabled = !backupBusy)
                 }
                 AnimatedVisibility(
                     visible = backupMessage != null,
