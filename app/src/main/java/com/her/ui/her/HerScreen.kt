@@ -44,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -62,7 +63,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -194,13 +197,15 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
         }
     }
 
-    LaunchedEffect(turn) {
-        if (turn !is TurnState.Idle) {
+    // Keyed on busy, not on turn: turn changes with every streamed token, and resetting then would fight the reader's scroll.
+    val busy = turn !is TurnState.Idle
+    LaunchedEffect(busy) {
+        if (busy) {
             pinToBottom = true
             scroll.scrollTo(0)
         }
     }
-    LaunchedEffect(scroll, turn) {
+    LaunchedEffect(scroll, busy) {
         var lastMax = 0
         snapshotFlow { scroll.value to scroll.maxValue }.collect { (value, max) ->
             val grew = max > lastMax
@@ -314,7 +319,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
             ) { current ->
                 if (current != null) {
                     Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                        StatusChip(current)
+                        StatusChip(current, onDismissShare = { vm.pendingShare.value = null })
                     }
                 }
             }
@@ -457,7 +462,6 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
                             )
                         }
                     }
-                    val busy = turn !is TurnState.Idle
                     SendButton(
                         visible = draft.text.isNotBlank() || busy,
                         stop = busy,
@@ -586,15 +590,18 @@ private fun ReplyStage(
                         .padding(vertical = 20.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    ConversationMarkdown(
-                        content = text,
-                        color = ink,
-                        style = style,
-                        textAlign = TextAlign.Center,
-                        showCaret = showCaret,
-                        tailStrength = tailStrength,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    // Long-press selects, so her words can be copied.
+                    SelectionContainer {
+                        ConversationMarkdown(
+                            content = text,
+                            color = ink,
+                            style = style,
+                            textAlign = TextAlign.Center,
+                            showCaret = showCaret,
+                            tailStrength = tailStrength,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
         }
@@ -602,7 +609,7 @@ private fun ReplyStage(
 }
 
 @Composable
-private fun StatusChip(status: HerStatus) {
+private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
     val colors = Her.colors
     val scheme = MaterialTheme.colorScheme
     Row(
@@ -610,6 +617,13 @@ private fun StatusChip(status: HerStatus) {
             .clip(CircleShape)
             .background(colors.glassFill)
             .border(1.dp, colors.glassStroke, CircleShape)
+            .then(
+                if (status is HerStatus.Shared) {
+                    Modifier.clickable(onClickLabel = "Remove shared text", onClick = onDismissShare)
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -619,13 +633,17 @@ private fun StatusChip(status: HerStatus) {
                 ThinkingOrb(OrbState.Weaving, size = OrbSize.Px20, displaySize = 16.dp)
                 Text("offline · ${status.count} waiting", color = scheme.onSurfaceVariant, fontSize = 13.sp)
             }
-            is HerStatus.Shared -> Text(
-                "Shared: ${status.text}",
-                color = scheme.primary,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            is HerStatus.Shared -> {
+                Text(
+                    "Shared: ${status.text}",
+                    color = scheme.primary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Text("✕", color = scheme.onSurfaceVariant, fontSize = 13.sp)
+            }
         }
     }
 }
@@ -657,6 +675,12 @@ private fun SendButton(visible: Boolean, stop: Boolean = false, onClick: () -> U
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(16.dp)) {
+            if (stop) {
+                val side = size.width * 0.7f
+                val inset = (size.width - side) / 2
+                drawRoundRect(arrow, Offset(inset, inset), Size(side, side), CornerRadius(2.dp.toPx()))
+                return@Canvas
+            }
             val stroke = 2.dp.toPx()
             val cx = size.width / 2
             val tip = Offset(cx, size.height * 0.14f)

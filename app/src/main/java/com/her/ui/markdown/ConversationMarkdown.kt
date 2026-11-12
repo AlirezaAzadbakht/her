@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -32,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -121,27 +123,25 @@ fun ConversationMarkdown(
                     }
                     is MdBlock.Code -> {
                         DirectionalBlock(forceLtr = true, fallback = fallbackDir) {
-                            SelectionContainer {
-                                CaretText(
-                                    text = AnnotatedString(block.text),
-                                    style = aligned.copy(
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 15.sp,
-                                        lineHeight = 22.sp,
-                                        textDirection = TextDirection.Ltr,
-                                    ),
-                                    color = color,
-                                    textAlign = TextAlign.Start,
-                                    showCaret = caret,
-                                    caretColor = color,
-                                    tail = tail,
-                                    modifier = Modifier
-                                        .padding(top = top)
-                                        .fillMaxWidth()
-                                        .background(color.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                )
-                            }
+                            CaretText(
+                                text = AnnotatedString(block.text),
+                                style = aligned.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 15.sp,
+                                    lineHeight = 22.sp,
+                                    textDirection = TextDirection.Ltr,
+                                ),
+                                color = color,
+                                textAlign = TextAlign.Start,
+                                showCaret = caret,
+                                caretColor = color,
+                                tail = tail,
+                                modifier = Modifier
+                                    .padding(top = top)
+                                    .fillMaxWidth()
+                                    .background(color.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                            )
                         }
                     }
                     is MdBlock.ListBlock -> {
@@ -271,7 +271,13 @@ private fun AnnotatedString.Builder.appendInline(inline: MdInline, color: Color,
         is MdInline.Strike -> withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) {
             inline.children.forEach { appendInline(it, color, link) }
         }
-        is MdInline.Link -> withStyle(SpanStyle(color = link, textDecoration = TextDecoration.Underline)) {
+        // LinkAnnotation.Url opens the browser through the platform UriHandler.
+        is MdInline.Link -> withLink(
+            LinkAnnotation.Url(
+                inline.url,
+                TextLinkStyles(SpanStyle(color = link, textDecoration = TextDecoration.Underline)),
+            ),
+        ) {
             inline.label.forEach { appendInline(it, link, link) }
         }
     }
