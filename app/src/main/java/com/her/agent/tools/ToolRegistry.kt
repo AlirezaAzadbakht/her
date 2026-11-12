@@ -206,6 +206,7 @@ open class ToolRegistry(
         registerSupportTools()
         registerEmotionalTools()
         registerFocusTools()
+        registerMoneyTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */
@@ -260,6 +261,10 @@ open class ToolRegistry(
                 val event = repo.getCalendarEvent(id)?.takeIf { it.deletedAt == null } ?: return false
                 if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
                 repo.deleteCalendarEvent(id)
+            }
+            "expenses" -> {
+                val item = repo.getExpense(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveExpense(item.copy(deletedAt = now, updatedAt = now, version = item.version + 1))
             }
             "reminders" -> {
                 val item = repo.getReminder(id)?.takeIf { it.deletedAt == null } ?: return false

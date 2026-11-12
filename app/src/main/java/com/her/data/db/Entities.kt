@@ -279,6 +279,22 @@ data class ImportantDateEntity(
     val deletedAt: Long?,
 )
 
+/** Money they said they spent. A plain log: she adds it up on request and gives no advice from it. */
+@Entity(tableName = "expenses")
+data class ExpenseEntity(
+    @PrimaryKey val id: String,
+    val amount: Double,
+    val currency: String?,
+    val what: String,
+    val category: String?,
+    val spentAt: Long,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
 @Entity(tableName = "recurring_responsibilities")
 data class RecurringResponsibilityEntity(
     @PrimaryKey val id: String,

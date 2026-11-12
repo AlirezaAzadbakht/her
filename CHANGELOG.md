@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Tell Her what you spent ("lunch was 200", "50 on a taxi") and she keeps a log. Ask how much you've spent today, this week, or on food, and she adds it up. She keeps currencies apart and doesn't give money advice.
 - **Export as text** in Settings → Backup shares one readable file of what Her knows about you: memories, people, tasks, promises, dates, reminders and lists. It's for reading or keeping, not for restoring.
 - Her can keep any list for you, not just groceries. Say "start a packing list: passport, charger" or "add Dune to my books to read" and she keeps it as its own list, apart from your shopping. Ask what's on it, take things off, or tell her everything is packed.
 - Her has a personality of her own. The name you gave her sets six traits: warmth, playfulness, curiosity, directness, patience and expressiveness. They grow a little from your time together. Ask her to be more playful or less blunt and she'll work on it over the next few days. The Memory tab shows her as a web chart, with an outline of who she was when you met.
