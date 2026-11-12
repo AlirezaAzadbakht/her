@@ -202,15 +202,26 @@ class AgentOrchestrator(
         }
         onPassStart()
         val started = nowMillis()
-        val result = runTurn(
-            type = AgentRunType.NIGHTLY,
-            budget = CallBudget(50),
-            latestUserText = null,
-            extraSystem = Identity.NIGHTLY_PROMPT + com.her.agent.tools.daysToRemember(repo).takeIf { it.isNotEmpty() }
-                ?.let { days -> "\n\nDays to remember: ${days.joinToString(", ")}" }.orEmpty(),
-            persistAssistant = false,
-            allowNotify = false,
-        )
+        // Steps finished earlier today (a pass that failed or yielded to chat partway) are not run again.
+        val done = app.nightlyProgress.substringAfter("$today:", "0").toIntOrNull() ?: 0
+        var result = TurnResult(null, false, null, 0, "skipped")
+        var calls = 0
+        for ((index, phase) in Identity.NIGHTLY_PHASES.withIndex().drop(done)) {
+            val days = if (index == Identity.NIGHTLY_PHASES.lastIndex) com.her.agent.tools.daysToRemember(repo) else emptyList()
+            result = runTurn(
+                type = AgentRunType.NIGHTLY,
+                budget = CallBudget(phase.calls),
+                latestUserText = null,
+                extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
+                persistAssistant = false,
+                allowNotify = false,
+                offers = phase.offers,
+            )
+            calls += result.callsUsed
+            if (result.failed) break
+            settings.update { it.copy(nightlyProgress = "$today:${index + 1}") }
+        }
+        result = result.copy(callsUsed = calls)
         if (!result.failed) {
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             // Once a night: she moves a little toward any trait they asked her to work on.
@@ -273,6 +284,7 @@ class AgentOrchestrator(
         allowNotify: Boolean,
         streamToUi: Boolean = false,
         writeAnchor: com.her.domain.ChatMessage? = null,
+        offers: (String) -> Boolean = { true },
     ): TurnResult = withContext(Dispatchers.IO) {
         val runId = com.her.core.newId()
         val started = nowMillis()
@@ -317,7 +329,7 @@ class AgentOrchestrator(
                     return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
                 }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type)
+                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type).filter { offers(it.name) }
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {
