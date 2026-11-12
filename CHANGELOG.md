@@ -16,6 +16,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Send Her a link, or share a page to her from another app, and she reads it before answering. She can tell you what it says or pick out the part you need. This works when Web search is on in Settings, and she won't open addresses on your own network.
 
 ### Changed
+- Connecting Her is easier to find, in setup and in Settings → Her mind: a large **Scan QR code** button comes first, with **Load QR image** and **Paste settings** right under it. The Base URL, API key and Model boxes are folded away under **Use my own API endpoint** (**Endpoint details** in Settings) and open by themselves if a check fails.
 - An alarm Her rings now fills the screen when the phone is locked, with **Stop** and **Snooze**, instead of only a notification.
 - Her's nightly review now runs in three steps: questions she's wondering about, how the day felt, then tidying memory and her notes on recent days. A long review can no longer crowd out those notes, and a review that gets interrupted picks up at the step where it stopped.
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.

@@ -53,8 +53,8 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
 1. `HerApp` asks **What should I call you?**, then **And what should I be called?** Names go on `UserProfile`. Each greeting inks in word by word beside the `shaping` orb, and the field eases up once the question has been said.
 2. On the first name screen they can instead tap **Restore from a backup** and pick a backup zip (see [Data and backup](Data-and-backup.md#backup)). If the file is checked and staged, the app restarts on the restored data; both names come back, so HerApp skips the rest of this step and opens the API form. A file that isn't a backup, is damaged, or comes from a newer version shows a message on that screen and changes nothing.
 3. Then `SetupScreen` until `apiConfiguredOnce` is true.
-4. Enter an OpenAI-compatible **Base URL**, **API key**, and **Model**. Continue.
-   - Without a key, `HerCloudConnect` (also in Settings → Her mind) links to [Her Cloud](https://cloud.her-project.ir/) to buy credit. **Paste settings** reads the clipboard and **Scan QR code** opens the ZXing scanner (it asks for the camera). **Load QR image** opens the photo picker (no permission needed), reads every QR in the picture with ZXing's `QRCodeMultiReader` (`qrTexts`), and keeps the first that parses, so the Cafe Bazaar link on Her Cloud's cards is skipped. All three take Her Cloud's `{base_url, model_name, api_key}` JSON through `LlmSettings.fromJson`, fill the fields, and run `saveAndTest()` at once. Anything else shows "That isn't Her Cloud settings."
+4. Connect a model. `HerCloudConnect` (also in Settings → Her mind) comes first: a large **Scan QR code** card, then **Load QR image** and **Paste settings**, then a **Get credit on Her Cloud** link. Under it, the `Disclosure` row **Use my own API endpoint** folds away the OpenAI-compatible **Base URL**, **API key**, **Model** and **Continue**; it opens when tapped, or by itself when a check fails.
+   - The link opens [Her Cloud](https://cloud.her-project.ir/) to buy credit. **Scan QR code** opens the ZXing scanner (it asks for the camera) and **Paste settings** reads the clipboard. **Load QR image** opens the photo picker (no permission needed), reads every QR in the picture with ZXing's `QRCodeMultiReader` (`qrTexts`), and keeps the first that parses, so the Cafe Bazaar link on Her Cloud's cards is skipped. All three take Her Cloud's `{base_url, model_name, api_key}` JSON through `LlmSettings.fromJson`, fill the fields, and run `saveAndTest()` at once. Anything else shows "That isn't Her Cloud settings."
 5. `saveAndTest()` writes the credentials, then runs `LlmClient.ping()` (a short chat request with a ~35s timeout) on a background thread. The button becomes a `connecting` orb with a shimmering **Checking…**. On failure, the fields shake, a reject haptic plays, and a plain sentence from `AgentOrchestrator.failureOf` slides in, with the redacted raw error behind **Details**.
 6. On success, the button draws a check, the halo flares, `apiConfiguredOnce = true`, and `seedOnboardingIfNeeded()` runs:
    - Assistant: *“Hi, {user}. I'm {her}.”*
@@ -126,7 +126,7 @@ Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 
 Settings is grouped into glass cards that rise in on first open:
 
-- **Her mind:** LLM endpoint, key, and model. **Save & test** shows the connecting orb, then a drawn check.
+- **Her mind:** the model in use, then the same `HerCloudConnect` buttons as setup. LLM endpoint, key, and model sit under the folded **Endpoint details** row, which opens by itself when a check fails. **Save & test** shows the connecting orb, then a drawn check.
 - **Quiet hours:** two time chips that open a 24-hour time picker and save on confirm.
   - **Hourly during quiet hours** (default off).
   - **Allow background work** while the OS is still battery-optimizing the app.
