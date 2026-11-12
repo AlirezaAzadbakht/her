@@ -143,6 +143,7 @@ object ScenarioTables {
         "routines",
         "groceries",
         "important_dates",
+        "expenses",
         "recurring_responsibilities",
         "calendar_events",
         "system_calendar",

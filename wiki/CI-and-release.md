@@ -16,6 +16,12 @@ In-progress runs on the same ref are cancelled, **except** tag pushes.
 
 A merge to `main` is not rebuilt: `build` is a strict required check, so the PR already built the exact tree that lands.
 
+## Live scenarios
+
+`.github/workflows/live-scenarios.yml` runs the scenario pool against a real model every Saturday at 01:00 UTC on `dev`, and by hand from the Actions tab with an optional `filter` and `attempts`. The cassette replay in `build` cannot see a prompt change, because its fingerprints leave system text out; this run can. It costs tokens, never gates a merge, and uploads the HTML report as the `scenario-report` artifact.
+
+It needs three repository secrets, the same names as the local `.env`: `LLM_API_BASE_URL`, `LLM_MODEL_IDENTIFIER`, `LLM_API_SECRET_KEY`. Without them the job fails at its first step.
+
 ## Build job
 
 1. JDK 17 (Temurin), `gradle/actions/setup-gradle@v6`, Android SDK

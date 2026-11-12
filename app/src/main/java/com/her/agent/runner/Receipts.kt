@@ -35,6 +35,7 @@ object Receipts {
             )
             "add_grocery" -> Triple("groceries", "added ${text("name")} to $list", created)
             "create_task" -> Triple("tasks", "task: ${text("title")}", true)
+            "log_expense" -> Triple("expenses", "spent ${args.opt("amount")} on ${text("what")}", true)
             "create_commitment" -> Triple("commitments", "promise: ${text("title")}", true)
             "create_goal" -> Triple("goals", "goal: ${text("title")}", true)
             "create_open_loop" -> Triple("open_loops", "waiting on: ${text("description")}", true)

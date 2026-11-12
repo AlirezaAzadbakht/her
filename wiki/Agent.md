@@ -70,6 +70,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `web_search`, `fetch_url` (reads one public `http`/`https` page as text; refuses private and local addresses; both are offered only when Settings → Web search is on), `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
+- Money (`MoneyTools.kt`): `log_expense`, `get_expenses`. Rows live in the `expenses` table; totals are per currency and never mixed. `log_expense` is undoable from its receipt.
 
 ## Reminders and alarms
 

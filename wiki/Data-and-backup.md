@@ -39,6 +39,8 @@ Important record kinds:
 
 ## Backup
 
+**Export as text** (`ReadableExport.markdown`) shares one Markdown file of the active records for reading: About you, memories, people, projects, goals, tasks, commitments, open loops, routines, dates, scheduled reminders and every list. It is not a backup and cannot be imported.
+
 Settings → **Backup** and the first-run **Restore from a backup** use `Backup` (`app/src/main/java/com/her/data/backup/Backup.kt`). A backup is a zip with two entries:
 
 - `her.db`: the Room file. Export runs `PRAGMA wal_checkpoint(TRUNCATE)`, then copies the file inside `runInTransaction`, so no writer or checkpoint changes it mid-copy.
