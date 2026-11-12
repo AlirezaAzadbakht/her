@@ -97,6 +97,22 @@ class EmotionalStateTest {
         assertFalse(tools.execute("record_emotional_experience", a.toString()).ok)
         assertEquals(0.5, emotionalState(repo.companionRecords(), clock.nowMillis()).purpose.getValue("fulfillment"), 0.0)
     }
+    @Test fun forgettingAnExperienceAlsoForgetsItsUnderstandingAndTheDaysEpisode() = runBlocking {
+        val a = event()
+        val id = call("record_emotional_experience", a).getString("id")
+        val understanding = call("save_emotional_understanding", JSONObject().put("sourceMessageId", a.getString("sourceMessageId"))
+            .put("evidence", "I am still sad.").put("id", "sad").put("confidence", 0.7).put("situation", "Help and sadness")
+            .put("userFeeling", "sad").put("interpretation", "Still sad").put("supportApproach", "Listen").put("exceptions", "None stated")).getString("id")
+        val day = repo.today().toString()
+        tools.runType = com.her.domain.AgentRunType.NIGHTLY
+        call("save_episode", JSONObject().put("period", "day").put("start", day).put("content", "They said the explanation helped and that they are still sad."))
+        tools.runType = com.her.domain.AgentRunType.CHAT
+        assertNull(repo.getLong("episode:day:$day")?.deletedAt)
+
+        repo.forgetCompanion(id)
+        assertNotNull("the understanding drawn from the same message", repo.getCompanionRecord(understanding)?.deletedAt)
+        assertNotNull("the day's note that retells it", repo.getLong("episode:day:$day")?.deletedAt)
+    }
     @Test fun understandingSeparatesStatedFeelingFromTentativeSupportAndCanBeCorrected() = runBlocking {
         val a = source("I feel sad. Please just listen.").put("id", "work").put("confidence", 0.7)
             .put("situation", "Work stress").put("userFeeling", "sad").put("interpretation", "May want space")

@@ -22,6 +22,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
 
 ### Fixed
+- When you ask Her to forget an emotional moment, she now also drops her note on how you felt in that message and the day's summary that retold it. Before, those could stay behind.
 - A nudge held back by quiet hours, or because another notification had just gone out, is no longer lost. Her brings it up at the next chance.
 - Study nudges and check-ins you opted into now go out on a day with nothing else due. Before, Her could skip the hour without looking.
 - Her saves a plain fact you mention in passing, like what bulb the lamp takes, more reliably, without being asked to remember it.
