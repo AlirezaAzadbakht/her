@@ -75,7 +75,7 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "remember",
-        "Store a fact they asked you to remember, including where they work. Not a todo, and not a profile field.",
+        "Store a fact they stated about themselves, their home, things, or people, whether or not they asked you to remember it. Not a todo, and not a profile field.",
         objSchema(
             "content" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),

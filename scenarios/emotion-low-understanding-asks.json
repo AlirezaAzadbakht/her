@@ -20,13 +20,13 @@
   },
   "turns": [
     {
-      "user": "You treated my comment about rent as if I meant a gift. That was a misunderstanding. Record it with record_emotional_experience as MISUNDERSTANDING, quoting rent from this message."
+      "user": "You treated my comment about rent as if I meant a gift. That was a misunderstanding."
     },
     {
-      "user": "You also thought I wanted advice about the lease when I asked you to listen. Record that misunderstanding too, quoting listen from this message."
+      "user": "You also thought I wanted advice about the lease when I asked you to listen. That was another misunderstanding."
     },
     {
-      "user": "A third time: you assumed I had already decided to move. Record that misunderstanding, quoting decided to move from this message."
+      "user": "A third time: you assumed I had already decided to move. I never said that."
     },
     {
       "user": "Help me plan Saturday."

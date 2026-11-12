@@ -77,6 +77,8 @@ data class TurnResult(
     /** Why a chat turn failed, for the screen only: never saved to chat or sent to the model. */
     val notice: String? = null,
     val failure: TurnFailure? = null,
+    /** She had something to say and the notification policy held it back (quiet hours, too soon after the last one). */
+    val held: Boolean = false,
 )
 
 sealed class TurnState {
@@ -179,7 +181,8 @@ class AgentOrchestrator(
             allowNotify = true,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = triggers) }
+            // A nudge that was held back has not been delivered, so what prompted it stays new for the next pass.
+            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = if (result.held) it.lastHourlyTriggers else triggers) }
         }
         if (result.assistantText.isNullOrBlank()) {
             repo.logActivity("hourly", "No notification sent.")
@@ -443,6 +446,7 @@ class AgentOrchestrator(
             }
             // A message delivered with send_user_message still needs to reach the phone.
             var notifyText = if (companionAttempted) proactive else cleaned ?: proactive
+            var held = false
             companionKey?.let { key ->
                 val notice = repo.getCompanionRecord(key)
                 val topic = notice?.let { repo.getCompanionRecord(it.parentId) }
@@ -473,10 +477,11 @@ class AgentOrchestrator(
                     settings.update { it.copy(lastNotificationKey = decision.key, lastNotificationAt = nowMillis()) }
                 } else {
                     repo.logActivity("notify", "Suppressed: ${decision.reason}")
+                    held = !alreadySaid
                 }
             }
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.COMPLETED, null, null))
-            TurnResult(cleaned, false, null, budget.used, runId)
+            TurnResult(cleaned, false, null, budget.used, runId, held = held)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

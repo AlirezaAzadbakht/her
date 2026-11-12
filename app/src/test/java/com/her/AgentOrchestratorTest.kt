@@ -495,6 +495,28 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aNudgeHeldByQuietHoursIsOfferedAgainOnTheNextPass() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        settings.update { it.copy(quietHours = QuietHours(22 * 60, 23 * 60)) }
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        val llm = ScriptedLlm({ reply("The passport renewal is overdue.") }, { reply("The passport renewal is overdue.") })
+        val orchestrator = orchestrator(llm)
+
+        orchestrator.runHourly(gated = true)
+        assertTrue("held during quiet hours", shown.isEmpty())
+
+        settings.update { it.copy(quietHours = QuietHours(3 * 60, 4 * 60)) }
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("the overdue task is still new, because its nudge never reached them", 2, llm.calls)
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("delivered once, it stays quiet", 2, llm.calls)
+    }
+
+    @Test
     fun gatedHourlyWakesTheModelOnlyForSomethingNew() = runBlocking {
         val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") })
         val orchestrator = orchestrator(llm)

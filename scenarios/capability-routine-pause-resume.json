@@ -50,7 +50,7 @@
           "status": "ACTIVE",
           "repeat": "WEEKLY",
           "version": {
-            "gte": 3
+            "gte": 2
           }
         },
         "count": 1

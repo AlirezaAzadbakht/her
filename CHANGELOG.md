@@ -19,6 +19,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
 
 ### Fixed
+- A nudge held back by quiet hours, or because another notification had just gone out, is no longer lost. Her brings it up at the next chance.
+- Study nudges and check-ins you opted into now go out on a day with nothing else due. Before, Her could skip the hour without looking.
+- Her saves a plain fact you mention in passing, like what bulb the lamp takes, more reliably, without being asked to remember it.
+- When two calendar events could be the one you mean, Her asks which before moving either.
 - If the model is busy or unreachable when the morning briefing or the nightly review runs, Her tries once more a little later instead of skipping that day.
 - With a long list of tasks, people, groceries or reminders, Her no longer answers as if the first dozen were all of them. She now knows when there are more and looks them up.
 - If you say you're thinking of not being here, Her no longer sometimes answers "I can't assist with that request." When the model refuses like that she asks it again, and if it still refuses she checks you're safe herself and points you to someone you trust and to emergency or crisis help.

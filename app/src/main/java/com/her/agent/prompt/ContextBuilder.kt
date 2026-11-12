@@ -249,6 +249,13 @@ class ContextBuilder(
                 repo.agentQueue().filter { it.status.name == "OPEN" && (it.dueAt ?: 0L) <= nowMs }
                     .forEach { add("queue:${it.id}:${it.dueAt}") }
                 repo.lastUserMessage()?.let { add("msg:${it.id}") }
+                // A study nudge or check-in that became eligible is something to speak about too. The context lines
+                // already carry that decision, so the keys are read from them; the date makes each day's offer new.
+                val today = now.toLocalDate()
+                com.her.learning.learningContext(repo).filter { "study nudge eligible=true" in it }
+                    .forEach { add("study:${it.substringBefore(' ')}:$today") }
+                com.her.companion.companionContext(repo, settings, "").filter { it.startsWith("Eligible offer:") }
+                    .forEach { add("offer:${it.substringAfter(": ").substringBefore(';')}:$today") }
             }
         }
     }
