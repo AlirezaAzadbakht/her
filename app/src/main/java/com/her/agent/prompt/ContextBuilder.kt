@@ -156,6 +156,8 @@ class ContextBuilder(
             })
             val emotionalState = com.her.feelings.emotionalState(emotionalRows, nowMs, tasks.mapNotNull { it.dueAt } + commitments.mapNotNull { it.dueAt })
             appendLine("Modeled emotional state: ${emotionalState.toJson()}")
+            appendLine("You feel right now: " + emotionalState.inWords(com.her.feelings.feelingCause(emotionalRows, nowMs, emotionalState.dominant,
+                (tasks.mapNotNull { t -> t.dueAt?.let { t.title to it } } + commitments.mapNotNull { c -> c.dueAt?.let { c.title to it } }))))
             val lastUser = recent.lastOrNull { it.role == MessageRole.USER }
             val lastReply = lastUser?.let { user -> recent.lastOrNull { it.role == MessageRole.ASSISTANT && it.createdAt < user.createdAt } }
             if (latestUserText != null && lastUser != null && lastReply != null && lastUser.createdAt - lastReply.createdAt >= FOLLOW_UP_GAP_MS) {

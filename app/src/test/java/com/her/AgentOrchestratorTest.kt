@@ -611,7 +611,7 @@ class AgentOrchestratorTest {
 
     @Test
     fun dateOnlyDeadlineReadsDueTodayUntilTheDayEnds() = runBlocking {
-        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { title in it }
+        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { "| $title" in it }
         val today = RelativeTimeParser.parse("today", repo.now())!!.toInstant().toEpochMilli()
         val insurance = task("Renew insurance", dueAt = today)
         repo.saveTask(insurance)
