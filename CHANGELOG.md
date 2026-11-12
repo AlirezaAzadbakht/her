@@ -21,6 +21,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - An alarm Her rings now fills the screen when the phone is locked, with **Stop** and **Snooze**, instead of only a notification.
 - Her's nightly review now runs in three steps: questions she's wondering about, how the day felt, then tidying memory and her notes on recent days. A long review can no longer crowd out those notes, and a review that gets interrupted picks up at the step where it stopped.
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
+- The "Allow exact reminders" prompt in Settings sits inside the Her mind card and looks like the other buttons.
 
 ### Fixed
 - You can scroll up while Her is still writing a long answer. Before, the view jumped back with every new word.
@@ -36,6 +37,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - If the model is busy or unreachable when the morning briefing or the nightly review runs, Her tries once more a little later instead of skipping that day.
 - With a long list of tasks, people, groceries or reminders, Her no longer answers as if the first dozen were all of them. She now knows when there are more and looks them up.
 - If you say you're thinking of not being here, Her no longer sometimes answers "I can't assist with that request." When the model refuses like that she asks it again, and if it still refuses she checks you're safe herself and points you to someone you trust and to emergency or crisis help.
+- The Memory tab keeps your query and its result when you switch to another tab and come back.
+- A query that finds nothing now says "No rows" instead of showing only column names.
+- If an undo doesn't go through, Her tells you. Before, nothing happened.
+- If Android has stopped asking for calendar or contacts permission, the switch in Settings now explains why it won't turn on and offers a button to Android's settings.
 
 ## [0.2.2] - 2026-11-05
 
