@@ -51,7 +51,23 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
+            <!-- Lets them pick Her as the phone's assistant app, so the assist gesture opens her. -->
+            <intent-filter>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
+
+        <service
+            android:name=".entry.HerTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- A ringing alarm, shown over the lock screen. -->
         <activity

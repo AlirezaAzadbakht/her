@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Two quicker ways in: add the **Her** tile to quick settings to open her from anywhere, or pick Her as the phone's assistant app so the assist gesture opens her.
 - Turn on **Contacts access** in Settings → Connections and Her can look up a phone number or a birthday from your phone's contacts when you ask. It's off until you turn it on, she only reads, and only the contact she looks up is sent to your model.
 - On the first day of your week, the morning briefing also looks back: what got done last week, what slipped, and what matters most this week. The week starts on the day your phone's region uses.
 - Tell Her what you spent ("lunch was 200", "50 on a taxi") and she keeps a log. Ask how much you've spent today, this week, or on food, and she adds it up. She keeps currencies apart and doesn't give money advice.
