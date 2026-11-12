@@ -103,9 +103,19 @@ private const val RowsPerPage = 50
 // Lately, her feeling, who she is, the table page and the query card are one item each, so results always start here.
 private const val ResultIndex = 5
 
+/** What the person typed and ran, kept by the view model so it survives switching tabs. */
+class MemoryScreenState {
+    var query by mutableStateOf("")
+    var tablePage by mutableIntStateOf(0)
+    var result by mutableStateOf<QueryResult?>(null)
+    var lastSql by mutableStateOf<String?>(null)
+    var resultPage by mutableIntStateOf(0)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SqlNavigatorScreen(vm: HerViewModel) {
+    val kept = vm.memoryState
     val browser = vm.sqlBrowser
     val scope = rememberCoroutineScope()
     val haptics = rememberHerHaptics()
@@ -115,13 +125,13 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     val blend by vm.feelingBlend.collectAsState()
     val persona by vm.persona.collectAsState()
     var recent by remember { mutableStateOf<List<RecentMemory>?>(null) }
-    var query by remember { mutableStateOf("") }
+    var query by kept::query
     var tables by remember { mutableStateOf<List<TableInfo>>(emptyList()) }
     var tablesLoaded by remember { mutableStateOf(false) }
-    var tablePage by remember { mutableIntStateOf(0) }
-    var result by remember { mutableStateOf<QueryResult?>(null) }
-    var lastSql by remember { mutableStateOf<String?>(null) }
-    var resultPage by remember { mutableIntStateOf(0) }
+    var tablePage by kept::tablePage
+    var result by kept::result
+    var lastSql by kept::lastSql
+    var resultPage by kept::resultPage
     var reveal by remember { mutableIntStateOf(0) }
     var expanded by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(false) }
@@ -574,6 +584,14 @@ private fun ResultGrid(result: QueryResult, modifier: Modifier = Modifier, onCel
                     modifier = Modifier.widthIn(min = 96.dp, max = 220.dp),
                 )
             }
+        }
+        if (result.rows.isEmpty()) {
+            Text(
+                "No rows",
+                color = scheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            )
         }
         result.rows.forEachIndexed { index, row ->
             val entrance = if (index < StaggeredRows) {
