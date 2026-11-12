@@ -54,6 +54,7 @@ Core principles:
 
 | Feature | What she does |
 |---|---|
+| **Persian interface** | Shows every screen in Persian, right to left, when the phone's language is Persian; English otherwise |
 | Wondering | Revisits memories and unfinished items, saves tentative questions, and learns from occasional conversations. [How it works](wiki/Wondering.md) |
 | 📚 **Learning in chat** | Builds personal roadmaps, teaches short lessons, checks answers, saves progress, and schedules reviews — all in the conversation |
 | 🧠 **Memory** | Learns facts about you and recalls them by meaning when embeddings are enabled |

@@ -80,6 +80,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -95,6 +97,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.agent.runner.Receipts
 import com.her.agent.runner.TurnFailure
 import com.her.agent.runner.TurnState
@@ -363,13 +366,13 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
                             .padding(horizontal = 18.dp, vertical = 14.dp),
                     ) {
                         when (failure) {
-                            TurnFailure.OutOfCredit -> HerButton("Her Cloud", onClick = { uriHandler.openUri(HerCloudUrl) })
-                            TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton("Settings", onClick = onOpenSettings)
+                            TurnFailure.OutOfCredit -> HerButton(stringResource(R.string.her_cloud), onClick = { uriHandler.openUri(HerCloudUrl) })
+                            TurnFailure.BadKey, TurnFailure.BadSettings -> HerButton(stringResource(R.string.settings), onClick = onOpenSettings)
                             else -> Unit
                         }
                         val hasOwnFix = failure == TurnFailure.OutOfCredit || failure == TurnFailure.BadKey || failure == TurnFailure.BadSettings
                         HerButton(
-                            "Try again",
+                            stringResource(R.string.try_again),
                             tone = if (hasOwnFix) HerButtonTone.Quiet else HerButtonTone.Primary,
                             onClick = vm::retry,
                         )
@@ -454,7 +457,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
                                 decorationBox = { inner ->
                                     Box(contentAlignment = Alignment.TopStart) {
                                         if (draft.text.isEmpty()) {
-                                            Text("Write something", style = fieldStyle.copy(color = scheme.onSurfaceVariant))
+                                            Text(stringResource(R.string.composer_hint), style = fieldStyle.copy(color = scheme.onSurfaceVariant))
                                         }
                                         inner()
                                     }
@@ -619,7 +622,7 @@ private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
             .border(1.dp, colors.glassStroke, CircleShape)
             .then(
                 if (status is HerStatus.Shared) {
-                    Modifier.clickable(onClickLabel = "Remove shared text", onClick = onDismissShare)
+                    Modifier.clickable(onClickLabel = stringResource(R.string.share_remove), onClick = onDismissShare)
                 } else {
                     Modifier
                 },
@@ -631,11 +634,11 @@ private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
         when (status) {
             is HerStatus.Offline -> {
                 ThinkingOrb(OrbState.Weaving, size = OrbSize.Px20, displaySize = 16.dp)
-                Text("offline · ${status.count} waiting", color = scheme.onSurfaceVariant, fontSize = 13.sp)
+                Text(pluralStringResource(R.plurals.offline_waiting, status.count, status.count), color = scheme.onSurfaceVariant, fontSize = 13.sp)
             }
             is HerStatus.Shared -> {
                 Text(
-                    "Shared: ${status.text}",
+                    stringResource(R.string.shared_text, status.text),
                     color = scheme.primary,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -653,6 +656,7 @@ private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
 private fun SendButton(visible: Boolean, stop: Boolean = false, onClick: () -> Unit) {
     val colors = Her.colors
     val arrow = MaterialTheme.colorScheme.background
+    val description = stringResource(if (stop) R.string.stop else R.string.send)
     val scale by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium),
@@ -664,7 +668,7 @@ private fun SendButton(visible: Boolean, stop: Boolean = false, onClick: () -> U
             .clip(CircleShape)
             // Taps are caught outside the scale layer: a layer that sprang up from scale 0 can keep rejecting hits.
             .clickable(enabled = visible, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = if (stop) "Stop" else "Send" }
+            .semantics { contentDescription = description }
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale

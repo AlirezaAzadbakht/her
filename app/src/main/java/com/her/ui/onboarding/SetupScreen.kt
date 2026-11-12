@@ -59,10 +59,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.data.secure.LlmSettings
 import com.her.ui.components.HerButton
 import com.her.ui.components.HerButtonTone
@@ -90,8 +92,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// HerViewModel.saveAndTest reports success with exactly this message.
-private const val Connected = "Connected."
 
 internal const val HerCloudUrl = "https://cloud.her-project.ir/"
 
@@ -134,11 +134,11 @@ fun NameOnboarding(
             label = "name-step",
         ) { current ->
             if (current == 0) {
-                OnboardingStep(greeting = "Hi.", question = "What should I call you?") {
-                    HerTextField("Your name", yours, keyboard = KeyboardType.Text) { yours = it }
+                OnboardingStep(greeting = stringResource(R.string.onboarding_hi), question = stringResource(R.string.onboarding_ask_your_name)) {
+                    HerTextField(stringResource(R.string.your_name), yours, keyboard = KeyboardType.Text) { yours = it }
                     Spacer(Modifier.height(8.dp))
                     HerButton(
-                        "Continue",
+                        stringResource(R.string.action_continue),
                         onClick = {
                             onSaveUserName(yours)
                             step = 1
@@ -147,11 +147,11 @@ fun NameOnboarding(
                     )
                     Spacer(Modifier.height(8.dp))
                     HerButton(
-                        "Restore from a backup",
+                        stringResource(R.string.restore_backup),
                         onClick = onRestore,
                         tone = HerButtonTone.Quiet,
                         loading = restoring,
-                        loadingText = "Restoring…",
+                        loadingText = stringResource(R.string.restoring),
                     )
                     AnimatedVisibility(
                         visible = restoreMessage != null,
@@ -169,13 +169,13 @@ fun NameOnboarding(
             } else {
                 val greeting = yours.trim().ifBlank { userName.orEmpty().trim() }
                 OnboardingStep(
-                    greeting = if (greeting.isBlank()) "Thank you." else "Thank you, $greeting.",
-                    question = "And what should I be called?",
+                    greeting = if (greeting.isBlank()) stringResource(R.string.onboarding_thanks) else stringResource(R.string.onboarding_thanks_name, greeting),
+                    question = stringResource(R.string.onboarding_ask_her_name),
                 ) {
-                    HerTextField("My name", hers, keyboard = KeyboardType.Text) { hers = it }
+                    HerTextField(stringResource(R.string.my_name), hers, keyboard = KeyboardType.Text) { hers = it }
                     Spacer(Modifier.height(8.dp))
                     HerButton(
-                        "Continue",
+                        stringResource(R.string.action_continue),
                         onClick = {
                             haptics.confirm()
                             onSaveAssistantName(hers)
@@ -192,6 +192,7 @@ fun NameOnboarding(
 fun SetupScreen(
     initial: LlmSettings,
     message: String?,
+    ok: Boolean,
     details: String? = null,
     checking: Boolean = false,
     onSave: (LlmSettings) -> Unit,
@@ -206,14 +207,14 @@ fun SetupScreen(
     var shake by remember { mutableIntStateOf(0) }
     LaunchedEffect(checking) {
         if (checking || !attempted) return@LaunchedEffect
-        if (message == Connected) {
+        if (ok) {
             haptics.confirm()
         } else {
             haptics.reject()
             shake += 1
         }
     }
-    val connected = !checking && message == Connected
+    val connected = !checking && ok
     val failed = attempted && !checking && message != null && !connected
     val form = rememberEntrance(delayMillis = 700)
 
@@ -229,10 +230,10 @@ fun SetupScreen(
             modifier = Modifier.align(Alignment.CenterHorizontally).sharedPresence(),
         )
         Spacer(Modifier.height(20.dp))
-        StaggeredText("Hi.", style = GreetingStyle, color = scheme.onBackground)
+        StaggeredText(stringResource(R.string.onboarding_hi), style = GreetingStyle, color = scheme.onBackground)
         Spacer(Modifier.height(12.dp))
         StaggeredText(
-            "Before we talk, I need a place to think.",
+            stringResource(R.string.setup_intro),
             style = QuestionStyle,
             color = scheme.onSurfaceVariant,
             startDelayMillis = 240,
@@ -249,20 +250,20 @@ fun SetupScreen(
             }
             Spacer(Modifier.height(20.dp))
             // A failed check opens it, so the fields that need fixing are in view.
-            Disclosure("Use my own API endpoint", open = ownOpen || failed, onToggle = { ownOpen = !ownOpen }) {
-                HerTextField("Base URL", base, error = failed, shakeTrigger = shake) { base = it }
-                HerTextField("API key", key, secret = true, error = failed, shakeTrigger = shake) { key = it }
-                HerTextField("Model", model, error = failed, shakeTrigger = shake) { model = it }
+            Disclosure(stringResource(R.string.own_endpoint), open = ownOpen || failed, onToggle = { ownOpen = !ownOpen }) {
+                HerTextField(stringResource(R.string.base_url), base, error = failed, shakeTrigger = shake) { base = it }
+                HerTextField(stringResource(R.string.api_key), key, secret = true, error = failed, shakeTrigger = shake) { key = it }
+                HerTextField(stringResource(R.string.model), model, error = failed, shakeTrigger = shake) { model = it }
                 Spacer(Modifier.height(8.dp))
                 HerButton(
-                    "Continue",
+                    stringResource(R.string.action_continue),
                     onClick = {
                         attempted = true
                         onSave(LlmSettings(base, key, model))
                     },
                     enabled = base.isNotBlank() && key.isNotBlank() && model.isNotBlank(),
                     loading = checking,
-                    loadingText = "Checking…",
+                    loadingText = stringResource(R.string.checking),
                     success = connected,
                 )
             }
@@ -304,12 +305,13 @@ fun HerCloudConnect(checking: Boolean = false, onImport: (LlmSettings) -> Unit) 
             accept(texts.firstOrNull { LlmSettings.fromJson(it) != null })
         }
     }
+    val scanPrompt = stringResource(R.string.qr_prompt)
     Column {
         ScanQrButton(checking = checking) {
             scanner.launch(
                 ScanOptions()
                     .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                    .setPrompt("Point at the QR code on Her Cloud")
+                    .setPrompt(scanPrompt)
                     .setBeepEnabled(false)
                     .setOrientationLocked(false),
             )
@@ -317,14 +319,14 @@ fun HerCloudConnect(checking: Boolean = false, onImport: (LlmSettings) -> Unit) 
         Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             HerButton(
-                "Load QR image",
+                stringResource(R.string.load_qr_image),
                 tone = HerButtonTone.Outline,
                 enabled = !checking,
                 modifier = Modifier.weight(1f),
                 onClick = { picker.launch(PickVisualMediaRequest(PickVisualMedia.ImageOnly)) },
             )
             HerButton(
-                "Paste settings",
+                stringResource(R.string.paste_settings),
                 tone = HerButtonTone.Outline,
                 enabled = !checking,
                 modifier = Modifier.weight(1f),
@@ -335,7 +337,7 @@ fun HerCloudConnect(checking: Boolean = false, onImport: (LlmSettings) -> Unit) 
             )
         }
         HerButton(
-            "No code yet? Get credit on Her Cloud",
+            stringResource(R.string.get_credit),
             tone = HerButtonTone.Quiet,
             modifier = Modifier.align(Alignment.CenterHorizontally),
             onClick = { uriHandler.openUri(HerCloudUrl) },
@@ -346,7 +348,7 @@ fun HerCloudConnect(checking: Boolean = false, onImport: (LlmSettings) -> Unit) 
             exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
         ) {
             Text(
-                "That isn't Her Cloud settings. Get them again from Her Cloud.",
+                stringResource(R.string.not_her_cloud),
                 color = scheme.error,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(top = 8.dp),
@@ -391,11 +393,11 @@ private fun ScanQrButton(checking: Boolean, onClick: () -> Unit) {
         }
         Column {
             Text(
-                if (checking) "Checking…" else "Scan QR code",
+                stringResource(if (checking) R.string.checking else R.string.scan_qr),
                 color = scheme.onBackground,
                 style = MaterialTheme.typography.titleMedium,
             )
-            Text("From your Her Cloud card", color = scheme.onSurfaceVariant, fontSize = 14.sp)
+            Text(stringResource(R.string.from_cloud_card), color = scheme.onSurfaceVariant, fontSize = 14.sp)
         }
     }
 }

@@ -23,10 +23,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.agent.runner.Receipt
 import com.her.ui.theme.HerMotion
 import com.her.ui.theme.rememberEntrance
@@ -98,9 +100,9 @@ fun ReceiptLine(
                     label = "receipt-action",
                 ) { current ->
                     when (current) {
-                        ReceiptAction.Undone -> Text(" · undone", color = muted, fontSize = 13.sp)
+                        ReceiptAction.Undone -> Text(" · " + stringResource(R.string.undone), color = muted, fontSize = 13.sp)
                         ReceiptAction.Undo -> Text(
-                            " · undo",
+                            " · " + stringResource(R.string.undo),
                             color = accent,
                             fontSize = 13.sp,
                             modifier = Modifier
@@ -119,10 +121,10 @@ fun ReceiptLine(
         if (extra > 0 || pending.size > 1) {
             val entrance = rememberEntrance(delayMillis = shown.size * 60, durationMillis = HerMotion.Standard)
             Row(Modifier.rise(entrance, 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (extra > 0) Text("and $extra more", color = muted, fontSize = 13.sp)
+                if (extra > 0) Text(stringResource(R.string.receipt_more, extra), color = muted, fontSize = 13.sp)
                 if (pending.size > 1) {
                     Text(
-                        if (extra > 0) " · undo all" else "undo all",
+                        (if (extra > 0) " · " else "") + stringResource(R.string.undo_all),
                         color = accent,
                         fontSize = 13.sp,
                         modifier = Modifier
