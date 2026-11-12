@@ -159,7 +159,9 @@ private fun checkLearningVersion(old: LearningRecord?, args: JSONObject) {
         throw ToolValidationException("Record exists at version ${old.version}; read get_learning and pass expectedVersion before editing")
 }
 private suspend fun ToolRegistry.requireLearning(id: String, kind: String): LearningRecord =
-    repo.getLearningRecord(id)?.takeIf { it.kind == kind && it.deletedAt == null }
+    // Models drop the "path:" prefix or copy the " v3" that follows the id in context; neither should fail the call.
+    id.trim().substringBefore(' ').let { key -> repo.getLearningRecord(key) ?: repo.getLearningRecord("${kind.lowercase()}:$key") }
+        ?.takeIf { it.kind == kind && it.deletedAt == null }
         ?: throw ToolValidationException("$kind not found: $id; use the id returned by get_learning")
 private suspend fun ToolRegistry.requireActivePath(id: String) {
     if (requireLearning(id, "PATH").data().optString("status") != "ACTIVE") throw ToolValidationException("Resume this learning path before practicing")
