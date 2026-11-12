@@ -141,3 +141,9 @@ Settings is grouped into glass cards that rise in on first open:
 The footer links to GitHub and credits thinking-orbs.
 
 API credentials are set on each phone; a backup never carries them.
+
+## Other ways in
+
+- **Quick-settings tile** (`entry/HerTileService`): opens `MainActivity` and collapses the shade.
+- **Assistant app**: `MainActivity` answers `ACTION_ASSIST`, so Her can be chosen under the phone's default assistant setting. It opens the app; there is no voice interaction service.
+- **Share sheet**: `ACTION_SEND` with `text/plain`.
