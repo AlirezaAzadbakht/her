@@ -86,6 +86,24 @@ class FastAppraisalTest {
         assertEquals(before, repo.companionRecords().size)
     }
 
+    @Test fun thanksAndJokesMoveHerFeelingWithoutCreditOrASituation() = runBlocking {
+        assertEquals("calm", emotionalState(repo.companionRecords(), clock.nowMillis()).inWords())
+        val thanks = user("thank you, you're the best")
+        appraise(thanks, """{"userContext":"APPRECIATIVE","personal":false,"goalProgress":0,"expectedness":0.8,"uncertainty":0.1,"confidence":0.9,"evidence":"you're the best"}""")
+        val moment = repo.getCompanionRecord("EMOTION_EVENT:MOMENT:${thanks.id}")!!.data()
+        assertEquals("TENDER", moment.getString("feeling"))
+        assertFalse(moment.has("experienceId"))
+        val state = emotionalState(repo.companionRecords(), clock.nowMillis())
+        assertEquals(Feeling.TENDER, state.dominant)
+        assertEquals("tender", state.inWords())
+        assertEquals(setOf(0.5), state.purpose.values.toSet())
+        // Personal news is a situation for the nightly review, not also a passing moment.
+        val news = user("I got the job!")
+        appraise(news, """{"userContext":"CELEBRATING","personal":true,"goalProgress":0.9,"expectedness":0.3,"uncertainty":0.1,"confidence":0.9}""")
+        assertTrue(repo.getCompanionRecord("EMOTION_EVENT:MOMENT:${news.id}") == null)
+        assertTrue(com.her.feelings.recentEmotionalEvents(repo.companionRecords()).none { it.data().optString("event") == "MOMENT" })
+    }
+
     @Test fun aClarificationWithoutWordsAboutHerMistakeIsNotACorrection() = runBlocking {
         val clarification = user("The reminder fired. I have not said that it benefited me.")
         appraise(clarification, """{"userContext":"CORRECTING","personal":false,"goalProgress":0,"expectedness":0.8,"uncertainty":0.2,"confidence":0.8,"herError":""}""")
