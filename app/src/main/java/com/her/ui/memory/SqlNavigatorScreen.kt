@@ -1,6 +1,7 @@
 package com.her.ui.memory
 
 import android.text.format.DateUtils
+import androidx.annotation.StringRes
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -29,10 +30,12 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -53,22 +56,26 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.core.nowMillis
 import com.her.data.db.PersonaTrait
 import com.her.data.db.QueryResult
 import com.her.data.db.RecentMemory
 import com.her.data.db.SqlGuard
 import com.her.data.db.TableInfo
-import com.her.data.db.moreOrLess
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.ui.HerViewModel
@@ -103,9 +110,19 @@ private const val RowsPerPage = 50
 // Lately, her feeling, who she is, the table page and the query card are one item each, so results always start here.
 private const val ResultIndex = 5
 
+/** What the person typed and ran, kept by the view model so it survives switching tabs. */
+class MemoryScreenState {
+    var query by mutableStateOf("")
+    var tablePage by mutableIntStateOf(0)
+    var result by mutableStateOf<QueryResult?>(null)
+    var lastSql by mutableStateOf<String?>(null)
+    var resultPage by mutableIntStateOf(0)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SqlNavigatorScreen(vm: HerViewModel) {
+    val kept = vm.memoryState
     val browser = vm.sqlBrowser
     val scope = rememberCoroutineScope()
     val haptics = rememberHerHaptics()
@@ -115,13 +132,13 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     val blend by vm.feelingBlend.collectAsState()
     val persona by vm.persona.collectAsState()
     var recent by remember { mutableStateOf<List<RecentMemory>?>(null) }
-    var query by remember { mutableStateOf("") }
+    var query by kept::query
     var tables by remember { mutableStateOf<List<TableInfo>>(emptyList()) }
     var tablesLoaded by remember { mutableStateOf(false) }
-    var tablePage by remember { mutableIntStateOf(0) }
-    var result by remember { mutableStateOf<QueryResult?>(null) }
-    var lastSql by remember { mutableStateOf<String?>(null) }
-    var resultPage by remember { mutableIntStateOf(0) }
+    var tablePage by kept::tablePage
+    var result by kept::result
+    var lastSql by kept::lastSql
+    var resultPage by kept::resultPage
     var reveal by remember { mutableIntStateOf(0) }
     var expanded by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(false) }
@@ -169,12 +186,12 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     ) {
         item(key = "recent") {
             Column {
-                Label("Lately", Modifier.padding(bottom = 8.dp))
+                Label(stringResource(R.string.lately), Modifier.padding(bottom = 8.dp))
                 val items = recent
                 when {
                     items == null -> Spacer(Modifier.height(48.dp))
                     items.isEmpty() -> Text(
-                        "Nothing yet. What she learns about you shows up here.",
+                        stringResource(R.string.lately_empty),
                         color = scheme.onSurfaceVariant,
                         fontSize = 13.sp,
                     )
@@ -193,7 +210,7 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         }
         item(key = "tables") {
             Column {
-                Label("Database", Modifier.padding(top = 12.dp, bottom = 4.dp))
+                Label(stringResource(R.string.database), Modifier.padding(top = 12.dp, bottom = 4.dp))
                 if (!tablesLoaded) {
                     if (showSkeleton) SkeletonRows(TablesPerPage, Modifier.padding(vertical = 8.dp))
                 } else {
@@ -224,29 +241,32 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
                     .glassCard(RoundedCornerShape(20.dp))
                     .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
             ) {
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = scheme.onBackground,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 13.sp,
-                    ),
-                    cursorBrush = SolidColor(scheme.primary),
-                    modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                    minLines = 3,
-                    decorationBox = { inner ->
-                        Box {
-                            if (query.isEmpty()) {
-                                Text("SELECT …", color = scheme.onSurfaceVariant, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                // SQL reads left to right whatever the app's language.
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = scheme.onBackground,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp,
+                        ),
+                        cursorBrush = SolidColor(scheme.primary),
+                        modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
+                        minLines = 3,
+                        decorationBox = { inner ->
+                            Box {
+                                if (query.isEmpty()) {
+                                    Text("SELECT …", color = scheme.onSurfaceVariant, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                                }
+                                inner()
                             }
-                            inner()
-                        }
-                    },
-                )
+                        },
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     HerButton(
-                        "Run",
+                        stringResource(R.string.run),
                         onClick = { run(query) },
                         enabled = query.isNotBlank(),
                         loading = running,
@@ -267,7 +287,7 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         if (current != null) {
             item(key = "result-label") {
                 Label(
-                    if (current.error != null) "Error" else "Result · page ${resultPage + 1}",
+                    if (current.error != null) stringResource(R.string.error) else stringResource(R.string.result_page, resultPage + 1),
                     Modifier.padding(top = 16.dp).animateItem(),
                     color = if (current.error != null) scheme.error else null,
                 )
@@ -322,7 +342,7 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
                     .padding(horizontal = 22.dp)
                     .padding(bottom = 28.dp),
             ) {
-                Label("Value")
+                Label(stringResource(R.string.value))
                 Spacer(Modifier.height(8.dp))
                 SelectionContainer {
                     Text(value, color = scheme.onBackground, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
@@ -364,10 +384,10 @@ private fun Label(text: String, modifier: Modifier = Modifier, color: Color? = n
 private fun RecentRow(memory: RecentMemory, now: Long, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val verb = when {
-        memory.updatedAt - memory.createdAt > DateUtils.MINUTE_IN_MILLIS -> "Updated"
-        memory.kind == "learnt" -> "Learnt"
-        memory.kind == "noted" -> "Noted"
-        else -> "Remembered"
+        memory.updatedAt - memory.createdAt > DateUtils.MINUTE_IN_MILLIS -> stringResource(R.string.memory_updated)
+        memory.kind == "learnt" -> stringResource(R.string.memory_learnt)
+        memory.kind == "noted" -> stringResource(R.string.memory_noted)
+        else -> stringResource(R.string.memory_remembered)
     }
     Column(
         Modifier
@@ -400,7 +420,7 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
     val main = feeling?.feeling ?: Feeling.CALM
     val second = blend.map { it.first }.firstOrNull { it != main && it != Feeling.CALM }
     Column(modifier.fillMaxWidth()) {
-        Label("How she feels")
+        Label(stringResource(R.string.how_she_feels))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -408,14 +428,14 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
         ) {
             ThinkingOrb(OrbState.Breathing, size = OrbSize.Px20, displaySize = 30.dp, paused = true)
             Crossfade(main, label = "feeling") { shown ->
-                Text(shown.word(), style = ConversationStyle.copy(fontSize = 40.sp, lineHeight = 48.sp), color = scheme.onBackground)
+                Text(stringResource(shown.word()), style = ConversationStyle.copy(fontSize = 40.sp, lineHeight = 48.sp), color = scheme.onBackground)
             }
         }
         if (second != null) {
-            Text("and a little ${second.word().lowercase()}", color = scheme.onSurfaceVariant, fontSize = 14.sp)
+            Text(stringResource(R.string.feeling_second, stringResource(second.word()).lowercase()), color = scheme.onSurfaceVariant, fontSize = 14.sp)
         }
         Text(
-            feeling?.note?.takeIf { it.isNotBlank() } ?: "Nothing in particular on her mind.",
+            feeling?.note?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feeling_none),
             color = scheme.onBackground.copy(alpha = 0.8f),
             fontSize = 14.sp,
             modifier = Modifier.padding(top = 6.dp),
@@ -423,7 +443,31 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
     }
 }
 
-private fun Feeling.word() = name.lowercase().replaceFirstChar { it.uppercase() }
+@StringRes
+private fun Feeling.word(): Int = when (this) {
+    Feeling.CALM -> R.string.feeling_calm
+    Feeling.CURIOUS -> R.string.feeling_curious
+    Feeling.PLAYFUL -> R.string.feeling_playful
+    Feeling.TENDER -> R.string.feeling_tender
+    Feeling.GLAD -> R.string.feeling_glad
+    Feeling.CONCERNED -> R.string.feeling_concerned
+    Feeling.WISTFUL -> R.string.feeling_wistful
+    Feeling.HOPEFUL -> R.string.feeling_hopeful
+    Feeling.PENSIVE -> R.string.feeling_pensive
+    Feeling.RELIEVED -> R.string.feeling_relieved
+}
+
+/** A trait's name in the app's language; one she grows later that has no translation shows as stored. */
+@Composable
+private fun traitName(trait: String): String = when (trait) {
+    "warmth" -> stringResource(R.string.trait_warmth)
+    "playfulness" -> stringResource(R.string.trait_playfulness)
+    "curiosity" -> stringResource(R.string.trait_curiosity)
+    "directness" -> stringResource(R.string.trait_directness)
+    "patience" -> stringResource(R.string.trait_patience)
+    "expressiveness" -> stringResource(R.string.trait_expressiveness)
+    else -> trait
+}
 
 /** Her six traits as a web: the dashed outline is who her name made her, the fill is who she is now. */
 @Composable
@@ -432,11 +476,18 @@ private fun PersonaWeb(traits: List<PersonaTrait>, modifier: Modifier = Modifier
     val scheme = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val labelStyle = TextStyle(color = scheme.onSurfaceVariant, fontSize = 11.sp)
+    val names = traits.map { traitName(it.trait) }
+    val described = traits.mapIndexed { i, it -> stringResource(R.string.trait_percent, names[i], (it.value * 100).roundToInt()) }
+        .joinToString()
+    val working = traits.mapIndexedNotNull { i, it ->
+        val target = it.target ?: return@mapIndexedNotNull null
+        stringResource(if (target > it.value) R.string.persona_more else R.string.persona_less, names[i])
+    }.joinToString(" ")
     Column(modifier.fillMaxWidth()) {
-        Label("Who she is")
+        Label(stringResource(R.string.who_she_is))
         Canvas(
             Modifier.padding(top = 8.dp).fillMaxWidth().height(240.dp).semantics {
-                contentDescription = traits.joinToString { "${it.trait} ${(it.value * 100).roundToInt()} percent" }
+                contentDescription = described
             },
         ) {
             val center = Offset(size.width / 2, size.height / 2)
@@ -461,14 +512,13 @@ private fun PersonaWeb(traits: List<PersonaTrait>, modifier: Modifier = Modifier
             drawPath(now, scheme.primary.copy(alpha = 0.22f))
             drawPath(now, scheme.primary, style = Stroke(2.dp.toPx()))
             traits.forEachIndexed { i, trait ->
-                val label = measurer.measure(trait.trait, labelStyle)
+                val label = measurer.measure(names[i], labelStyle)
                 drawText(label, topLeft = point(i, radius + 16.dp.toPx()) - Offset(label.size.width / 2f, label.size.height / 2f))
             }
         }
-        val working = traits.filter { it.target != null }.joinToString(" ") { "Working on being ${moreOrLess(it.value, it.target!!, it.trait)}." }
         val grown = traits.any { it.value != it.seed }
         Text(
-            "${if (grown) "Dashed: who she was when you met." else "Who her name made her. She grows from here."} $working".trim(),
+            "${stringResource(if (grown) R.string.persona_grown else R.string.persona_seed)} $working".trim(),
             color = scheme.onSurfaceVariant,
             fontSize = 13.sp,
             modifier = Modifier.padding(top = 4.dp),
@@ -490,15 +540,18 @@ private fun Pager(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PageArrow("‹", "Previous page", hasPrev, onPrev)
+        // ‹ and › are mirrored characters: in RTL the text renderer flips them along with the row.
+        PageArrow("‹", stringResource(R.string.previous_page), hasPrev, onPrev)
         Text(
             label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
+            // "1 / 6" is all neutral characters, which an RTL line would lay out backwards.
+            style = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr),
             modifier = Modifier.padding(horizontal = 16.dp),
         )
-        PageArrow("›", "Next page", hasNext, onNext)
+        PageArrow("›", stringResource(R.string.next_page), hasNext, onNext)
     }
 }
 
@@ -574,6 +627,14 @@ private fun ResultGrid(result: QueryResult, modifier: Modifier = Modifier, onCel
                     modifier = Modifier.widthIn(min = 96.dp, max = 220.dp),
                 )
             }
+        }
+        if (result.rows.isEmpty()) {
+            Text(
+                stringResource(R.string.no_rows),
+                color = scheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            )
         }
         result.rows.forEachIndexed { index, row ->
             val entrance = if (index < StaggeredRows) {

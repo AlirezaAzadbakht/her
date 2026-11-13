@@ -7,6 +7,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.her.HerApplication
+import com.her.R
 import com.her.agent.runner.AgentOrchestrator
 import com.her.agent.runner.Receipt
 import com.her.agent.runner.Receipts
@@ -52,9 +53,12 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val turnState: StateFlow<TurnState> = graph.orchestrator.turnState
     val settings = graph.settings.state
     val sqlBrowser = graph.sqlBrowser
+    val memoryState = com.her.ui.memory.MemoryScreenState()
 
     val notice = MutableStateFlow<TurnResult?>(null)
     val connectionMessage = MutableStateFlow<String?>(null)
+    /** Whether the last Save & test reached the model; screens read this, not the wording of the message. */
+    val connectionOk = MutableStateFlow(false)
     val connectionDetail = MutableStateFlow<String?>(null)
     val checkingConnection = MutableStateFlow(false)
     val backupBusy = MutableStateFlow(false)
@@ -111,10 +115,14 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun llmSettings(): LlmSettings = graph.secure.read()
 
+    /** The app's own language, which follows the phone (or the per-app choice on Android 13+). */
+    private fun persianUi(): Boolean = app.resources.configuration.locales[0].language == "fa"
+
     fun saveAndTest(settings: LlmSettings) {
         if (checkingConnection.value) return
         checkingConnection.value = true
-        connectionMessage.value = "Checking…"
+        connectionOk.value = false
+        connectionMessage.value = app.getString(R.string.checking)
         connectionDetail.value = null
         viewModelScope.launch {
             val result = runCatching {
@@ -129,12 +137,13 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
                     runCatching {
                         withContext(Dispatchers.IO) { graph.orchestrator.seedOnboardingIfNeeded() }
                     }
-                    connectionMessage.value = "Connected."
+                    connectionMessage.value = app.getString(R.string.connected)
+                    connectionOk.value = true
                     // A message stuck on the old settings can go now.
                     if (notice.value != null) retry()
                 },
                 onFailure = {
-                    connectionMessage.value = AgentOrchestrator.failureOf(it).english
+                    connectionMessage.value = AgentOrchestrator.failureOf(it).let { f -> if (persianUi()) f.persian else f.english }
                     connectionDetail.value = redactSecrets(it.message ?: it::class.java.simpleName)
                 },
             )
@@ -181,6 +190,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (targets.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
             val reversed = targets.filter { runCatching { graph.tools.undo(it.entityType, it.entityId) }.getOrDefault(false) }
+            if (reversed.size < targets.size) {
+                notice.value = TurnResult(
+                    assistantText = null,
+                    failed = true,
+                    error = null,
+                    callsUsed = 0,
+                    runId = "",
+                    notice = app.getString(R.string.undo_failed),
+                )
+            }
             if (reversed.isEmpty()) return@launch
             graph.repo.getMessage(messageId)?.let { message ->
                 graph.repo.saveMessage(
@@ -210,10 +229,10 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun runNightly() = graph.scheduler.runNightlyNow()
     fun saveBackup(uri: Uri) = backupJob {
         withContext(Dispatchers.IO) {
-            val out = app.contentResolver.openOutputStream(uri) ?: error("Could not open that file.")
+            val out = app.contentResolver.openOutputStream(uri) ?: error(app.getString(R.string.file_open_failed))
             out.use { Backup.write(app, graph.db, graph.settings.read(), it) }
         }
-        backupMessage.value = "Backup saved. Your API key is not in it."
+        backupMessage.value = app.getString(R.string.backup_saved)
     }
 
     fun shareBackup() = backupJob {
@@ -226,7 +245,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             .setType("application/zip")
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        app.startActivity(Intent.createChooser(send, "Share backup").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        app.startActivity(Intent.createChooser(send, app.getString(R.string.share_backup)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     /** Hands a Markdown file of what she knows to another app, for reading rather than restoring. */
@@ -240,13 +259,13 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             .setType("text/markdown")
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        app.startActivity(Intent.createChooser(send, "Share what Her knows").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        app.startActivity(Intent.createChooser(send, app.getString(R.string.share_readable)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     /** Replaces everything on this phone with the backup, then restarts the app to open it. */
     fun importBackup(uri: Uri) = backupJob {
         withContext(Dispatchers.IO) {
-            val input = app.contentResolver.openInputStream(uri) ?: error("Could not open that file.")
+            val input = app.contentResolver.openInputStream(uri) ?: error(app.getString(R.string.file_open_failed))
             input.use { Backup.stage(app, it) }
         }
         Backup.restart(app)
@@ -260,7 +279,7 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 block()
             } catch (e: Exception) {
-                backupMessage.value = e.message ?: "Backup failed."
+                backupMessage.value = e.message ?: app.getString(R.string.backup_failed)
             } finally {
                 backupBusy.value = false
             }

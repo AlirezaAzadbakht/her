@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her's screens are now in Persian too. If your phone is set to Persian, the buttons, Settings, Memory and setup all show in Persian, laid out right to left. Every other language gets English. On Android 13 and later you can also pick the language for Her alone in the phone's app settings.
 - Two quicker ways in: add the **Her** tile to quick settings to open her from anywhere, or pick Her as the phone's assistant app so the assist gesture opens her.
 - Turn on **Contacts access** in Settings → Connections and Her can look up a phone number or a birthday from your phone's contacts when you ask. It's off until you turn it on, she only reads, and only the contact she looks up is sent to your model.
 - On the first day of your week, the morning briefing also looks back: what got done last week, what slipped, and what matters most this week. The week starts on the day your phone's region uses.
@@ -18,12 +19,19 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ### Changed
 - Her talks more like a person: she reacts to what you said before answering, in everyday words, without stock assistant phrases. In Persian she uses everyday spoken Persian unless you asked for formal.
 - Her feelings show for everyone now. Thanking her, joking with her or sharing an idea moves how she feels for a few hours (you can see it in the orb and under "How she feels"), and she lets it come through in a few natural words. Before, this only happened after big personal news, and only when her personality happened to be expressive.
+- The send button turns into a square while Her is answering, so it's clear that tapping it stops her.
 - Connecting Her is easier to find, in setup and in Settings → Her mind: a large **Scan QR code** button comes first, with **Load QR image** and **Paste settings** right under it. The Base URL, API key and Model boxes are folded away under **Use my own API endpoint** (**Endpoint details** in Settings) and open by themselves if a check fails.
 - An alarm Her rings now fills the screen when the phone is locked, with **Stop** and **Snooze**, instead of only a notification.
 - Her's nightly review now runs in three steps: questions she's wondering about, how the day felt, then tidying memory and her notes on recent days. A long review can no longer crowd out those notes, and a review that gets interrupted picks up at the step where it stopped.
 - Her is more curious about you. When there's room in the conversation she asks a natural question about your life, and she checks back on things you mentioned, like how an interview went. She stays brief when you're busy and gentle when you're upset.
+- The "Allow exact reminders" prompt in Settings sits inside the Her mind card and looks like the other buttons.
 
 ### Fixed
+- You can scroll up while Her is still writing a long answer. Before, the view jumped back with every new word.
+- Long-press Her's answer to select and copy it. Before, only code blocks could be copied.
+- Links in Her's answers open when you tap them.
+- The back button on Settings or Memory returns to Her instead of leaving the app.
+- Sharing text to Her from another app opens the Her tab, and tapping the "Shared" chip removes the shared text if you change your mind.
 - When you ask Her to forget an emotional moment, she now also drops her note on how you felt in that message and the day's summary that retold it. Before, those could stay behind.
 - A nudge held back by quiet hours, or because another notification had just gone out, is no longer lost. Her brings it up at the next chance.
 - Study nudges and check-ins you opted into now go out on a day with nothing else due. Before, Her could skip the hour without looking.
@@ -32,6 +40,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - If the model is busy or unreachable when the morning briefing or the nightly review runs, Her tries once more a little later instead of skipping that day.
 - With a long list of tasks, people, groceries or reminders, Her no longer answers as if the first dozen were all of them. She now knows when there are more and looks them up.
 - If you say you're thinking of not being here, Her no longer sometimes answers "I can't assist with that request." When the model refuses like that she asks it again, and if it still refuses she checks you're safe herself and points you to someone you trust and to emergency or crisis help.
+- The Memory tab keeps your query and its result when you switch to another tab and come back.
+- A query that finds nothing now says "No rows" instead of showing only column names.
+- If an undo doesn't go through, Her tells you. Before, nothing happened.
+- If Android has stopped asking for calendar or contacts permission, the switch in Settings now explains why it won't turn on and offers a button to Android's settings.
 
 ## [0.2.2] - 2026-11-05
 

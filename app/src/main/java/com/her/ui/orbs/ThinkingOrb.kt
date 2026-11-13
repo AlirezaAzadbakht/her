@@ -19,6 +19,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.her.R
 import com.her.ui.theme.Her
 import com.her.ui.theme.LocalReducedMotion
 import kotlin.math.PI
@@ -143,7 +145,7 @@ fun ThinkingOrb(
     val live = clock != null && !paused && !LocalReducedMotion.current
     SubscribeOrbClock(clock, live)
     val preset = remember(state, size) { resolvePreset(state, size) }
-    val label = state.label
+    val label = stringResource(state.label)
     val design = size.value.toDouble()
     Canvas(modifier.size(displaySize).semantics { contentDescription = label }) {
         val seconds = if (live) clock.seconds else 0.0
