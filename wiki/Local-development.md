@@ -24,7 +24,7 @@ That exports `JAVA_HOME`, `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `ANDROID_AVD_HOME`
 
 Use `gradle …`, not `./gradlew`, on this machine. The wrapper talks to `services.gradle.org` and can hang.
 
-Gradle already prefers Aliyun / JetBrains mirrors for Google Maven artifacts (`settings.gradle.kts`).
+Gradle already prefers Aliyun / JetBrains mirrors for Google Maven artifacts (`settings.gradle.kts`). CI (`CI=true`) skips them and uses Google Maven and Maven Central directly, since a mirror that answers 502 fails the build instead of falling through.
 
 Do not commit `.toolchain/`, `local.properties`, `*.jks`, or APKs.
 
