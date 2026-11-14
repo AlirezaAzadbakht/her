@@ -4,6 +4,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
 ### Added
 - Her's screens are now in Persian too. If your phone is set to Persian, the buttons, Settings, Memory and setup all show in Persian, laid out right to left. Every other language gets English. On Android 13 and later you can also pick the language for Her alone in the phone's app settings.
 - Two quicker ways in: add the **Her** tile to quick settings to open her from anywhere, or pick Her as the phone's assistant app so the assist gesture opens her.
@@ -248,7 +250,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.1.7...v0.2.0
