@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "213ef89308ac9141",
-          "summary": "tools=90 [user(We're out of milk again.)]",
+          "fingerprint": "190f29ee2033d4b7",
+          "summary": "tools=93 [user(We're out of milk again.)]",
           "response": {
             "role": "assistant",
             "content": "Milk is already on the list.",
@@ -19,7 +19,7 @@
           }
         },
         {
-          "fingerprint": "57eb29b196611b1c",
+          "fingerprint": "bf55d4374f52169d",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",

@@ -52,6 +52,7 @@ open class ToolRegistry(
     internal val reminderAlarms: ReminderAlarms = ReminderAlarms.NONE,
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
     internal val focus: FocusTimer? = null,
+    internal val contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
@@ -68,7 +69,9 @@ open class ToolRegistry(
 
     fun specsFor(type: AgentRunType): List<ToolSpec> {
         val all = handlers.values.map { it.first }
-        val visible = (if (settings.read().webSearchEnabled) all else all.filter { it.name != "web_search" })
+        val app = settings.read()
+        val visible = (if (app.webSearchEnabled) all else all.filter { it.name !in WEB_TOOLS })
+            .filter { app.contactsEnabled || it.name != CONTACTS_TOOL }
             .filter { type == AgentRunType.NIGHTLY || it.name !in REFLECTION_ONLY_TOOLS }
         return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS }
     }
@@ -206,6 +209,8 @@ open class ToolRegistry(
         registerSupportTools()
         registerEmotionalTools()
         registerFocusTools()
+        registerMoneyTools()
+        registerContactTools()
     }
 
     /** Reverses a record created during a turn, for the undo on a write receipt. False when there is nothing to undo. */
@@ -260,6 +265,10 @@ open class ToolRegistry(
                 val event = repo.getCalendarEvent(id)?.takeIf { it.deletedAt == null } ?: return false
                 if (event.source == CalendarSource.SYSTEM) systemCalendar.delete(event)
                 repo.deleteCalendarEvent(id)
+            }
+            "expenses" -> {
+                val item = repo.getExpense(id)?.takeIf { it.deletedAt == null } ?: return false
+                repo.saveExpense(item.copy(deletedAt = now, updatedAt = now, version = item.version + 1))
             }
             "reminders" -> {
                 val item = repo.getReminder(id)?.takeIf { it.deletedAt == null } ?: return false
@@ -316,6 +325,9 @@ open class ToolRegistry(
             )
     }
 }
+
+/** Offered only when Settings → Web search is on. */
+internal val WEB_TOOLS = setOf("web_search", "fetch_url")
 
 internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering")
 

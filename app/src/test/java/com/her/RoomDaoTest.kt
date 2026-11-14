@@ -143,4 +143,28 @@ class RoomDaoTest {
         assertEquals("communication", active.single().facet)
         assertEquals("Prefers short answers", db.userUnderstandingDao().byFacet("communication", MemoryStatus.ACTIVE)?.content)
     }
+
+    @Test
+    fun migrationFromVersionElevenPutsExistingItemsOnTheGroceriesList() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Application>()
+        val name = "lists_migration_${System.nanoTime()}.db"
+        Room.databaseBuilder(context, HerDatabase::class.java, name).build().apply { openHelper.writableDatabase; close() }
+        // Roll the file back to version 11, when the table had no list column.
+        android.database.sqlite.SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE).use {
+            it.execSQL("DROP TABLE groceries")
+            it.execSQL("""CREATE TABLE `groceries` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `quantity` TEXT, `category` TEXT,
+                `status` TEXT NOT NULL, `reason` TEXT, `recurrenceScore` REAL NOT NULL, `notes` TEXT, `store` TEXT,
+                `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL,
+                `deletedAt` INTEGER, PRIMARY KEY(`id`))""")
+            it.execSQL("INSERT INTO groceries VALUES ('g1','eggs',NULL,NULL,'ACTIVE',NULL,0.0,NULL,NULL,1,1,'dev',1,NULL)")
+            it.version = 11
+        }
+        val migrated = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_11_12, HerDatabase.MIGRATION_12_13).build()
+        assertEquals("groceries", migrated.groceryDao().get("g1")?.list)
+        migrated.groceryDao().upsert(migrated.groceryDao().get("g1")!!.copy(id = "g2", name = "passport", list = "packing"))
+        assertEquals(listOf("groceries", "packing"), migrated.groceryDao().allActive().map { it.list })
+        migrated.close()
+        context.deleteDatabase(name)
+        Unit
+    }
 }

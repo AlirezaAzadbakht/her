@@ -238,10 +238,11 @@ object Checks {
             "emotional_state" -> {
                 val state = com.her.feelings.emotionalState(repo.companionRecords(), now, repo.openDueAts())
                 val expression = com.her.feelings.emotionalExpression(repo.companionRecords(), state, repo.recentMessages(12).lastOrNull { it.role == com.her.domain.MessageRole.USER }?.id)
-                listOf(state.purpose + state.disposition + mapOf("dominant" to state.dominant.name, "expressionTone" to expression.getString("tone"), "expressionBehavior" to expression.getString("behavior"), "openExperiences" to com.her.feelings.openExperiences(repo.companionRecords()).size) +
+                listOf(state.purpose + mapOf("dominant" to state.dominant.name, "expressionTone" to expression.getString("tone"), "expressionBehavior" to expression.getString("behavior"), "openExperiences" to com.her.feelings.openExperiences(repo.companionRecords()).size) +
                     com.her.domain.Feeling.entries.associate { "immediate_${it.name.lowercase()}" to (state.emotions[it] ?: 0.0) } +
                     com.her.domain.Feeling.entries.associate { "mood_${it.name.lowercase()}" to (state.mood[it] ?: 0.0) })
             }
+            "persona_traits" -> repo.persona().map { mapOf("trait" to it.trait, "value" to it.value, "seed" to it.seed, "target" to it.target, "reason" to it.reason) }
             "companion_records" -> repo.companionRecords().map { row ->
                 val data = row.data()
                 data.keys().asSequence().associateWith { key -> if (data.isNull(key)) null else data.get(key) } +
@@ -321,6 +322,7 @@ object Checks {
                 mapOf(
                     "id" to it.id,
                     "name" to it.name,
+                    "list" to it.list,
                     "quantity" to it.quantity,
                     "category" to it.category,
                     "status" to it.status.name,
@@ -328,6 +330,9 @@ object Checks {
                     "notes" to it.notes,
                     "store" to it.store,
                 )
+            }
+            "expenses" -> repo.expensesBetween(0, Long.MAX_VALUE).map {
+                mapOf("id" to it.id, "amount" to it.amount, "currency" to it.currency, "what" to it.what, "category" to it.category, "spentAt" to it.spentAt)
             }
             "important_dates" -> repo.importantDates().map {
                 mapOf(

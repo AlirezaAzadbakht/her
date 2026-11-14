@@ -1,5 +1,6 @@
 package com.her.agent.runner
 
+import com.her.domain.DEFAULT_LIST
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -24,14 +25,17 @@ object Receipts {
         if (id.startsWith("EMOTION_")) return null
         fun text(key: String) = args.optString(key).trim().take(60)
         val created = payload.optBoolean("created", true)
+        // Groceries keep their plain name; any other list is named, as in "the packing list".
+        val list = payload.optString("list").takeIf { it.isNotBlank() && it != DEFAULT_LIST }?.let { "the ${it.take(40)} list" } ?: DEFAULT_LIST
         val (entityType, label, undoable) = when (tool) {
             "remember" -> Triple(
                 if (payload.optString("scope") == "long_term") "long_term_memories" else "short_term_memories",
                 "remembered “${text("content")}”",
                 true,
             )
-            "add_grocery" -> Triple("groceries", "added ${text("name")} to groceries", created)
+            "add_grocery" -> Triple("groceries", "added ${text("name")} to $list", created)
             "create_task" -> Triple("tasks", "task: ${text("title")}", true)
+            "log_expense" -> Triple("expenses", "spent ${args.opt("amount")} on ${text("what")}", true)
             "create_commitment" -> Triple("commitments", "promise: ${text("title")}", true)
             "create_goal" -> Triple("goals", "goal: ${text("title")}", true)
             "create_open_loop" -> Triple("open_loops", "waiting on: ${text("description")}", true)
@@ -44,7 +48,7 @@ object Receipts {
             "update_task" -> Triple("tasks", "updated a task", false)
             "update_commitment" -> Triple("commitments", "updated a promise", false)
             "update_goal" -> Triple("goals", "updated a goal", false)
-            "update_grocery", "remove_grocery", "clear_purchased_groceries" -> Triple("groceries", "updated groceries", false)
+            "update_grocery", "remove_grocery", "clear_purchased_groceries" -> Triple("groceries", "updated $list", false)
             "update_calendar_event" -> Triple("calendar_events", "moved an event", false)
             "delete_calendar_event" -> Triple("calendar_events", "removed an event", false)
             "correct_memory", "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)

@@ -17,7 +17,11 @@ import kotlin.coroutines.cancellation.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 
-private val CONTEXTS = setOf("DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "NEUTRAL")
+private val CONTEXTS = setOf("DISTRESSED", "CORRECTING", "CELEBRATING", "EXPLORING", "PLAYFUL", "APPRECIATIVE", "NEUTRAL")
+
+// What a passing, non-personal moment leaves her feeling. It fades like any event and never credits her.
+private val MOMENT_FEELING = mapOf("CELEBRATING" to "GLAD", "PLAYFUL" to "PLAYFUL", "APPRECIATIVE" to "TENDER", "EXPLORING" to "CURIOUS", "DISTRESSED" to "TENDER")
+private const val MOMENT_INTENSITY = 0.4
 
 internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest message lands.", objSchema(
     "userContext" to oneOf("What they feel and ask for now; a wish for gentleness is DISTRESSED; CORRECTING only when they say an earlier reply or action of Her's was wrong", *CONTEXTS.toTypedArray()),
@@ -35,7 +39,7 @@ internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest messa
 
 private val APPRAISE_SYSTEM = """
 You appraise one moment in a conversation between a person and Her, their assistant. Call appraise exactly once, about their latest message only.
-userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, quoted in herError; heading off a misreading in advance ("I have not said X", "to be clear") is not a correction; CELEBRATING for good news; EXPLORING for open questions or ideas; NEUTRAL otherwise, including small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
+userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, quoted in herError; heading off a misreading in advance ("I have not said X", "to be clear") is not a correction; CELEBRATING for good news with nothing still hurting (good news beside a hurt they say is still open is DISTRESSED); EXPLORING for open questions or ideas; PLAYFUL when they joke, tease or banter; APPRECIATIVE when they thank Her or say something kind to her; NEUTRAL otherwise, including flat small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
 personal is true only for a meaningful development in their life or the life of someone close to them: health, work, relationships, milestones, setbacks, worries. Never for small talk, logistics or questions.
 goalProgress is how things moved for them: negative for a setback or worry, positive for progress, 0 when unclear. Do not judge whether Her helped.
 experienceId: copy an id from openExperiences only when this message continues that same situation.
@@ -91,6 +95,7 @@ class FastAppraiser(
             a.optBoolean("personal") -> "USER_SHARED"
             else -> null
         }
+        val moment = MOMENT_FEELING[context].takeIf { event == null }
         fun bounded(key: String, low: Double, default: Double) = a.optDouble(key, default).takeIf { it.isFinite() }?.coerceIn(low, 1.0) ?: default
         val evidence = a.optString("evidence").trim().takeIf { it.isNotEmpty() && message.content.contains(it) }
         repo.learningTransaction {
@@ -104,6 +109,12 @@ class FastAppraiser(
                 .put("expectedness", bounded("expectedness", 0.0, 0.5)).put("uncertainty", bounded("uncertainty", 0.0, 0.5))
                 .put("confidence", bounded("confidence", 0.0, 0.5))
                 .putOpt("experienceId", experienceId).put("relatedIds", JSONArray(listOfNotNull(message.id, experienceId))))
+            // Thanks, a joke, a shared idea: no situation to track, but it still colors how she feels for a few hours.
+            if (moment != null) insert("EMOTION_EVENT:MOMENT:${message.id}", "EMOTION_EVENT", message.createdAt, JSONObject()
+                .put("event", "MOMENT").put("origin", "FAST").put("sourceMessageId", message.id).putOpt("evidence", evidence)
+                .put("interpretation", a.optString("note").take(200)).put("occurredAt", message.createdAt)
+                .put("feeling", moment).put("intensity", MOMENT_INTENSITY).put("confidence", bounded("confidence", 0.0, 0.5))
+                .put("relatedIds", JSONArray(listOf(message.id))))
         }
     }
 

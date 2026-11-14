@@ -12,6 +12,7 @@ import com.her.data.repository.HerRepository
 import com.her.data.retrieval.HybridRanker
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.ConfirmationKind
+import com.her.domain.GroceryStatus
 import com.her.domain.MessageRole
 import com.her.domain.MessageStatus
 import com.her.domain.PendingConfirmation
@@ -233,5 +234,34 @@ class ToolEditsTest {
 
     private suspend fun theyConfirm() {
         repo.saveMessage(repo.newChatMessage(MessageRole.USER, "yes, do it", MessageStatus.SENT))
+    }
+
+    @Test
+    fun aNamedListIsKeptApartFromGroceries() = runBlocking {
+        tools.execute("add_grocery", """{"name":"rice"}""")
+        val passport = JSONObject(tools.execute("add_grocery", """{"name":"passport","list":" Packing "}""").payloadJson)
+        assertEquals("packing", passport.getString("list"))
+        tools.execute("add_grocery", """{"name":"charger","list":"packing"}""")
+        // The same name on another list is its own item, and a repeat on the same list is not.
+        assertTrue(JSONObject(tools.execute("add_grocery", """{"name":"rice","list":"packing"}""").payloadJson).getBoolean("created"))
+        assertFalse(JSONObject(tools.execute("add_grocery", """{"name":"Passport","list":"PACKING"}""").payloadJson).getBoolean("created"))
+
+        fun names(payload: String) = JSONObject(payload).getJSONArray("groceries").let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("name") }.toSet() }
+        assertEquals(setOf("rice"), names(tools.execute("get_groceries", "{}").payloadJson))
+        assertEquals(setOf("passport", "charger", "rice"), names(tools.execute("get_groceries", """{"list":"Packing"}""").payloadJson))
+
+        // Everything is packed except the charger: groceries are untouched.
+        tools.execute("clear_purchased_groceries", """{"list":"packing","except":["charger"]}""")
+        val active = repo.groceries().filter { it.status == GroceryStatus.ACTIVE }
+        assertEquals(setOf("groceries" to "rice", "packing" to "charger"), active.map { it.list to it.name }.toSet())
+        // And clearing groceries leaves the packing list alone.
+        tools.execute("clear_purchased_groceries", "{}")
+        assertEquals(listOf("charger"), repo.groceries().filter { it.status == GroceryStatus.ACTIVE }.map { it.name })
+
+        val charger = active.first { it.name == "charger" }.id
+        assertFalse(tools.execute("remove_grocery", """{"id":"$charger","list":"books"}""").ok)
+        assertTrue(tools.execute("update_grocery", """{"id":"$charger","list":"Books"}""").ok)
+        assertEquals("books", repo.getGrocery(charger)!!.list)
+        assertTrue(tools.execute("remove_grocery", """{"id":"$charger"}""").ok)
     }
 }

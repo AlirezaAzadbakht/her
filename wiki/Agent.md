@@ -7,7 +7,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 `AgentOrchestrator` in `app/src/main/java/com/her/agent/runner/Runners.kt`:
 
 1. `ContextBuilder` assembles messages.
-2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` is omitted from the tool list unless Settings → Web search is on; that tool then makes a separate, tool-free completion with `web_search_options`.
+2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` and `fetch_url` are omitted from the tool list unless Settings → Web search is on; `web_search` then makes a separate, tool-free completion with `web_search_options`.
 3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
@@ -25,12 +25,12 @@ The orchestrator logs prompt sizes, retrieved memory ids, per-call token usage (
 2. Optional extra system text (hourly / nightly / briefing)
 3. A bundle, ordered so the slow-changing part forms a stable prefix that providers can cache:
    - Stable: profile, **About them** (active `user_understandings`, always, cap 16), web-search flag, people, projects, goals, routines, dates, **Recent days** (the `digest` note)
-   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries, internal / system calendar (7-day window; live sources stay visible even when empty), agent state and queue
+   - Volatile: now, when their last message was sent, retrieved memories (cap 12), **tasks as `id \| title [status]`**, commitments, open loops, groceries and each other named list under its own heading, internal / system calendar (7-day window; live sources stay visible even when empty), agent state and queue
 4. Recent chat: up to 24 messages (8 for hourly / catch-up), newest first until 12,000 characters. The newest message always goes whole; the four newest are never clipped, older ones are cut to 1,200 characters. What falls out is covered by the digest note and `search_chat_history`. Assistant lines include a compact receipt such as `[saved tasks 7f3a "task: Call Sara"]` so a follow-up can name the row.
 
 Task lines include ids so `update_task` can target a row. Titles alone used to fail when the model invented a status like `cancelled`.
 
-The nightly pass rewrites one `update_agent_state(kind="digest")` note about the last several days: decisions, what she did, threads to pick up. `update_agent_state` upserts by kind for `digest`, and the bundle always shows it, so a decision survives after it scrolls out of the 24-message window.
+The nightly review is three model turns (`Identity.NIGHTLY_PHASES`): the wondering review, the emotional review, then consolidation and the digest. Each has its own call budget, so a long review cannot use the calls the digest needs. `AppSettings.nightlyProgress` records the steps finished today; a pass that failed or yielded to chat partway starts again at the step that stopped. The nightly pass rewrites one `update_agent_state(kind="digest")` note about the last several days: decisions, what she did, threads to pick up. `update_agent_state` upserts by kind for `digest`, and the bundle always shows it, so a decision survives after it scrolls out of the 24-message window.
 
 ## Retrieval
 
@@ -52,7 +52,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 |-----|---------------|-------------|
 | Chat | `chatToolCallLimit` (default 12, min 1) | User-driven |
 | Hourly / catch-up | 10 | Skip if last **successful** hourly was &lt; 20 minutes ago; catch-up if the gap is &gt; 3 hours. Quiet hours skip the LLM pass unless the Settings toggle is on. A scheduled pass skips when nothing new came due ([Background work](Background-work.md#nothing-new-no-model-call)). |
-| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one |
+| Nightly | 50 | Once per calendar day; a scheduled pass skips when they have not written since the last one. Runs as three steps with their own budgets (wondering 12, emotional 14, consolidation and digest 24); a pass that stops partway resumes at the next step |
 | Briefing | 8 | Once per calendar day; a scheduled pass skips after 7 quiet days, or 3 when today is empty |
 
 ## Tools
@@ -62,13 +62,16 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
-- Routines, groceries, important dates, recurring responsibilities
+- Routines, important dates, recurring responsibilities
+- Groceries and named lists: `get_groceries`, `add_grocery`, `update_grocery`, `remove_grocery`, `clear_purchased_groceries`. Each takes an optional `list` (trimmed and lowercased; omitted means `groceries`), so a packing list or books to read live in the same table under their own name. `update_grocery` with `list` moves an item
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
 - `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal and system events)
-- `web_search`, `send_user_message`
+- `web_search`, `fetch_url` (reads one public `http`/`https` page as text; refuses private and local addresses; both are offered only when Settings → Web search is on), `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
+- Contacts (`ContactTools.kt`): `search_contacts`, read-only, offered only when Settings → Connections → **Contacts access** is on and `READ_CONTACTS` is granted. It returns at most 8 matches with phones and birthday; keeping a birthday is still `update_person`.
+- Money (`MoneyTools.kt`): `log_expense`, `get_expenses`. Rows live in the `expenses` table; totals are per currency and never mixed. `log_expense` is undoable from its receipt.
 
 ## Reminders and alarms
 
@@ -83,7 +86,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `onlyIfOpen`: a task or commitment. A due reminder is marked `SKIPPED` without ringing when that record is no longer open.
 - `repeat`: `DAILY` / `WEEKLY` / `MONTHLY`, for clock reminders only. A repeating reminder moves to its next time after it rings.
 - Only the device that set a reminder arms its alarm; a restored backup carries the device id, so the new phone takes them over. Alarms are re-armed on app start (including after importing a backup), boot, app update, time or timezone change, and exact-alarm permission change. `HourlyWorker` also calls `fireDue()` as a safety net.
-- `set_alarm`, when exact alarms are allowed, stores a TIME reminder with `alarm = true`, any day ahead; `days` becomes one WEEKLY alarm per weekday. `AndroidReminderAlarms` arms it with `setAlarmClock`, so it shows in the status bar and gets through Doze on the minute. When it fires, `Notifier.showAlarm` rings on the **Alarms** channel at alarm volume with an insistent sound until **Stop** or **Snooze 10 min**. There is no full-screen alarm screen yet. It is undoable from its receipt like a reminder.
+- `set_alarm`, when exact alarms are allowed, stores a TIME reminder with `alarm = true`, any day ahead; `days` becomes one WEEKLY alarm per weekday. `AndroidReminderAlarms` arms it with `setAlarmClock`, so it shows in the status bar and gets through Doze on the minute. When it fires, `Notifier.showAlarm` rings on the **Alarms** channel at alarm volume with an insistent sound until **Stop** or **Snooze 10 min**. On a locked phone the notification's full-screen intent opens `AlarmActivity`, which shows the words with **Stop** and **Snooze** and sends the same broadcast as the notification buttons. On Android 14 and later that needs the full-screen-intent permission; without it the heads-up notification rings as before. It is undoable from its receipt like a reminder.
 - Without exact alarms, `set_alarm` falls back to `AlarmClock.ACTION_SET_ALARM` in the phone's clock app: a one-off alarm must ring within 24 hours, and only while Her is on screen, because Android silently drops activity starts from the background. From a notification reply or a background pass it fails and says to set a reminder, or to allow exact reminders in Settings.
 - `create_calendar_event` on the device calendar adds a 10-minute alert, so the calendar app notifies (and a Google-account calendar syncs the alert to their other devices).
 - `set_reminder` is undoable from its receipt, which cancels and disarms it.

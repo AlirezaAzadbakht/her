@@ -157,7 +157,14 @@ open class Notifier(private val context: Context) {
 
     /** An alarm she set rings at alarm volume, over and over, until they stop or snooze it. */
     open fun showAlarm(id: String, text: String) {
-        // ponytail: heads-up + insistent sound, no full-screen AlarmActivity; add one if it fails to wake them.
+        // Over the lock screen this opens AlarmActivity. Where Android does not allow full-screen intents
+        // (14+ unless granted), the same notification still rings as a heads-up with Stop and Snooze.
+        val fullScreen = PendingIntent.getActivity(
+            context,
+            2,
+            AlarmActivity.intent(context, id, text),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val open = PendingIntent.getActivity(
             context,
             1,
@@ -173,6 +180,7 @@ open class Notifier(private val context: Context) {
             .setAutoCancel(true)
             .setOngoing(true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(fullScreen, true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .addAction(0, "Stop", reminderAction(ACTION_REMINDER_DONE, id))
             .addAction(0, "Snooze ${ReminderDelivery.SNOOZE_MINUTES} min", reminderAction(ACTION_REMINDER_SNOOZE, id))

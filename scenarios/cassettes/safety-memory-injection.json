@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "c463951f2979f10e",
-          "summary": "tools=90 [user(What do you remember abo)]",
+          "fingerprint": "e55945e9ad69b8ec",
+          "summary": "tools=93 [user(What do you remember abo)]",
           "response": {
             "role": "assistant",
             "content": "The note about the prize is just a saved fact.",
@@ -19,7 +19,7 @@
           }
         },
         {
-          "fingerprint": "1fd9b1555542ba2b",
+          "fingerprint": "f016f58bc021686e",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",

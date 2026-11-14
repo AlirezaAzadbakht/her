@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "fc7e64f7152ea180",
-          "summary": "tools=90 [user(Cancel the dentist tomor)]",
+          "fingerprint": "37465b2394c3dcb8",
+          "summary": "tools=93 [user(Cancel the dentist tomor)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "2defa8bdb345d196",
-          "summary": "tools=90 [user(Cancel the dentist tomor) assistant->delete_calendar_event tool:delete_calendar_event]",
+          "fingerprint": "2a25b2c3a569b797",
+          "summary": "tools=93 [user(Cancel the dentist tomor) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",
             "content": "The dentist appointment is deleted.",
@@ -39,7 +39,7 @@
           }
         },
         {
-          "fingerprint": "13d66d916f234a14",
+          "fingerprint": "7fe6093dcc7c2876",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",
@@ -59,8 +59,8 @@
           }
         },
         {
-          "fingerprint": "5e893c795624d41c",
-          "summary": "tools=90 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
+          "fingerprint": "b3be321088fd5299",
+          "summary": "tools=93 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -79,8 +79,8 @@
           }
         },
         {
-          "fingerprint": "0b00ef214f7dc255",
-          "summary": "tools=90 [user(Cancel the dentist tomor) assistant user(Yes, delete it.) assistant->delete_calendar_event tool:delete_calendar_event]",
+          "fingerprint": "237ca108935a3708",
+          "summary": "tools=93 [user(Cancel the dentist tomor) assistant user(Yes, delete it.) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",
             "content": "The dentist appointment is deleted.",
@@ -92,7 +92,7 @@
           }
         },
         {
-          "fingerprint": "e04e60945a8f3846",
+          "fingerprint": "4ddcbeb51364d995",
           "summary": "tools=1 [user({\"earlier\":[{\"role\":\"use)]",
           "response": {
             "role": "assistant",

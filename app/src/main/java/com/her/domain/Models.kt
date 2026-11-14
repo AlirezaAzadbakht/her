@@ -229,6 +229,13 @@ data class Routine(
     val deletedAt: Long?,
 )
 
+/** The list an item lands on when none is named. */
+const val DEFAULT_LIST = "groceries"
+
+/** "Packing " and "packing" are one list; blank means groceries. */
+fun listName(raw: String?): String = raw?.trim()?.lowercase()?.ifBlank { null } ?: DEFAULT_LIST
+
+/** An item on a named list. Groceries came first, so the type and table keep that name. */
 data class GroceryItem(
     val id: String,
     val name: String,
@@ -244,6 +251,7 @@ data class GroceryItem(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    val list: String = DEFAULT_LIST,
 )
 
 data class ImportantDate(

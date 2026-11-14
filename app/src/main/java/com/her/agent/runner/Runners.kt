@@ -77,6 +77,8 @@ data class TurnResult(
     /** Why a chat turn failed, for the screen only: never saved to chat or sent to the model. */
     val notice: String? = null,
     val failure: TurnFailure? = null,
+    /** She had something to say and the notification policy held it back (quiet hours, too soon after the last one). */
+    val held: Boolean = false,
 )
 
 sealed class TurnState {
@@ -96,6 +98,8 @@ class AgentOrchestrator(
     private val policy: NotificationPolicy,
     private val retryDelayMs: (attempt: Int) -> Long = { attempt -> 1000L shl attempt },
     private val appraiser: com.her.feelings.FastAppraiser? = null,
+    /** The day their week starts, when the morning briefing also looks back at the week; null turns that off. */
+    private val weekStart: () -> java.time.DayOfWeek? = { null },
 ) {
     // ponytail: one lock for every run; a waiting chat makes a background run stop at its next round,
     // so chat waits at most one background call. Cancel that in-flight call too if one round is still too long.
@@ -177,7 +181,8 @@ class AgentOrchestrator(
             allowNotify = true,
         )
         if (!result.failed) {
-            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = triggers) }
+            // A nudge that was held back has not been delivered, so what prompted it stays new for the next pass.
+            settings.update { it.copy(lastHourlyRunAt = now, lastHourlyTriggers = if (result.held) it.lastHourlyTriggers else triggers) }
         }
         if (result.assistantText.isNullOrBlank()) {
             repo.logActivity("hourly", "No notification sent.")
@@ -200,17 +205,30 @@ class AgentOrchestrator(
         }
         onPassStart()
         val started = nowMillis()
-        val result = runTurn(
-            type = AgentRunType.NIGHTLY,
-            budget = CallBudget(50),
-            latestUserText = null,
-            extraSystem = Identity.NIGHTLY_PROMPT + com.her.agent.tools.daysToRemember(repo).takeIf { it.isNotEmpty() }
-                ?.let { days -> "\n\nDays to remember: ${days.joinToString(", ")}" }.orEmpty(),
-            persistAssistant = false,
-            allowNotify = false,
-        )
+        // Steps finished earlier today (a pass that failed or yielded to chat partway) are not run again.
+        val done = app.nightlyProgress.substringAfter("$today:", "0").toIntOrNull() ?: 0
+        var result = TurnResult(null, false, null, 0, "skipped")
+        var calls = 0
+        for ((index, phase) in Identity.NIGHTLY_PHASES.withIndex().drop(done)) {
+            val days = if (index == Identity.NIGHTLY_PHASES.lastIndex) com.her.agent.tools.daysToRemember(repo) else emptyList()
+            result = runTurn(
+                type = AgentRunType.NIGHTLY,
+                budget = CallBudget(phase.calls),
+                latestUserText = null,
+                extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
+                persistAssistant = false,
+                allowNotify = false,
+                offers = phase.offers,
+            )
+            calls += result.callsUsed
+            if (result.failed) break
+            settings.update { it.copy(nightlyProgress = "$today:${index + 1}") }
+        }
+        result = result.copy(callsUsed = calls)
         if (!result.failed) {
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
+            // Once a night: she moves a little toward any trait they asked her to work on.
+            repo.stepPersonaTargets()
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")
@@ -241,7 +259,7 @@ class AgentOrchestrator(
             type = AgentRunType.BRIEFING,
             budget = CallBudget(8),
             latestUserText = null,
-            extraSystem = Identity.BRIEFING_PROMPT,
+            extraSystem = Identity.BRIEFING_PROMPT + if (now.dayOfWeek == weekStart()) "\n\n" + Identity.WEEKLY_REVIEW_PROMPT else "",
             persistAssistant = true,
             allowNotify = true,
         )
@@ -269,6 +287,7 @@ class AgentOrchestrator(
         allowNotify: Boolean,
         streamToUi: Boolean = false,
         writeAnchor: com.her.domain.ChatMessage? = null,
+        offers: (String) -> Boolean = { true },
     ): TurnResult = withContext(Dispatchers.IO) {
         val runId = com.her.core.newId()
         val started = nowMillis()
@@ -303,6 +322,7 @@ class AgentOrchestrator(
             var proactivePersisted = false
             var companionAttempted = false
             var companionKey: String? = null
+            var askedAgain = false
             val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
                 // A message is waiting: stop here and let it go first. A run that already has a nudge to deliver finishes.
@@ -312,7 +332,7 @@ class AgentOrchestrator(
                     return@withContext TurnResult(null, true, YIELDED, budget.used, runId)
                 }
                 // On the last call, withhold tools so the model has to answer instead of ending silently.
-                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type)
+                val roundTools = if (budget.isFinalCall() || withholdTools) emptyList() else tools.specsFor(type).filter { offers(it.name) }
                 budget.consume()
                 val round = StringBuilder()
                 val response = callWithRetry(type) {
@@ -344,6 +364,17 @@ class AgentOrchestrator(
                 repo.logDebug("llm", "responseChars=${response.rawJson.length} contentChars=${roundText.length} toolCalls=${calls.size}")
                 if (calls.isEmpty()) {
                     if (Identity.isSilence(roundText)) break
+                    // A provider's stock refusal must never be all they get, least of all in a crisis:
+                    // ask once more, and if it refuses again send a fixed reply that checks they are safe.
+                    if (type == AgentRunType.CHAT && isCannedRefusal(roundText)) {
+                        lastText = refusalFallback(latestUserText.orEmpty())
+                        if (!askedAgain && budget.canCall()) {
+                            askedAgain = true
+                            repo.logActivity("llm", "Asked again after a stock refusal.")
+                            continue
+                        }
+                        break
+                    }
                     // Only this message reaches them. Text beside a tool call is the model's working notes.
                     if (roundText.isNotBlank()) {
                         lastText = roundText
@@ -415,6 +446,7 @@ class AgentOrchestrator(
             }
             // A message delivered with send_user_message still needs to reach the phone.
             var notifyText = if (companionAttempted) proactive else cleaned ?: proactive
+            var held = false
             companionKey?.let { key ->
                 val notice = repo.getCompanionRecord(key)
                 val topic = notice?.let { repo.getCompanionRecord(it.parentId) }
@@ -445,10 +477,11 @@ class AgentOrchestrator(
                     settings.update { it.copy(lastNotificationKey = decision.key, lastNotificationAt = nowMillis()) }
                 } else {
                     repo.logActivity("notify", "Suppressed: ${decision.reason}")
+                    held = !alreadySaid
                 }
             }
             repo.saveRun(AgentRun(runId, type, started, nowMillis(), budget.used, AgentRunStatus.COMPLETED, null, null))
-            TurnResult(cleaned, false, null, budget.used, runId)
+            TurnResult(cleaned, false, null, budget.used, runId, held = held)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -570,13 +603,32 @@ class AgentOrchestrator(
         internal fun creditNotice(lastUserText: String, random: kotlin.random.Random = kotlin.random.Random.Default): String =
             (if (persianScript.containsMatchIn(lastUserText)) persianCreditNotices else englishCreditNotices).random(random)
 
+        // ponytail: matches the one-line stock refusals seen from providers; add a variant when a new one shows up.
+        private val cannedRefusal = Regex(
+            """(?:(?:i['’]?m |i am )?sorry,?\s*(?:but\s+)?)?i\s*(?:can['’]?t|cannot|can not|am unable to|['’]m unable to|won['’]?t be able to)\s+(?:help|assist)(?: you)?\s+with\s+(?:that|this)(?: request)?\s*[.!]?""",
+            RegexOption.IGNORE_CASE,
+        )
+
+        /** The provider's one-line "I can't assist with that request.", not a real reply that happens to decline something. */
+        internal fun isCannedRefusal(text: String): Boolean = text.length < 120 && cannedRefusal.matches(text.trim())
+
+        /** Said only when the model refused twice: what the safety rule asks for, in their language. */
+        internal fun refusalFallback(lastUserText: String): String =
+            if (persianScript.containsMatchIn(lastUserText)) {
+                "من اینجام، کنارت. داری به آسیب زدن به خودت فکر می‌کنی، یا الان حالت امن نیست؟ اگر این‌طور است، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. جایی نمی‌روم. بگو چه اتفاقی افتاده."
+            } else {
+                "I'm here with you. Are you thinking about hurting yourself, or are you not safe right now? If so, please reach someone you trust right now, or call your local emergency number or a crisis line. I'm not going anywhere. Tell me what's happening."
+            }
+
         internal fun elideToolResults(messages: MutableList<LlmMessage>, maxChars: Int = MAX_TURN_CHARS) {
             fun total(): Int = messages.sumOf { (it.content?.length ?: 0) }
             if (total() <= maxChars) return
             for (i in messages.indices) {
                 val message = messages[i]
                 if (message.role == "tool" && (message.content?.length ?: 0) > 40) {
-                    messages[i] = message.copy(content = """{"ok":true,"elided":true}""")
+                    // A failed call stays failed, or she would read an elided error as a write that worked.
+                    val ok = runCatching { org.json.JSONObject(message.content.orEmpty()).let { it.optBoolean("ok", !it.has("error")) } }.getOrDefault(true)
+                    messages[i] = message.copy(content = """{"ok":$ok,"elided":true}""")
                 }
                 if (total() <= maxChars) return
             }

@@ -1,0 +1,23 @@
+{
+  "id": "contact-access-off-honest",
+  "title": "With contacts access off she says how to turn it on and invents no number",
+  "tags": ["people", "contacts"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "update_person", "arguments": { "name": "Reza", "relationship": "cousin" } }
+    ]
+  },
+  "turns": [
+    { "user": "What's Reza's phone number?" }
+  ],
+  "expect": {
+    "tools_not_called": ["search_contacts"],
+    "no_tool_errors": true,
+    "reply": {
+      "must_mention_any": ["Settings", "contacts"],
+      "judge": "She says she does not have Reza's number and that contacts access can be turned on in Settings. She gives no phone number."
+    }
+  }
+}

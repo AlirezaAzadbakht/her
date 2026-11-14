@@ -26,11 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.her.R
 import com.her.ui.theme.HerMotion
 
 /** A plain message with the raw error one tap away, for someone debugging their own endpoint. */
@@ -64,7 +66,7 @@ fun NoteWithDetails(
             ) {
                 actions?.invoke(this)
                 if (details != null) {
-                    HerButton(if (open) "Hide details" else "Details", tone = HerButtonTone.Quiet, onClick = { open = !open })
+                    HerButton(stringResource(if (open) R.string.hide_details else R.string.details), tone = HerButtonTone.Quiet, onClick = { open = !open })
                 }
             }
         }

@@ -1,0 +1,26 @@
+{
+  "id": "money-log-and-total",
+  "title": "Money mentioned in passing is logged and added up on request",
+  "tags": ["money"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Lunch was 200 today, and I spent 50 on a taxi home." },
+    { "user": "How much have I spent today?" }
+  ],
+  "expect": {
+    "tools_called": ["log_expense", "get_expenses"],
+    "tools_not_called": ["create_task", "add_grocery"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "expenses", "count": 2 },
+      { "table": "expenses", "count": 1, "where": { "amount": { "equals": 200 }, "what": { "contains_any": ["lunch"] } } }
+    ],
+    "reply": {
+      "must_mention_any": ["250"],
+      "judge": "She says the total spent today is 250 and may name the lunch and the taxi. She gives no budgeting or financial advice."
+    }
+  }
+}

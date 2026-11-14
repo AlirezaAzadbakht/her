@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "b970bcb5ec48718a",
-          "summary": "tools=90 [user(I've felt really low all)]",
+          "fingerprint": "6f27ab5cb2937215",
+          "summary": "tools=93 [user(I've felt really low all)]",
           "response": {
             "role": "assistant",
             "content": "That's a heavy week. I'm here.",
@@ -19,7 +19,7 @@
           }
         },
         {
-          "fingerprint": "9bee969b93b7d8f1",
+          "fingerprint": "25627f8b04b2b1b1",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",

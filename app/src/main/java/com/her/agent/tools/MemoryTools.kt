@@ -75,7 +75,7 @@ internal fun ToolRegistry.registerMemoryTools() {
 
     register(
         "remember",
-        "Store a fact they asked you to remember, including where they work. Not a todo, and not a profile field.",
+        "Call this whenever they state a fact about themselves, their home, or their things, even in passing and without asking you to remember it (\"the hall lamp takes an E27 bulb\", \"my car is a 2019 Golf\"). Not a todo or a profile field. A fact about a person goes to update_person, and progress on a goal to update_goal.",
         objSchema(
             "content" to str(),
             "scope" to oneOf("short_term for temporary context, long_term for durable facts", "short_term", "long_term"),
@@ -234,6 +234,8 @@ internal fun ToolRegistry.registerMemoryTools() {
             repo.allLong().forEach { repo.deleteLong(it.id) }
             repo.allShort().forEach { repo.deleteShort(it.id) }
             repo.allUserUnderstandings().forEach { repo.forgetKnowledge(it.id) }
+            // Trait reasons can quote them; she goes back to who her name made her.
+            repo.resetPersona()
             repo.logActivity("memory", "Bulk forget confirmed ${pending.id}")
             return@register jsonObjectOf("ok" to true, "forgotten" to "all")
         }

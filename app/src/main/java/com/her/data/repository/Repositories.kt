@@ -25,12 +25,18 @@ import com.her.data.db.LongTermMemoryEntity
 import com.her.data.db.MemoryRelationshipEntity
 import com.her.data.db.OpenLoopEntity
 import com.her.data.db.PendingConfirmationEntity
+import com.her.data.db.PersonaTrait
 import com.her.data.db.PersonEntity
 import com.her.data.db.ProjectEntity
 import com.her.data.db.RecurringResponsibilityEntity
 import com.her.data.db.ReminderEntity
 import com.her.data.db.RoutineEntity
+import com.her.data.db.seedTraits
+import com.her.data.db.nameKey
+import com.her.data.db.specialTraits
+import com.her.data.db.stepped
 import com.her.data.db.ShortTermMemoryEntity
+import com.her.data.db.TRAITS
 import com.her.data.db.TaskEntity
 import com.her.data.db.UserProfileEntity
 import com.her.data.db.UserUnderstandingEntity
@@ -81,6 +87,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import org.json.JSONObject
 
 /** Long-term memory category for Her's dated notes of past days, weeks and months. */
@@ -295,8 +302,12 @@ class HerRepository(
     }
 
     suspend fun saveProfile(profile: UserProfile) {
-        val previousZone = db.profileDao().get(UserProfile.PROFILE_ID)?.timezone
+        val previous = db.profileDao().get(UserProfile.PROFILE_ID)
+        val previousZone = previous?.timezone
         db.profileDao().upsert(profile.toEntity())
+        // Renamed to a name with a story: she becomes that personality. Any other rename keeps who she has become.
+        if (previous != null && nameKey(previous.assistantName) != nameKey(profile.assistantName) &&
+            specialTraits(profile.assistantName) != null) db.personaDao().clear()
         if (previousZone != null && previousZone != profile.timezone) companionRecords().filter { it.kind == "SCHEDULE" && it.data().optString("zonePolicy") == "PROFILE" }.forEach {
             com.her.companion.refreshScheduleReminder(this, it, com.her.reminders.ReminderAlarms.NONE)
         }
@@ -369,20 +380,25 @@ class HerRepository(
         db.routineDao().upsert(item.toEntity())
     }
 
+    /** Items on every list; filter on [GroceryItem.list] for one. */
     suspend fun groceries() = db.groceryDao().allActive().map { it.toDomain() }
     suspend fun getGrocery(id: String) = db.groceryDao().get(id)?.toDomain()
     suspend fun saveGrocery(item: GroceryItem) {
         db.groceryDao().upsert(item.toEntity())
     }
 
-    suspend fun markGroceriesPurchased(exceptNames: List<String>) {
+    suspend fun markGroceriesPurchased(exceptNames: List<String>, list: String = com.her.domain.DEFAULT_LIST) {
         val except = exceptNames.map { it.trim().lowercase() }.toSet()
-        groceries().filter { it.status == GroceryStatus.ACTIVE }.forEach { item ->
+        groceries().filter { it.status == GroceryStatus.ACTIVE && it.list == list }.forEach { item ->
             if (item.name.trim().lowercase() !in except) {
                 saveGrocery(item.copy(status = GroceryStatus.PURCHASED, updatedAt = nowMillis(), version = item.version + 1))
             }
         }
     }
+
+    suspend fun expensesBetween(from: Long, to: Long) = db.expenseDao().between(from, to)
+    suspend fun getExpense(id: String) = db.expenseDao().get(id)
+    suspend fun saveExpense(item: com.her.data.db.ExpenseEntity) = db.expenseDao().upsert(item)
 
     suspend fun importantDates() = db.importantDateDao().allActive().map { it.toDomain() }
     suspend fun getImportantDate(id: String) = db.importantDateDao().get(id)?.toDomain()
@@ -498,21 +514,25 @@ class HerRepository(
         var changed: Boolean
         do {
             changed = false
-            // Expression quotes describe a whole user message, including when saved before its experience.
-            // Forget them with any emotional evidence derived from that message, without deleting the chat.
+            // Expression quotes and understandings describe a whole user message, including when saved before its
+            // experience. Forget them with any emotional evidence derived from that message, without deleting the chat.
             val emotionalSources = rows.filter { it.id in pending && it.kind in com.her.feelings.emotionalKinds }
                 .flatMap { it.sourceIds() }.toSet()
             rows.forEach { row ->
                 val data = row.data()
                 val links = data.optJSONArray("relatedIds")
-                val derived = (row.kind == "EMOTION_EXPRESSION" && row.sourceIds().any { it in emotionalSources }) || row.parentId in pending || row.sourceIds().any { it in pending } ||
+                val derived = (row.kind in setOf("EMOTION_EXPRESSION", "EMOTION_UNDERSTANDING") && row.sourceIds().any { it in emotionalSources }) || row.parentId in pending || row.sourceIds().any { it in pending } ||
                     (links != null && (0 until links.length()).any { links.optString(it) in pending })
                 if (derived && pending.add(row.id)) changed = true
             }
         } while (changed)
+        // A day's episode retells its messages, so it would keep the feelings they asked to forget.
+        val retold = rows.filter { it.id in pending && it.kind in com.her.feelings.emotionalKinds }.flatMap { it.sourceIds() }.toSet()
         rows.filter { it.id in pending }.forEach {
             saveCompanionRecord(it.copy(content = "{}", deletedAt = nowMillis(), updatedAt = nowMillis(), version = it.version + 1))
         }
+        if (retold.isNotEmpty()) allLong().filter { it.deletedAt == null && it.category == EPISODE_CATEGORY && memoryDependencies(it).any { dep -> dep in retold } }
+            .forEach { forgetKnowledge(it.id) }
         rows.filter { it.id in pending && it.id != id && it.deletedAt == null }.map { it.id }
     }
 
@@ -523,6 +543,30 @@ class HerRepository(
     suspend fun saveLearningRecord(item: LearningRecord) {
         db.learningDao().upsert(item)
     }
+
+    /** Her six traits in [TRAITS] order. Missing ones are seeded from her name, but only saved once she has a name. */
+    suspend fun persona(): List<PersonaTrait> {
+        val existing = db.personaDao().all().associateBy { it.trait }
+        if (TRAITS.all { it in existing }) return TRAITS.map { existing.getValue(it) }
+        val name = getProfile().assistantName
+        val seeds = seedTraits(name)
+        val added = TRAITS.filter { it !in existing }.map {
+            PersonaTrait(it, seeds.getValue(it), seeds.getValue(it), updatedAt = nowMillis())
+        }
+        if (!name.isNullOrBlank()) db.personaDao().upsert(added)
+        val all = existing + added.associateBy { it.trait }
+        return TRAITS.map { all.getValue(it) }
+    }
+    suspend fun savePersonaTrait(row: PersonaTrait) = db.personaDao().upsert(listOf(row))
+    suspend fun stepPersonaTargets() {
+        val now = nowMillis()
+        persona().filter { it.target != null }.map { it.stepped(now) }
+            .takeIf { it.isNotEmpty() }?.let { db.personaDao().upsert(it) }
+    }
+    suspend fun resetPersona() = db.personaDao().clear()
+    fun observePersona(): Flow<List<PersonaTrait>> = db.personaDao().observeAll()
+        .onStart { persona() }
+        .map { rows -> TRAITS.mapNotNull { trait -> rows.firstOrNull { it.trait == trait } } }
 
     suspend fun recentFeelings(limit: Int = 10) = db.feelingDao().recent(limit).map { it.toDomain() }
     suspend fun getFeeling(id: String) = db.feelingDao().get(id)?.toDomain()
@@ -706,13 +750,13 @@ fun Routine.toJson() = JSONObject()
     .put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt)
     .toString()
 
-fun GroceryEntity.toDomain() = GroceryItem(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt)
-fun GroceryItem.toEntity() = GroceryEntity(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt)
+fun GroceryEntity.toDomain() = GroceryItem(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list)
+fun GroceryItem.toEntity() = GroceryEntity(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list)
 fun GroceryItem.toJson() = JSONObject()
     .put("id", id).put("name", name).put("quantity", quantity).put("category", category)
     .put("status", status.name).put("reason", reason).put("recurrenceScore", recurrenceScore)
     .put("notes", notes).put("store", store).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).toString()
+    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).put("list", list).toString()
 
 fun ImportantDateEntity.toDomain() = ImportantDate(id, title, dateIso, recurrence, relatedPersonId, notes, importance, createdAt, updatedAt, deviceId, version, deletedAt)
 fun ImportantDate.toEntity() = ImportantDateEntity(id, title, dateIso, recurrence, relatedPersonId, notes, importance, createdAt, updatedAt, deviceId, version, deletedAt)

@@ -25,7 +25,7 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|v3`) is sto
 | Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
 | Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
 
-LLM failures return `Result.success()` and wait for the next scheduled slot. The only retry is nightly on critically low battery.
+A nightly or briefing pass that fails because the model is busy, down, or unreachable returns `Result.retry()` once (`BackgroundRunPolicy.retryAfterFailure`), so WorkManager runs it again after its backoff. Any other failure, a second failure, and every hourly failure return `Result.success()` and wait for the next scheduled slot. Nightly also retries on critically low battery.
 
 Hourly stamps `lastHourlyRunAt` only after a successful pass.
 
@@ -55,6 +55,8 @@ Hourly LLM passes skip quiet hours unless Settings → **Hourly during quiet hou
 - Duplicate key cooldown: 45 minutes
 - Gap between non-urgent notifications: 20 minutes
 - Hourly and catch-up also drop a near-duplicate of a proactive assistant message from the last 12 hours (`lexicalOverlap` ≥ 0.5). Chat and the morning briefing are not held to that guard.
+
+On the first day of the week (`WeekFields` for the device locale: Saturday in Iran, Monday in most of Europe, Sunday in the US) the briefing prompt gains `Identity.WEEKLY_REVIEW_PROMPT`, so the same note also looks back at last week through `get_situation_briefing`. There is no separate worker or notification. Scenarios leave it off unless `settings.weeklyReviewDay` names a day.
 
 The morning briefing is scheduled at the **end** of quiet hours, not at a fixed 8:00 if the user changed the window.
 

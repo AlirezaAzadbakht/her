@@ -19,6 +19,7 @@ import com.her.domain.GoalStatus
 import com.her.domain.GroceryItem
 import com.her.domain.GroceryStatus
 import com.her.domain.ImportantDate
+import com.her.domain.listName
 import com.her.domain.MemoryRelationship
 import com.her.domain.MemorySource
 import com.her.domain.OpenLoop
@@ -44,7 +45,7 @@ internal fun ToolRegistry.registerEntityTools() {
     }
     register(
         "update_person",
-        "Create or update a person.",
+        "Create or update a person. What they tell you about someone they know (diet, likes, relationship, birthday) goes here, not in remember.",
         objSchema(
             "id" to str(),
             "name" to str(),
@@ -123,7 +124,7 @@ internal fun ToolRegistry.registerEntityTools() {
         )
         jsonObjectOf("ok" to true, "id" to id)
     }
-    register("update_goal", "Update a goal.", objSchema("id" to str(), "title" to str(), "status" to enumField<GoalStatus>(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
+    register("update_goal", "Update a goal. Progress they report toward a goal in context (\"ran 12 km\" toward a half marathon) goes in progressSummary here, not in remember.", objSchema("id" to str(), "title" to str(), "status" to enumField<GoalStatus>(), "progressSummary" to str(), "priority" to num(), required = listOf("id"))) { args ->
         val existing = repo.getGoal(args.requiredString("id")) ?: throw ToolValidationException("Goal not found")
         repo.saveGoal(existing.copy(
             title = args.optStringOrNull("title") ?: existing.title,
@@ -235,12 +236,17 @@ internal fun ToolRegistry.registerEntityTools() {
         jsonObjectOf("ok" to true)
     }
 
-    register("get_groceries", "List groceries.", objSchema()) { jsonObjectOf("ok" to true, "groceries" to JSONArray(repo.groceries().map { JSONObject(it.toJson()) })) }
-    register("add_grocery", "Add a grocery, including when they say they are out of something.", objSchema("name" to str(), "quantity" to str(), "category" to str(), "reason" to str(), required = listOf("name"))) { args ->
+    val listField = "list" to str("Which list, as a short lowercase name such as packing, books or gifts. Omit for groceries.")
+    register("get_groceries", "List the items on the grocery list, or on another named list.", objSchema(listField)) { args ->
+        val list = listName(args.optStringOrNull("list"))
+        jsonObjectOf("ok" to true, "list" to list, "groceries" to JSONArray(repo.groceries().filter { it.list == list }.map { JSONObject(it.toJson()) }))
+    }
+    register("add_grocery", "Add a grocery, including when they say they are out of something. With list set, add an item to that named list instead; a new name starts a new list. One call per item.", objSchema("name" to str("One item, never several joined by commas"), "quantity" to str(), "category" to str(), "reason" to str(), listField, required = listOf("name"))) { args ->
         val now = nowMillis()
         val name = args.requiredString("name")
-        val existing = repo.groceries().firstOrNull { it.name.equals(name, true) && it.status == GroceryStatus.ACTIVE }
-        val item = (existing ?: GroceryItem(newId(), name, null, null, GroceryStatus.ACTIVE, null, 0.0, null, null, now, now, repo.deviceId, 1, null)).copy(
+        val list = listName(args.optStringOrNull("list"))
+        val existing = repo.groceries().firstOrNull { it.name.equals(name, true) && it.status == GroceryStatus.ACTIVE && it.list == list }
+        val item = (existing ?: GroceryItem(newId(), name, null, null, GroceryStatus.ACTIVE, null, 0.0, null, null, now, now, repo.deviceId, 1, null, list)).copy(
             quantity = args.optStringOrNull("quantity") ?: existing?.quantity,
             category = args.optStringOrNull("category") ?: existing?.category,
             reason = args.optStringOrNull("reason") ?: existing?.reason,
@@ -249,21 +255,25 @@ internal fun ToolRegistry.registerEntityTools() {
             version = (existing?.version ?: 0) + 1,
         )
         repo.saveGrocery(item)
-        jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null))
+        jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null), "list" to list)
     }
-    register("update_grocery", "Update a grocery item.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), required = listOf("id"))) { args ->
+    register("update_grocery", "Update an item on the grocery list or a named list. Set list only to move it to another list.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), listField, required = listOf("id"))) { args ->
         val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
-        repo.saveGrocery(existing.copy(status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, updatedAt = nowMillis(), version = existing.version + 1))
-        jsonObjectOf("ok" to true)
+        val list = args.optStringOrNull("list")?.let { listName(it) } ?: existing.list
+        repo.saveGrocery(existing.copy(status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, list = list, updatedAt = nowMillis(), version = existing.version + 1))
+        jsonObjectOf("ok" to true, "list" to list)
     }
-    register("remove_grocery", "Remove a grocery item.", objSchema("id" to str(), required = listOf("id"))) { args ->
+    register("remove_grocery", "Remove an item from the grocery list or a named list.", objSchema("id" to str(), listField, required = listOf("id"))) { args ->
         val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
+        val list = args.optStringOrNull("list")?.let { listName(it) }
+        if (list != null && list != existing.list) throw ToolValidationException("That item is on the ${existing.list} list, not $list")
         repo.saveGrocery(existing.copy(status = GroceryStatus.DROPPED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = existing.version + 1))
-        jsonObjectOf("ok" to true)
+        jsonObjectOf("ok" to true, "list" to existing.list)
     }
-    register("clear_purchased_groceries", "Mark active groceries purchased, optionally keeping some, as in bought everything except eggs.", objSchema("except" to arr("Names to keep"))) { args ->
-        repo.markGroceriesPurchased(args.optStringList("except"))
-        jsonObjectOf("ok" to true)
+    register("clear_purchased_groceries", "Mark active groceries purchased, optionally keeping some, as in bought everything except eggs. With list set, tick off that named list instead, as in everything is packed.", objSchema("except" to arr("Names to keep"), listField)) { args ->
+        val list = listName(args.optStringOrNull("list"))
+        repo.markGroceriesPurchased(args.optStringList("except"), list)
+        jsonObjectOf("ok" to true, "list" to list)
     }
 
     register("get_important_dates", "List important dates.", objSchema()) { jsonObjectOf("ok" to true, "dates" to JSONArray(repo.importantDates().map { JSONObject(it.toJson()) })) }

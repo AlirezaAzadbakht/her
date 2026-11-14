@@ -84,6 +84,9 @@ class LearningTest {
         message("a1", "4")
         assertFalse(tools.execute("record_learning_answer", """{"exerciseId":"exercise:first","sourceMessageId":"a1","answer":"4","feedback":"yes"}""").ok)
         assertFalse(call("send_learning_reminder", """{"pathId":"path:python","content":"Ready?"}""").getBoolean("queued"))
+        // A bare id, or one copied with its version from the context line, still finds the path.
+        assertFalse(call("send_learning_reminder", """{"pathId":"python","content":"Ready?"}""").getBoolean("queued"))
+        assertFalse(call("send_learning_reminder", """{"pathId":"path:python v2","content":"Ready?"}""").getBoolean("queued"))
         call("save_learning_path", """{"id":"python","expectedVersion":2,"status":"ACTIVE"}""")
         assertEquals("CORRECT", answer("a1", "4").getString("result"))
     }
@@ -150,7 +153,7 @@ class LearningTest {
             it.execSQL("DROP TABLE learning_records")
             it.version = 5
         }
-        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10).allowMainThreadQueries().build()
+        disk = Room.databaseBuilder(context, HerDatabase::class.java, name).addMigrations(HerDatabase.MIGRATION_5_6, HerDatabase.MIGRATION_6_7, HerDatabase.MIGRATION_7_8, HerDatabase.MIGRATION_8_9, HerDatabase.MIGRATION_9_10, HerDatabase.MIGRATION_10_11, HerDatabase.MIGRATION_11_12, HerDatabase.MIGRATION_12_13).allowMainThreadQueries().build()
         disk.openHelper.readableDatabase.query("SELECT value FROM migration_sentinel").use { assertTrue(it.moveToFirst()); assertEquals("keep", it.getString(0)) }
         val diskRepo = HerRepository(disk, settings, clock)
         seed()

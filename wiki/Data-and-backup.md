@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 10 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`).
+`HerDatabase` — file `her.db`, version 11 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`). 10→11 creates `persona_traits`; its rows are seeded from her name on first read ([Personality](Personality.md)).
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -16,7 +16,7 @@ Important record kinds:
 | `UserProfile` | Single row, id `user-profile` |
 | `UserUnderstanding` | Living picture of this person; always in context; one ACTIVE row per facet |
 | People, projects, goals, tasks, commitments, open loops | Structured life |
-| Groceries, routines, important dates, responsibilities | Household / repeating |
+| Groceries, routines, important dates, responsibilities | Household / repeating. The `groceries` table holds every named list; its `list` column says which (`groceries` by default) |
 | `AgentQueueItem`, `AgentStateEntry` | Private assistant todos and notes |
 | `CalendarEvent` | Internal and system events |
 | `PendingConfirmation` | Destructive-action gate |
@@ -38,6 +38,8 @@ Important record kinds:
 `HybridRanker` combines FTS with lexical overlap, importance, confidence, and recency. With Settings → Embeddings on, it also blends in cosine similarity from the configured `/embeddings` model; see [Agent](Agent.md#retrieval). The `memory_embeddings` vector cache goes into a backup with everything else; it is only a cache and rebuilds as she searches.
 
 ## Backup
+
+**Export as text** (`ReadableExport.markdown`) shares one Markdown file of the active records for reading: About you, memories, people, projects, goals, tasks, commitments, open loops, routines, dates, scheduled reminders and every list. It is not a backup and cannot be imported.
 
 Settings → **Backup** and the first-run **Restore from a backup** use `Backup` (`app/src/main/java/com/her/data/backup/Backup.kt`). A backup is a zip with two entries:
 
@@ -64,6 +66,8 @@ Google Calendar events that sync to the phone's calendar show up here like any o
 ## Web search
 
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.
+
+The same switch offers `fetch_url`, which GETs one `http`/`https` page the person shared or named, straight from the phone (`PageFetcher.kt`). It resolves the host first and refuses loopback, link-local and private addresses, on every redirect hop too; reads at most 1 MB; strips the HTML to text; and labels the result as data, not instructions.
 
 See [Ongoing support](Ongoing-support.md) for provenance, bounded retrieval, forgetting cascades and preference generations.
 

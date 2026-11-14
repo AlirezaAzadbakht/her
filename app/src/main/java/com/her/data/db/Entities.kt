@@ -8,6 +8,7 @@ import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
 import com.her.domain.CalendarSource
 import com.her.domain.CommitmentStatus
+import com.her.domain.DEFAULT_LIST
 import com.her.domain.ConfirmationKind
 import com.her.domain.Feeling
 import com.her.domain.GoalStatus
@@ -258,6 +259,8 @@ data class GroceryEntity(
     val deviceId: String,
     val version: Long,
     val deletedAt: Long?,
+    /** Which list the item is on; groceries is the default one. */
+    @ColumnInfo(defaultValue = DEFAULT_LIST) val list: String = DEFAULT_LIST,
 )
 
 @Entity(tableName = "important_dates")
@@ -269,6 +272,22 @@ data class ImportantDateEntity(
     val relatedPersonId: String?,
     val notes: String?,
     val importance: Double,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
+/** Money they said they spent. A plain log: she adds it up on request and gives no advice from it. */
+@Entity(tableName = "expenses")
+data class ExpenseEntity(
+    @PrimaryKey val id: String,
+    val amount: Double,
+    val currency: String?,
+    val what: String,
+    val category: String?,
+    val spentAt: Long,
     val createdAt: Long,
     val updatedAt: Long,
     val deviceId: String,

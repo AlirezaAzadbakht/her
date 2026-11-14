@@ -53,7 +53,8 @@ class RecordingToolRegistry(
     reminderAlarms: ReminderAlarms,
     alarmClock: AlarmClockPort,
     focus: FocusTimer,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus) {
+    contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -137,7 +138,7 @@ class ScenarioHarness(
     private val focus = FocusTimer(settings, repo, notifier, SilentFocusAlarm)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, reminderAlarms, alarmClock, focus)
+    }, reminderAlarms, alarmClock, focus, { name -> spec.seed.contacts.filter { it.name.contains(name, ignoreCase = true) } })
     private val reminders = ReminderDelivery(repo, notifier)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
     private val orchestrator = AgentOrchestrator(
@@ -150,6 +151,7 @@ class ScenarioHarness(
         notifier = notifier,
         policy = NotificationPolicy(settings),
         appraiser = com.her.feelings.FastAppraiser(repo, llm) { llmSettings },
+        weekStart = { spec.settings.weeklyReviewDay },
     )
 
     suspend fun run(): HarnessOutcome = withContext(DeterministicIds(idPrefix)) {
@@ -255,6 +257,7 @@ class ScenarioHarness(
             calendar.granted = true
             settings.update { it.copy(calendarEnabled = true) }
         }
+        if (spec.seed.contacts.isNotEmpty()) settings.update { it.copy(contactsEnabled = true) }
         val enableSearch = spec.settings.webSearchEnabled || spec.seed.webSearch.isNotEmpty()
         if (enableSearch) {
             settings.update { it.copy(webSearchEnabled = true) }
@@ -281,6 +284,11 @@ class ScenarioHarness(
                     version = current.version + 1,
                 ),
             )
+        }
+        if (spec.seed.persona.isNotEmpty()) {
+            repo.persona().forEach { row ->
+                spec.seed.persona[row.trait]?.let { repo.savePersonaTrait(row.copy(value = it, seed = it)) }
+            }
         }
         spec.seed.systemCalendar.forEach { event ->
             val start = parseSeedWhen(event.whenPhrase)

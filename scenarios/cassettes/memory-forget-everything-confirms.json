@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "ec50a6627dc4b1cc",
-          "summary": "tools=90 [user(Forget everything you kn)]",
+          "fingerprint": "4807d1bb6b6f5097",
+          "summary": "tools=93 [user(Forget everything you kn)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "f856e5a40b0de054",
-          "summary": "tools=90 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
+          "fingerprint": "133dbbff79792ca3",
+          "summary": "tools=93 [user(Forget everything you kn) assistant->forget_memory tool:forget_memory]",
           "response": {
             "role": "assistant",
             "content": "I need you to confirm before I forget everything.",
@@ -39,7 +39,7 @@
           }
         },
         {
-          "fingerprint": "44a94dbe7521efc1",
+          "fingerprint": "89a67f0c33229642",
           "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
           "response": {
             "role": "assistant",

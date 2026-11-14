@@ -25,6 +25,14 @@ data class RunVerdict(
 )
 
 object BackgroundRunPolicy {
+    /** A pass that failed for a passing reason (busy, server down, no connection) gets one more try that day. */
+    fun retryAfterFailure(failure: com.her.agent.runner.TurnFailure?, attempt: Int): Boolean =
+        attempt < 1 && failure in setOf(
+            com.her.agent.runner.TurnFailure.Busy,
+            com.her.agent.runner.TurnFailure.ServerDown,
+            com.her.agent.runner.TurnFailure.Unreachable,
+        )
+
     const val LOW_BATTERY_PERCENT = 15
     const val HOURLY_MIN_GAP_MS = 20 * 60 * 1000L
     const val CATCH_UP_GAP_MS = 3 * 60 * 60 * 1000L

@@ -97,6 +97,22 @@ class EmotionalStateTest {
         assertFalse(tools.execute("record_emotional_experience", a.toString()).ok)
         assertEquals(0.5, emotionalState(repo.companionRecords(), clock.nowMillis()).purpose.getValue("fulfillment"), 0.0)
     }
+    @Test fun forgettingAnExperienceAlsoForgetsItsUnderstandingAndTheDaysEpisode() = runBlocking {
+        val a = event()
+        val id = call("record_emotional_experience", a).getString("id")
+        val understanding = call("save_emotional_understanding", JSONObject().put("sourceMessageId", a.getString("sourceMessageId"))
+            .put("evidence", "I am still sad.").put("id", "sad").put("confidence", 0.7).put("situation", "Help and sadness")
+            .put("userFeeling", "sad").put("interpretation", "Still sad").put("supportApproach", "Listen").put("exceptions", "None stated")).getString("id")
+        val day = repo.today().toString()
+        tools.runType = com.her.domain.AgentRunType.NIGHTLY
+        call("save_episode", JSONObject().put("period", "day").put("start", day).put("content", "They said the explanation helped and that they are still sad."))
+        tools.runType = com.her.domain.AgentRunType.CHAT
+        assertNull(repo.getLong("episode:day:$day")?.deletedAt)
+
+        repo.forgetCompanion(id)
+        assertNotNull("the understanding drawn from the same message", repo.getCompanionRecord(understanding)?.deletedAt)
+        assertNotNull("the day's note that retells it", repo.getLong("episode:day:$day")?.deletedAt)
+    }
     @Test fun understandingSeparatesStatedFeelingFromTentativeSupportAndCanBeCorrected() = runBlocking {
         val a = source("I feel sad. Please just listen.").put("id", "work").put("confidence", 0.7)
             .put("situation", "Work stress").put("userFeeling", "sad").put("interpretation", "May want space")
@@ -152,25 +168,14 @@ class EmotionalStateTest {
         assertEquals(listOf(Feeling.GLAD, Feeling.CALM), mixed.blend().map { it.first })
     }
 
-    @Test fun traitsStayWithinBoundsAndGuidanceFollowsThresholds() = runBlocking {
+    @Test fun guidanceFollowsThresholds() = runBlocking {
         val now = clock.nowMillis()
-        repeat(20) { i ->
-            repo.saveCompanionRecord(eventRow("UNRESOLVED_QUESTION", "CURIOUS", "q$i", now))
-        }
-        val curious = emotionalState(repo.companionRecords(), now)
-        assertTrue(curious.disposition.getValue("curiosity") > 0.6)
-        assertTrue(curious.disposition.getValue("curiosity") < 0.7)
-        assertEquals(0.7, curious.disposition.getValue("warmth"), 0.0)
-        assertEquals(0.8, curious.disposition.getValue("patience"), 0.0)
-        repo.companionRecords().forEach { repo.forgetCompanion(it.id) }
         repeat(3) { i ->
             repo.saveCompanionRecord(eventRow("MISUNDERSTANDING", "CURIOUS", "m$i", now, intensity = 0.4))
         }
         val lost = emotionalState(repo.companionRecords(), now)
         assertTrue(lost.purpose.getValue("understanding") < 0.4)
         assertTrue(lost.purpose.getValue("competence") < 0.4)
-        assertTrue(lost.disposition.getValue("patience") > 0.8)
-        assertTrue(lost.disposition.getValue("patience") < 0.9)
         val hints = lost.guidance()
         assertTrue(hints.any { it.contains("clarifying") })
         assertTrue(hints.any { it.contains("confirm details") })

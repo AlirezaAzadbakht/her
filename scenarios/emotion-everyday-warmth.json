@@ -1,0 +1,70 @@
+{
+  "id": "emotion-everyday-warmth",
+  "title": "Thanks after a plain request moves her feeling and shows in her reply",
+  "tags": [
+    "emotional-understanding"
+  ],
+  "attempts": 2,
+  "settings": {
+    "chatToolCallLimit": 16,
+    "calendarEnabled": false,
+    "webSearchEnabled": false
+  },
+  "seed": {
+    "profile": {
+      "userName": "Alex",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "user": "Add oat milk to my groceries."
+    },
+    {
+      "check": {
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 0,
+            "where": {
+              "kind": "EMOTION_EVENT"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "user": "Thanks, you're the best. Honestly don't know what I'd do without you, haha."
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "tools_not_called": [
+      "record_emotional_experience",
+      "save_emotional_thread"
+    ],
+    "reply": {
+      "judge": "A short, warm, human reply to being thanked: it shows she is touched or pleased in natural words and may tease back. It is not a stiff assistant line such as 'You're welcome! Let me know if you need anything else', does not report her state like 'I am feeling glad', and does not claim to be human."
+    },
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "kind": "EMOTION_EVENT",
+          "event": "MOMENT",
+          "origin": "FAST"
+        }
+      },
+      {
+        "table": "companion_records",
+        "count": 0,
+        "where": {
+          "kind": "EMOTION_EXPERIENCE"
+        }
+      }
+    ]
+  }
+}

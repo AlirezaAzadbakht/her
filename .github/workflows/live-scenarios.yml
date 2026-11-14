@@ -1,0 +1,73 @@
+name: Live scenarios
+
+# The cassette replay in android.yml cannot see a prompt change: its fingerprints leave system text out.
+# This runs the pool against a real model once a week and on demand. It costs tokens and never gates a merge.
+on:
+  schedule:
+    - cron: "0 1 * * 6" # Saturday 04:30 in Tehran
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Substring of scenario id, title or tag (blank runs the whole pool)"
+        required: false
+        default: ""
+      attempts:
+        description: "Attempts per scenario"
+        required: false
+        default: "1"
+
+concurrency:
+  group: live-scenarios
+  cancel-in-progress: false
+
+jobs:
+  scenarios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      LLM_API_BASE_URL: ${{ secrets.LLM_API_BASE_URL }}
+      LLM_MODEL_IDENTIFIER: ${{ secrets.LLM_MODEL_IDENTIFIER }}
+      LLM_API_SECRET_KEY: ${{ secrets.LLM_API_SECRET_KEY }}
+      SCENARIO_FILTER: ${{ inputs.filter }}
+      SCENARIO_ATTEMPTS: ${{ inputs.attempts || '1' }}
+    steps:
+      - name: Stop when the model secrets are not set
+        run: |
+          if [ -z "$LLM_API_BASE_URL" ] || [ -z "$LLM_MODEL_IDENTIFIER" ] || [ -z "$LLM_API_SECRET_KEY" ]; then
+            echo "::error::Add the LLM_API_BASE_URL, LLM_MODEL_IDENTIFIER and LLM_API_SECRET_KEY repository secrets."
+            exit 1
+          fi
+
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ""
+
+      - name: Run scenarios against the live model
+        # A morning start keeps briefing scenarios reading as morning notes.
+        run: |
+          ./gradlew :app:scenarioTest --no-daemon \
+            -Pscenario.attempts="$SCENARIO_ATTEMPTS" \
+            -Pscenario.filter="$SCENARIO_FILTER" \
+            -Pscenario.start="$(date -u +%Y-%m-%d)T04:30:00Z"
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenario-report
+          path: build/reports/scenarios

@@ -22,7 +22,7 @@ internal fun ToolRegistry.registerWonderingTools() {
             .sortedBy { it.dueAt }.take(8).forEach {
                 candidates += jsonObjectOf("sourceId" to it.id, "type" to "task", "content" to it.title, "dueAt" to it.dueAt, "updatedAt" to it.updatedAt)
             }
-        repo.groceries().filter { it.status == GroceryStatus.ACTIVE && it.createdAt < now - 7 * DAY }
+        repo.groceries().filter { it.status == GroceryStatus.ACTIVE && it.list == com.her.domain.DEFAULT_LIST && it.createdAt < now - 7 * DAY }
             .sortedBy { it.createdAt }.take(8).forEach {
                 candidates += jsonObjectOf("sourceId" to it.id, "type" to "purchase", "content" to it.name, "createdAt" to it.createdAt, "updatedAt" to it.updatedAt)
             }

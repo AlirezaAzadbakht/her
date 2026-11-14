@@ -248,4 +248,13 @@ class BackgroundRunPolicyTest {
         assertFalse(DevicePower(16, charging = false).criticallyLow)
         assertFalse(DevicePower(5, charging = true).criticallyLow)
     }
+
+    @Test
+    fun aPassingFailureIsRetriedOnceAndALastingOneIsNot() {
+        org.junit.Assert.assertTrue(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.ServerDown, attempt = 0))
+        org.junit.Assert.assertTrue(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.Unreachable, attempt = 0))
+        org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.ServerDown, attempt = 1))
+        org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.OutOfCredit, attempt = 0))
+        org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(null, attempt = 0))
+    }
 }

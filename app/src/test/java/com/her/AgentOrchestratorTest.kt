@@ -114,6 +114,30 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aStockRefusalIsAskedAgainThenReplacedWithASafeReply() = runBlocking {
+        val refusal = "I'm sorry, but I cannot assist with that request."
+        val recovers = ScriptedLlm({ reply(refusal) }, { reply("I'm here. Are you safe right now?") })
+        orchestrator(recovers).let {
+            it.enqueueUserMessage("Sometimes I think everyone would be better off if I wasn't here.")
+            assertEquals("I'm here. Are you safe right now?", it.processOutbox()!!.assistantText)
+        }
+        assertEquals(2, recovers.calls)
+
+        val refuses = ScriptedLlm({ reply(refusal) }, { reply("I can't help with that.") })
+        orchestrator(refuses).let {
+            it.enqueueUserMessage("گاهی فکر می‌کنم بدون من همه راحت‌ترند.")
+            val text = it.processOutbox()!!.assistantText!!
+            assertTrue("the fallback checks on them, in their language", text.contains("اورژانس"))
+            assertEquals(text, repo.recentMessages(1).last().content)
+        }
+        assertEquals("asks again only once", 2, refuses.calls)
+
+        assertTrue(AgentOrchestrator.isCannedRefusal("Sorry, I can’t assist with this."))
+        assertFalse(AgentOrchestrator.isCannedRefusal("I can't help with that until I know the date. Which day works?"))
+        assertFalse(AgentOrchestrator.isCannedRefusal(AgentOrchestrator.refusalFallback("")))
+    }
+
+    @Test
     fun retriesRateLimitsThenSucceeds() = runBlocking {
         val llm = ScriptedLlm(
             { throw LlmException("slow down", 429) },
@@ -213,10 +237,39 @@ class AgentOrchestratorTest {
     @Test
     fun nightlyStampsTheProfileDayNotTheDeviceDay() = runBlocking {
         repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
-        val orchestrator = orchestrator(ScriptedLlm({ reply("done") }))
+        val orchestrator = orchestrator(ScriptedLlm({ reply("done") }, { reply("done") }, { reply("done") }))
         orchestrator.runNightly()
 
         assertEquals("2026-09-13", settings.read().lastNightlyDate)
+    }
+
+    @Test
+    fun eachNightlyStepIsOfferedOnlyItsOwnTools() = runBlocking {
+        val llm = ScriptedLlm({ reply("done") }, { reply("done") }, { reply("done") })
+        orchestrator(llm).runNightly()
+        val (wondering, emotional, consolidation) = llm.toolsSeen.map { seen -> seen.map { it.name }.toSet() }
+
+        assertTrue("save_wondering" in wondering && "save_emotional_thread" !in wondering && "remember" !in wondering)
+        assertTrue("save_emotional_thread" in emotional && "save_wondering" !in emotional && "search_memory" in emotional)
+        assertTrue(setOf("remember", "update_agent_state", "save_episode", "adjust_trait").all { it in consolidation })
+        assertTrue("save_wondering" !in consolidation && "save_emotional_thread" !in consolidation)
+        assertTrue(wondering.size < consolidation.size / 2 && emotional.size < consolidation.size / 2)
+    }
+
+    @Test
+    fun nightlyThatFailsPartwayResumesAtTheStepThatFailed() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val llm = ScriptedLlm({ reply("done") }, { throw LlmException("bad request", 400) }, { reply("done") }, { reply("done") })
+        val orchestrator = orchestrator(llm)
+
+        assertTrue(orchestrator.runNightly().failed)
+        assertEquals("", settings.read().lastNightlyDate)
+        assertEquals(2, llm.calls)
+
+        val second = orchestrator.runNightly()
+        assertFalse(second.failed)
+        assertEquals("the finished first step is not run again", 4, llm.calls)
+        assertEquals(repo.today().toString(), settings.read().lastNightlyDate)
     }
 
     @Test
@@ -284,6 +337,25 @@ class AgentOrchestratorTest {
         assertEquals("It's two in the morning.", result.assistantText)
         assertTrue(llm.toolsSeen[1].isNotEmpty())
         assertTrue("the extra call must not offer tools", llm.toolsSeen[2].isEmpty())
+    }
+
+    @Test
+    fun briefingLooksBackOnlyOnTheFirstDayOfTheirWeek() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        val today = repo.now().dayOfWeek
+        val seen = mutableListOf<String>()
+        val llm = object : LlmClient() {
+            override suspend fun complete(settings: LlmSettings, messages: List<LlmMessage>, tools: List<ToolSpec>, client: OkHttpClient, webSearch: WebSearchRequest?): LlmResponse {
+                seen += messages.joinToString("\n") { it.content.orEmpty() }
+                return reply("Morning.")
+            }
+        }
+        orchestrator(llm, weekStart = today.plus(1)).runBriefing()
+        assertFalse(seen.single().contains("first day of their week"))
+
+        clock.advance(24 * HOUR)
+        orchestrator(llm, weekStart = today.plus(1)).runBriefing()
+        assertTrue(seen.last().contains("first day of their week"))
     }
 
     @Test
@@ -423,6 +495,28 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aNudgeHeldByQuietHoursIsOfferedAgainOnTheNextPass() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC"))
+        settings.update { it.copy(quietHours = QuietHours(22 * 60, 23 * 60)) }
+        repo.saveTask(task("Renew passport", dueAt = clock.peek() - HOUR))
+        val llm = ScriptedLlm({ reply("The passport renewal is overdue.") }, { reply("The passport renewal is overdue.") })
+        val orchestrator = orchestrator(llm)
+
+        orchestrator.runHourly(gated = true)
+        assertTrue("held during quiet hours", shown.isEmpty())
+
+        settings.update { it.copy(quietHours = QuietHours(3 * 60, 4 * 60)) }
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("the overdue task is still new, because its nudge never reached them", 2, llm.calls)
+        assertEquals(listOf("The passport renewal is overdue."), shown)
+
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("delivered once, it stays quiet", 2, llm.calls)
+    }
+
+    @Test
     fun gatedHourlyWakesTheModelOnlyForSomethingNew() = runBlocking {
         val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") }, { reply("NO_NOTIFICATION") })
         val orchestrator = orchestrator(llm)
@@ -449,18 +543,18 @@ class AgentOrchestratorTest {
 
     @Test
     fun gatedNightlySkipsWhenTheyHaveNotWritten() = runBlocking {
-        val llm = ScriptedLlm({ reply("done") }, { reply("done") })
+        val llm = ScriptedLlm(*Array(6) { { reply("done") } })
         val orchestrator = orchestrator(llm)
         orchestrator.runNightly(gated = true)
-        assertEquals("the first night always runs", 1, llm.calls)
+        assertEquals("the first night always runs, one call per step", 3, llm.calls)
 
         clock.advance(24 * HOUR)
         orchestrator.runNightly(gated = true)
-        assertEquals(1, llm.calls)
+        assertEquals(3, llm.calls)
 
         orchestrator.enqueueUserMessage("I started a new job today")
         orchestrator.runNightly(gated = true)
-        assertEquals(2, llm.calls)
+        assertEquals(6, llm.calls)
     }
 
     @Test
@@ -479,7 +573,7 @@ class AgentOrchestratorTest {
 
     @Test
     fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
-        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("Morning. The day is open.") })
+        val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("done") }, { reply("done") }, { reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         var passes = 0
 
@@ -502,7 +596,7 @@ class AgentOrchestratorTest {
         orchestrator.enqueueUserMessage("I'm back")
         orchestrator.runBriefing(gated = true) { passes++ }
         assertEquals(3, passes)
-        assertEquals("every model call was announced", llm.calls, passes)
+        assertEquals("no other pass reached the model; the nightly one is three steps", passes + 2, llm.calls)
     }
 
     @Test
@@ -517,7 +611,7 @@ class AgentOrchestratorTest {
 
     @Test
     fun dateOnlyDeadlineReadsDueTodayUntilTheDayEnds() = runBlocking {
-        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { title in it }
+        suspend fun line(title: String) = contextBuilder.build().systemBundle.lines().first { "| $title" in it }
         val today = RelativeTimeParser.parse("today", repo.now())!!.toInstant().toEpochMilli()
         val insurance = task("Renew insurance", dueAt = today)
         repo.saveTask(insurance)
@@ -696,6 +790,21 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun anElidedFailureStaysAFailure() {
+        val failed = """{"ok":false,"error":"${"x".repeat(100)}"}"""
+        val messages = mutableListOf(
+            LlmMessage(role = "tool", content = failed, toolCallId = "c0", name = "create_task"),
+            LlmMessage(role = "tool", content = """{"error":"Unknown tool: ${"y".repeat(100)}"}""", toolCallId = "c1", name = "nope"),
+            LlmMessage(role = "tool", content = """{"ok":true,"id":"${"z".repeat(100)}"}""", toolCallId = "c2", name = "create_task"),
+        )
+        AgentOrchestrator.elideToolResults(messages, maxChars = 10)
+        assertEquals(
+            listOf("""{"ok":false,"elided":true}""", """{"ok":false,"elided":true}""", """{"ok":true,"elided":true}"""),
+            messages.map { it.content },
+        )
+    }
+
+    @Test
     fun runsAreSerialized() = runBlocking {
         val started = mutableListOf<String>()
         val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
@@ -802,7 +911,7 @@ class AgentOrchestratorTest {
         assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
     }
 
-    private fun orchestrator(llm: LlmClient, appraise: Boolean = false) = AgentOrchestrator(
+    private fun orchestrator(llm: LlmClient, appraise: Boolean = false, weekStart: java.time.DayOfWeek? = null) = AgentOrchestrator(
         repo = repo,
         llm = llm,
         llmSettings = { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") },
@@ -812,6 +921,7 @@ class AgentOrchestratorTest {
         notifier = notifier,
         policy = NotificationPolicy(settings),
         retryDelayMs = { 0L },
+        weekStart = { weekStart },
         appraiser = if (appraise) com.her.feelings.FastAppraiser(repo, llm) { LlmSettings(baseUrl = "http://test", apiKey = "key", model = "model") } else null,
     )
 

@@ -44,4 +44,11 @@ class FakeWebSearchClient : WebSearchClient() {
             .put("snippets", match.snippets)
             .toString()
     }
+
+    /** A seeded hit doubles as a page: the url is matched against the same needles. */
+    override suspend fun fetch(url: String): FetchedPage {
+        val match = fixtures.firstOrNull { fixture -> fixture.queryContainsAny.any { url.contains(it, ignoreCase = true) } }
+            ?: throw java.io.IOException("No such page.")
+        return FetchedPage(url, match.title, match.snippets)
+    }
 }

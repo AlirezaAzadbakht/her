@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.her.R
 import com.her.core.QuietHours
 import com.her.data.secure.LlmSettings
 import com.her.ui.BACKUP_TYPES
@@ -81,6 +83,7 @@ import com.her.ui.components.HerSwitch
 import com.her.ui.components.HerTextField
 import com.her.ui.components.NoteWithDetails
 import com.her.ui.components.SectionCard
+import com.her.ui.onboarding.Disclosure
 import com.her.ui.onboarding.HerCloudConnect
 import com.her.ui.onboarding.rememberCalendarPermissionRequester
 import com.her.ui.theme.ConversationStyle
@@ -97,8 +100,6 @@ import kotlinx.coroutines.delay
 private const val GITHUB_URL = "https://github.com/AlirezaAzadbakht/her"
 private const val ORBS_URL = "https://github.com/Jakubantalik/Libraries.dev/tree/main/packages/thinking-orbs"
 
-// HerViewModel.saveAndTest reports success with exactly this message.
-private const val Connected = "Connected."
 
 // Sections rise in on first open; after this window they stay put when scrolled back into view.
 private const val IntroWindowMs = 1400L
@@ -114,6 +115,7 @@ fun SettingsScreen(vm: HerViewModel) {
     val debug by vm.debugEvents.collectAsState()
     val runs by vm.runs.collectAsState()
     val connection by vm.connectionMessage.collectAsState()
+    val connectionOk by vm.connectionOk.collectAsState()
     val connectionDetail by vm.connectionDetail.collectAsState()
     val checking by vm.checkingConnection.collectAsState()
     val backupBusy by vm.backupBusy.collectAsState()
@@ -136,6 +138,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
     var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
     var advanced by remember { mutableStateOf(false) }
+    var endpointOpen by remember { mutableStateOf(false) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
     var testedHere by remember { mutableStateOf(false) }
@@ -148,7 +151,7 @@ fun SettingsScreen(vm: HerViewModel) {
         }
         if (!testedHere) return@LaunchedEffect
         testedHere = false
-        if (vm.connectionMessage.value == Connected) {
+        if (vm.connectionOk.value) {
             haptics.confirm()
             connectedCheck = true
             delay(1600)
@@ -159,8 +162,13 @@ fun SettingsScreen(vm: HerViewModel) {
         }
     }
 
-    val requestCalendar = rememberCalendarPermissionRequester {
+    var calendarBlocked by remember { mutableStateOf(false) }
+    var contactsBlocked by remember { mutableStateOf(false) }
+    val requestCalendar = rememberCalendarPermissionRequester(onBlocked = { calendarBlocked = true }) {
         vm.updateSettings { it.copy(calendarEnabled = true) }
+    }
+    val requestContacts = com.her.ui.onboarding.rememberContactsPermissionRequester(onBlocked = { contactsBlocked = true }) {
+        vm.updateSettings { it.copy(contactsEnabled = true) }
     }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -192,27 +200,40 @@ fun SettingsScreen(vm: HerViewModel) {
     ) {
         item(key = "title") {
             Text(
-                "Settings",
+                stringResource(R.string.settings),
                 style = ConversationStyle.copy(fontSize = 30.sp, lineHeight = 38.sp),
                 color = scheme.onBackground,
                 modifier = Modifier.animateItem().introRise(0, intro),
             )
         }
         item(key = "mind") {
-            SectionCard("Her mind", Modifier.animateItem().introRise(1, intro)) {
-                HerTextField("Base URL", base, shakeTrigger = keyShake) { base = it }
-                HerTextField("API key", key, secret = true, shakeTrigger = keyShake) { key = it }
-                HerTextField("Model", model, shakeTrigger = keyShake) { model = it }
-                HerButton(
-                    "Save & test",
-                    onClick = {
-                        testedHere = true
-                        vm.saveAndTest(LlmSettings(base, key, model))
-                    },
-                    loading = checking,
-                    loadingText = "Checking…",
-                    success = connectedCheck,
-                )
+            SectionCard(stringResource(R.string.her_mind), Modifier.animateItem().introRise(1, intro)) {
+                if (model.isNotBlank()) Hint(stringResource(if (connectedCheck) R.string.connected_model else R.string.using_model, model))
+                HerCloudConnect(checking = checking) { cloud ->
+                    base = cloud.baseUrl
+                    key = cloud.apiKey
+                    model = cloud.model
+                    testedHere = true
+                    vm.saveAndTest(cloud)
+                }
+                val failedCheck = !checking && !connectedCheck && connection != null && !connectionOk
+                // A failed check opens it, so the fields that need fixing are in view.
+                Disclosure(stringResource(R.string.endpoint_details), open = endpointOpen || failedCheck, onToggle = { endpointOpen = !endpointOpen }) {
+                    HerTextField(stringResource(R.string.base_url), base, shakeTrigger = keyShake) { base = it }
+                    HerTextField(stringResource(R.string.api_key), key, secret = true, shakeTrigger = keyShake) { key = it }
+                    HerTextField(stringResource(R.string.model), model, shakeTrigger = keyShake) { model = it }
+                    Spacer(Modifier.height(8.dp))
+                    HerButton(
+                        stringResource(R.string.save_and_test),
+                        onClick = {
+                            testedHere = true
+                            vm.saveAndTest(LlmSettings(base, key, model))
+                        },
+                        loading = checking,
+                        loadingText = stringResource(R.string.checking),
+                        success = connectedCheck,
+                    )
+                }
                 AnimatedVisibility(
                     visible = !checking && !connectedCheck && connection != null,
                     enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
@@ -220,53 +241,47 @@ fun SettingsScreen(vm: HerViewModel) {
                 ) {
                     NoteWithDetails(connection.orEmpty(), connectionDetail, Modifier.padding(top = 6.dp))
                 }
-                Spacer(Modifier.height(12.dp))
-                HerCloudConnect { cloud ->
-                    base = cloud.baseUrl
-                    key = cloud.apiKey
-                    model = cloud.model
-                    testedHere = true
-                    vm.saveAndTest(cloud)
-                }
-                HerTextField("Background model (optional)", backgroundModel) {
+                Spacer(Modifier.height(6.dp))
+                HerTextField(stringResource(R.string.background_model), backgroundModel) {
                     backgroundModel = it
                     vm.updateSettings { s -> s.copy(backgroundModel = it) }
                 }
-                Hint("Hourly, nightly and the morning briefing use it. Blank uses the model above.")
-                HerTextField("Daily background token limit", backgroundCap, keyboard = KeyboardType.Number) {
+                Hint(stringResource(R.string.background_model_hint))
+                HerTextField(stringResource(R.string.background_cap), backgroundCap, keyboard = KeyboardType.Number) {
                     backgroundCap = it.filter(Char::isDigit)
                     vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
                 }
-                Hint("Background passes stop for the day once they use this many tokens. Blank or 0 means no limit.")
-            }
-            if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                Text(
-                    "Reminders can arrive a few minutes late until exact alarms are allowed.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                )
-                TextButton(onClick = {
-                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                        .setData(Uri.parse("package:${context.packageName}"))
-                    runCatching { context.startActivity(intent) }
-                }) { Text("Allow exact reminders") }
+                Hint(stringResource(R.string.background_cap_hint))
+                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Hint(stringResource(R.string.exact_alarms_hint), Modifier.padding(top = 10.dp))
+                    Spacer(Modifier.height(6.dp))
+                    HerButton(
+                        stringResource(R.string.allow_exact_alarms),
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
+                }
             }
         }
         item(key = "quiet") {
-            SectionCard("Quiet hours", Modifier.animateItem().introRise(2, intro)) {
+            SectionCard(stringResource(R.string.quiet_hours), Modifier.animateItem().introRise(2, intro)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TimeChip("From", app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
-                    TimeChip("Until", app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
+                    TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
+                    TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
                 }
-                ToggleRow("Hourly during quiet hours", app.hourlyDuringQuietHours) {
+                ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
                     vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
                 }
                 if (unrestrictedBattery) {
-                    Hint("Background work is unrestricted.")
+                    Hint(stringResource(R.string.background_unrestricted))
                 } else {
-                    Hint("Hourly and nightly need to run when the app is closed.")
+                    Hint(stringResource(R.string.background_needed))
                     HerButton(
-                        "Allow background work",
+                        stringResource(R.string.allow_background),
                         tone = HerButtonTone.Quiet,
                         onClick = {
                             val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
@@ -278,23 +293,36 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "connections") {
-            SectionCard("Connections", Modifier.animateItem().introRise(3, intro)) {
-                ToggleRow("Calendar access", app.calendarEnabled) {
+            SectionCard(stringResource(R.string.connections), Modifier.animateItem().introRise(3, intro)) {
+                ToggleRow(stringResource(R.string.calendar_access), app.calendarEnabled) {
                     if (app.calendarEnabled) {
                         vm.updateSettings { it.copy(calendarEnabled = false) }
                     } else {
                         requestCalendar()
                     }
                 }
+                if (calendarBlocked && !app.calendarEnabled) BlockedPermission(stringResource(R.string.calendar))
                 ToggleRow(
-                    "Web search",
+                    stringResource(R.string.contacts_access),
+                    app.contactsEnabled,
+                    description = stringResource(R.string.contacts_access_hint),
+                ) {
+                    if (app.contactsEnabled) {
+                        vm.updateSettings { it.copy(contactsEnabled = false) }
+                    } else {
+                        requestContacts()
+                    }
+                }
+                if (contactsBlocked && !app.contactsEnabled) BlockedPermission(stringResource(R.string.contacts))
+                ToggleRow(
+                    stringResource(R.string.web_search),
                     app.webSearchEnabled,
-                    description = "Uses the same Base URL, API key, and model.",
+                    description = stringResource(R.string.web_search_hint),
                 ) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } }
                 ToggleRow(
-                    "Embeddings",
+                    stringResource(R.string.embeddings),
                     app.embeddingsEnabled,
-                    description = "Finds memories by meaning, not only shared words.",
+                    description = stringResource(R.string.embeddings_hint),
                 ) { vm.updateSettings { it.copy(embeddingsEnabled = !it.embeddingsEnabled) } }
                 AnimatedVisibility(
                     visible = app.embeddingsEnabled,
@@ -302,31 +330,32 @@ fun SettingsScreen(vm: HerViewModel) {
                     exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
                 ) {
                     Column(Modifier.padding(top = 8.dp)) {
-                        HerTextField("Embedding model", embeddingModel) {
+                        HerTextField(stringResource(R.string.embedding_model), embeddingModel) {
                             embeddingModel = it
                             vm.updateSettings { s -> s.copy(embeddingModel = it) }
                         }
-                        Hint("Uses the same Base URL and API key; memories are embedded as she searches them.")
+                        Hint(stringResource(R.string.embedding_model_hint))
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                HerTextField("Web search endpoint (optional override)", searchUrl) {
+                HerTextField(stringResource(R.string.search_endpoint), searchUrl) {
                     searchUrl = it
                     vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
                 }
-                HerTextField("Web search API key (optional)", searchKey, secret = true) {
+                HerTextField(stringResource(R.string.search_api_key), searchKey, secret = true) {
                     searchKey = it
                     vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
                 }
             }
         }
         item(key = "backup") {
-            SectionCard("Backup", Modifier.animateItem().introRise(4, intro)) {
-                Hint("A zip of everything she knows and your settings. Your API keys stay on this phone.")
+            SectionCard(stringResource(R.string.backup), Modifier.animateItem().introRise(4, intro)) {
+                Hint(stringResource(R.string.backup_hint))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    HerButton("Save backup", onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
-                    HerButton("Share", tone = HerButtonTone.Quiet, onClick = { vm.shareBackup() }, enabled = !backupBusy)
-                    HerButton("Import", tone = HerButtonTone.Quiet, onClick = { pickBackup.launch(BACKUP_TYPES) }, enabled = !backupBusy)
+                    HerButton(stringResource(R.string.save_backup), onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
+                    HerButton(stringResource(R.string.share), tone = HerButtonTone.Quiet, onClick = { vm.shareBackup() }, enabled = !backupBusy)
+                    HerButton(stringResource(R.string.import_backup), tone = HerButtonTone.Quiet, onClick = { pickBackup.launch(BACKUP_TYPES) }, enabled = !backupBusy)
+                    HerButton(stringResource(R.string.export_text), tone = HerButtonTone.Quiet, onClick = { vm.shareReadable() }, enabled = !backupBusy)
                 }
                 AnimatedVisibility(
                     visible = backupMessage != null,
@@ -338,23 +367,23 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "today") {
-            SectionCard("Today", Modifier.animateItem().introRise(5, intro)) {
+            SectionCard(stringResource(R.string.today), Modifier.animateItem().introRise(5, intro)) {
                 val u = usage
                 if (u == null) {
-                    Hint("No requests yet.")
+                    Hint(stringResource(R.string.no_requests))
                 } else {
                     Row(Modifier.fillMaxWidth()) {
-                        Stat("requests", u.requests, Modifier.weight(1f))
-                        Stat("tokens in", u.inputTokens, Modifier.weight(1f))
-                        Stat("tokens out", u.outputTokens, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_requests), u.requests, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_tokens_in), u.inputTokens, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_tokens_out), u.outputTokens, Modifier.weight(1f))
                     }
                     Row(Modifier.fillMaxWidth()) {
-                        Stat("errors", u.errors, Modifier.weight(1f))
-                        Stat("avg ms", if (u.requests == 0) 0 else u.totalLatencyMs / u.requests, Modifier.weight(1f))
-                        Stat("cached %", if (u.inputTokens == 0L) 0 else u.cachedInputTokens * 100 / u.inputTokens, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_errors), u.errors, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_avg_ms), if (u.requests == 0) 0 else u.totalLatencyMs / u.requests, Modifier.weight(1f))
+                        Stat(stringResource(R.string.stat_cached), if (u.inputTokens == 0L) 0 else u.cachedInputTokens * 100 / u.inputTokens, Modifier.weight(1f))
                     }
-                    Hint("chat ${u.chatCalls} · hourly ${u.hourlyCalls} · nightly ${u.nightlyCalls}")
-                    Hint("background ${u.backgroundTokens} tokens")
+                    Hint(stringResource(R.string.usage_calls, u.chatCalls.toString(), u.hourlyCalls.toString(), u.nightlyCalls.toString()))
+                    Hint(stringResource(R.string.usage_background, u.backgroundTokens.toString()))
                 }
             }
         }
@@ -363,11 +392,11 @@ fun SettingsScreen(vm: HerViewModel) {
         }
         if (advanced) {
             item(key = "experimental") {
-                SectionCard("Experimental", Modifier.animateItem()) {
-                    ToggleRow("Memory navigator (SQL)", app.memoryTabEnabled) {
+                SectionCard(stringResource(R.string.experimental), Modifier.animateItem()) {
+                    ToggleRow(stringResource(R.string.memory_navigator), app.memoryTabEnabled) {
                         vm.updateSettings { it.copy(memoryTabEnabled = !it.memoryTabEnabled) }
                     }
-                    ToggleRow("Show what she saved", app.showReceipts) {
+                    ToggleRow(stringResource(R.string.show_receipts), app.showReceipts) {
                         vm.updateSettings { it.copy(showReceipts = !it.showReceipts) }
                     }
                 }
@@ -409,18 +438,18 @@ fun SettingsScreen(vm: HerViewModel) {
                 TextButton(onClick = {
                     importing = null
                     vm.importBackup(uri)
-                }) { Text("Replace") }
+                }) { Text(stringResource(R.string.replace)) }
             },
-            dismissButton = { TextButton(onClick = { importing = null }) { Text("Cancel") } },
-            title = { Text("Import this backup?") },
-            text = { Text("Everything Her knows on this phone is replaced with the backup, then the app restarts.") },
+            dismissButton = { TextButton(onClick = { importing = null }) { Text(stringResource(R.string.cancel)) } },
+            title = { Text(stringResource(R.string.import_title)) },
+            text = { Text(stringResource(R.string.import_text)) },
         )
     }
 
     editingQuiet?.let { edge ->
         val start = edge == QuietEdge.Start
         QuietTimeDialog(
-            title = if (start) "Quiet from" else "Quiet until",
+            title = stringResource(if (start) R.string.quiet_from else R.string.quiet_until),
             minutes = if (start) app.quietHours.startMinutes else app.quietHours.endMinutes,
             onDismiss = { editingQuiet = null },
             onConfirm = { minutes ->
@@ -445,6 +474,24 @@ private fun Modifier.introRise(index: Int, playing: Boolean): Modifier {
         remember { mutableFloatStateOf(1f) }
     }
     return rise(progress, 18.dp)
+}
+
+/** Shown once Android has stopped offering the permission prompt, so the toggle no longer looks dead. */
+@Composable
+private fun BlockedPermission(name: String) {
+    val context = LocalContext.current
+    Hint(stringResource(R.string.permission_blocked, name))
+    Spacer(Modifier.height(6.dp))
+    HerButton(
+        stringResource(R.string.open_android_settings),
+        tone = HerButtonTone.Quiet,
+        onClick = {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                .setData(Uri.parse("package:${context.packageName}"))
+            runCatching { context.startActivity(intent) }
+        },
+    )
+    Spacer(Modifier.height(6.dp))
 }
 
 @Composable
@@ -514,8 +561,8 @@ private fun QuietTimeDialog(title: String, minutes: Int, onDismiss: () -> Unit, 
     val state = rememberTimePickerState(initialHour = minutes / 60, initialMinute = minutes % 60, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onConfirm(state.hour * 60 + state.minute) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
         title = { Text(title) },
         text = { TimePicker(state = state) },
     )
@@ -551,7 +598,7 @@ private fun AdvancedToggle(open: Boolean, modifier: Modifier = Modifier, onToggl
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(if (open) "Hide advanced" else "Advanced", color = scheme.primary, style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(if (open) R.string.hide_advanced else R.string.advanced), color = scheme.primary, style = MaterialTheme.typography.labelLarge)
         Canvas(Modifier.size(12.dp).graphicsLayer { rotationZ = rotation }) {
             val stroke = 1.6.dp.toPx()
             val tip = Offset(size.width * 0.5f, size.height * 0.7f)
@@ -590,7 +637,7 @@ private fun AboutLine(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Built for everyone 🌱 · Open on ", color = scheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(stringResource(R.string.about_open_on) + " ", color = scheme.onSurfaceVariant, fontSize = 12.sp)
             Text(
                 "GitHub",
                 color = scheme.primary,
@@ -600,7 +647,7 @@ private fun AboutLine(modifier: Modifier = Modifier) {
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Loading orbs from ", color = scheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(stringResource(R.string.about_orbs_from) + " ", color = scheme.onSurfaceVariant, fontSize = 12.sp)
             Text(
                 "thinking-orbs",
                 color = scheme.primary,
