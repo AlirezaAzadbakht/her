@@ -80,6 +80,27 @@
             android:taskAffinity=""
             android:turnScreenOn="true" />
 
+        <!-- The widget's Write button; its own task so it doesn't pull the app up behind it. -->
+        <activity
+            android:name=".widget.QuickNoteActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Her.QuickNote"
+            android:windowSoftInputMode="stateVisible|adjustResize" />
+
+        <receiver
+            android:name=".widget.HerWidget"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_her_info" />
+        </receiver>
+
         <!-- The QR scanner for Her Cloud settings; the library locks it to landscape. -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"

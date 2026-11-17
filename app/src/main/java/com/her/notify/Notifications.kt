@@ -377,11 +377,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 try {
                     kotlinx.coroutines.runBlocking {
                         when (decision) {
-                            is NotificationAction.Reply -> {
-                                graph.orchestrator.enqueueUserMessage(decision.text)
-                                graph.scheduler.enqueueOutbox()
-                                graph.repo.logActivity("notify", "Reply from notification queued.")
-                            }
+                            is NotificationAction.Reply ->
+                                graph.queueFromOutside(decision.text, "notify", "Reply from notification queued.")
                             is NotificationAction.Later -> {
                                 val now = graph.repo.clock.nowMillis()
                                 graph.repo.saveAgentQueue(

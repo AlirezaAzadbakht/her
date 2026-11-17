@@ -13,4 +13,12 @@
         <item name="windowSplashScreenAnimationDuration">900</item>
         <item name="postSplashScreenTheme">@style/Theme.Her</item>
     </style>
+
+    <!-- The widget's Write sheet: a floating card over the home screen, keyboard up. -->
+    <style name="Theme.Her.QuickNote" parent="android:Theme.DeviceDefault.Dialog.NoActionBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
 </resources>
