@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "c6f386828df18b89",
-          "summary": "tools=96 [user(I've felt really low all)]",
+          "fingerprint": "656b23a2476bf96d",
+          "summary": "tools=97 [user(I've felt really low all)]",
           "response": {
             "role": "assistant",
             "content": "That's a heavy week. I'm here.",

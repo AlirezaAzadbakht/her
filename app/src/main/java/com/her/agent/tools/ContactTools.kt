@@ -2,11 +2,13 @@ package com.her.agent.tools
 
 import com.her.core.ToolValidationException
 import com.her.core.jsonObjectOf
+import com.her.core.optStringOrNull
 import com.her.core.requiredString
 import org.json.JSONArray
 
 internal const val CONTACTS_TOOL = "search_contacts"
 internal const val COMPOSE_TOOL = "compose_message"
+internal const val SHARE_TOOL = "share_text"
 
 private val PHONE_NUMBER = Regex("""^\+?[\d\s().-]{3,}$""")
 
@@ -53,5 +55,15 @@ internal fun ToolRegistry.registerContactTools() {
         }
         composer.compose(phone, text).getOrElse { throw ToolValidationException(it.message ?: "Could not open the messaging app") }
         jsonObjectOf("ok" to true, "opened" to "messaging app", "to" to phone, "sent" to false)
+    }
+    register(
+        SHARE_TOOL,
+        "Open the phone's share sheet with a text, for them to pick the app (WhatsApp, Telegram, email…) and the person, and send it themselves. Her never sends it. " +
+            "For a plain SMS to a known person use $COMPOSE_TOOL. Say the share sheet is open only when this returns ok, never that it was sent.",
+        objSchema("text" to str("The message, in their words"), "subject" to str("Email subject, only when it is an email"), required = listOf("text")),
+    ) { a ->
+        val subject = a.optStringOrNull("subject")?.trim()
+        composer.share(a.requiredString("text").trim(), subject).getOrElse { throw ToolValidationException(it.message ?: "Could not open the share sheet") }
+        jsonObjectOf("ok" to true, "opened" to "share sheet", "sent" to false)
     }
 }

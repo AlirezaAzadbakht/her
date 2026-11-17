@@ -57,6 +57,9 @@ class AndroidContacts(private val context: Context) : ContactsSource {
 fun interface MessageComposer {
     fun compose(phone: String, text: String): Result<Unit>
 
+    /** Opens the share sheet with the text, for any app they pick: WhatsApp, Telegram, email. */
+    fun share(text: String, subject: String?): Result<Unit> = Result.failure(IllegalStateException("Sharing is not available here"))
+
     companion object {
         val NONE = MessageComposer { _, _ -> Result.failure(IllegalStateException("Opening a text is not available here")) }
     }
@@ -70,5 +73,12 @@ class AndroidMessageComposer(private val context: Context) : MessageComposer {
         if (intent.resolveActivity(context.packageManager) == null) error("No messaging app on this phone takes texts")
         if (!herOnScreen()) error("The messaging app can only be opened while Her is on screen.")
         context.startActivity(intent)
+    }
+
+    override fun share(text: String, subject: String?): Result<Unit> = runCatching {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+        subject?.let { send.putExtra(Intent.EXTRA_SUBJECT, it) }
+        if (!herOnScreen()) error("The share sheet can only be opened while Her is on screen.")
+        context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
