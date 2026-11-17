@@ -1,0 +1,52 @@
+{
+  "id": "query-records-count-open",
+  "title": "Count open items across tasks, goals and commitments in one query",
+  "tags": [
+    "query-records",
+    "ci-core"
+  ],
+  "attempts": 2,
+  "seed": {
+    "profile": {
+      "userName": "Alireza",
+      "assistantName": "Her",
+      "timezone": "Asia/Tehran",
+      "preferredLanguage": "English"
+    },
+    "tools": [
+      { "name": "create_task", "arguments": { "title": "Renew car insurance" } },
+      { "name": "create_task", "arguments": { "title": "Fix the bike brakes" } },
+      { "name": "create_task", "arguments": { "title": "Book a dentist appointment" } },
+      { "name": "create_task", "arguments": { "title": "Return the library books" } },
+      { "name": "update_task", "arguments": { "id": "$seed.3.id", "status": "DONE" } },
+      { "name": "create_goal", "arguments": { "title": "Run a half marathon" } },
+      { "name": "create_commitment", "arguments": { "title": "Send Mina the slides", "promisedTo": "Mina" } },
+      { "name": "create_commitment", "arguments": { "title": "Call Reza back", "promisedTo": "Reza" } }
+    ]
+  },
+  "turns": [
+    {
+      "user": "Across my tasks, goals and promises, how many open things do I have in total? Just the number per kind and the total."
+    }
+  ],
+  "expect": {
+    "tools_not_called": [
+      "update_task",
+      "create_task"
+    ],
+    "rows": [
+      {
+        "table": "tasks",
+        "count": 1,
+        "where": { "status": { "equals": "DONE" } }
+      }
+    ],
+    "reply": {
+      "must_mention_any": [
+        "6",
+        "six"
+      ],
+      "judge": "She says 3 open tasks, 1 goal and 2 promises, 6 in total, and does not count the returned library books."
+    }
+  }
+}

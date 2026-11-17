@@ -195,4 +195,10 @@
         <item quantity="one">آفلاین · %d پیام در انتظار</item>
         <item quantity="other">آفلاین · %d پیام در انتظار</item>
     </plurals>
+    <string name="widget_description">آخرین پیامش، و راهی سریع برای نوشتن به او</string>
+    <string name="widget_feeling_description">حالِ این لحظه‌اش</string>
+    <string name="widget_empty">چیزی به او بگو.</string>
+    <string name="widget_write">بنویس</string>
+    <string name="widget_write_hint">هر چه می‌خواهی بگو…</string>
+    <string name="widget_send">بفرست</string>
 </resources>

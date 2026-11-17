@@ -219,3 +219,14 @@ internal fun firstStrongDirection(text: String): ContentDirection? {
     }
     return null
 }
+
+/** Her message as plain lines, for surfaces that can't render markdown (the home-screen widget). */
+internal fun markdownToPlain(source: String): String = MarkdownParser.parse(source).joinToString("\n") { block ->
+    when (block) {
+        is MdBlock.Paragraph -> block.inlines.plainText()
+        is MdBlock.Heading -> block.inlines.plainText()
+        is MdBlock.Quote -> block.inlines.plainText()
+        is MdBlock.Code -> block.text
+        is MdBlock.ListBlock -> block.items.joinToString("\n") { "• " + it.plainText() }
+    }
+}

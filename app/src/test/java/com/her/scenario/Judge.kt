@@ -32,6 +32,8 @@ object Judge {
             appendLine("Criterion:")
             appendLine(criterion)
             appendLine()
+            // The scenario's own clock, so "tomorrow" is judged against the agent's day, not the real one.
+            outcome.systemBundle.lineSequence().firstOrNull { it.startsWith("Current local time") }?.let { appendLine(it); appendLine() }
             appendLine("Last reply:")
             appendLine(outcome.lastReply ?: "(none)")
             appendLine()

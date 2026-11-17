@@ -2,4 +2,5 @@
 <resources>
     <color name="her_bg">#140E0B</color>
     <color name="her_accent">#F6A77A</color>
+    <color name="her_text">#F3E6DA</color>
 </resources>
