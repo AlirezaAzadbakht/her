@@ -61,14 +61,14 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
    - Agent queue item: learn timezone and what matters — slowly, not as an interview.
    - If chat messages already came back from a backup, this seed is skipped.
 7. Her and Settings become available. Memory appears when the experimental flag is on.
-8. The first time that main UI appears, Android asks for calendar read/write, and for notifications on API 33+.
-   - The ask is stored as `runtimePermissionsAsked` so it does not repeat.
-   - If they grant calendar, `calendarEnabled` turns on.
-   - Denial leaves the internal calendar only; Settings → Calendar access can ask again.
+8. The first time that main UI appears, Android asks for calendar read/write, contacts (`READ_CONTACTS`), and notifications on API 33+, in one `RequestFirstRunPermissions` sequence.
+   - The ask is stored as `runtimePermissionsAsked` and `contactsPermissionAsked` so it does not repeat. An install from before contacts joined the ask has only the first flag set, so it gets just the contacts prompt once.
+   - If they grant calendar, `calendarEnabled` turns on; if they grant contacts, `contactsEnabled` turns on.
+   - Denial leaves the internal calendar only and contacts off; Settings → Calendar access / Contacts access can ask again.
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or a backup file.
 
-Optional later, in Settings: Calendar access (requests permission if needed), web search.
+Optional later, in Settings: Calendar access and Contacts access (each requests permission if needed), web search.
 
 ## Her (single utterance)
 
@@ -103,7 +103,7 @@ Assistant replies are markdown (`**bold**`, lists, headings). Parsing and Compos
 - `app/src/main/java/com/her/ui/markdown/MarkdownModel.kt`
 - `app/src/main/java/com/her/ui/markdown/ConversationMarkdown.kt`
 
-Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`.
+Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`. A shared image (`image/*`) goes through `consumeSharedImage()`: `ImageReader` sends it once to the chat model to write out its text, and that text becomes the share. The image itself is never stored. The shared text rides in the next user message's `metadataJson.shared`, and `ChatMessage.promptText()` adds it to what the model reads.
 
 ## Memory
 
@@ -151,4 +151,7 @@ API credentials are set on each phone; a backup never carries them.
 
 - **Quick-settings tile** (`entry/HerTileService`): opens `MainActivity` and collapses the shade.
 - **Assistant app**: `MainActivity` answers `ACTION_ASSIST`, so Her can be chosen under the phone's default assistant setting. It opens the app; there is no voice interaction service.
-- **Share sheet**: `ACTION_SEND` with `text/plain`.
+- **Share sheet**: `ACTION_SEND` with `text/plain` or `image/*`.
+- **Home-screen widgets** (`widget/HerWidget.kt`), plain RemoteViews drawn by `Widgets.refreshAll`. `HerApplication` watches the latest assistant message and the projected feeling (compared by what they show, not by time) and redraws on change, and again on a light/dark switch; no polling. On Android 12+ each widget hands the launcher several layouts by size; older launchers get the middle one.
+  - **Her** (`HerWidget`): her latest message, markdown flattened by `markdownToPlain`. One row high is a single-line bar (`widget_her_row`); taller is a card (`widget_her`) showing more lines. Tapping the text opens `MainActivity`; **Write** opens `QuickNoteActivity`, a dialog with one field that queues the note through `AppGraph.queueFromOutside` (the same path as a notification reply) and closes. Before setup it opens the app instead.
+  - **How she feels** (`HerFeelingWidget`): the same feeling the Memory tab shows (`WidgetFeeling.of`), as an orb bitmap in that feeling's palette (`feelingPalette`), its word, a second feeling, and her note. One square shows only the orb and word (`widget_feeling_small`). Tapping opens the app.

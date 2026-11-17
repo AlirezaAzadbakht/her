@@ -68,7 +68,7 @@ Core principles:
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 💸 **Money log** | Notes what you say you spent and adds it up by day, week, or category when you ask |
 | 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
-| 📇 **Contacts** | Optional: looks up a phone number or birthday from the phone's contacts when you ask |
+| 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone for you to send |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
 | 📍 **Place reminders** | "Remind me when I get home": say "this is home" once while you're there, and the reminder rings on arrival. Uses the phone's own location (no Google Play Services), and nothing runs while location is off |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
@@ -77,7 +77,9 @@ Core principles:
 | 💗 **Emotional understanding** | Feels how each message landed right after replying and sorts it out in a nightly review; keeps an unresolved worry in mind and asks after it later; is glad for your good news; assesses her contribution and uncertainty, remembers ongoing experiences, learns scoped support lessons from feedback, and keeps her internal feelings separate from the tone you need; keeps feelings scoped to individual situations and recognizes emotional transitions; her orb can mix two feelings |
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
+| 🏠 **Home-screen widgets** | Her latest message with a **Write** button to send her a note without opening the app, and a separate widget for how she feels; both resize from one row or one square up |
 | 💾 **Backup** | Save or share one zip of everything she knows and your settings, then import it on a new phone; API keys stay out |
+| 🖼️ **Share an image** | Share a screenshot or photo (a ticket, receipt or poster) and she reads the text in it; only the text is kept. Needs a model that can read images |
 | 🔎 **Web search** | Optional, when she needs current information, or to read a link you send her |
 | 🗄️ **Memory SQL navigator** | Inspect exactly what she has stored |
 | 🔑 **Her Cloud** | No API key? Buy credit on [Her Cloud](https://cloud.her-project.ir/), then paste or scan the settings it gives you, on the first screen or in Settings |

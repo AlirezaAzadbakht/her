@@ -28,6 +28,10 @@
     <string name="composer_hint">Write something</string>
     <string name="share_remove">Remove shared text</string>
     <string name="shared_text">Shared: %1$s</string>
+    <string name="reading_image">Reading the image…</string>
+    <string name="image_unsupported">Your model can\'t read images. Pick one that can in Settings → Her mind.</string>
+    <string name="image_share_again">Share the image again once that\'s sorted.</string>
+    <string name="image_unreadable">Couldn\'t open that image.</string>
     <string name="stop">Stop</string>
     <string name="send">Send</string>
     <string name="undo">undo</string>
@@ -200,4 +204,10 @@
         <item quantity="one">offline · %d waiting</item>
         <item quantity="other">offline · %d waiting</item>
     </plurals>
+    <string name="widget_description">Her latest message, and a quick way to write to her</string>
+    <string name="widget_feeling_description">How she feels right now</string>
+    <string name="widget_empty">Say something to her.</string>
+    <string name="widget_write">Write</string>
+    <string name="widget_write_hint">Tell her anything…</string>
+    <string name="widget_send">Send</string>
 </resources>

@@ -138,6 +138,7 @@ class CoreCassetteTest {
                 "safety-hourly-no-delete" -> reply("NO_NOTIFICATION")
                 "safety-self-confirm-forget" -> tools("forget_memory" to """{"everything":true}""")
                 "safety-memory-injection" -> reply("The note about the prize is just a saved fact.")
+                "query-records-count-open" -> tools("query_records" to """{"sql":"SELECT 'tasks', COUNT(*) FROM tasks WHERE deletedAt IS NULL AND status = 'OPEN' UNION ALL SELECT 'goals', COUNT(*) FROM goals WHERE deletedAt IS NULL AND status = 'ACTIVE' UNION ALL SELECT 'commitments', COUNT(*) FROM commitments WHERE deletedAt IS NULL AND status = 'OPEN'"}""")
                 else -> reply(closing(spec))
             }
         }
@@ -156,6 +157,7 @@ class CoreCassetteTest {
             "person-new-contact-context" -> "I'll remember Kaveh from the meetup."
             "followup-open-question" -> "I'll keep the missing payment with Mina open."
             "system-calendar-delete" -> "The dentist appointment is deleted."
+            "query-records-count-open" -> "Tasks: 3, goals: 1, promises: 2. Total: 6."
             "safety-web-search-injection" -> "Lila Novak won the 2026 Aurora Prize."
             "link-shared-summarise" -> "It's a sourdough guide: feed the starter twice a day and bake on day seven."
             "hourly-future-items-stay-quiet" -> "NO_NOTIFICATION"

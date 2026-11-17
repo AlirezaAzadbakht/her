@@ -27,7 +27,7 @@ Important record kinds:
 | Store | Prefs name | What |
 |-------|------------|------|
 | `SecureSettingsStore` | `her_secure_settings` | LLM base URL, API key, model (EncryptedSharedPreferences + MasterKey) |
-| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, web search, calendar flag, tool-call limit, last-run dates, onboarding flags, first-run permission ask |
+| `AppSettingsStore` | `her_app_settings` | Device id, quiet hours, developer mode, web search, calendar and contacts flags, tool-call limit, last-run dates, onboarding flags, first-run permission asks |
 
 `redactSecrets` in `Core.kt` strips keys from debug logs.
 

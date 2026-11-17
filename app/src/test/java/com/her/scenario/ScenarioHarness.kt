@@ -54,7 +54,8 @@ class RecordingToolRegistry(
     alarmClock: AlarmClockPort,
     focus: FocusTimer,
     contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts) {
+    sql: com.her.data.db.SqlBrowser? = null,
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts, sql = sql) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -138,7 +139,7 @@ class ScenarioHarness(
     private val focus = FocusTimer(settings, repo, notifier, SilentFocusAlarm)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, reminderAlarms, alarmClock, focus, { name -> spec.seed.contacts.filter { it.name.contains(name, ignoreCase = true) } })
+    }, reminderAlarms, alarmClock, focus, { name -> spec.seed.contacts.filter { it.name.contains(name, ignoreCase = true) } }, com.her.data.db.SqlBrowser(db))
     private val reminders = ReminderDelivery(repo, notifier)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
     private val orchestrator = AgentOrchestrator(
@@ -171,7 +172,7 @@ class ScenarioHarness(
                         null
                     }
                     is ScenarioTurn.User -> {
-                        orchestrator.enqueueUserMessage(turn.text)
+                        orchestrator.enqueueUserMessage(turn.text, turn.shared?.let { org.json.JSONObject().put("shared", it).toString() })
                         if (turn.queued) null else orchestrator.processOutbox()
                     }
                     // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.

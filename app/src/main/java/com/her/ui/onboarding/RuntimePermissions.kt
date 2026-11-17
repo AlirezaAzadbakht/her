@@ -36,19 +36,28 @@ object RuntimePermissions {
         calendar().all { result[it] == true }
 }
 
+/**
+ * Asks once at launch for whatever has not been asked yet: calendar, notifications and contacts on a new install.
+ * An install from before contacts was asked here gets only the contacts prompt.
+ */
 @Composable
 fun RequestFirstRunPermissions(
     asked: Boolean,
-    onFinished: (calendarGranted: Boolean) -> Unit,
+    contactsAsked: Boolean,
+    onFinished: (calendarGranted: Boolean, contactsGranted: Boolean) -> Unit,
 ) {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        onFinished(RuntimePermissions.calendarGranted(result))
+        onFinished(RuntimePermissions.calendarGranted(result), result[Manifest.permission.READ_CONTACTS] == true)
     }
-    LaunchedEffect(asked) {
-        if (asked) return@LaunchedEffect
-        launcher.launch(RuntimePermissions.firstRun())
+    LaunchedEffect(asked, contactsAsked) {
+        if (asked && contactsAsked) return@LaunchedEffect
+        val wanted = buildList {
+            if (!asked) addAll(RuntimePermissions.firstRun())
+            if (!contactsAsked) add(Manifest.permission.READ_CONTACTS)
+        }
+        launcher.launch(wanted.toTypedArray())
     }
 }
 

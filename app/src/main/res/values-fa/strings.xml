@@ -20,6 +20,10 @@
     <string name="composer_hint">چیزی بنویس</string>
     <string name="share_remove">حذف متن هم‌رسانی‌شده</string>
     <string name="shared_text">هم‌رسانی‌شده: %1$s</string>
+    <string name="reading_image">دارم تصویر را می‌خوانم…</string>
+    <string name="image_unsupported">مدل شما نمی‌تواند تصویر بخواند. در تنظیمات ← ذهن او مدلی انتخاب کنید که بتواند.</string>
+    <string name="image_share_again">بعد از درست شدنش، تصویر را دوباره هم‌رسانی کنید.</string>
+    <string name="image_unreadable">نتوانستم این تصویر را باز کنم.</string>
     <string name="stop">توقف</string>
     <string name="send">ارسال</string>
     <string name="undo">برگرداندن</string>
@@ -199,4 +203,10 @@
         <item quantity="one">آفلاین · %d پیام در انتظار</item>
         <item quantity="other">آفلاین · %d پیام در انتظار</item>
     </plurals>
+    <string name="widget_description">آخرین پیامش، و راهی سریع برای نوشتن به او</string>
+    <string name="widget_feeling_description">حالِ این لحظه‌اش</string>
+    <string name="widget_empty">چیزی به او بگو.</string>
+    <string name="widget_write">بنویس</string>
+    <string name="widget_write_hint">هر چه می‌خواهی بگو…</string>
+    <string name="widget_send">بفرست</string>
 </resources>

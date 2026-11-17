@@ -11,6 +11,7 @@ import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
 import com.her.domain.AgentQueueItem
+import com.her.domain.promptText
 import com.her.domain.AgentRun
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
@@ -134,7 +135,7 @@ class AgentOrchestrator(
     private suspend fun sendPending(): TurnResult? {
         val pending = repo.pendingUserMessages()
         if (pending.isEmpty()) return null
-        val joined = pending.joinToString("\n\n") { it.content }
+        val joined = pending.joinToString("\n\n") { it.promptText() }
         val result = runTurn(
             type = AgentRunType.CHAT,
             budget = CallBudget(settings.read().chatToolCallLimit.coerceAtLeast(1)),

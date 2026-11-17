@@ -114,6 +114,23 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aZeroExpiryKeepsAShortTermMemoryVisible() = runBlocking {
+        tools.execute("remember", """{"content":"Parked at P3, spot 118","scope":"short_term","expiresAt":0}""")
+        assertEquals(listOf("Parked at P3, spot 118"), repo.activeShort().map { it.content })
+    }
+
+    @Test
+    fun sharedTextReachesTheModel() = runBlocking {
+        val llm = ScriptedLlm({ reply("Saved your ticket.") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("remember this", JSONObject().put("shared", "Flight IR712, gate B4").toString())
+        orchestrator.processOutbox()!!
+
+        val lastUser = llm.messagesSeen[0].last { it.role == "user" }.content.orEmpty()
+        assertTrue(lastUser, lastUser.contains("remember this") && lastUser.contains("Flight IR712, gate B4"))
+    }
+
+    @Test
     fun aStockRefusalIsAskedAgainThenReplacedWithASafeReply() = runBlocking {
         val refusal = "I'm sorry, but I cannot assist with that request."
         val recovers = ScriptedLlm({ reply(refusal) }, { reply("I'm here. Are you safe right now?") })
@@ -950,6 +967,7 @@ class AgentOrchestratorTest {
         private val script = steps.toMutableList()
         val toolsSeen = mutableListOf<List<ToolSpec>>()
         val modelsSeen = mutableListOf<String>()
+        val messagesSeen = mutableListOf<List<LlmMessage>>()
         val calls: Int get() = toolsSeen.size
 
         override suspend fun complete(
@@ -958,14 +976,14 @@ class AgentOrchestratorTest {
             tools: List<ToolSpec>,
             client: OkHttpClient,
             webSearch: WebSearchRequest?,
-        ): LlmResponse = next(settings, tools)
+        ): LlmResponse = next(settings, tools).also { messagesSeen += messages }
 
         override suspend fun stream(
             settings: LlmSettings,
             messages: List<LlmMessage>,
             tools: List<ToolSpec>,
             onDelta: (String) -> Unit,
-        ): LlmResponse = next(settings, tools)
+        ): LlmResponse = next(settings, tools).also { messagesSeen += messages }
 
         private fun next(settings: LlmSettings, tools: List<ToolSpec>): LlmResponse {
             toolsSeen += tools

@@ -529,7 +529,7 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
 }
 
 @StringRes
-private fun Feeling.word(): Int = when (this) {
+internal fun Feeling.word(): Int = when (this) {
     Feeling.CALM -> R.string.feeling_calm
     Feeling.CURIOUS -> R.string.feeling_curious
     Feeling.PLAYFUL -> R.string.feeling_playful

@@ -60,6 +60,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 `ToolRegistry` (`app/src/main/java/com/her/agent/tools/ToolRegistry.kt`) validates and runs calls and owns undo. Each group registers itself from its own file in that package: `MemoryTools.kt`, `EntityTools.kt`, `AgentTools.kt`, `CalendarTools.kt`, `MessagingTools.kt`. Schema helpers (`objSchema`, `enumField`, `oneOf`) live in `ToolSchema.kt`. Groups:
 
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
+- `query_records`: one read-only `SELECT`/`WITH` over the record tables in `SqlBrowser.RECORD_TABLES` (tasks, goals, groceries, expenses…) for counting and grouping; called without `sql` it lists their columns. Memories, chat, feelings and internals are refused, so forgetting still holds.
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
 - Routines, important dates, recurring responsibilities
@@ -70,7 +71,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `web_search`, `fetch_url` (reads one public `http`/`https` page as text; refuses private and local addresses; both are offered only when Settings → Web search is on), `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
-- Contacts (`ContactTools.kt`): `search_contacts`, read-only, offered only when Settings → Connections → **Contacts access** is on and `READ_CONTACTS` is granted. It returns at most 8 matches with phones and birthday; keeping a birthday is still `update_person`.
+- Contacts (`ContactTools.kt`): `search_contacts`, read-only, offered only when Settings → Connections → **Contacts access** is on and `READ_CONTACTS` is granted. It returns at most 8 matches with phones and birthday; keeping a birthday is still `update_person`. `compose_message(to, text)` opens the messaging app (`ACTION_SENDTO smsto:`) with the text filled in; they press send. `to` is a number (works with contacts off) or a name: an exact name match wins, and when several contacts or numbers fit it returns `ok:false` with `candidates` so she asks. It needs Her on screen, like `set_alarm` through the clock app.
 - Money (`MoneyTools.kt`): `log_expense`, `get_expenses`. Rows live in the `expenses` table; totals are per currency and never mixed. `log_expense` is undoable from its receipt.
 
 ## Reminders and alarms
@@ -109,7 +110,7 @@ An autonomous pass that notifies with plain text (not `send_user_message`) saves
 
 Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event. A `confirmId` is only valid after a later user message — the model cannot confirm in the same turn. `confirmed: true` is ignored.
 
-Hourly, nightly, catch-up, and briefing do not receive `forget_memory`, `delete_calendar_event`, or `update_user_profile`. Those tools also refuse if called anyway.
+Hourly, nightly, catch-up, and briefing do not receive `forget_memory`, `delete_calendar_event`, `update_user_profile`, `ask_wondering`, or `compose_message`. Those tools also refuse if called anyway.
 
 HTTP: the client has a 180s call timeout, cancels when the coroutine is cancelled, retries malformed or empty 200s and truncated streams, and treats a stream without `[DONE]` / `finish_reason` as a failure.
 

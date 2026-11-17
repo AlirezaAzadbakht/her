@@ -265,7 +265,11 @@ private fun List<LlmMessage>.toJsonArray(): JSONArray {
     val array = JSONArray()
     forEach { message ->
         val obj = JSONObject().put("role", message.role)
-        if (message.content != null) obj.put("content", message.content)
+        if (message.imageDataUrl != null) {
+            obj.put("content", JSONArray()
+                .put(JSONObject().put("type", "text").put("text", message.content.orEmpty()))
+                .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", message.imageDataUrl))))
+        } else if (message.content != null) obj.put("content", message.content)
         if (message.toolCallId != null) obj.put("tool_call_id", message.toolCallId)
         if (message.name != null) obj.put("name", message.name)
         message.toolCalls?.let { calls ->

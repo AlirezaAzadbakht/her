@@ -53,6 +53,7 @@ class AppGraph(context: Context) {
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
     val webSearch = WebSearchClient(llm = llm, llmSettings = { secure.read() })
+    val imageReader by lazy { com.her.data.remote.ImageReader(repo, llm) { secure.read() } }
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)
@@ -68,12 +69,19 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext), location)
+        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext), com.her.data.contacts.AndroidMessageComposer(appContext), sqlBrowser, location)
     }
 
     val orchestrator: AgentOrchestrator by lazy {
         AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy,
             appraiser = FastAppraiser(repo, llm) { secure.read() },
             weekStart = { java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek })
+    }
+
+    /** A message written outside the app (notification reply, widget): queue it and let the outbox worker send it. */
+    suspend fun queueFromOutside(text: String, category: String, log: String) {
+        orchestrator.enqueueUserMessage(text)
+        scheduler.enqueueOutbox()
+        repo.logActivity(category, log)
     }
 }

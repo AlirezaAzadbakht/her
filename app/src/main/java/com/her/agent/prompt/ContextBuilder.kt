@@ -17,6 +17,7 @@ import com.her.domain.LlmMessage
 import com.her.domain.MemoryHit
 import com.her.work.BackgroundRunPolicy
 import com.her.domain.MessageRole
+import com.her.domain.promptText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -282,7 +283,8 @@ class ContextBuilder(
     }
 
     private fun withReceipts(msg: com.her.domain.ChatMessage, clip: Int = Int.MAX_VALUE): String {
-        val text = if (msg.content.length > clip) msg.content.take(clip) + "…" else msg.content
+        val full = msg.promptText()
+        val text = if (full.length > clip) full.take(clip) + "…" else full
         if (msg.role != MessageRole.ASSISTANT) return text
         val receipts = Receipts.fromMetadata(msg.metadataJson).filter { !it.undone }
         if (receipts.isEmpty()) return text
