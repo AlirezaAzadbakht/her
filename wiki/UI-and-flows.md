@@ -8,7 +8,7 @@ In Main, a floating glass nav picks the destination (not Navigation Compose rout
 - Tabs slide in from the side they sit on.
 - The nav tucks away while the keyboard is up.
 
-The Memory tab shows what she has recently learnt, how she feels, and a read-only SQL navigator. It is experimental, defaults on (`memoryTabEnabled`), and can be hidden under Settings → Advanced → Experimental.
+The Memory tab shows what she knows (counts, topics, people), what she has recently learnt, how she feels, and, under Advanced, a read-only SQL navigator. It is experimental, defaults on (`memoryTabEnabled`), and can be hidden under Settings → Advanced → Experimental.
 
 ## Look and motion
 
@@ -109,11 +109,14 @@ Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewMode
 
 `SqlNavigatorScreen` reads top to bottom:
 
-- **Lately:** the five newest rows across `long_term_memories`, `short_term_memories`, and `user_understandings` (`SqlBrowser.recentMemories()`, skipping forgotten and non-active ones). Each reads Remembered, Noted, Learnt, or Updated, with a relative time. Tap one for the full text in a bottom sheet.
+- **At a glance:** five tiles counting active, unforgotten long-term memories, understandings, short-term notes, people and important dates (`SqlBrowser.memoryCounts()`).
+- **Lately:** the ten newest rows across `long_term_memories`, `short_term_memories`, `user_understandings`, and `important_dates` (`SqlBrowser.recentMemories()`, skipping forgotten and non-active ones); **Show more** extends it to thirty. Each reads Remembered, Noted, Learnt, or Updated, with a relative time. Tap one for the full text in a bottom sheet.
 - **How she feels:** her projected feeling (`HerViewModel.feeling`) as a big word beside a still orb. The second feeling in the blend shows as "and a little …". The cause line is the projection's `note` from `feelingCause()`, which picks the recent emotional event that weighs most toward that feeling (its interpretation, else its quoted evidence) or, for concern, the nearest deadline.
 - **Who she is:** her six traits (`HerViewModel.persona`) as a web drawn on a `Canvas`. The dashed outline is the seed from her name, the fill is who she is now, and a caption names any trait she is working on because they asked. See [Personality](Personality.md).
-- **Database:** a read-only browser over `her.db`.
-  - The table list (from `sqlite_master`, with row-count badges) shows six tables per page. Skeleton rows appear if loading is slow.
+- **What she knows:** long-term memories by `category` and understandings by `facet` (`SqlBrowser.knownTopics()`), biggest topic first with a count badge. Tap a topic to open its items, most important first; tap an item for the full text.
+- **People she knows:** `people` by last mentioned (`SqlBrowser.people()`), with relationship. Tap one for their notes, preferences and birthday.
+- **Advanced:** collapsed each time the tab opens. Opening it reveals a read-only browser over `her.db`:
+  - The table list (counted only once Advanced first opens), from `sqlite_master` with row-count badges, shows six tables per page. Skeleton rows appear if loading is slow.
   - Tap a table → `SELECT * FROM "<table>" ORDER BY rowid DESC`, and the list scrolls down to its rows.
   - Free-form query card (must start with `SELECT`, `WITH`, `PRAGMA`, or `EXPLAIN`; stacked statements are rejected). The Run button shows a `searching` orb while a query runs.
   - Results come 50 rows per page with ‹ › controls. `SqlBrowser.query(offset = …)` skips rows on the cursor, so any read-only statement pages without rewriting its SQL.

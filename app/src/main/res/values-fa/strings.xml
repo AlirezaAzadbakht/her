@@ -110,6 +110,17 @@
     <string name="share_backup">هم‌رسانی پشتیبان</string>
     <string name="share_readable">هم‌رسانی آنچه هِر می‌داند</string>
     <string name="backup_failed">پشتیبان‌گیری انجام نشد.</string>
+    <string name="at_a_glance">در یک نگاه</string>
+    <string name="stat_memories">خاطره‌ها</string>
+    <string name="stat_insights">شناخت‌ها</string>
+    <string name="stat_notes">یادداشت‌ها</string>
+    <string name="stat_people">آدم‌ها</string>
+    <string name="stat_dates">تاریخ‌ها</string>
+    <string name="show_more">بیشتر</string>
+    <string name="show_less">کمتر</string>
+    <string name="what_she_knows">آنچه می‌داند</string>
+    <string name="people_she_knows">آدم‌هایی که می‌شناسد</string>
+    <string name="advanced_memory_hint">جدول‌ها و پرس‌وجوی SQL</string>
     <string name="lately">این اواخر</string>
     <string name="lately_empty">هنوز چیزی نیست. هر چه دربارهٔ تو یاد بگیرد اینجا می‌آید.</string>
     <string name="database">پایگاه داده</string>
