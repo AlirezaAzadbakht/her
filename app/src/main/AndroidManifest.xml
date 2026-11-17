@@ -105,6 +105,18 @@
                 android:resource="@xml/widget_her_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.HerFeelingWidget"
+            android:exported="true"
+            android:label="@string/how_she_feels">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_feeling_info" />
+        </receiver>
+
         <!-- The QR scanner for Her Cloud settings; the library locks it to landscape. -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"

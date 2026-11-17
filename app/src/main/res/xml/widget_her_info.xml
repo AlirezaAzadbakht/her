@@ -5,7 +5,7 @@
     android:minWidth="250dp"
     android:minHeight="110dp"
     android:minResizeWidth="180dp"
-    android:minResizeHeight="80dp"
+    android:minResizeHeight="40dp"
     android:previewLayout="@layout/widget_her"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="4"

@@ -14,6 +14,19 @@
         <item name="postSplashScreenTheme">@style/Theme.Her</item>
     </style>
 
+    <!-- The Write button on the message widget. -->
+    <style name="HerWidgetWritePill">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/widget_pill</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:paddingHorizontal">18dp</item>
+        <item name="android:text">@string/widget_write</item>
+        <item name="android:textColor">@color/her_bg</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
     <!-- The widget's Write sheet: a floating card over the home screen, keyboard up. -->
     <style name="Theme.Her.QuickNote" parent="android:Theme.DeviceDefault.Dialog.NoActionBar">
         <item name="android:windowNoTitle">true</item>

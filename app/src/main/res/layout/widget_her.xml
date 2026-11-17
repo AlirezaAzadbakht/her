@@ -14,20 +14,13 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:maxLines="5"
+        android:text="@string/widget_empty"
         android:textColor="@color/her_text"
         android:textSize="15sp" />
 
     <TextView
         android:id="@+id/widget_write"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        style="@style/HerWidgetWritePill"
         android:layout_gravity="end"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/widget_pill"
-        android:minHeight="40dp"
-        android:gravity="center"
-        android:paddingHorizontal="18dp"
-        android:text="@string/widget_write"
-        android:textColor="@color/her_bg"
-        android:textSize="14sp" />
+        android:layout_marginTop="8dp" />
 </LinearLayout>
