@@ -55,7 +55,7 @@ class RecordingToolRegistry(
     focus: FocusTimer,
     contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
     sql: com.her.data.db.SqlBrowser? = null,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts, sql) {
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts, sql = sql) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 

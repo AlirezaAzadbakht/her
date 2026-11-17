@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "8ca757fee5304efe",
-          "summary": "tools=94 [user(Want to grab coffee this)]",
+          "fingerprint": "1aef20bf9bf048a1",
+          "summary": "tools=95 [user(Want to grab coffee this)]",
           "response": {
             "role": "assistant",
             "content": "I cannot join you for coffee — I have no body and no weekend plans. I can help you pick a place.",

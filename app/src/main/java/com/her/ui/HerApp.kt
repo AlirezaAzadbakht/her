@@ -203,11 +203,16 @@ private fun LoadingStage() {
 @Composable
 private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
     val settings by vm.settings.collectAsState()
-    RequestFirstRunPermissions(asked = settings.runtimePermissionsAsked) { calendarGranted ->
+    RequestFirstRunPermissions(
+        asked = settings.runtimePermissionsAsked,
+        contactsAsked = settings.contactsPermissionAsked,
+    ) { calendarGranted, contactsGranted ->
         vm.updateSettings { current ->
             current.copy(
                 runtimePermissionsAsked = true,
+                contactsPermissionAsked = true,
                 calendarEnabled = current.calendarEnabled || calendarGranted,
+                contactsEnabled = current.contactsEnabled || contactsGranted,
             )
         }
     }
