@@ -103,7 +103,7 @@ Assistant replies are markdown (`**bold**`, lists, headings). Parsing and Compos
 - `app/src/main/java/com/her/ui/markdown/MarkdownModel.kt`
 - `app/src/main/java/com/her/ui/markdown/ConversationMarkdown.kt`
 
-Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`.
+Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`. A shared image (`image/*`) goes through `consumeSharedImage()`: `ImageReader` sends it once to the chat model to write out its text, and that text becomes the share. The image itself is never stored. The shared text rides in the next user message's `metadataJson.shared`, and `ChatMessage.promptText()` adds it to what the model reads.
 
 ## Memory
 
@@ -151,4 +151,4 @@ API credentials are set on each phone; a backup never carries them.
 
 - **Quick-settings tile** (`entry/HerTileService`): opens `MainActivity` and collapses the shade.
 - **Assistant app**: `MainActivity` answers `ACTION_ASSIST`, so Her can be chosen under the phone's default assistant setting. It opens the app; there is no voice interaction service.
-- **Share sheet**: `ACTION_SEND` with `text/plain`.
+- **Share sheet**: `ACTION_SEND` with `text/plain` or `image/*`.

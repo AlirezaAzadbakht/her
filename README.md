@@ -77,6 +77,7 @@ Core principles:
 | 🌐 **Persian & RTL** | Persian replies read right to left; understands Persian times and Jalali dates |
 | 📴 **Offline queue** | Messages sent without a connection are processed in one batch later |
 | 💾 **Backup** | Save or share one zip of everything she knows and your settings, then import it on a new phone; API keys stay out |
+| 🖼️ **Share an image** | Share a screenshot or photo (a ticket, receipt or poster) and she reads the text in it; only the text is kept. Needs a model that can read images |
 | 🔎 **Web search** | Optional, when she needs current information, or to read a link you send her |
 | 🗄️ **Memory SQL navigator** | Inspect exactly what she has stored |
 | 🔑 **Her Cloud** | No API key? Buy credit on [Her Cloud](https://cloud.her-project.ir/), then paste or scan the settings it gives you, on the first screen or in Settings |
