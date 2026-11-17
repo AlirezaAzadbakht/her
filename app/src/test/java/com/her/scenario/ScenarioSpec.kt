@@ -154,6 +154,7 @@ object ScenarioTables {
         "recurring_responsibilities",
         "calendar_events",
         "system_calendar",
+        "shares",
         "agent_queue",
         "agent_state",
         "memories_long",
