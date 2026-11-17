@@ -9,6 +9,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
 - Ask Her questions across what she keeps for you, like how many tasks you finished this week, what you spent most on last month, or which goals have nothing planned, and she counts it up from her records.
 - Share a screenshot or photo to Her from any app: a ticket, a receipt, an event poster. She reads the text in it and you can tell her what to do with it, like "remember this". The image goes to your model once to be read and isn't kept; only the text stays. This needs a model that can read images.
+- Reminders can ring when you get somewhere. Tell Her "this is home" or "I'm at the gym" while you're there and she saves the place on your phone. "Remind me to water the plants when I get home" then rings when you arrive. It uses your phone's own location, needs location set to **Allow all the time**, and stops entirely while location is off. You can turn it off under **Place reminders** in Settings. The place's location is never sent to your model.
 
 ### Changed
 - Her now asks for contacts access when the app opens, along with calendar and notifications, instead of only from Settings. If you already use Her, you'll see just the contacts prompt once after updating. You can still turn it off in Settings.

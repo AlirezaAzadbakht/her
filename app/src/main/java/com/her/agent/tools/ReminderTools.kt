@@ -14,6 +14,7 @@ import com.her.domain.Reminder
 import com.her.domain.ReminderRepeat
 import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
+import com.her.reminders.rearmAll
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.temporal.TemporalAdjusters
@@ -76,7 +77,35 @@ internal fun ToolRegistry.registerReminderTools() {
         )
         repo.saveReminder(reminder)
         if (reminder.trigger == ReminderTrigger.TIME) reminderAlarms.arm(reminder)
-        reminderJson(reminder).put("ok", true)
+        val json = reminderJson(reminder).put("ok", true)
+        if (place != null) {
+            val saved = repo.placeNamed(place)
+            val watched = saved != null && reminderAlarms.placesWatched()
+            if (watched) reminderAlarms.armPlace(reminder, saved!!)
+            json.put("firesOnArrival", watched)
+            if (saved == null) json.put("note", "No saved place called '$place'. Ask them to tell you when they are there, then call save_place.")
+            else if (!watched) json.put("note", placeHelp(location.problem() ?: "background"))
+        }
+        json
+    }
+
+    register(
+        "save_place",
+        "Save where they are right now under a name, when they say they are at a place (\"this is home\", \"I'm at the gym\"). Place reminders for that name then fire when they arrive. Only say it is saved when this returns ok.",
+        objSchema("name" to str("Short name for the place, in their words, e.g. home, work, the gym"), required = listOf("name")),
+    ) { args ->
+        val name = args.requiredString("name").trim()
+        location.problem()?.let { return@register jsonObjectOf("ok" to false, "reason" to it, "error" to placeHelp(it)) }
+        val (lat, lng) = location.fix()
+            ?: return@register jsonObjectOf("ok" to false, "reason" to "no_fix", "error" to "Could not get a location fix. Ask them to try again in a moment, ideally near a window.")
+        val now = nowMillis()
+        val existing = repo.placeNamed(name)
+        repo.savePlace(com.her.data.db.PlaceEntity(existing?.id ?: newId(), existing?.name ?: name, lat, lng, PLACE_RADIUS_M,
+            existing?.createdAt ?: now, now, repo.deviceId, (existing?.version ?: 0) + 1, null))
+        reminderAlarms.rearmAll(repo)
+        val waiting = repo.reminders().count { it.trigger == ReminderTrigger.PLACE && it.status == ReminderStatus.SCHEDULED && it.place.equals(name, ignoreCase = true) }
+        jsonObjectOf("ok" to true, "name" to (existing?.name ?: name), "updated" to (existing != null), "remindersWaiting" to waiting)
+            .also { if (!location.backgroundAllowed()) it.put("note", placeHelp("background")) }
     }
 
     register(
@@ -122,6 +151,7 @@ internal fun ToolRegistry.registerReminderTools() {
             version = existing.version + 1,
         )
         repo.saveReminder(updated)
+        if (existing.trigger == ReminderTrigger.PLACE && updated.trigger == ReminderTrigger.TIME) reminderAlarms.disarm(existing.id)
         if (updated.trigger == ReminderTrigger.TIME && updated.deviceId == repo.deviceId) reminderAlarms.arm(updated)
         reminderJson(updated).put("ok", true)
     }
@@ -224,6 +254,16 @@ internal fun ToolRegistry.registerReminderTools() {
             "days" to JSONArray(dayNames),
         )
     }
+}
+
+private const val PLACE_RADIUS_M = 150f
+
+/** What to tell them when a place reminder can't fire on arrival yet. */
+private fun placeHelp(reason: String): String = when (reason) {
+    "disabled" -> "Place reminders are turned off. They can turn them on in Settings."
+    "location_permission" -> "Her isn't allowed to use location. They can allow it under Place reminders in Settings."
+    "location_off" -> "Location is off on the phone. Place reminders work once they turn it on."
+    else -> "To fire with Her closed, location must be set to \"Allow all the time\" (Settings, Place reminders)."
 }
 
 /** java.util.Calendar weekday (Sunday = 1) as a java.time DayOfWeek (Monday = 1). */

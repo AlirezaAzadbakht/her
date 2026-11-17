@@ -400,6 +400,10 @@ class HerRepository(
     suspend fun getExpense(id: String) = db.expenseDao().get(id)
     suspend fun saveExpense(item: com.her.data.db.ExpenseEntity) = db.expenseDao().upsert(item)
 
+    suspend fun places() = db.placeDao().all()
+    suspend fun placeNamed(name: String) = db.placeDao().byName(name.trim())
+    suspend fun savePlace(item: com.her.data.db.PlaceEntity) = db.placeDao().upsert(item)
+
     suspend fun importantDates() = db.importantDateDao().allActive().map { it.toDomain() }
     suspend fun getImportantDate(id: String) = db.importantDateDao().get(id)?.toDomain()
     suspend fun saveImportantDate(item: ImportantDate) {

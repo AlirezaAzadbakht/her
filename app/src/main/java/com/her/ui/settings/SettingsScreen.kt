@@ -172,6 +172,11 @@ fun SettingsScreen(vm: HerViewModel) {
         vm.updateSettings { it.copy(contactsEnabled = true) }
     }
     val context = LocalContext.current
+    var locationBlocked by remember { mutableStateOf(false) }
+    var placeState by remember { mutableStateOf(placeReminderState(context)) }
+    val onLocationAnswer = { placeState = placeReminderState(context); vm.rearmReminders() }
+    val requestLocation = com.her.ui.onboarding.rememberLocationPermissionRequester(onBlocked = { locationBlocked = true }, onDone = onLocationAnswer)
+    val requestAlwaysLocation = com.her.ui.onboarding.rememberLocationPermissionRequester(background = true, onDone = onLocationAnswer)
     val lifecycleOwner = LocalLifecycleOwner.current
     var unrestrictedBattery by remember {
         mutableStateOf(isIgnoringBatteryOptimizations(context))
@@ -182,6 +187,8 @@ fun SettingsScreen(vm: HerViewModel) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 unrestrictedBattery = isIgnoringBatteryOptimizations(context)
                 exactReminders = canScheduleExactAlarms(context)
+                placeState = placeReminderState(context)
+                vm.rearmReminders()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -266,6 +273,28 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
                 if (contactsBlocked && !app.contactsEnabled) BlockedPermission(stringResource(R.string.contacts))
+                ToggleRow(
+                    stringResource(R.string.place_reminders),
+                    app.placeRemindersEnabled,
+                    description = stringResource(R.string.place_reminders_hint),
+                ) {
+                    vm.updateSettings { it.copy(placeRemindersEnabled = !it.placeRemindersEnabled) }
+                    if (!app.placeRemindersEnabled && placeState == PlaceState.NO_PERMISSION) requestLocation()
+                }
+                if (app.placeRemindersEnabled) when (placeState) {
+                    PlaceState.NO_PERMISSION -> if (locationBlocked) BlockedPermission(stringResource(R.string.location)) else {
+                        Hint(stringResource(R.string.place_needs_location))
+                        Spacer(Modifier.height(6.dp))
+                        HerButton(stringResource(R.string.allow_location), tone = HerButtonTone.Quiet, onClick = requestLocation)
+                    }
+                    PlaceState.NOT_ALWAYS -> {
+                        Hint(stringResource(R.string.place_needs_always))
+                        Spacer(Modifier.height(6.dp))
+                        HerButton(stringResource(R.string.allow_location_always), tone = HerButtonTone.Quiet, onClick = requestAlwaysLocation)
+                    }
+                    PlaceState.LOCATION_OFF -> Hint(stringResource(R.string.place_location_off))
+                    PlaceState.READY -> Unit
+                }
                 ToggleRow(
                     stringResource(R.string.web_search),
                     app.webSearchEnabled,
@@ -483,6 +512,19 @@ private fun Modifier.introRise(index: Int, playing: Boolean): Modifier {
         remember { mutableFloatStateOf(1f) }
     }
     return rise(progress, 18.dp)
+}
+
+private enum class PlaceState { READY, NO_PERMISSION, NOT_ALWAYS, LOCATION_OFF }
+
+private fun placeReminderState(context: Context): PlaceState {
+    fun granted(p: String) = androidx.core.content.ContextCompat.checkSelfPermission(context, p) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val manager = context.getSystemService(android.location.LocationManager::class.java)
+    return when {
+        !granted(android.Manifest.permission.ACCESS_FINE_LOCATION) -> PlaceState.NO_PERMISSION
+        !granted(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) -> PlaceState.NOT_ALWAYS
+        manager == null || !androidx.core.location.LocationManagerCompat.isLocationEnabled(manager) -> PlaceState.LOCATION_OFF
+        else -> PlaceState.READY
+    }
 }
 
 /** Shown once Android has stopped offering the permission prompt, so the toggle no longer looks dead. */

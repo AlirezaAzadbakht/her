@@ -21,6 +21,7 @@ import com.her.domain.ChatMessage
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.domain.UserProfile
+import com.her.reminders.rearmAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -242,11 +243,18 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateSettings(transform: (com.her.data.secure.AppSettings) -> com.her.data.secure.AppSettings) {
-        val before = graph.settings.read().quietHours
+        val before = graph.settings.read()
         graph.settings.update(transform)
-        if (before != graph.settings.read().quietHours) {
+        val after = graph.settings.read()
+        if (before.quietHours != after.quietHours) {
             viewModelScope.launch(Dispatchers.IO) { graph.scheduler.enqueueAll() }
         }
+        if (before.placeRemindersEnabled != after.placeRemindersEnabled) rearmReminders()
+    }
+
+    /** Adds or removes place alerts after the setting, a location permission, or the location switch changed. */
+    fun rearmReminders() {
+        viewModelScope.launch(Dispatchers.IO) { runCatching { graph.reminderAlarms.rearmAll(graph.repo) } }
     }
 
     fun runHourly() = graph.scheduler.runHourlyNow()

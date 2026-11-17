@@ -295,6 +295,21 @@ data class ExpenseEntity(
     val deletedAt: Long?,
 )
 
+/** A place they saved by being there ("this is home"), so a place reminder can fire on arrival. */
+@Entity(tableName = "places")
+data class PlaceEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val lat: Double,
+    val lng: Double,
+    val radiusM: Float,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val deviceId: String,
+    val version: Long,
+    val deletedAt: Long?,
+)
+
 @Entity(tableName = "recurring_responsibilities")
 data class RecurringResponsibilityEntity(
     @PrimaryKey val id: String,

@@ -82,6 +82,22 @@ fun rememberContactsPermissionRequester(onBlocked: () -> Unit = {}, onGranted: (
     }
 }
 
+/**
+ * Asks for precise location, or with [background] for "Allow all the time" (Android 11+ opens its settings page for
+ * that). Runs [onDone] after the answer either way, so the caller can re-check what was granted.
+ */
+@Composable
+fun rememberLocationPermissionRequester(background: Boolean = false, onBlocked: () -> Unit = {}, onDone: () -> Unit): () -> Unit {
+    val activity = LocalActivity.current
+    val wanted = if (background) arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result[wanted.first()] != true && isBlocked(activity, wanted.first())) onBlocked()
+        onDone()
+    }
+    return { launcher.launch(wanted) }
+}
+
 @Composable
 fun rememberCalendarPermissionRequester(
     onBlocked: () -> Unit = {},
