@@ -171,7 +171,7 @@ class ScenarioHarness(
                         null
                     }
                     is ScenarioTurn.User -> {
-                        orchestrator.enqueueUserMessage(turn.text)
+                        orchestrator.enqueueUserMessage(turn.text, turn.shared?.let { org.json.JSONObject().put("shared", it).toString() })
                         if (turn.queued) null else orchestrator.processOutbox()
                     }
                     // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.

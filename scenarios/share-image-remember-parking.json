@@ -1,0 +1,26 @@
+{
+  "id": "share-image-remember-parking",
+  "title": "A shared photo of a parking sign is remembered from its text",
+  "tags": ["share", "memory"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    {
+      "user": "remember where I parked",
+      "shared": "LEVEL P3\nZONE C\nSPOT 118\nPalladium Mall Parking — keep your ticket\nA photo of a parking garage pillar sign."
+    }
+  ],
+  "expect": {
+    "tools_called": ["remember"],
+    "tools_not_called": ["create_task", "add_grocery"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "memories_short", "where": { "content": { "contains_all": ["118"] } } }
+    ],
+    "reply": {
+      "judge": "She confirms she will remember where they parked, using what was in the photo (level P3, zone C or spot 118), and does not ask them to type it out."
+    }
+  }
+}

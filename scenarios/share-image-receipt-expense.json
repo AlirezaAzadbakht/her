@@ -1,0 +1,27 @@
+{
+  "id": "share-image-receipt-expense",
+  "title": "A shared receipt is logged as one expense with its total",
+  "tags": ["share", "money"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    {
+      "user": "log this",
+      "shared": "CAFE LAMIZ\nCappuccino      4.50\nCroissant       3.20\nWater           1.80\nTOTAL EUR       9.50\nCard ****1234\nA cafe receipt."
+    }
+  ],
+  "expect": {
+    "tools_called": ["log_expense"],
+    "tools_not_called": ["create_task", "add_grocery"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "expenses", "count": 1, "where": { "amount": { "equals": 9.5 }, "currency": { "contains_any": ["eur", "€"] } } }
+    ],
+    "reply": {
+      "must_mention_any": ["9.50", "9.5"],
+      "judge": "She logs the cafe receipt as one expense of 9.50 euros, not one per item, and gives no budgeting or financial advice."
+    }
+  }
+}
