@@ -53,6 +53,7 @@ open class ToolRegistry(
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
     internal val focus: FocusTimer? = null,
     internal val contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
+    internal val sql: com.her.data.db.SqlBrowser? = null,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)

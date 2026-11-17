@@ -100,6 +100,28 @@ class SqlBrowserTest {
         assertTrue("Plays violin" in people.last().details)
     }
 
+    @Test
+    fun recordQueriesReachOnlyRecordTables() {
+        val ok = browser.queryRecords("SELECT COUNT(*) AS n FROM tasks WHERE deletedAt IS NULL", rowCap = 10)
+        assertEquals(null, ok.error)
+        assertEquals("0", ok.rows.single().single())
+        assertTrue(browser.queryRecords("WITH t AS (SELECT title FROM goals) SELECT * FROM t", 10).error == null)
+        assertTrue("tasks" in browser.recordColumns().keys)
+
+        listOf(
+            "SELECT * FROM long_term_memories",
+            "SELECT t.title FROM tasks t JOIN chat_messages c ON c.id = t.id",
+            "SELECT * FROM tasks WHERE id IN (SELECT id FROM user_understandings)",
+            "SELECT * FROM \"long_term_memories\"",
+            "SELECT * FROM 'chat_messages'",
+            "SELECT * FROM chat_messages_fts_content",
+            "SELECT name FROM sqlite_master",
+            "PRAGMA table_info(tasks)",
+            "DELETE FROM tasks",
+            "SELECT 1; DELETE FROM tasks",
+        ).forEach { assertTrue(it, browser.queryRecords(it, 10).error != null) }
+    }
+
     private fun longMemory(id: String, content: String, at: Long) = LongTermMemoryEntity(
         id = id,
         content = content,

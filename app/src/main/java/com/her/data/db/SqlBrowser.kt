@@ -59,6 +59,21 @@ object SqlGuard {
         return afterSemi.isEmpty()
     }
 
+    /**
+     * One read-only SELECT/WITH that names no table outside [allowed]. The raw text is scanned, quotes
+     * included, because SQLite accepts `"x"` and even `'x'` as a table name.
+     */
+    // ponytail: word scan, not a SQL parser; a blocked name in a column or string is refused too (the safe side).
+    fun referencesOnly(sql: String, allowed: Set<String>, known: Set<String>): Boolean {
+        if (!isReadOnly(sql)) return false
+        if (firstKeyword(sql.trim().trimStart('﻿')) !in setOf("SELECT", "WITH")) return false
+        val blocked = known.map { it.lowercase(Locale.US) }.toSet() - allowed.map { it.lowercase(Locale.US) }.toSet()
+        return Regex("[A-Za-z_][A-Za-z0-9_]*").findAll(sql).none {
+            val word = it.value.lowercase(Locale.US)
+            word in blocked || word.startsWith("sqlite_") || word == "pragma"
+        }
+    }
+
     fun quoteIdent(name: String): String {
         require(name.matches(Regex("[A-Za-z_][A-Za-z0-9_]*"))) { "Invalid identifier" }
         return "\"$name\""
@@ -123,6 +138,20 @@ class SqlBrowser(private val db: HerDatabase) {
             QueryResult(emptyList(), emptyList(), error = e.message ?: "Query failed")
         }
     }
+
+    /** For the agent: one SELECT over [RECORD_TABLES] only, so forgotten memories, chat and internals stay out. */
+    fun queryRecords(sql: String, rowCap: Int): QueryResult {
+        val known = query("SELECT name FROM sqlite_master", rowCap = HARD_CAP).rows.mapNotNull { it.firstOrNull() }.toSet()
+        if (known.isEmpty() || !SqlGuard.referencesOnly(sql, RECORD_TABLES, known)) {
+            return QueryResult(emptyList(), emptyList(), error = "Only one SELECT over these tables is allowed: ${RECORD_TABLES.sorted().joinToString()}")
+        }
+        return query(sql, rowCap)
+    }
+
+    /** Each record table with its column names, for the agent to write [queryRecords] against. */
+    fun recordColumns(): Map<String, List<String>> = RECORD_TABLES.sorted().associateWith { table ->
+        query("PRAGMA table_info(${SqlGuard.quoteIdent(table)})", rowCap = HARD_CAP).rows.mapNotNull { it.getOrNull(1) }
+    }.filterValues { it.isNotEmpty() }
 
     /** Her own tables; SQLite's full-text shadow tables (`*_fts_segdir` and friends) stay reachable by query only. */
     fun tables(): List<TableInfo> {
@@ -196,5 +225,11 @@ class SqlBrowser(private val db: HerDatabase) {
 
     companion object {
         const val HARD_CAP = 500
+
+        /** The person's own records; never memories, chat, feelings or internals, which forgetting has to clear. */
+        val RECORD_TABLES = setOf(
+            "tasks", "goals", "commitments", "groceries", "reminders", "recurring_responsibilities", "routines",
+            "important_dates", "calendar_events", "people", "projects", "open_loops", "learning_records", "expenses",
+        )
     }
 }
