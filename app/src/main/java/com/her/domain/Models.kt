@@ -466,6 +466,8 @@ data class LlmMessage(
     val toolCallId: String? = null,
     val toolCalls: List<LlmToolCall>? = null,
     val name: String? = null,
+    /** A `data:` image URL sent beside [content]; the client then sends content as text and image parts. */
+    val imageDataUrl: String? = null,
 )
 
 data class LlmToolCall(

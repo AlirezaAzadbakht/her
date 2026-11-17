@@ -58,6 +58,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handleShare(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
+        if (intent.type?.startsWith("image/") == true) {
+            @Suppress("DEPRECATION") // the typed overload is API 33+
+            (intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM))?.let(vm::consumeSharedImage)
+            return
+        }
         val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
         if (text.isNotBlank()) vm.consumeShare(text)
     }

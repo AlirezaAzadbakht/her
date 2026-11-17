@@ -64,6 +64,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val backupBusy = MutableStateFlow(false)
     val backupMessage = MutableStateFlow<String?>(null)
     val pendingShare = MutableStateFlow<String?>(null)
+    /** True while a shared image is being read into text. */
+    val readingImage = MutableStateFlow(false)
     private var turnJob: Job? = null
     private var backupJob: Job? = null
 
@@ -215,6 +217,23 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeShare(shared: String) {
         pendingShare.value = shared
+    }
+
+    /** Reads a shared image into text with the chat model; only the text is kept, as a share for the next message. */
+    fun consumeSharedImage(uri: Uri) {
+        readingImage.value = true
+        viewModelScope.launch(Dispatchers.IO) {
+            val failure = try {
+                val bitmap = runCatching { com.her.data.remote.decodeScaled(app, uri, com.her.data.remote.READ_IMAGE_SIDE) }.getOrNull()
+                if (bitmap == null) R.string.image_unreadable
+                else { pendingShare.value = graph.imageReader.read(bitmap); null }
+            } catch (e: com.her.data.remote.ImageReadException) {
+                if (e.failure == com.her.data.remote.ImageReadFailure.UNSUPPORTED) R.string.image_unsupported else R.string.image_offline
+            } finally {
+                readingImage.value = false
+            }
+            if (failure != null) notice.value = TurnResult(null, failed = true, error = null, callsUsed = 0, runId = "", notice = app.getString(failure))
+        }
     }
 
     fun updateSettings(transform: (com.her.data.secure.AppSettings) -> com.her.data.secure.AppSettings) {
