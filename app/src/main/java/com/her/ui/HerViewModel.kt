@@ -223,16 +223,21 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     fun consumeSharedImage(uri: Uri) {
         readingImage.value = true
         viewModelScope.launch(Dispatchers.IO) {
-            val failure = try {
+            val failure: String? = try {
                 val bitmap = runCatching { com.her.data.remote.decodeScaled(app, uri, com.her.data.remote.READ_IMAGE_SIDE) }.getOrNull()
-                if (bitmap == null) R.string.image_unreadable
+                if (bitmap == null) app.getString(R.string.image_unreadable)
                 else { pendingShare.value = graph.imageReader.read(bitmap); null }
-            } catch (e: com.her.data.remote.ImageReadException) {
-                if (e.failure == com.her.data.remote.ImageReadFailure.UNSUPPORTED) R.string.image_unsupported else R.string.image_offline
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: com.her.data.remote.ImageUnsupportedException) {
+                app.getString(R.string.image_unsupported)
+            } catch (e: Exception) {
+                val why = AgentOrchestrator.failureOf(e).let { if (app.resources.configuration.locales[0].language == "fa") it.persian else it.english }
+                "$why ${app.getString(R.string.image_share_again)}"
             } finally {
                 readingImage.value = false
             }
-            if (failure != null) notice.value = TurnResult(null, failed = true, error = null, callsUsed = 0, runId = "", notice = app.getString(failure))
+            if (failure != null) notice.value = TurnResult(null, failed = true, error = null, callsUsed = 0, runId = "", notice = failure)
         }
     }
 

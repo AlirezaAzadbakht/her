@@ -22,7 +22,7 @@
     <string name="shared_text">هم‌رسانی‌شده: %1$s</string>
     <string name="reading_image">دارم تصویر را می‌خوانم…</string>
     <string name="image_unsupported">مدل شما نمی‌تواند تصویر بخواند. در تنظیمات ← ذهن او مدلی انتخاب کنید که بتواند.</string>
-    <string name="image_offline">نتوانستم تصویر را بخوانم. وقتی آنلاین شدید دوباره هم‌رسانی کنید.</string>
+    <string name="image_share_again">بعد از درست شدنش، تصویر را دوباره هم‌رسانی کنید.</string>
     <string name="image_unreadable">نتوانستم این تصویر را باز کنم.</string>
     <string name="stop">توقف</string>
     <string name="send">ارسال</string>

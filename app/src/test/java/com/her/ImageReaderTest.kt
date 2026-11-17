@@ -6,9 +6,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.her.core.FakeClock
 import com.her.data.db.HerDatabase
-import com.her.data.remote.ImageReadException
-import com.her.data.remote.ImageReadFailure
 import com.her.data.remote.ImageReader
+import com.her.data.remote.ImageUnsupportedException
+import com.her.data.remote.LlmException
 import com.her.data.remote.LlmClient
 import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
@@ -75,9 +75,19 @@ class ImageReaderTest {
         server.enqueue(MockResponse().setResponseCode(400).setBody("""{"error":{"message":"image input is not supported"}}"""))
         try {
             reader().read(image)
-            fail("expected ImageReadException")
-        } catch (e: ImageReadException) {
-            assertEquals(ImageReadFailure.UNSUPPORTED, e.failure)
+            fail("expected ImageUnsupportedException")
+        } catch (e: ImageUnsupportedException) {
+        }
+    }
+
+    @Test
+    fun aRefusedKeyIsReportedAsItIsNotAsUnsupported() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("""{"error":{"message":"invalid api key"}}"""))
+        try {
+            reader().read(image)
+            fail("expected LlmException")
+        } catch (e: LlmException) {
+            assertEquals(401, e.status)
         }
     }
 }

@@ -30,7 +30,7 @@
     <string name="shared_text">Shared: %1$s</string>
     <string name="reading_image">Reading the image…</string>
     <string name="image_unsupported">Your model can\'t read images. Pick one that can in Settings → Her mind.</string>
-    <string name="image_offline">Couldn\'t read the image. Try sharing it again when you\'re online.</string>
+    <string name="image_share_again">Share the image again once that\'s sorted.</string>
     <string name="image_unreadable">Couldn\'t open that image.</string>
     <string name="stop">Stop</string>
     <string name="send">Send</string>
