@@ -35,6 +35,7 @@ class ComposeMessageTest {
     private lateinit var settings: AppSettingsStore
     private lateinit var tools: ToolRegistry
     private val opened = mutableListOf<Pair<String, String>>()
+    private val shared = mutableListOf<Pair<String, String?>>()
     private val book = listOf(
         PhoneContact("Mom", listOf("+98 912 000 0001"), null),
         PhoneContact("Reza Karimi", listOf("0912 111 1111"), null),
@@ -54,7 +55,10 @@ class ComposeMessageTest {
             CalendarDataSource(context),
             WebSearchClient(),
             contacts = ContactsSource { q -> book.filter { it.name.contains(q, ignoreCase = true) } },
-            composer = MessageComposer { phone, text -> opened += phone to text; Result.success(Unit) },
+            composer = object : MessageComposer {
+                override fun compose(phone: String, text: String): Result<Unit> { opened += phone to text; return Result.success(Unit) }
+                override fun share(text: String, subject: String?): Result<Unit> { shared += text to subject; return Result.success(Unit) }
+            },
         )
     }
 
@@ -98,5 +102,21 @@ class ComposeMessageTest {
         tools.runType = AgentRunType.HOURLY
         assertFalse(compose("+98 912 333 3333").ok)
         assertTrue(opened.isEmpty())
+    }
+
+    private fun share(args: JSONObject) = runBlocking { tools.execute("share_text", args.toString()) }
+
+    @Test
+    fun shareOpensTheSheetWithTextAndSubject() {
+        assertTrue(share(JSONObject().put("text", "See you at 6").put("subject", "Dinner")).ok)
+        assertTrue(share(JSONObject().put("text", "On my way")).ok)
+        assertEquals(listOf("See you at 6" to "Dinner", "On my way" to null), shared)
+    }
+
+    @Test
+    fun backgroundPassesCannotShare() {
+        tools.runType = AgentRunType.NIGHTLY
+        assertFalse(share(JSONObject().put("text", "On my way")).ok)
+        assertTrue(shared.isEmpty())
     }
 }

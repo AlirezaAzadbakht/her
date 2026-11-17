@@ -68,7 +68,7 @@ Core principles:
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 💸 **Money log** | Notes what you say you spent and adds it up by day, week, or category when you ask |
 | 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
-| 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone for you to send |
+| 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone, or the share sheet for WhatsApp, Telegram or email, for you to send |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
