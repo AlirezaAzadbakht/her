@@ -152,3 +152,4 @@ API credentials are set on each phone; a backup never carries them.
 - **Quick-settings tile** (`entry/HerTileService`): opens `MainActivity` and collapses the shade.
 - **Assistant app**: `MainActivity` answers `ACTION_ASSIST`, so Her can be chosen under the phone's default assistant setting. It opens the app; there is no voice interaction service.
 - **Share sheet**: `ACTION_SEND` with `text/plain`.
+- **Home-screen widget** (`widget/HerWidget`): her latest assistant message, markdown flattened by `markdownToPlain`. `HerApplication` watches `observeLatestAssistant()` and redraws it on every new row; no polling. Tapping the text opens `MainActivity`; **Write** opens `QuickNoteActivity`, a dialog with one field that queues the note through `AppGraph.queueFromOutside` (the same path as a notification reply) and closes. Before setup it opens the app instead.
