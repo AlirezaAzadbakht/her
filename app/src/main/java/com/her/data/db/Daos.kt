@@ -451,3 +451,15 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE deletedAt IS NULL AND spentAt >= :from AND spentAt < :to ORDER BY spentAt DESC")
     suspend fun between(from: Long, to: Long): List<ExpenseEntity>
 }
+
+@Dao
+interface PlaceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: PlaceEntity)
+
+    @Query("SELECT * FROM places WHERE deletedAt IS NULL AND name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun byName(name: String): PlaceEntity?
+
+    @Query("SELECT * FROM places WHERE deletedAt IS NULL ORDER BY name")
+    suspend fun all(): List<PlaceEntity>
+}

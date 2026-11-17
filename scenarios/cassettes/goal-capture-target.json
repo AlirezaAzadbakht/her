@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "bbcb5632964fb3c8",
-          "summary": "tools=96 [user(I want to run a half mar)]",
+          "fingerprint": "3915051fe32dfc96",
+          "summary": "tools=97 [user(I want to run a half mar)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "e216584a8de2dd7e",
-          "summary": "tools=96 [user(I want to run a half mar) assistant->create_goal tool:create_goal]",
+          "fingerprint": "adee4f2ad6c68f7c",
+          "summary": "tools=97 [user(I want to run a half mar) assistant->create_goal tool:create_goal]",
           "response": {
             "role": "assistant",
             "content": "I'll keep the half marathon as a goal for March.",

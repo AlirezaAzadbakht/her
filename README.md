@@ -70,6 +70,7 @@ Core principles:
 | 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
 | 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone, or the share sheet for WhatsApp, Telegram or email, for you to send |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
+| 📍 **Place reminders** | "Remind me when I get home": say "this is home" once while you're there, and the reminder rings on arrival. Uses the phone's own location (no Google Play Services), and nothing runs while location is off |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
 | 🕸️ **Personality** | Six traits seeded from the name you give her (a few [special names](#special-names) have their own), growing slowly from your time together; ask her to be more playful or less blunt and she works on it over a few days; shown as a web chart in the Memory tab. [How it works](wiki/Personality.md) |

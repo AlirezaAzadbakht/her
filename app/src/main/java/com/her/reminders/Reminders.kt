@@ -6,12 +6,14 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
 import com.her.HerApplication
 import com.her.MainActivity
 import com.her.core.newId
+import com.her.data.db.PlaceEntity
 import com.her.data.repository.HerRepository
 import com.her.domain.CommitmentStatus
 import com.her.domain.MessageRole
@@ -34,6 +36,12 @@ interface ReminderAlarms {
     /** Whether a reminder or alarm rings on the minute; Android 12+ asks the user first. */
     fun exactAllowed(): Boolean = true
 
+    /** Watches for arriving at [place]; only called while [placesWatched]. */
+    fun armPlace(reminder: Reminder, place: PlaceEntity) = Unit
+
+    /** Whether place alerts may be registered: the setting is on and location is allowed all the time. */
+    fun placesWatched(): Boolean = false
+
     companion object {
         val NONE: ReminderAlarms = object : ReminderAlarms {
             override fun arm(reminder: Reminder) = Unit
@@ -42,11 +50,24 @@ interface ReminderAlarms {
     }
 }
 
-/** Arms every clock reminder this device owns and disarms the rest. Safe to call any time. */
+/**
+ * Arms every clock and place reminder this device owns and disarms the rest. Safe to call any time. Place alerts
+ * are removed while the setting is off or location isn't allowed all the time. While location is switched off,
+ * Android itself stops polling and keeps the alerts inactive until it is back on, so that costs no battery either.
+ */
 suspend fun ReminderAlarms.rearmAll(repo: HerRepository) {
-    repo.reminders()
-        .filter { it.trigger == ReminderTrigger.TIME && it.deviceId == repo.deviceId }
-        .forEach { if (it.status == ReminderStatus.SCHEDULED && it.fireAt != null) arm(it) else disarm(it.id) }
+    val watched = placesWatched()
+    repo.reminders().filter { it.deviceId == repo.deviceId }.forEach {
+        val live = it.status == ReminderStatus.SCHEDULED
+        when (it.trigger) {
+            ReminderTrigger.TIME -> if (live && it.fireAt != null) arm(it) else disarm(it.id)
+            ReminderTrigger.PLACE -> {
+                val place = if (live && watched) it.place?.let { name -> repo.placeNamed(name) } else null
+                if (place != null) armPlace(it, place) else disarm(it.id)
+            }
+            ReminderTrigger.PERSON -> Unit
+        }
+    }
 }
 
 /** Sets an alarm in the phone's own clock app. */
@@ -106,14 +127,32 @@ class ReminderDelivery(
                 }
                 reminder
             }
-            if (deliver != null) {
-                val metadata = JSONObject().put("reminder", deliver.id).toString()
-                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliver.message, MessageStatus.SENT, metadata))
-                if (deliver.alarm) notifier.showAlarm(deliver.id, deliver.message) else notifier.showReminder(deliver.id, deliver.message)
-                repo.logActivity("reminder", "Fired: ${deliver.message.take(80)}")
-            }
+            if (deliver != null) announce(deliver)
         }
         return due
+    }
+
+    /** They arrived at the place a reminder waits for. Fires it once; false when it was no longer waiting. */
+    suspend fun firePlace(id: String): Boolean {
+        val deliver = repo.learningTransaction {
+            val reminder = repo.getReminder(id)
+                ?.takeIf { it.deletedAt == null && it.status == ReminderStatus.SCHEDULED && it.trigger == ReminderTrigger.PLACE }
+                ?: return@learningTransaction null
+            val now = repo.clock.nowMillis()
+            val wanted = stillWanted(reminder)
+            repo.saveReminder(reminder.copy(status = if (wanted) ReminderStatus.FIRED else ReminderStatus.SKIPPED,
+                firedAt = if (wanted) now else reminder.firedAt, updatedAt = now, version = reminder.version + 1))
+            reminder.takeIf { wanted }
+        } ?: return false
+        announce(deliver)
+        return true
+    }
+
+    private suspend fun announce(reminder: Reminder) {
+        val metadata = JSONObject().put("reminder", reminder.id).toString()
+        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, reminder.message, MessageStatus.SENT, metadata))
+        if (reminder.alarm) notifier.showAlarm(reminder.id, reminder.message) else notifier.showReminder(reminder.id, reminder.message)
+        repo.logActivity("reminder", "Fired: ${reminder.message.take(80)}")
     }
 
     /** "Done" on a reminder that rang: closes the task or commitment it was waiting on, without the model. */
@@ -185,8 +224,18 @@ class ReminderDelivery(
     }
 }
 
-class AndroidReminderAlarms(private val context: Context) : ReminderAlarms {
+class AndroidReminderAlarms(private val context: Context, private val location: AndroidLocation? = null) : ReminderAlarms {
     private val manager: AlarmManager? = context.getSystemService(AlarmManager::class.java)
+    private val locations: LocationManager? = context.getSystemService(LocationManager::class.java)
+
+    override fun placesWatched(): Boolean = location?.watching() == true
+
+    // ponytail: addProximityAlert is deprecated but needs no Play Services; switch to GeofencingClient if it ever stops working.
+    @Suppress("DEPRECATION", "MissingPermission")
+    override fun armPlace(reminder: Reminder, place: PlaceEntity) {
+        val intent = placeIntent(reminder.id, create = true) ?: return
+        runCatching { locations?.addProximityAlert(place.lat, place.lng, place.radiusM, -1, intent) }
+    }
 
     /** False on Android 12+ until they allow exact alarms; reminders then ring within a few minutes. */
     override fun exactAllowed(): Boolean =
@@ -212,9 +261,20 @@ class AndroidReminderAlarms(private val context: Context) : ReminderAlarms {
     }
 
     override fun disarm(id: String) {
+        placeIntent(id, create = false)?.let { runCatching { locations?.removeProximityAlert(it) }; it.cancel() }
         val intent = pendingIntent(id, create = false) ?: return
         manager?.cancel(intent)
         intent.cancel()
+    }
+
+    private fun placeIntent(id: String, create: Boolean): PendingIntent? {
+        val intent = Intent(context, ReminderReceiver::class.java)
+            .setAction(ReminderReceiver.ACTION_PLACE)
+            .setData(Uri.parse("her-place://$id"))
+        // Mutable: the location service adds whether they are entering or leaving.
+        val flags = PendingIntent.FLAG_MUTABLE or
+            if (create) PendingIntent.FLAG_UPDATE_CURRENT else PendingIntent.FLAG_NO_CREATE
+        return PendingIntent.getBroadcast(context, 0, intent, flags)
     }
 
     private fun pendingIntent(id: String, create: Boolean): PendingIntent? {
@@ -261,13 +321,14 @@ fun herOnScreen(): Boolean {
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != ACTION_FIRE) return
+        val arriving = intent.action == ACTION_PLACE && intent.getBooleanExtra(LocationManager.KEY_PROXIMITY_ENTERING, false)
+        if (intent.action != ACTION_FIRE && !arriving) return
         val graph = (context.applicationContext as? HerApplication)?.graph ?: return
         val pending = goAsync()
         graph.io.execute {
             try {
                 runBlocking {
-                    graph.reminderDelivery.fireDue()
+                    if (arriving) intent.data?.host?.let { graph.reminderDelivery.firePlace(it) } else graph.reminderDelivery.fireDue()
                     graph.reminderAlarms.rearmAll(graph.repo)
                 }
             } finally {
@@ -278,5 +339,6 @@ class ReminderReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_FIRE = "com.her.REMINDER_FIRE"
+        const val ACTION_PLACE = "com.her.REMINDER_PLACE"
     }
 }

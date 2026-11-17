@@ -96,6 +96,7 @@ class ContextBuilder(
         val nextDay = (internalCal + systemCal).filter { it.startAt in nowMs..(nowMs + DAY_MS) }
         val reminders = repo.reminders().filter { it.status == ReminderStatus.SCHEDULED }.capped("Reminders", 12)
             .map { reminderLine(it, nextDay, zone) }
+        val places = repo.places()
 
         // Slow-changing sections come first so providers can reuse the cached prompt prefix across calls.
         // The clock, retrieval, and live lists change every turn, so they come after.
@@ -187,6 +188,8 @@ class ContextBuilder(
             appendSection("Tasks", tasks.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" }, hidden["Tasks"] ?: 0)
             appendSection("Commitments", commitments.map { "${it.id} | ${it.title} [${it.status}]${due(it.dueAt, now, zone)}" }, hidden["Commitments"] ?: 0)
             appendSection("Reminders", reminders, hidden["Reminders"] ?: 0)
+            // Names only: coordinates never go to the model.
+            appendSection("Saved places (save_place)", places.map { it.name })
             appendSection("Pending confirmations", repo.pendingConfirmations().map {
                 "${it.id} | ${it.summary}. Pass this id as confirmId."
             })
