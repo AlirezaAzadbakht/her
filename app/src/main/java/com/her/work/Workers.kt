@@ -340,7 +340,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action !in REARM_ACTIONS) return
         val app = context.applicationContext as? HerApplication ?: return
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) app.graph.scheduler.enqueueAll()
-        // Alarms do not survive a reboot or an update, and a clock or timezone change moves when they should ring.
+        // Alarms and place alerts do not survive a reboot or an update, and a clock or timezone change moves when they should ring.
         val pending = goAsync()
         app.graph.io.execute {
             try {
@@ -359,6 +359,8 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
             AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED,
+            // Location switched on or off: place alerts are added back or removed, so off costs no battery.
+            android.location.LocationManager.PROVIDERS_CHANGED_ACTION,
         )
     }
 }

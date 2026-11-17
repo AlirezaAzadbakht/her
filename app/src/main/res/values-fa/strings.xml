@@ -76,6 +76,14 @@
     <string name="calendar_access">دسترسی به تقویم</string>
     <string name="contacts_access">دسترسی به مخاطبان</string>
     <string name="contacts_access_hint">وقتی بخواهی، می‌تواند شماره تلفن یا تاریخ تولد کسی را پیدا کند. مخاطبی که پیدا می‌کند برای مدل تو فرستاده می‌شود.</string>
+    <string name="place_reminders">یادآوری‌های مکانی</string>
+    <string name="place_reminders_hint">یادآوری‌هایی مثل «وقتی رسیدم خانه» وقتی به آنجا برسی به صدا درمی‌آیند. مکان‌ها وقتی به او بگویی آنجایی روی همین گوشی ذخیره می‌شوند و موقعیتشان هرگز برای مدل تو فرستاده نمی‌شود. وقتی موقعیت مکانی خاموش است، هیچ کاری انجام نمی‌شود.</string>
+    <string name="location">موقعیت مکانی</string>
+    <string name="place_needs_location">برای اینکه بداند کی می‌رسی، به موقعیت مکانی‌ات نیاز دارد.</string>
+    <string name="allow_location">اجازهٔ موقعیت مکانی</string>
+    <string name="place_needs_always">برای اینکه وقتی برنامه بسته است هم به صدا دربیاید، موقعیت مکانی را روی «همیشه مجاز» بگذار.</string>
+    <string name="allow_location_always">همیشه مجاز</string>
+    <string name="place_location_off">موقعیت مکانی گوشی خاموش است، پس یادآوری‌های مکانی متوقف شده‌اند.</string>
     <string name="calendar">تقویم</string>
     <string name="contacts">مخاطبان</string>
     <string name="permission_blocked">دسترسی به %1$s در تنظیمات اندروید برای هِر خاموش است. آنجا اجازه بده، بعد این را روشن کن.</string>

@@ -53,6 +53,7 @@ open class ToolRegistry(
     internal val alarmClock: AlarmClockPort = AlarmClockPort.UNAVAILABLE,
     internal val focus: FocusTimer? = null,
     internal val contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
+    internal val location: com.her.reminders.CurrentLocation = com.her.reminders.CurrentLocation.NONE,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
@@ -329,7 +330,7 @@ open class ToolRegistry(
 /** Offered only when Settings → Web search is on. */
 internal val WEB_TOOLS = setOf("web_search", "fetch_url")
 
-internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering")
+internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering", "save_place")
 
 /** Filing feelings and writing episodes is the nightly review's work; chat and the other passes only feel (after the reply) and recall. */
 internal val REFLECTION_ONLY_TOOLS = emotionalToolNames - "get_emotional_state" + "set_feeling" + "save_episode"

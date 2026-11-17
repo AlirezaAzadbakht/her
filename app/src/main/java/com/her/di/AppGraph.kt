@@ -56,7 +56,8 @@ class AppGraph(context: Context) {
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)
-    val reminderAlarms = AndroidReminderAlarms(appContext)
+    val location = com.her.reminders.AndroidLocation(appContext, settings)
+    val reminderAlarms = AndroidReminderAlarms(appContext, location)
     val reminderDelivery = ReminderDelivery(repo, notifier)
     val focus = FocusTimer(settings, repo, notifier, AndroidFocusAlarm(appContext))
 
@@ -67,7 +68,7 @@ class AppGraph(context: Context) {
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext))
+        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext), location)
     }
 
     val orchestrator: AgentOrchestrator by lazy {

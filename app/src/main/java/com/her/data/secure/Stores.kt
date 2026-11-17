@@ -96,6 +96,8 @@ data class AppSettings(
     val nightlyProgress: String = "",
     /** She may look people up in the phone's contacts. Off until they turn it on and grant the permission. */
     val contactsEnabled: Boolean = false,
+    /** Place reminders fire on arrival. On by default; the location permission is asked when first needed. */
+    val placeRemindersEnabled: Boolean = true,
     /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
     val backgroundModel: String = "",
     /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
@@ -146,6 +148,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             lastNightlyRunAt = prefs.getLong(KEY_NIGHTLY_AT, 0L),
             nightlyProgress = prefs.getString(KEY_NIGHTLY_PROGRESS, "") ?: "",
             contactsEnabled = prefs.getBoolean(KEY_CONTACTS, false),
+            placeRemindersEnabled = prefs.getBoolean(KEY_PLACES, true),
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
@@ -182,6 +185,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putLong(KEY_NIGHTLY_AT, next.lastNightlyRunAt)
             putString(KEY_NIGHTLY_PROGRESS, next.nightlyProgress)
             putBoolean(KEY_CONTACTS, next.contactsEnabled)
+            putBoolean(KEY_PLACES, next.placeRemindersEnabled)
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
@@ -207,6 +211,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_WEB_KEY = "web_search_key"
         private const val KEY_CAL = "calendar_enabled"
         private const val KEY_CONTACTS = "contacts_enabled"
+        private const val KEY_PLACES = "place_reminders"
         private const val KEY_CHAT_LIMIT = "chat_tool_limit"
         private const val KEY_HOURLY = "last_hourly"
         private const val KEY_NIGHTLY = "last_nightly"
