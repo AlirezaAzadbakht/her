@@ -246,12 +246,17 @@ class SystemAlarmClock(private val context: Context) : AlarmClockPort {
         }
         // Android drops activity starts from the background without an error, so an alarm set from a notification
         // reply or a background pass would never exist. Say so rather than report success.
-        val state = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }
-        if (state.importance > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+        if (!herOnScreen()) {
             error("The clock app can only be opened while Her is on screen. Set a reminder for that time instead.")
         }
         context.startActivity(intent)
     }
+}
+
+/** Android drops activity starts made while Her is in the background, without an error. */
+fun herOnScreen(): Boolean {
+    val state = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }
+    return state.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
 }
 
 class ReminderReceiver : BroadcastReceiver() {
