@@ -6,6 +6,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.her.data.db.HerDatabase
 import com.her.data.db.ImportantDateEntity
 import com.her.data.db.LongTermMemoryEntity
+import com.her.data.db.MemoryCounts
+import com.her.data.db.PersonEntity
 import com.her.data.db.SqlBrowser
 import com.her.data.db.UserUnderstandingEntity
 import com.her.domain.MemorySource
@@ -71,6 +73,31 @@ class SqlBrowserTest {
         assertEquals(listOf(listOf<String?>("3")), last.rows)
         assertFalse(last.truncated)
         assertTrue(browser.query(sql, rowCap = 1, offset = 9).rows.isEmpty())
+    }
+
+    @Test
+    fun countsTopicsAndPeopleSkipForgottenOrStale() = runBlocking {
+        db.memoryDao().upsertLong(longMemory("l1", "Sara's birthday is 3 March", at = 10).copy(category = "family"))
+        db.memoryDao().upsertLong(longMemory("l2", "Has a sister", at = 20).copy(category = "family", importance = 0.9))
+        db.memoryDao().upsertLong(longMemory("l3", "Likes tea", at = 30).copy(category = "taste"))
+        db.memoryDao().upsertLong(longMemory("l4", "Old", at = 40).copy(category = "taste", status = MemoryStatus.HISTORICAL))
+        db.userUnderstandingDao().upsert(
+            UserUnderstandingEntity("u1", "rhythm", "Prefers mornings", 0.8, 0.5, MemorySource.AGENT_INFERENCE, null, MemoryStatus.ACTIVE, 5, 20, "dev", 1, null),
+        )
+        db.personDao().upsert(PersonEntity("p1", "Sara", "sister", null, "Plays violin", null, 10, 0.8, 1, 1, "dev", 1, null))
+        db.personDao().upsert(PersonEntity("p2", "Reza", "friend", null, null, null, 50, 0.8, 1, 1, "dev", 1, null))
+        db.personDao().upsert(PersonEntity("p3", "Gone", null, null, null, null, 90, 0.8, 1, 1, "dev", 1, 91))
+
+        assertEquals(MemoryCounts(remembered = 3, learnt = 1, people = 2), browser.memoryCounts())
+
+        val topics = browser.knownTopics()
+        assertEquals(listOf("family", "taste", "rhythm"), topics.map { it.name })
+        assertEquals(listOf("Has a sister", "Sara's birthday is 3 March"), topics.first().items)
+        assertEquals("learnt", topics.last().kind)
+
+        val people = browser.people()
+        assertEquals(listOf("Reza", "Sara"), people.map { it.name })
+        assertTrue("Plays violin" in people.last().details)
     }
 
     private fun longMemory(id: String, content: String, at: Long) = LongTermMemoryEntity(

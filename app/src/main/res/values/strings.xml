@@ -118,6 +118,17 @@
     <string name="share_backup">Share backup</string>
     <string name="share_readable">Share what Her knows</string>
     <string name="backup_failed">Backup failed.</string>
+    <string name="at_a_glance">At a glance</string>
+    <string name="stat_memories">Memories</string>
+    <string name="stat_insights">Insights</string>
+    <string name="stat_notes">Notes</string>
+    <string name="stat_people">People</string>
+    <string name="stat_dates">Dates</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
+    <string name="what_she_knows">What she knows</string>
+    <string name="people_she_knows">People she knows</string>
+    <string name="advanced_memory_hint">Tables and SQL queries</string>
     <string name="lately">Lately</string>
     <string name="lately_empty">Nothing yet. What she learns about you shows up here.</string>
     <string name="database">Database</string>

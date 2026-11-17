@@ -23,6 +23,29 @@ data class RecentMemory(
     val updatedAt: Long,
 )
 
+/** How much she holds, counting only what is still active and not forgotten. */
+data class MemoryCounts(
+    val remembered: Int = 0,
+    val noted: Int = 0,
+    val learnt: Int = 0,
+    val people: Int = 0,
+    val dates: Int = 0,
+)
+
+/** What she knows under one long-term category ([kind] `remembered`) or understanding facet ([kind] `learnt`). */
+data class Topic(
+    val kind: String,
+    val name: String,
+    val items: List<String>,
+)
+
+data class PersonSummary(
+    val name: String,
+    val relationship: String?,
+    val lastMentioned: Long?,
+    val details: String,
+)
+
 object SqlGuard {
     private val ALLOWED = setOf("SELECT", "WITH", "PRAGMA", "EXPLAIN")
 
@@ -128,6 +151,48 @@ class SqlBrowser(private val db: HerDatabase) {
         """,
         rowCap = limit,
     ).rows.map { RecentMemory(it[0].orEmpty(), it[1].orEmpty(), it[2]?.toLongOrNull() ?: 0, it[3]?.toLongOrNull() ?: 0) }
+
+    fun memoryCounts(): MemoryCounts {
+        val row = query(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'),
+                (SELECT COUNT(*) FROM short_term_memories WHERE deletedAt IS NULL),
+                (SELECT COUNT(*) FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'),
+                (SELECT COUNT(*) FROM people WHERE deletedAt IS NULL),
+                (SELECT COUNT(*) FROM important_dates WHERE deletedAt IS NULL)
+            """,
+            rowCap = 1,
+        ).rows.firstOrNull() ?: return MemoryCounts()
+        val n = row.map { it?.toIntOrNull() ?: 0 }
+        return MemoryCounts(n[0], n[1], n[2], n[3], n[4])
+    }
+
+    /** Biggest topics first; within one, the most important items first. */
+    fun knownTopics(): List<Topic> = query(
+        """
+        SELECT kind, name, content FROM (
+            SELECT 'remembered' AS kind, category AS name, content, importance, updatedAt FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'
+            UNION ALL SELECT 'learnt', facet, content, importance, updatedAt FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'
+        ) ORDER BY importance DESC, updatedAt DESC
+        """,
+        rowCap = HARD_CAP,
+    ).rows
+        .groupBy({ it[0].orEmpty() to it[1].orEmpty() }, { it[2].orEmpty() })
+        .map { (key, items) -> Topic(key.first, key.second, items) }
+        .sortedByDescending { it.items.size }
+
+    fun people(): List<PersonSummary> = query(
+        "SELECT name, relationship, lastMentioned, birthday, importantNotes, preferences FROM people WHERE deletedAt IS NULL ORDER BY lastMentioned IS NULL, lastMentioned DESC, name",
+        rowCap = HARD_CAP,
+    ).rows.map {
+        PersonSummary(
+            name = it[0].orEmpty(),
+            relationship = it[1]?.takeIf(String::isNotBlank),
+            lastMentioned = it[2]?.toLongOrNull(),
+            details = listOfNotNull(it[0], it[1], it[3], it[4], it[5]).filter(String::isNotBlank).joinToString("\n\n"),
+        )
+    }
 
     companion object {
         const val HARD_CAP = 500

@@ -4,6 +4,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Changed
+- The Memory tab now shows what Her knows about you at a glance: how many memories, insights, notes, people and dates she holds, what she knows grouped by topic, and the people she knows. **Lately** lists the last ten things she picked up, with **Show more** for up to thirty. The database tables and SQL box are folded away under **Advanced**.
+
 ## [0.3.0] - 2026-11-14
 
 ### Added
