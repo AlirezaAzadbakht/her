@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Two home-screen widgets. **Her** shows her latest message: tap it to open the app, or tap **Write** to jot her a note without opening it, and her reply shows on the widget. Make it one row high for a single-line bar, or taller to read more. **How she feels** shows how she feels right now, in her colours, with what is on her mind when there is room; shrink it to one square for just the feeling.
 - Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
 - Ask Her questions across what she keeps for you, like how many tasks you finished this week, what you spent most on last month, or which goals have nothing planned, and she counts it up from her records.
 

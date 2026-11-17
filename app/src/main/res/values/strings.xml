@@ -192,4 +192,10 @@
         <item quantity="one">offline · %d waiting</item>
         <item quantity="other">offline · %d waiting</item>
     </plurals>
+    <string name="widget_description">Her latest message, and a quick way to write to her</string>
+    <string name="widget_feeling_description">How she feels right now</string>
+    <string name="widget_empty">Say something to her.</string>
+    <string name="widget_write">Write</string>
+    <string name="widget_write_hint">Tell her anything…</string>
+    <string name="widget_send">Send</string>
 </resources>

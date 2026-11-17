@@ -75,4 +75,11 @@ class AppGraph(context: Context) {
             appraiser = FastAppraiser(repo, llm) { secure.read() },
             weekStart = { java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek })
     }
+
+    /** A message written outside the app (notification reply, widget): queue it and let the outbox worker send it. */
+    suspend fun queueFromOutside(text: String, category: String, log: String) {
+        orchestrator.enqueueUserMessage(text)
+        scheduler.enqueueOutbox()
+        repo.logActivity(category, log)
+    }
 }
