@@ -2,7 +2,7 @@
 
 ## Room
 
-`HerDatabase` — file `her.db`, version 11 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`). 10→11 creates `persona_traits`; its rows are seeded from her name on first read ([Personality](Personality.md)).
+`HerDatabase` — file `her.db`, version 14 — in `app/src/main/java/com/her/data/db/Database.kt`. `MIGRATION_1_2` creates `user_understandings`; `MIGRATION_2_3` creates the `memory_embeddings` vector cache; 3→4 adds reminders, 4→5 feelings, 5→6 learning records, 6→7 companion records, 7→8 the separate `wondering` table, 8→9 adds `reminders.alarm`, `api_usage.cachedInputTokens` / `backgroundTokens`, and `tasks.googleTaskId`, and 9→10 removes what Drive sync and Google left behind: it drops `sync_ops` and `sync_cursors`, deletes `GOOGLE` calendar mirrors, and rebuilds `tasks` without `googleTaskId` (SQLite on minSdk 29 has no `DROP COLUMN`). 10→11 creates `persona_traits`; its rows are seeded from her name on first read ([Personality](Personality.md)). 11→12 adds `groceries.list`, 12→13 creates `expenses`, and 13→14 creates `places`: saved places for place reminders (name, latitude, longitude, radius).
 
 Dozens of entity tables plus FTS4 on chat, short-term, and long-term memory. `HerRepository` is the only path the UI and tools should use.
 
@@ -45,6 +45,8 @@ Settings → **Backup** and the first-run **Restore from a backup** use `Backup`
 
 - `her.db`: the Room file. Export runs `PRAGMA wal_checkpoint(TRUNCATE)`, then copies the file inside `runInTransaction`, so no writer or checkpoint changes it mid-copy.
 - `settings.json`: the portable part of `AppSettings` (`toBackupJson` / `withBackup`). That is quiet hours, web search and embeddings toggles and models, tool-call limit, Memory tab, receipts, background model and cap, and `deviceId`. The device id comes along because reminders and schedules ring only on the device that owns them. API keys, calendar access (a per-phone permission), run bookkeeping, and onboarding flags stay out.
+
+Saved places hold precise coordinates, and they travel in `her.db` like everything else, so treat a backup file as private. The coordinates are never sent to the model.
 
 **Save backup** writes through the system file picker (`CreateDocument`), and **Share** writes `cache/backup/` and hands it out through a `FileProvider`.
 

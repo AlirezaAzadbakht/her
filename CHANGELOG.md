@@ -4,6 +4,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- Reminders can ring when you get somewhere. Tell Her "this is home" or "I'm at the gym" while you're there and she saves the place on your phone. "Remind me to water the plants when I get home" then rings when you arrive. It uses your phone's own location, needs location set to **Allow all the time**, and stops entirely while location is off. You can turn it off under **Place reminders** in Settings. The place's location is never sent to your model.
+
 ### Changed
 - The Memory tab now shows what Her knows about you at a glance: how many memories, insights, notes, people and dates she holds, what she knows grouped by topic, and the people she knows. **Lately** lists the last ten things she picked up, with **Show more** for up to thirty. The database tables and SQL box are folded away under **Advanced**.
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
