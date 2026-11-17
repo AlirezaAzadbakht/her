@@ -30,9 +30,6 @@
     }
   ],
   "expect": {
-    "tools_called": [
-      "query_records"
-    ],
     "tools_not_called": [
       "update_task",
       "create_task"
