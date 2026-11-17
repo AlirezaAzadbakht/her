@@ -272,6 +272,29 @@ internal fun ToolRegistry.registerMemoryTools() {
         })
     }
 
+    val records = sql ?: return
+    register(
+        "query_records",
+        "Count, group or compare across their records (tasks, goals, groceries, expenses, reminders…) with one SQLite SELECT. Omit sql to get tables and columns. Times are epoch millis; add deletedAt IS NULL.",
+        objSchema("sql" to str(), "limit" to num("rows, default 50, max 100")),
+    ) { args ->
+        val query = args.optStringOrNull("sql")
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (query == null) {
+                jsonObjectOf("ok" to true, "tables" to JSONObject().apply { records.recordColumns().forEach { (t, cols) -> put(t, JSONArray(cols)) } })
+            } else {
+                val result = records.queryRecords(query, args.optInt("limit", 50).coerceIn(1, 100))
+                if (result.error != null) jsonObjectOf("ok" to false, "error" to result.error)
+                else jsonObjectOf(
+                    "ok" to true,
+                    "columns" to JSONArray(result.columns),
+                    "rows" to JSONArray().apply { result.rows.forEach { put(JSONArray(it.map { v -> v ?: JSONObject.NULL })) } },
+                    "truncated" to result.truncated,
+                )
+            }
+        }
+    }
+
 }
 
 private const val DAYS_BEFORE_WEEKLY = 14L

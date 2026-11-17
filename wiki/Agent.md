@@ -60,6 +60,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 `ToolRegistry` (`app/src/main/java/com/her/agent/tools/ToolRegistry.kt`) validates and runs calls and owns undo. Each group registers itself from its own file in that package: `MemoryTools.kt`, `EntityTools.kt`, `AgentTools.kt`, `CalendarTools.kt`, `MessagingTools.kt`. Schema helpers (`objSchema`, `enumField`, `oneOf`) live in `ToolSchema.kt`. Groups:
 
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
+- `query_records`: one read-only `SELECT`/`WITH` over the record tables in `SqlBrowser.RECORD_TABLES` (tasks, goals, groceries, expenses…) for counting and grouping; called without `sql` it lists their columns. Memories, chat, feelings and internals are refused, so forgetting still holds.
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
 - Routines, important dates, recurring responsibilities

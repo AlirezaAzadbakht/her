@@ -54,6 +54,7 @@ open class ToolRegistry(
     internal val focus: FocusTimer? = null,
     internal val contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
     internal val composer: com.her.data.contacts.MessageComposer = com.her.data.contacts.MessageComposer.NONE,
+    internal val sql: com.her.data.db.SqlBrowser? = null,
 ) {
     private val handlers = linkedMapOf<String, Pair<ToolSpec, ToolHandler>>()
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)

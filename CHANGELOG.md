@@ -6,6 +6,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Added
 - Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
+- Ask Her questions across what she keeps for you, like how many tasks you finished this week, what you spent most on last month, or which goals have nothing planned, and she counts it up from her records.
 
 ### Changed
 - Her now asks for contacts access when the app opens, along with calendar and notifications, instead of only from Settings. If you already use Her, you'll see just the contacts prompt once after updating. You can still turn it off in Settings.
