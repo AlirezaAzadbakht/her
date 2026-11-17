@@ -8,6 +8,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - The Memory tab now shows what Her knows about you at a glance: how many memories, insights, notes, people and dates she holds, what she knows grouped by topic, and the people she knows. **Lately** lists the last ten things she picked up, with **Show more** for up to thirty. The database tables and SQL box are folded away under **Advanced**.
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
 
+### Fixed
+- Text you share to Her from another app now reaches her with your next message. Before, it was saved alongside the message but she never got to read it.
+
 ## [0.3.0] - 2026-11-14
 
 ### Added
