@@ -39,7 +39,7 @@ interface ReminderAlarms {
     /** Watches for arriving at [place]; only called while [placesWatched]. */
     fun armPlace(reminder: Reminder, place: PlaceEntity) = Unit
 
-    /** Whether place reminders can fire now: the setting is on, location is allowed all the time and switched on. */
+    /** Whether place alerts may be registered: the setting is on and location is allowed all the time. */
     fun placesWatched(): Boolean = false
 
     companion object {
@@ -51,8 +51,9 @@ interface ReminderAlarms {
 }
 
 /**
- * Arms every clock and place reminder this device owns and disarms the rest. Safe to call any time. With location
- * off or not allowed, every place alert is removed, so nothing keeps polling for a position.
+ * Arms every clock and place reminder this device owns and disarms the rest. Safe to call any time. Place alerts
+ * are removed while the setting is off or location isn't allowed all the time. While location is switched off,
+ * Android itself stops polling and keeps the alerts inactive until it is back on, so that costs no battery either.
  */
 suspend fun ReminderAlarms.rearmAll(repo: HerRepository) {
     val watched = placesWatched()

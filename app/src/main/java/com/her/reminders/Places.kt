@@ -45,8 +45,11 @@ class AndroidLocation(private val context: Context, private val settings: AppSet
 
     override fun backgroundAllowed(): Boolean = granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
 
-    /** Ready to watch for arrivals: on, allowed all the time, and location switched on. Off costs no battery. */
-    fun watching(): Boolean = problem() == null && backgroundAllowed()
+    /**
+     * Alerts may be registered: the setting is on and location is allowed all the time. Whether location is switched
+     * on doesn't matter here: while it is off, Android keeps the alerts inactive and doesn't poll.
+     */
+    fun watching(): Boolean = problem().let { it == null || it == "location_off" } && backgroundAllowed()
 
     override suspend fun fix(): Pair<Double, Double>? {
         val manager = manager ?: return null

@@ -359,8 +359,6 @@ class BootReceiver : BroadcastReceiver() {
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
             AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED,
-            // Location switched on or off: place alerts are added back or removed, so off costs no battery.
-            android.location.LocationManager.PROVIDERS_CHANGED_ACTION,
         )
     }
 }
