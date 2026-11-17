@@ -114,6 +114,12 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aZeroExpiryKeepsAShortTermMemoryVisible() = runBlocking {
+        tools.execute("remember", """{"content":"Parked at P3, spot 118","scope":"short_term","expiresAt":0}""")
+        assertEquals(listOf("Parked at P3, spot 118"), repo.activeShort().map { it.content })
+    }
+
+    @Test
     fun sharedTextReachesTheModel() = runBlocking {
         val llm = ScriptedLlm({ reply("Saved your ticket.") })
         val orchestrator = orchestrator(llm)

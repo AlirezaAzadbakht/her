@@ -125,7 +125,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                     importance = clamp01(args.optDoubleOr("importance", 0.4)),
                     createdAt = now,
                     updatedAt = now,
-                    expiresAt = args.optLongOrNull("expiresAt"),
+                    // A 0 or past expiry would hide the memory the moment it is saved; models send 0 for "none".
+                    expiresAt = args.optLongOrNull("expiresAt")?.takeIf { it > now },
                     sourceMessageId = args.optStringOrNull("sourceMessageId"),
                     source = source,
                     metadataJson = null,
