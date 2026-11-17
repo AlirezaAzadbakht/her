@@ -127,19 +127,21 @@ Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 
 ## Settings
 
-Settings is grouped into glass cards that rise in on first open:
+Settings is grouped into glass cards that rise in on first open. Each `SectionCard` has a one-line `description` under its title.
 
-- **Her mind:** the model in use, then the same `HerCloudConnect` buttons as setup. LLM endpoint, key, and model sit under the folded **Endpoint details** row, which opens by itself when a check fails. **Save & test** shows the connecting orb, then a drawn check.
-- **Quiet hours:** two time chips that open a 24-hour time picker and save on confirm.
+- **Her mind:** connection only: the model in use, then the same `HerCloudConnect` buttons as setup. LLM endpoint, key, and model sit under the folded **Endpoint details** row, which opens by itself when a check fails. **Save & test** shows the connecting orb, then a drawn check.
+- **What she can use:** calendar, contacts, web search, and embeddings. The custom search endpoint and key appear under web search only while it is on; the embedding model appears under embeddings only while that is on.
+- **Quiet hours & reminders:** two time chips that open a 24-hour time picker and save on confirm.
   - **Hourly during quiet hours** (default off).
   - **Allow background work** while the OS is still battery-optimizing the app.
-- **Connections:** calendar, web search (same Base URL / key / model; optional custom search endpoint), and embeddings.
-- **Backup:** **Save backup** (system file picker, `her-backup-YYYY-MM-DD.zip`), **Share** (share sheet), and **Import**, which asks "Import this backup?" before it replaces everything and restarts the app. The result or error shows under the buttons.
-- **Today:** API usage numbers that count up.
+  - **Allow exact alarms** on Android 12+ while exact alarms are not granted.
+- **Backup:** **Save backup** (system file picker, `her-backup-YYYY-MM-DD.zip`), **Share** (share sheet), **Import**, which asks "Import this backup?" before it replaces everything and restarts the app, and **Export as text**. The result or error shows under the buttons.
+- **Usage today:** API usage numbers that count up.
 - **Advanced:** expands with a turning chevron.
+  - **Background thinking:** background model and daily background token cap.
   - **Experimental:** **Memory navigator (SQL)** (default on) and **Show what she saved** (default on).
   - **Developer:** developer mode, and manual run hourly / nightly.
-  - Activity, agent runs, and debug logs.
+  - **Logs:** activity, agent runs, and debug, each folded under its own row.
 
 The footer links to GitHub and credits thinking-orbs.
 

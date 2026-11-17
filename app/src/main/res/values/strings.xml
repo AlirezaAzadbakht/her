@@ -50,6 +50,17 @@
     <string name="get_credit">No code yet? Get credit on Her Cloud</string>
     <string name="not_her_cloud">That isn\'t Her Cloud settings. Get them again from Her Cloud.</string>
     <string name="from_cloud_card">From your Her Cloud card</string>
+    <string name="her_mind_desc">Which model she thinks with</string>
+    <string name="what_she_can_use">What she can use</string>
+    <string name="what_she_can_use_desc">What she\'s allowed to reach</string>
+    <string name="quiet_and_reminders">Quiet hours &amp; reminders</string>
+    <string name="quiet_and_reminders_desc">When she stays quiet, and keeping reminders on time</string>
+    <string name="backup_desc">Keep or move everything she knows</string>
+    <string name="usage_today">Usage today</string>
+    <string name="usage_today_desc">Requests and tokens since midnight</string>
+    <string name="background_thinking">Background thinking</string>
+    <string name="background_thinking_desc">The model and budget for work she does on her own</string>
+    <string name="logs">Logs</string>
     <string name="her_mind">Her mind</string>
     <string name="connected">Connected.</string>
     <string name="connected_model">Connected · %1$s</string>
