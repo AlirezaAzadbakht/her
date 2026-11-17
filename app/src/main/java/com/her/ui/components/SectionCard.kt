@@ -17,11 +17,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.ui.theme.Her
 
-/** A titled glass group. */
+/** A titled glass group, with an optional one-line [description] under the title. */
 @Composable
 fun SectionCard(
     title: String,
     modifier: Modifier = Modifier,
+    description: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = Her.colors
@@ -32,8 +33,16 @@ fun SectionCard(
             color = MaterialTheme.colorScheme.primary,
             fontSize = 11.sp,
             letterSpacing = 1.8.sp,
-            modifier = Modifier.padding(start = 6.dp, bottom = 10.dp),
+            modifier = Modifier.padding(start = 6.dp, bottom = if (description == null) 10.dp else 2.dp),
         )
+        if (description != null) {
+            Text(
+                description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 6.dp, bottom = 10.dp),
+            )
+        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()

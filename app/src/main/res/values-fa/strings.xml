@@ -42,6 +42,17 @@
     <string name="get_credit">هنوز کد نداری؟ از هِر کلاد اعتبار بگیر</string>
     <string name="not_her_cloud">این تنظیمات هِر کلاد نیست. دوباره از هِر کلاد بگیرش.</string>
     <string name="from_cloud_card">از کارت هِر کلاد تو</string>
+    <string name="her_mind_desc">با کدام مدل فکر می‌کند</string>
+    <string name="what_she_can_use">به چه دسترسی دارد</string>
+    <string name="what_she_can_use_desc">چیزهایی که اجازه دارد سراغشان برود</string>
+    <string name="quiet_and_reminders">سکوت و یادآورها</string>
+    <string name="quiet_and_reminders_desc">کی ساکت می‌ماند و یادآورها سر وقت برسند</string>
+    <string name="backup_desc">هر چه می‌داند را نگه دار یا جابه‌جا کن</string>
+    <string name="usage_today">مصرف امروز</string>
+    <string name="usage_today_desc">درخواست‌ها و توکن‌ها از نیمه‌شب</string>
+    <string name="background_thinking">فکر کردن در پس‌زمینه</string>
+    <string name="background_thinking_desc">مدل و سقف کاری که خودش انجام می‌دهد</string>
+    <string name="logs">گزارش‌ها</string>
     <string name="her_mind">ذهن او</string>
     <string name="connected">وصل شد.</string>
     <string name="connected_model">وصل شد · %1$s</string>

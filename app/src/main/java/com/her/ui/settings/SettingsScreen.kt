@@ -139,6 +139,7 @@ fun SettingsScreen(vm: HerViewModel) {
     var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
     var advanced by remember { mutableStateOf(false) }
     var endpointOpen by remember { mutableStateOf(false) }
+    var logsOpen by remember { mutableStateOf<String?>(null) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
     var testedHere by remember { mutableStateOf(false) }
@@ -207,7 +208,7 @@ fun SettingsScreen(vm: HerViewModel) {
             )
         }
         item(key = "mind") {
-            SectionCard(stringResource(R.string.her_mind), Modifier.animateItem().introRise(1, intro)) {
+            SectionCard(stringResource(R.string.her_mind), Modifier.animateItem().introRise(1, intro), stringResource(R.string.her_mind_desc)) {
                 if (model.isNotBlank()) Hint(stringResource(if (connectedCheck) R.string.connected_model else R.string.using_model, model))
                 HerCloudConnect(checking = checking) { cloud ->
                     base = cloud.baseUrl
@@ -241,59 +242,10 @@ fun SettingsScreen(vm: HerViewModel) {
                 ) {
                     NoteWithDetails(connection.orEmpty(), connectionDetail, Modifier.padding(top = 6.dp))
                 }
-                Spacer(Modifier.height(6.dp))
-                HerTextField(stringResource(R.string.background_model), backgroundModel) {
-                    backgroundModel = it
-                    vm.updateSettings { s -> s.copy(backgroundModel = it) }
-                }
-                Hint(stringResource(R.string.background_model_hint))
-                HerTextField(stringResource(R.string.background_cap), backgroundCap, keyboard = KeyboardType.Number) {
-                    backgroundCap = it.filter(Char::isDigit)
-                    vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
-                }
-                Hint(stringResource(R.string.background_cap_hint))
-                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Hint(stringResource(R.string.exact_alarms_hint), Modifier.padding(top = 10.dp))
-                    Spacer(Modifier.height(6.dp))
-                    HerButton(
-                        stringResource(R.string.allow_exact_alarms),
-                        tone = HerButtonTone.Quiet,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                .setData(Uri.parse("package:${context.packageName}"))
-                            runCatching { context.startActivity(intent) }
-                        },
-                    )
-                }
-            }
-        }
-        item(key = "quiet") {
-            SectionCard(stringResource(R.string.quiet_hours), Modifier.animateItem().introRise(2, intro)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
-                    TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
-                }
-                ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
-                    vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
-                }
-                if (unrestrictedBattery) {
-                    Hint(stringResource(R.string.background_unrestricted))
-                } else {
-                    Hint(stringResource(R.string.background_needed))
-                    HerButton(
-                        stringResource(R.string.allow_background),
-                        tone = HerButtonTone.Quiet,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                                .setData(Uri.parse("package:${context.packageName}"))
-                            runCatching { context.startActivity(intent) }
-                        },
-                    )
-                }
             }
         }
         item(key = "connections") {
-            SectionCard(stringResource(R.string.connections), Modifier.animateItem().introRise(3, intro)) {
+            SectionCard(stringResource(R.string.what_she_can_use), Modifier.animateItem().introRise(2, intro), stringResource(R.string.what_she_can_use_desc)) {
                 ToggleRow(stringResource(R.string.calendar_access), app.calendarEnabled) {
                     if (app.calendarEnabled) {
                         vm.updateSettings { it.copy(calendarEnabled = false) }
@@ -319,6 +271,22 @@ fun SettingsScreen(vm: HerViewModel) {
                     app.webSearchEnabled,
                     description = stringResource(R.string.web_search_hint),
                 ) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } }
+                AnimatedVisibility(
+                    visible = app.webSearchEnabled,
+                    enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+                    exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+                ) {
+                    Column(Modifier.padding(top = 8.dp)) {
+                        HerTextField(stringResource(R.string.search_endpoint), searchUrl) {
+                            searchUrl = it
+                            vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
+                        }
+                        HerTextField(stringResource(R.string.search_api_key), searchKey, secret = true) {
+                            searchKey = it
+                            vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
+                        }
+                    }
+                }
                 ToggleRow(
                     stringResource(R.string.embeddings),
                     app.embeddingsEnabled,
@@ -337,19 +305,48 @@ fun SettingsScreen(vm: HerViewModel) {
                         Hint(stringResource(R.string.embedding_model_hint))
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                HerTextField(stringResource(R.string.search_endpoint), searchUrl) {
-                    searchUrl = it
-                    vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
+            }
+        }
+        item(key = "quiet") {
+            SectionCard(stringResource(R.string.quiet_and_reminders), Modifier.animateItem().introRise(3, intro), stringResource(R.string.quiet_and_reminders_desc)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
+                    TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
                 }
-                HerTextField(stringResource(R.string.search_api_key), searchKey, secret = true) {
-                    searchKey = it
-                    vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
+                ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
+                    vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
+                }
+                if (unrestrictedBattery) {
+                    Hint(stringResource(R.string.background_unrestricted))
+                } else {
+                    Hint(stringResource(R.string.background_needed))
+                    HerButton(
+                        stringResource(R.string.allow_background),
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
+                }
+                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Hint(stringResource(R.string.exact_alarms_hint), Modifier.padding(top = 10.dp))
+                    Spacer(Modifier.height(6.dp))
+                    HerButton(
+                        stringResource(R.string.allow_exact_alarms),
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
                 }
             }
         }
         item(key = "backup") {
-            SectionCard(stringResource(R.string.backup), Modifier.animateItem().introRise(4, intro)) {
+            SectionCard(stringResource(R.string.backup), Modifier.animateItem().introRise(4, intro), stringResource(R.string.backup_desc)) {
                 Hint(stringResource(R.string.backup_hint))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     HerButton(stringResource(R.string.save_backup), onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
@@ -367,7 +364,7 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "today") {
-            SectionCard(stringResource(R.string.today), Modifier.animateItem().introRise(5, intro)) {
+            SectionCard(stringResource(R.string.usage_today), Modifier.animateItem().introRise(5, intro), stringResource(R.string.usage_today_desc)) {
                 val u = usage
                 if (u == null) {
                     Hint(stringResource(R.string.no_requests))
@@ -391,6 +388,20 @@ fun SettingsScreen(vm: HerViewModel) {
             AdvancedToggle(advanced, Modifier.animateItem().introRise(6, intro)) { advanced = !advanced }
         }
         if (advanced) {
+            item(key = "background") {
+                SectionCard(stringResource(R.string.background_thinking), Modifier.animateItem(), stringResource(R.string.background_thinking_desc)) {
+                    HerTextField(stringResource(R.string.background_model), backgroundModel) {
+                        backgroundModel = it
+                        vm.updateSettings { s -> s.copy(backgroundModel = it) }
+                    }
+                    Hint(stringResource(R.string.background_model_hint))
+                    HerTextField(stringResource(R.string.background_cap), backgroundCap, keyboard = KeyboardType.Number) {
+                        backgroundCap = it.filter(Char::isDigit)
+                        vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
+                    }
+                    Hint(stringResource(R.string.background_cap_hint))
+                }
+            }
             item(key = "experimental") {
                 SectionCard(stringResource(R.string.experimental), Modifier.animateItem()) {
                     ToggleRow(stringResource(R.string.memory_navigator), app.memoryTabEnabled) {
@@ -412,19 +423,17 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
             }
-            item(key = "activity") {
-                SectionCard("Activity", Modifier.animateItem()) {
-                    activity.take(30).forEach { entry -> LogCard("${entry.category}: ${entry.message}") }
-                }
-            }
-            item(key = "runs") {
-                SectionCard("Agent runs", Modifier.animateItem()) {
-                    runs.take(20).forEach { run -> LogCard("${run.type} ${run.status} calls=${run.callsUsed} ${run.error ?: ""}") }
-                }
-            }
-            item(key = "debug") {
-                SectionCard("Debug (keys redacted)", Modifier.animateItem()) {
-                    debug.take(20).forEach { event -> LogCard("${event.kind}\n${event.payload.take(500)}", muted = true) }
+            item(key = "logs") {
+                SectionCard(stringResource(R.string.logs), Modifier.animateItem()) {
+                    Disclosure("Activity", open = logsOpen == "activity", onToggle = { logsOpen = if (logsOpen == "activity") null else "activity" }) {
+                        activity.take(30).forEach { entry -> LogCard("${entry.category}: ${entry.message}") }
+                    }
+                    Disclosure("Agent runs", open = logsOpen == "runs", onToggle = { logsOpen = if (logsOpen == "runs") null else "runs" }) {
+                        runs.take(20).forEach { run -> LogCard("${run.type} ${run.status} calls=${run.callsUsed} ${run.error ?: ""}") }
+                    }
+                    Disclosure("Debug (keys redacted)", open = logsOpen == "debug", onToggle = { logsOpen = if (logsOpen == "debug") null else "debug" }) {
+                        debug.take(20).forEach { event -> LogCard("${event.kind}\n${event.payload.take(500)}", muted = true) }
+                    }
                 }
             }
         }
