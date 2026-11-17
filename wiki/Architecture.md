@@ -21,7 +21,7 @@ UI (Compose + HerViewModel)
 | Piece | File | Role |
 |-------|------|------|
 | `HerApplication` | `app/src/main/java/com/her/HerApplication.kt` | Builds `AppGraph`, enqueues WorkManager, provides `HerWorkerFactory` |
-| `MainActivity` | `app/src/main/java/com/her/MainActivity.kt` | Compose host; `ACTION_SEND` text/plain → `consumeShare()` |
+| `MainActivity` | `app/src/main/java/com/her/MainActivity.kt` | Compose host; `ACTION_SEND` text/plain → `consumeShare()`; image/* → `consumeSharedImage()` |
 | `HerApp` | `app/src/main/java/com/her/ui/HerApp.kt` | Setup gate, then Her / optional Memory / Settings |
 | `HerViewModel` | `app/src/main/java/com/her/ui/HerViewModel.kt` | UI state and agent triggers |
 

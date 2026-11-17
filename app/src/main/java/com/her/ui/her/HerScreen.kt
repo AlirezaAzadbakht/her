@@ -139,6 +139,7 @@ private val BigOrb = 150.dp
 private sealed interface HerStatus {
     data class Offline(val count: Int) : HerStatus
     data class Shared(val text: String) : HerStatus
+    data object ReadingImage : HerStatus
 }
 
 @Composable
@@ -147,6 +148,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
     val turn by vm.turnState.collectAsState()
     val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
+    val readingImage by vm.readingImage.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
     val appSettings by vm.settings.collectAsState()
@@ -307,6 +309,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
             val sharedText = share
             val status: HerStatus? = when {
                 !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
+                readingImage -> HerStatus.ReadingImage
                 !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
                 else -> null
             }
@@ -646,6 +649,10 @@ private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Text("✕", color = scheme.onSurfaceVariant, fontSize = 13.sp)
+            }
+            HerStatus.ReadingImage -> {
+                ThinkingOrb(OrbState.Weaving, size = OrbSize.Px20, displaySize = 16.dp)
+                Text(stringResource(R.string.reading_image), color = scheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }

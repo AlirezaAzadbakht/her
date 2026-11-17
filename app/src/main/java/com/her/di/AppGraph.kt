@@ -53,6 +53,7 @@ class AppGraph(context: Context) {
     val calendar = CalendarDataSource(appContext)
     val llm = LlmClient()
     val webSearch = WebSearchClient(llm = llm, llmSettings = { secure.read() })
+    val imageReader by lazy { com.her.data.remote.ImageReader(repo, llm) { secure.read() } }
     val notifier = Notifier(appContext)
     val policy = NotificationPolicy(settings)
     val scheduler = Scheduler(appContext, settings)

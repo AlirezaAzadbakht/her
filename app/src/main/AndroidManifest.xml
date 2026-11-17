@@ -55,6 +55,7 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
             </intent-filter>
             <!-- Lets them pick Her as the phone's assistant app, so the assist gesture opens her. -->
             <intent-filter>

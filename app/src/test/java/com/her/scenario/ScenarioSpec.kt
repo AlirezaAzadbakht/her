@@ -60,8 +60,11 @@ data class SeedToolCall(
 )
 
 sealed class ScenarioTurn {
-    /** `queued` leaves the message pending, like one sent offline; the next unqueued user turn sends the batch. */
-    data class User(val text: String, val queued: Boolean = false) : ScenarioTurn()
+    /**
+     * `queued` leaves the message pending, like one sent offline; the next unqueued user turn sends the batch.
+     * `shared` is text shared into Her with this message, as the share sheet attaches it (an image arrives as its text).
+     */
+    data class User(val text: String, val queued: Boolean = false, val shared: String? = null) : ScenarioTurn()
     data class Run(val kind: AutonomousRun, val concurrentWithUser: String? = null) : ScenarioTurn()
 
     /** Move the harness clock forward, e.g. `"3 days"`. */
@@ -183,7 +186,7 @@ object ScenarioLoader {
         "typicalWakeTime", "typicalSleepTime", "occupationOrStudyContext",
     )
     private val seedToolKeys = setOf("name", "arguments")
-    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued", "check")
+    private val turnKeys = setOf("user", "run", "advance", "at", "concurrent_with_user", "queued", "shared", "check")
     private val faultKeys = setOf("call", "type")
     val faultTypes = setOf("http_500", "http_429", "malformed_json", "truncated_stream")
     private val expectKeys = setOf(
@@ -388,8 +391,9 @@ object ScenarioLoader {
 
     private fun parseTurn(file: File, obj: JSONObject, path: String): ScenarioTurn {
         rejectUnknown(obj, turnKeys, path, file)
-        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) } - "queued"
+        val present = turnKeys.filter { obj.has(it) && !obj.isNull(it) } - "queued" - "shared"
         if (obj.has("queued") && !obj.has("user")) throw ScenarioParseException(file, "$path.queued needs user")
+        if (obj.has("shared") && !obj.has("user")) throw ScenarioParseException(file, "$path.shared needs user")
         val concurrent = obj.optString("concurrent_with_user").takeIf { obj.has("concurrent_with_user") && it.isNotBlank() }
         if (concurrent != null) {
             if (!obj.has("run")) throw ScenarioParseException(file, "$path.concurrent_with_user needs run")
@@ -409,7 +413,11 @@ object ScenarioLoader {
                 if (expect.reply?.judge != null) throw ScenarioParseException(file, "$path.check does not support a reply judge; use deterministic checks here and a final judge")
                 ScenarioTurn.Check(expect)
             }
-            "user" -> ScenarioTurn.User(obj.requiredString(file, "user", path), obj.optBoolean("queued", false))
+            "user" -> ScenarioTurn.User(
+                obj.requiredString(file, "user", path),
+                obj.optBoolean("queued", false),
+                if (obj.has("shared")) obj.requiredString(file, "shared", path) else null,
+            )
             "run" -> {
                 val raw = obj.requiredString(file, "run", path).lowercase()
                 if (raw !in runKinds) {
