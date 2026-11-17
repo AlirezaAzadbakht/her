@@ -61,14 +61,14 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
    - Agent queue item: learn timezone and what matters — slowly, not as an interview.
    - If chat messages already came back from a backup, this seed is skipped.
 7. Her and Settings become available. Memory appears when the experimental flag is on.
-8. The first time that main UI appears, Android asks for calendar read/write, and for notifications on API 33+.
-   - The ask is stored as `runtimePermissionsAsked` so it does not repeat.
-   - If they grant calendar, `calendarEnabled` turns on.
-   - Denial leaves the internal calendar only; Settings → Calendar access can ask again.
+8. The first time that main UI appears, Android asks for calendar read/write, contacts (`READ_CONTACTS`), and notifications on API 33+, in one `RequestFirstRunPermissions` sequence.
+   - The ask is stored as `runtimePermissionsAsked` and `contactsPermissionAsked` so it does not repeat. An install from before contacts joined the ask has only the first flag set, so it gets just the contacts prompt once.
+   - If they grant calendar, `calendarEnabled` turns on; if they grant contacts, `contactsEnabled` turns on.
+   - Denial leaves the internal calendar only and contacts off; Settings → Calendar access / Contacts access can ask again.
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or a backup file.
 
-Optional later, in Settings: Calendar access (requests permission if needed), web search.
+Optional later, in Settings: Calendar access and Contacts access (each requests permission if needed), web search.
 
 ## Her (single utterance)
 

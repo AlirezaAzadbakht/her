@@ -5,9 +5,11 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
 - Share a screenshot or photo to Her from any app: a ticket, a receipt, an event poster. She reads the text in it and you can tell her what to do with it, like "remember this". The image goes to your model once to be read and isn't kept; only the text stays. This needs a model that can read images.
 
 ### Changed
+- Her now asks for contacts access when the app opens, along with calendar and notifications, instead of only from Settings. If you already use Her, you'll see just the contacts prompt once after updating. You can still turn it off in Settings.
 - The Memory tab now shows what Her knows about you at a glance: how many memories, insights, notes, people and dates she holds, what she knows grouped by topic, and the people she knows. **Lately** lists the last ten things she picked up, with **Show more** for up to thirty. The database tables and SQL box are folded away under **Advanced**.
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
 

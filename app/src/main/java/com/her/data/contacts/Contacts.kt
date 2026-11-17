@@ -2,11 +2,14 @@ package com.her.data.contacts
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Event
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import androidx.core.content.ContextCompat
+import com.her.reminders.herOnScreen
 
 data class PhoneContact(val name: String, val phones: List<String>, val birthday: String?)
 
@@ -47,5 +50,25 @@ class AndroidContacts(private val context: Context) : ContactsSource {
 
     private companion object {
         const val MAX_RESULTS = 8
+    }
+}
+
+/** Opens a text in the phone's messaging app, filled in and waiting for them to press send. Her never sends it. */
+fun interface MessageComposer {
+    fun compose(phone: String, text: String): Result<Unit>
+
+    companion object {
+        val NONE = MessageComposer { _, _ -> Result.failure(IllegalStateException("Opening a text is not available here")) }
+    }
+}
+
+class AndroidMessageComposer(private val context: Context) : MessageComposer {
+    override fun compose(phone: String, text: String): Result<Unit> = runCatching {
+        val intent = Intent(Intent.ACTION_SENDTO, Uri.fromParts("smsto", phone, null))
+            .putExtra("sms_body", text)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (intent.resolveActivity(context.packageManager) == null) error("No messaging app on this phone takes texts")
+        if (!herOnScreen()) error("The messaging app can only be opened while Her is on screen.")
+        context.startActivity(intent)
     }
 }
