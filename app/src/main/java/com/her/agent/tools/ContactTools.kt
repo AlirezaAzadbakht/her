@@ -29,6 +29,7 @@ internal fun ToolRegistry.registerContactTools() {
     register(
         COMPOSE_TOOL,
         "Open a text to someone in the phone's messaging app, filled in for them to send themselves. Her never sends it. " +
+            "Only when they ask to send or open it; to write or draft a text, just give it in your reply. " +
             "to is a phone number, or a name looked up in contacts. If several contacts or numbers match, it returns them: ask which one.",
         objSchema("to" to str("Phone number or contact name"), "text" to str("The message, in their words"), required = listOf("to", "text")),
     ) { a ->
