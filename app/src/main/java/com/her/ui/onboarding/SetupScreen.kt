@@ -197,9 +197,9 @@ fun SetupScreen(
     checking: Boolean = false,
     onSave: (LlmSettings) -> Unit,
 ) {
-    var base by remember { mutableStateOf(initial.baseUrl) }
-    var key by remember { mutableStateOf(initial.apiKey) }
-    var model by remember { mutableStateOf(initial.model) }
+    var base by rememberSaveable { mutableStateOf(initial.baseUrl) }
+    var key by remember { mutableStateOf(initial.apiKey) } // Not saveable: a key must not go into the plain-text saved-state bundle.
+    var model by rememberSaveable { mutableStateOf(initial.model) }
     val scheme = MaterialTheme.colorScheme
     val haptics = rememberHerHaptics()
     var attempted by remember { mutableStateOf(false) }

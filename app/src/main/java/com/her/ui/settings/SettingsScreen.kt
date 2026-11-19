@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,16 +130,16 @@ fun SettingsScreen(vm: HerViewModel) {
     val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importing = it }
 
     val llm = remember { vm.llmSettings() }
-    var base by remember { mutableStateOf(llm.baseUrl) }
+    var base by rememberSaveable { mutableStateOf(llm.baseUrl) }
     var key by remember { mutableStateOf(llm.apiKey) }
-    var model by remember { mutableStateOf(llm.model) }
-    var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
+    var model by rememberSaveable { mutableStateOf(llm.model) }
+    var searchUrl by rememberSaveable { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
-    var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
-    var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
-    var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
-    var advanced by remember { mutableStateOf(false) }
-    var endpointOpen by remember { mutableStateOf(false) }
+    var embeddingModel by rememberSaveable { mutableStateOf(app.embeddingModel) }
+    var backgroundModel by rememberSaveable { mutableStateOf(app.backgroundModel) }
+    var backgroundCap by rememberSaveable { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
+    var endpointOpen by rememberSaveable { mutableStateOf(false) }
     var logsOpen by remember { mutableStateOf<String?>(null) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
