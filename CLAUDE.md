@@ -27,3 +27,4 @@ Working here:
 - Once the branch is pushed and its PR is open, remove the worktree (`git worktree remove ../her-<topic>`). Only `her` stays on disk; branches live on GitHub.
 - Commit each verified step by explicit path (not `git add -A`), as you go.
 - Push over SSH port 443 if port 22 is blocked (see [wiki/CI-and-release.md](wiki/CI-and-release.md)).
+- Close any emulator you start once your checks and tests are done (`adb emu kill`), so none is left running in the background.
