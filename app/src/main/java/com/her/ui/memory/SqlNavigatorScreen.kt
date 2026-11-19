@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -140,12 +141,12 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     val blend by vm.feelingBlend.collectAsState()
     val persona by vm.persona.collectAsState()
     var recent by remember { mutableStateOf<List<RecentMemory>?>(null) }
-    var showAllRecent by remember { mutableStateOf(false) }
+    var showAllRecent by rememberSaveable { mutableStateOf(false) }
     var counts by remember { mutableStateOf<MemoryCounts?>(null) }
     var topics by remember { mutableStateOf<List<Topic>>(emptyList()) }
     var openTopic by remember { mutableStateOf<Topic?>(null) }
     var people by remember { mutableStateOf<List<PersonSummary>>(emptyList()) }
-    var advancedOpen by remember { mutableStateOf(false) }
+    var advancedOpen by rememberSaveable { mutableStateOf(false) }
     var query by kept::query
     var tables by remember { mutableStateOf<List<TableInfo>>(emptyList()) }
     var tablesLoaded by remember { mutableStateOf(false) }

@@ -38,7 +38,12 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -132,7 +137,14 @@ fun HerApp(vm: HerViewModel) {
 
     val feelingBlend by vm.feelingBlend.collectAsState()
     AmbientBackground(Modifier.fillMaxSize(), tint = feelingPalette(feelingBlend, Her.colors.feelingPalettes)) {
-        SharedTransitionLayout(Modifier.fillMaxSize().statusBarsPadding()) {
+        // Clear the cutout and side bars in landscape, and keep lines a readable width on wide screens.
+        SharedTransitionLayout(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .wrapContentWidth()
+                .widthIn(max = 640.dp),
+        ) {
             AnimatedContent(
                 targetState = stage,
                 transitionSpec = { stageTransition() },
