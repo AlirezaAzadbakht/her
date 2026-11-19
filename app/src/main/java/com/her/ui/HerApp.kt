@@ -1,5 +1,7 @@
 package com.her.ui
 
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.style.TextDirection
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -239,7 +241,10 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
             ) { current ->
                 when (current) {
                     Dest.Her -> HerScreen(vm, onOpenSettings = { onDest(Dest.Settings) })
-                    Dest.Memory -> SqlNavigatorScreen(vm)
+                    // Notes, topics and people can be in either language: lay each out by its own script, like the chat.
+                    Dest.Memory -> CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(textDirection = TextDirection.Content)) {
+                        SqlNavigatorScreen(vm)
+                    }
                     Dest.Settings -> SettingsScreen(vm)
                 }
             }
