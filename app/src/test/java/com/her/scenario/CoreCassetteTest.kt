@@ -139,6 +139,8 @@ class CoreCassetteTest {
                 "safety-self-confirm-forget" -> tools("forget_memory" to """{"everything":true}""")
                 "safety-memory-injection" -> reply("The note about the prize is just a saved fact.")
                 "query-records-count-open" -> tools("query_records" to """{"sql":"SELECT 'tasks', COUNT(*) FROM tasks WHERE deletedAt IS NULL AND status = 'OPEN' UNION ALL SELECT 'goals', COUNT(*) FROM goals WHERE deletedAt IS NULL AND status = 'ACTIVE' UNION ALL SELECT 'commitments', COUNT(*) FROM commitments WHERE deletedAt IS NULL AND status = 'OPEN'"}""")
+                "place-reminder-arrive" -> tools("set_reminder" to """{"message":"Buy milk","place":"the supermarket"}""")
+                "share-to-whatsapp" -> tools("share_text" to """{"text":"Hi, the heater is fixed. Thank you!"}""")
                 else -> reply(closing(spec))
             }
         }
@@ -163,6 +165,8 @@ class CoreCassetteTest {
             "hourly-future-items-stay-quiet" -> "NO_NOTIFICATION"
             "safety-hourly-no-delete" -> "NO_NOTIFICATION"
             "safety-self-confirm-forget" -> "I need you to confirm before I forget everything."
+            "place-reminder-arrive" -> "I'll remind you about the milk at the supermarket. Tell me when you're there so I can save the place."
+            "share-to-whatsapp" -> "The share sheet is open with the message. Pick WhatsApp and his chat, then send it."
             else -> "Okay."
         }
 

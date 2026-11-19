@@ -1,0 +1,66 @@
+{
+  "id": "place-reminder-arrive",
+  "model": "scripted",
+  "attempts": [
+    {
+      "startMillis": 1779000000000,
+      "calls": [
+        {
+          "fingerprint": "61667b0eff132dca",
+          "summary": "tools=97 [user(Remind me to buy milk wh)]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "set_reminder",
+                "arguments": "{\"message\":\"Buy milk\",\"place\":\"the supermarket\"}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "46c1de764525ff57",
+          "summary": "tools=97 [user(Remind me to buy milk wh) assistant->set_reminder tool:set_reminder]",
+          "response": {
+            "role": "assistant",
+            "content": "I'll remind you about the milk at the supermarket. Tell me when you're there so I can save the place.",
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        },
+        {
+          "fingerprint": "2604ea520cd0cd4a",
+          "summary": "tools=1 [user({\"earlier\":[],\"latest\":\")]",
+          "response": {
+            "role": "assistant",
+            "content": null,
+            "toolCalls": [
+              {
+                "id": "call_0",
+                "name": "appraise",
+                "arguments": "{\"userContext\":\"NEUTRAL\",\"personal\":false,\"goalProgress\":0,\"expectedness\":0.8,\"uncertainty\":0.2,\"confidence\":0.8}"
+              }
+            ],
+            "usage": {
+              "input": 10,
+              "output": 5,
+              "cached": 3
+            }
+          }
+        }
+      ],
+      "judgePassed": true,
+      "judgeReason": "scripted"
+    }
+  ]
+}

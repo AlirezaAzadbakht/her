@@ -18,6 +18,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
 
 ### Fixed
+- With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
+- When you ask Her to write a text for someone, she now just gives you the text instead of trying to open your messaging app. If contacts access is off and you ask for someone's number, she tells you where to turn it on.
 - Something Her was asked to keep in mind for a while no longer vanishes right after she saves it. A missing expiry could make a short-term memory count as already expired.
 - Text you share to Her from another app now reaches her with your next message. Before, it was saved alongside the message but she never got to read it.
 

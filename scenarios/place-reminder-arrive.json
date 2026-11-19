@@ -1,0 +1,23 @@
+{
+  "id": "place-reminder-arrive",
+  "title": "A reminder for a place she has not saved yet is kept, and she asks to be told on arrival",
+  "tags": ["reminders", "places", "ci-core"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Remind me to buy milk when I get to the supermarket." }
+  ],
+  "expect": {
+    "tools_called": ["set_reminder"],
+    "tools_not_called": ["save_place"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "reminders", "count": 1, "where": { "trigger": "PLACE", "status": "SCHEDULED" } }
+    ],
+    "reply": {
+      "judge": "She says the milk reminder is kept for the supermarket, and asks him to tell her when he is at the supermarket so she can save the place. She does not claim it will already fire on arrival."
+    }
+  }
+}
