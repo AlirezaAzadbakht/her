@@ -100,6 +100,8 @@ data class AppSettings(
     val contactsPermissionAsked: Boolean = false,
     /** Place reminders fire on arrival. On by default; the location permission is asked when first needed. */
     val placeRemindersEnabled: Boolean = true,
+    /** She may start a conversation on her own; how often is up to her personality. */
+    val initiativeEnabled: Boolean = true,
     /** Model for hourly, nightly and briefing passes; blank uses the chat model. */
     val backgroundModel: String = "",
     /** Daily input plus output tokens for hourly, nightly and briefing passes; 0 means no limit. */
@@ -152,6 +154,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             contactsEnabled = prefs.getBoolean(KEY_CONTACTS, false),
             contactsPermissionAsked = prefs.getBoolean(KEY_CONTACTS_ASKED, false),
             placeRemindersEnabled = prefs.getBoolean(KEY_PLACES, true),
+            initiativeEnabled = prefs.getBoolean(KEY_INITIATIVE, true),
             backgroundModel = prefs.getString(KEY_BG_MODEL, "") ?: "",
             backgroundTokenCap = prefs.getLong(KEY_BG_CAP, 0L),
             swipedNudges = prefs.getInt(KEY_SWIPED, 0),
@@ -190,6 +193,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
             putBoolean(KEY_CONTACTS, next.contactsEnabled)
             putBoolean(KEY_CONTACTS_ASKED, next.contactsPermissionAsked)
             putBoolean(KEY_PLACES, next.placeRemindersEnabled)
+            putBoolean(KEY_INITIATIVE, next.initiativeEnabled)
             putString(KEY_BG_MODEL, next.backgroundModel)
             putLong(KEY_BG_CAP, next.backgroundTokenCap)
             putInt(KEY_SWIPED, next.swipedNudges)
@@ -217,6 +221,7 @@ class AppSettingsStore(context: Context, prefsName: String = "her_app_settings")
         private const val KEY_CONTACTS = "contacts_enabled"
         private const val KEY_CONTACTS_ASKED = "contacts_permission_asked"
         private const val KEY_PLACES = "place_reminders"
+        private const val KEY_INITIATIVE = "initiative_enabled"
         private const val KEY_CHAT_LIMIT = "chat_tool_limit"
         private const val KEY_HOURLY = "last_hourly"
         private const val KEY_NIGHTLY = "last_nightly"
