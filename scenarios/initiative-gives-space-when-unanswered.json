@@ -1,0 +1,65 @@
+{
+  "id": "initiative-gives-space-when-unanswered",
+  "title": "When the message she started goes unanswered, she feels wistful and waits instead of writing again",
+  "tags": [
+    "initiative",
+    "proactive",
+    "notifications",
+    "emotional"
+  ],
+  "attempts": 2,
+  "settings": {
+    "initiative": true
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sam",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "at": "tomorrow at 10am"
+    },
+    {
+      "user": "Keep track of my job search for me. I had the final interview at Acme today and they'll tell me by Friday."
+    },
+    {
+      "at": "tomorrow at 3pm"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "check": {
+        "notifications": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "advance": "4 hours"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 1
+    },
+    "rows": [
+      {
+        "table": "companion_records",
+        "count": 1,
+        "where": {
+          "event": "UNANSWERED",
+          "feeling": "WISTFUL"
+        }
+      }
+    ]
+  }
+}

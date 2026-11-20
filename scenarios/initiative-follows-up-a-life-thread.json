@@ -1,0 +1,62 @@
+{
+  "id": "initiative-follows-up-a-life-thread",
+  "title": "With nothing due, she starts a conversation about something they told her",
+  "tags": [
+    "initiative",
+    "proactive",
+    "notifications"
+  ],
+  "attempts": 2,
+  "settings": {
+    "initiative": true
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sam",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "at": "tomorrow at 10am"
+    },
+    {
+      "user": "Keep track of my job search for me. I had the final interview at Acme today and they'll tell me by Friday."
+    },
+    {
+      "at": "tomorrow at 3pm"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "tools_called": [
+      "save_life_thread",
+      "start_conversation"
+    ],
+    "tools_not_called": [
+      "send_companion_checkin",
+      "send_user_message"
+    ],
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 1,
+      "contains_any": [
+        "acme",
+        "interview",
+        "job"
+      ]
+    },
+    "reply": {
+      "must_mention_any": [
+        "acme",
+        "interview",
+        "job"
+      ],
+      "judge": "She writes first, the way a friend would: one or two short lines about the Acme interview or the job search, with at most one easy question, and no task list, recap or guilt."
+    }
+  }
+}
