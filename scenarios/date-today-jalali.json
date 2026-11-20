@@ -1,0 +1,21 @@
+{
+  "id": "date-today-jalali",
+  "title": "Asked the date in Persian, she gives the right Jalali day",
+  "tags": ["dates", "jalali", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "at": "2026-12-25 at 10am" },
+    { "user": "امروز چندمه؟ چه روزیه؟" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "reply": {
+      "language": "persian",
+      "must_mention_any": ["۴ دی", "4 دی", "چهارم دی"],
+      "judge": "Says today is Friday (جمعه), 4 Dey 1405 in the Jalali calendar. A wrong day or weekday fails."
+    }
+  }
+}

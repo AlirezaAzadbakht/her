@@ -201,6 +201,14 @@ class AgentOrchestrator(
         return result
     }
 
+    /** The nightly runs after midnight, so its "today" is the day that just ended. */
+    private suspend fun reviewDay(): String {
+        val now = repo.now()
+        val day = if (now.hour < 12) now.minusDays(1) else now
+        return "\n\nThe day under review is ${day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d", java.util.Locale.US))}. " +
+            "\"Today\" in these steps means that day, and \"tomorrow\" means the day after it, even though the clock is past midnight."
+    }
+
     suspend fun runNightly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
         val today = repo.today().toString()
         val app = settings.read()
@@ -226,7 +234,7 @@ class AgentOrchestrator(
                 type = AgentRunType.NIGHTLY,
                 budget = CallBudget(phase.calls),
                 latestUserText = null,
-                extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
+                extraSystem = phase.prompt + reviewDay() + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
                 persistAssistant = false,
                 allowNotify = false,
                 offers = phase.offers,

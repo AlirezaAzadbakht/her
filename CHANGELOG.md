@@ -27,6 +27,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - "Tell me in your morning note on Friday" now works: Her says it in that morning's note instead of changing one of your reminders.
 - Asking for the same reminder twice no longer sets it twice.
 - When Her changes or cancels a reminder, the note under her reply now says which one.
+- Her now knows the Persian date. She could say the wrong day or weekday because she converted from the Western calendar in her head; now she is given today's Jalali date and the week ahead.
+- Her overnight review no longer mixes up today and yesterday, and something she noted "for tomorrow" no longer lands a day late.
+- Birthdays, holidays and other all-day events no longer show as 3:30 AM, and events copied in from your phone calendar no longer appear two or three times.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.

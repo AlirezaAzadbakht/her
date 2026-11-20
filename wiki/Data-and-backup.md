@@ -59,7 +59,7 @@ Import never touches the live database directly:
 
 ## Calendar
 
-`CalendarDataSource` reads the Android system calendar through `CalendarContract.Instances` (so recurring meetings in the window show up) when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable instance ids.
+`CalendarDataSource` reads the Android system calendar through `CalendarContract.Instances` (so recurring meetings in the window show up) when Settings → Calendar access is on and `READ_CALENDAR` / `WRITE_CALENDAR` are granted. `create_calendar_event` and `update_calendar_event` write through to `CalendarContract`; `delete_calendar_event` does too after confirmation. Device events are mirrored into Room as `SYSTEM` rows with stable instance ids. `SystemCalendar.mirror` runs one sync at a time (a process-wide lock; two at once each inserted the same event) and deletes any second row for an event it just saw. All-day instances, which Android stores at UTC midnight, are moved to local midnight; `CalendarWindows.isAllDay` reads a midnight-to-midnight event as all-day, and the context and calendar tools show its date with no clock time.
 
 Google Calendar events that sync to the phone's calendar show up here like any other device event.
 

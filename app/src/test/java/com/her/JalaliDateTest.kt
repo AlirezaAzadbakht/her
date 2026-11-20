@@ -108,4 +108,10 @@ class JalaliDateTest {
         val persianDigitsClock = RelativeTimeParser.parse("1406/07/01 ساعت 10 صبح", now)
         assertEquals(10, persianDigitsClock?.hour)
     }
+
+    @Test
+    fun `long persian form names the weekday and month`() {
+        assertEquals("جمعه 29 آبان 1405", JalaliDate.persianLong(LocalDate.of(2026, 11, 20)))
+        assertEquals("شنبه 30 آبان", JalaliDate.persianLong(LocalDate.of(2026, 11, 21), withYear = false))
+    }
 }
