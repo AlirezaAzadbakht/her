@@ -40,8 +40,8 @@ class WonderingTest {
         return JSONObject(result.payloadJson)
     }
     private suspend fun task() = call("create_task", JSONObject().put("title", "Send draft")).getString("id")
-    private suspend fun wonder(source: String) = call("save_wondering", JSONObject().put("sourceId", source).put("status", "OPEN")
-        .put("observation", "The draft is still open").put("question", "Is anything blocking the draft?"))
+    private suspend fun wonder(source: String, question: String = "Is anything blocking the draft?") = call("save_wondering", JSONObject().put("sourceId", source).put("status", "OPEN")
+        .put("observation", "The draft is still open").put("question", question))
 
     @Test fun questionsAreOccasionalAndNeverRepeatedOrSentAtNight() = runBlocking {
         val source = task()
@@ -55,7 +55,7 @@ class WonderingTest {
         assertEquals(1, delivered.size)
         assertEquals("ASKED", repo.getWondering(id)!!.status)
         assertFalse(tools.execute("ask_wondering", ask.put("expectedVersion", 2).toString()).ok)
-        val second = wonder(task()).getString("id")
+        val second = wonder(task(), "Has the meeting with Sara moved?").getString("id")
         assertFalse(tools.execute("ask_wondering", JSONObject().put("id", second).put("expectedVersion", 1).toString()).ok)
         assertEquals(1, delivered.size)
     }
@@ -67,7 +67,7 @@ class WonderingTest {
         assertFalse(tools.execute("ask_wondering", ask.toString()).ok)
         call("ask_wondering", ask.put("expectedVersion", 1))
         val second = task()
-        wonder(second)
+        wonder(second, "Has the meeting with Sara moved?")
         val next = JSONObject().put("id", second).put("expectedVersion", 1)
         assertFalse(tools.execute("ask_wondering", next.toString()).ok)
         clock.advance(4 * 86_400_000L)

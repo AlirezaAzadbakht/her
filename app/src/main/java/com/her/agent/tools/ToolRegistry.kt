@@ -92,6 +92,7 @@ open class ToolRegistry(
             return ToolResult(name, false, jsonObjectOf("ok" to false, "error" to error).toString())
         }
         return try {
+            resolveSourceMessage(args)
             validateRequired(spec.first, args)
             validateTypes(spec.first, args)
             if (name in companionToolNames || name in wonderingToolNames || name in understandingToolNames || name in supportToolNames || name in emotionalToolNames) validateCompanionSchema(spec.first, args)
@@ -124,6 +125,17 @@ open class ToolRegistry(
         handlers[name] = ToolSpec(name, description, schema) to handler
     }
 
+    /**
+     * The model never sees message ids, so it writes "latest" or "current". In chat that means the message being
+     * answered; in a background run there is none, so the claim is dropped.
+     */
+    private suspend fun resolveSourceMessage(args: JSONObject) {
+        val id = args.optString("sourceMessageId").takeIf { it.isNotBlank() } ?: return
+        if (repo.getMessage(id) != null) return
+        val latest = if (runType == AgentRunType.CHAT) repo.lastUserMessage()?.id else null
+        if (latest != null) args.put("sourceMessageId", latest) else args.remove("sourceMessageId")
+    }
+
     private fun validateRequired(spec: ToolSpec, args: JSONObject) {
         val required = JSONObject(spec.parametersJson).optJSONArray("required") ?: return
         for (i in 0 until required.length()) {
@@ -137,7 +149,9 @@ open class ToolRegistry(
     private fun validateTypes(spec: ToolSpec, args: JSONObject) {
         val properties = JSONObject(spec.parametersJson).optJSONObject("properties") ?: return
         args.keys().forEach { key ->
-            val field = properties.optJSONObject(key) ?: return@forEach
+            // A field the tool doesn't have was silently dropped while the call still said ok.
+            val field = properties.optJSONObject(key)
+                ?: throw ToolValidationException("Unknown field: $key. ${spec.name} takes: ${properties.keys().asSequence().joinToString()}")
             if (args.isNull(key)) return@forEach
             val value = args.get(key)
             val valid = when (field.optString("type")) {

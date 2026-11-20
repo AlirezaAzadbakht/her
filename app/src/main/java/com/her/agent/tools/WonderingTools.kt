@@ -58,6 +58,9 @@ internal fun ToolRegistry.registerWonderingTools() {
                 val observation = a.requiredString("observation")
                 val question = a.requiredString("question")
                 if (observation.length > 600 || question.length > 300) throw ToolValidationException("Keep the observation and question short")
+                if (old == null) repo.wonderings().firstOrNull {
+                    it.status in setOf("OPEN", "ASKED") && com.her.core.lexicalOverlap(question, runCatching { org.json.JSONObject(it.content).optString("question") }.getOrDefault("")) >= 0.5
+                }?.let { throw ToolValidationException("You are already wondering this (${it.id}); keep that one instead of saving it again") }
                 data.put("observation", observation).put("question", question).put("sourceSnapshot", source.take(800))
             } else {
                 if (old == null) throw ToolValidationException("Wondering not found")

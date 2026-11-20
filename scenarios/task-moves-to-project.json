@@ -1,0 +1,24 @@
+{
+  "id": "task-moves-to-project",
+  "title": "Moving a task to another project really moves it",
+  "tags": ["tasks", "projects", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "tools": [
+      { "name": "update_project", "arguments": { "name": "Her", "summary": "The assistant app" } },
+      { "name": "update_project", "arguments": { "name": "Cham", "summary": "A side project" } },
+      { "name": "create_task", "arguments": { "title": "Alerts in chat" } }
+    ]
+  },
+  "turns": [
+    { "user": "تسک Alerts in chat رو ببر زیر پروژه Cham" }
+  ],
+  "expect": {
+    "no_tool_errors": false,
+    "rows": [
+      { "table": "tasks", "where": { "title": "Alerts in chat", "project": "Cham" }, "count": 1 }
+    ],
+    "reply": { "language": "persian" }
+  }
+}

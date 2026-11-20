@@ -288,6 +288,7 @@ object Checks {
                     "description" to it.description,
                     "status" to it.status.name,
                     "dueAt" to it.dueAt,
+                    "project" to it.relatedProjectId?.let { id -> repo.getProject(id)?.name },
                 )
             }
             "commitments" -> repo.commitments().map {
