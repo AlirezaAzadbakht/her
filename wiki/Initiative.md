@@ -55,7 +55,7 @@ An opening she used in the last 3 days is not offered again, except `checkin`. T
 - For a `wonder:` opening it marks the question ASKED, through the same helper `ask_wondering` uses.
 - The runner delivers the text like a study nudge and saves it with `{"proactive":true,"initiative":"<key>"}`. That metadata is how openings are counted, so there are no separate counters.
 
-The prompt asks for one or two short lines, grounded in what they said, with one easy question and nothing that needs an answer. `checkin` says she hasn't heard from them and hopes they're okay. It never guesses how they feel and asks nothing.
+The prompt asks for one or two short lines, grounded in what they said, with one easy question and nothing that needs an answer. `silence` picks up something they told her, like a friend texting on an ordinary day; it never says how long it has been or asks if they're okay. On the emulator, a plain "something light" read as "It's been a couple of days… hope you're doing okay", which is the check-in's line. `checkin` says she hasn't heard from them and hopes they're okay. It never guesses how they feel and asks nothing.
 
 ## Being ignored
 
@@ -81,9 +81,10 @@ The feeling also shows in her orb and in "You feel right now". Chat instructions
 
 ## Scenarios
 
-Scenarios keep initiative off unless `settings.initiative` is true, so older scenarios still test their own feature. Run these three with `gradle :app:scenarioTest -Pscenario.filter=initiative`:
+Scenarios keep initiative off unless `settings.initiative` is true, so older scenarios still test their own feature. Run these four with `gradle :app:scenarioTest -Pscenario.filter=initiative`:
 - `initiative-follows-up-a-life-thread`: a life thread and a quiet afternoon lead to one message about it.
 - `initiative-gives-space-when-unanswered`: an unanswered opening writes WISTFUL, and the next pass stays silent.
 - `initiative-checks-in-once-after-two-silences`: two unanswered openings lead to one gentle check-in, then silence.
+- `initiative-silence-stays-light`: after a quiet day she picks up something they told her, without an "are you okay".
 
 `InitiativeTest` and three `AgentOrchestratorTest` cases cover the gate, the events and the delivery offline.
