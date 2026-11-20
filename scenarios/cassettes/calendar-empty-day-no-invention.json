@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "9e799b3515039423",
+          "fingerprint": "d41ae85bd0639e64",
           "summary": "tools=97 [user(What's on my calendar to)]",
           "response": {
             "role": "assistant",

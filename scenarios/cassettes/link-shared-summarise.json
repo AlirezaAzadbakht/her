@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "552a7795a6b5dce0",
+          "fingerprint": "c7fa204f4e923e04",
           "summary": "tools=99 [user(https:\/\/bakery.example.o)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "c1025123cbbd49fa",
+          "fingerprint": "2bf496510e8dc11d",
           "summary": "tools=99 [user(https:\/\/bakery.example.o) assistant->fetch_url tool:fetch_url]",
           "response": {
             "role": "assistant",
