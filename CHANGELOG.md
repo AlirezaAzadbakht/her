@@ -35,6 +35,11 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her no longer keeps several copies of the same repeating responsibility, or wonders the same question again under a different record.
 - Old "couldn't reach the model" bubbles are no longer read back to Her as if she had said them.
 - The note under Her's reply now names the task or project she updated.
+- Once you've told Her you're safe, she no longer asks again just because you're still feeling low. She still checks in if something new and more serious comes up, and she always keeps crisis help on offer.
+- Asking Her to be kinder or warmer now changes how she talks over the following days, and "be more respectful" no longer makes her formal and distant.
+- Her no longer uses her own bookkeeping words with you, like "no open commitments" or "no recorded decisions or blockers".
+- The morning note mentions something that hasn't changed at most once a week, instead of the same reminder every day.
+- A bug or idea you mention for one of your projects becomes a task under that project, and people you only mention by role, like "my girlfriend", are remembered.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
