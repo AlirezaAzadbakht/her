@@ -257,6 +257,7 @@ class ScenarioHarness(
         )
 
     private suspend fun seed() {
+        settings.update { it.copy(initiativeEnabled = spec.settings.initiative) }
         spec.settings.chatToolCallLimit?.let { limit ->
             settings.update { it.copy(chatToolCallLimit = limit) }
         }

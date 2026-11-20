@@ -142,6 +142,33 @@ class InitiativeTest {
         assertEquals("quiet hours", initiativeBlock(repo, settings))
     }
 
+    private suspend fun prefs(status: String) {
+        val now = clock.nowMillis()
+        val data = JSONObject().put("status", status).put("topicIds", org.json.JSONArray(listOf("job")))
+        val old = repo.getCompanionRecord("companion:preferences")
+        repo.saveCompanionRecord(CompanionRecord("companion:preferences", "companion:preferences", "PREFERENCES", data.toString(),
+            now, now, repo.deviceId, (old?.version ?: 0) + 1))
+    }
+
+    @Test fun checkInsKeepTheirTopicsAndTheirPause() = runBlocking {
+        setUp()
+        thread()
+        prefs("ACTIVE")
+        assertEquals("the 09:00 check-in window is open", "a check-in is due", initiativeBlock(repo, settings))
+        clock.advance(3 * hour)
+        assertEquals(listOf("silence"), openings(repo, settings).map { it.about })
+        prefs("PAUSED")
+        assertEquals("check-ins are paused", initiativeBlock(repo, settings))
+    }
+
+    @Test fun aDismissedTopicIsNotOffered() = runBlocking {
+        setUp()
+        val now = clock.nowMillis()
+        val data = JSONObject().put("title", "Job search").put("summary", "Waiting").put("status", "ACTIVE").put("dismissed", true)
+        repo.saveCompanionRecord(CompanionRecord("job", "job", "THREAD", data.toString(), now, now, repo.deviceId, 1))
+        assertEquals(listOf("silence"), openings(repo, settings).map { it.about })
+    }
+
     @Test fun minNeverStarts() = runBlocking {
         setUp("Min")
         assertEquals("she is quiet by nature", initiativeBlock(repo, settings))

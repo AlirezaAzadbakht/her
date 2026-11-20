@@ -66,6 +66,11 @@ suspend fun initiativeBlock(repo: HerRepository, settings: AppSettingsStore): St
     if (messages.any { it.role == MessageRole.USER && ms - it.createdAt < RECENT_CHAT_MS }) return "they wrote recently"
     if (messages.any { it.proactive() && ms - it.createdAt < INITIATIVE_GAP_MS }) return "she spoke recently"
     if (app.swipedNudges >= 2) return "they swiped her last messages away"
+    // Asking her to pause check-ins pauses this too; a check-in that is due is her reaching out already.
+    repo.getCompanionRecord("companion:preferences")?.takeIf { it.deletedAt == null }?.data()?.let {
+        if (it.optString("status") != "ACTIVE" || it.optLong("pauseUntil") > ms) return "check-ins are paused"
+    }
+    if (companionContext(repo, settings, "").any { it.startsWith("Eligible offer:") }) return "a check-in is due"
     val last = messages.sinceTheyWrote().lastOrNull { it.initiative() != null } ?: return null
     if (last.initiative() == CHECKIN) return "waiting for them to write after checking in"
     if (emotionalState(emotionalRows(repo), ms).score(Feeling.WISTFUL) >= WISTFUL_HOLD) return "giving them space"
@@ -88,13 +93,17 @@ suspend fun openings(repo: HerRepository, settings: AppSettingsStore): List<Open
         return listOf(Opening(CHECKIN, "You haven't heard from them$ago and your last two messages went unanswered."))
     }
     val recent = messages.filter { it.initiative() != null && ms - it.createdAt < REPEAT_MS }.mapNotNull { it.initiative() }.toSet()
+    // A topic on a check-in schedule is the schedule's to raise, and a dismissed or snoozed one stays quiet.
+    val scheduled = repo.getCompanionRecord("companion:preferences")?.data()?.optJSONArray("topicIds")
+        ?.let { ids -> (0 until ids.length()).map { ids.optString(it) }.toSet() }.orEmpty()
     return buildList {
         heldConcerns(rows, ms).filter { it.second > 0.01 }.sortedByDescending { it.second }.take(2).forEach { (row, _) ->
             add(Opening("concern:${row.id}", "${row.data().optString("intention")}; open question: ${row.data().optString("unresolved")}"))
         }
         repo.companionRecords().filter {
             it.kind == "THREAD" && it.deletedAt == null && ms - it.updatedAt < THREAD_FRESH_MS &&
-                it.data().let { d -> d.optString("status") == "ACTIVE" && !d.optBoolean("sensitive") && !d.optBoolean("stale") }
+                it.id !in scheduled && it.data().let { d -> d.optString("status") == "ACTIVE" && !d.optBoolean("sensitive") &&
+                    !d.optBoolean("stale") && !d.optBoolean("dismissed") && d.optLong("snoozedUntil") <= ms }
         }.sortedByDescending { it.updatedAt }.take(2).forEach {
             val d = it.data()
             add(Opening("thread:${it.id}", "${d.optString("title")}: ${d.optString("summary").take(200)}" +
