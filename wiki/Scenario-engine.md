@@ -104,6 +104,7 @@ Unknown keys and unknown matchers are parse errors that name the file. The `id` 
 - `attempts` (default 1): the scenario passes if any attempt passes. The report shows the pass rate.
 - `"pending": true`: run and report, but do not fail the suite.
 - Seed tool calls set up state and are not counted toward `tools_called`. An exact top-level argument value such as `"$seed.0.id"` takes a field from an earlier seed-tool result (zero-based index); numeric values retain their type. Missing or forward references fail setup. This allows linked records to be seeded through real tools without hard-coded IDs.
+- `"settings": { "initiative": true }` lets her start conversations on her own. It is off by default, like the weekly review, so a scenario only meets it when it is about it.
 - `"seed": { "persona": { "directness": 0.9, "warmth": 0.5 } }` sets exact trait values (0 to 1) as both value and seed; traits left out keep the seed from her name.
 - A scenario attempt passes when every deterministic check passes, and the optional LLM judge passes if `expect.reply.judge` is set.
 

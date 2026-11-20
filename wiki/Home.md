@@ -52,3 +52,5 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 - [Personality](Personality.md): six traits seeded from her name, grown nightly, changed gradually when asked.
 
 - [Wondering](Wondering.md): quiet memory review, unanswered questions, and learning from conversations.
+
+- [Initiative](Initiative.md): when she starts a conversation, how her traits set how often, and how an unanswered message feels.

@@ -54,7 +54,7 @@ Other constraints:
 
 | Pass | Expected behavior |
 |------|-------------------|
-| Hourly | Most hours: `NO_NOTIFICATION`. Speak only if something is useful, time-sensitive, and not already said. |
+| Hourly | Most hours: `NO_NOTIFICATION`. Speak only if something is useful, time-sensitive, and not already said, or start a conversation about an opening the app offers ([Initiative](Initiative.md)). |
 | Nightly | Consolidate. Promote durable facts. Mark old facts historical instead of erasing. Revise the About them picture. Do not message unless it cannot wait. |
 | Briefing | One natural morning note in the same conversation. No dashboard. No greeting template. |
 

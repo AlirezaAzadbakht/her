@@ -65,6 +65,7 @@ Core principles:
 | **Decision memory** | Preserves actual reasons for choices and supports optional later reflection |
 | **Situation briefings** | Gives focused catch-up, leaving, person-specific and weekly summaries with coverage limits |
 | 🧵 **Ongoing support** | Keeps evolving life situations, tracks replies owed by others, resumes working drafts, and prepares meeting context; personalized check-ins are opt-in |
+| 💬 **She writes first** | Starts a conversation when you've been quiet or something you told her is on her mind; her personality sets how often, and an unanswered message makes her wistful, so she gives you space. [How it works](wiki/Initiative.md) |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 💸 **Money log** | Notes what you say you spent and adds it up by day, week, or category when you ask |
 | 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
@@ -215,6 +216,7 @@ Then add these repository secrets (`Settings → Secrets and variables → Actio
 | [Wondering](wiki/Wondering.md) | Memory review, unanswered questions and learning from answers |
 | [Personal support](wiki/Personal-support.md) | Correctable memory, capacity planning, recurrence, decisions and focused briefings |
 | [Ongoing support](wiki/Ongoing-support.md) | Life threads, waiting-on tracking, check-ins, meeting preparation and working sessions |
+| [Initiative](wiki/Initiative.md) | When she writes first, how often, and how being ignored feels |
 | [Learning](wiki/Learning.md) | Conversational roadmaps, lessons, practice, review and study nudges |
 | [Agent](wiki/Agent.md) | LLM loop, tools, context, call budgets |
 | [Data and backup](wiki/Data-and-backup.md) | Room, secrets, backup files, calendar, search |
