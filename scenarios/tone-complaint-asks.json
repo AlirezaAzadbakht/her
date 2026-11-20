@@ -29,7 +29,8 @@
   "expect": {
     "no_tool_errors": true,
     "tools_called": [
-      "update_user_understanding"
+      "update_user_understanding",
+      "adjust_trait"
     ],
     "rows": [
       {
@@ -42,8 +43,8 @@
             "contains_any": [
               "مهربون",
               "خودمونی",
-            "مهربان",
-            "خودمانی",
+              "مهربان",
+              "خودمانی",
               "warm",
               "Warm",
               "casual",

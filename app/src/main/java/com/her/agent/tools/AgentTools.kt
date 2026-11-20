@@ -96,7 +96,7 @@ internal fun ToolRegistry.registerAgentTools() {
     }
     register(
         "update_user_understanding",
-        "Create or revise one facet of who they are, so each facet has a single active row.",
+        "Create or revise one facet of who they are, so each facet has a single active row. A tone request that names a trait (kinder, warmer, blunter) also needs adjust_trait.",
         objSchema(
             "id" to str("Existing row id from the About them section"),
             "facet" to oneOf("", "communication", "help_style", "life_chapter", "values", "patterns", "relationship_to_her", "other"),
@@ -161,7 +161,7 @@ internal fun ToolRegistry.registerAgentTools() {
         )
         jsonObjectOf("ok" to true)
     }
-    register("adjust_trait", "Change one of your own personality traits: in chat only when they ask you to be different, in the nightly review a small drift from today.",
+    register("adjust_trait", "Change one of your own personality traits: in chat only when they ask you to be different (kinder or warmer is warmth), in the nightly review a small drift from today.",
         objSchema("trait" to oneOf("", *TRAITS.toTypedArray()), "change" to num("-0.3 to 0.3; nightly at most 0.03"),
             "reason" to str("Short, in your words"), "sourceMessageId" to str("In chat: the user message that asked"),
             required = listOf("trait", "change", "reason"))) { a ->

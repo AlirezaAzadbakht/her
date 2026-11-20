@@ -1,0 +1,24 @@
+{
+  "id": "project-note-becomes-task",
+  "title": "A bug noted for a project becomes a task under it, and a role-only person is saved",
+  "tags": ["projects", "tasks", "people", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "tools": [
+      { "name": "update_project", "arguments": { "name": "Her", "summary": "The assistant app" } }
+    ]
+  },
+  "turns": [
+    { "user": "یه باگ تو Her پیدا کردم: وقتی متن طولانیه Enter کار نمی‌کنه" },
+    { "user": "دوست‌دخترم امروز ناراحت بود چون از کارش اخراج شده" }
+  ],
+  "expect": {
+    "rows": [
+      { "table": "tasks", "where": { "project": "Her", "status": "OPEN" }, "count": 1 },
+      { "table": "projects", "where": { "name": "Her", "summary": "The assistant app" }, "count": 1 },
+      { "table": "people", "count": 1 }
+    ],
+    "reply": { "language": "persian" }
+  }
+}
