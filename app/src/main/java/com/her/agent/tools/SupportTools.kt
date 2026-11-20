@@ -86,7 +86,7 @@ internal fun ToolRegistry.registerSupportTools() {
             jsonObjectOf("ok" to true, "id" to id, "created" to (old == null), "externalActionPerformed" to false)
         }
     }
-    register("get_situation_briefing", "Catch them up on what changed, including after time away. The reply must say external changes may be missing and that no inbox or trip monitoring occurred.",
+    register("get_situation_briefing", "Catch them up on what changed, including after time away. Say plainly, in a few words, that you only know what they told you; never imply you watch their inbox or trips.",
         objSchema("query" to str(), "personId" to str(), "since" to num("Epoch millis; the window must contain now"), "until" to num("Epoch millis; within 400 days of since"))) { a ->
         val now = nowMillis()
         // Providers fill unused numbers with 0 (unspecified), and an until read from the clock a moment ago is already past; neither should fail.

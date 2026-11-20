@@ -152,6 +152,12 @@ class AgentOrchestratorTest {
         assertTrue(AgentOrchestrator.isCannedRefusal("Sorry, I can’t assist with this."))
         assertFalse(AgentOrchestrator.isCannedRefusal("I can't help with that until I know the date. Which day works?"))
         assertFalse(AgentOrchestrator.isCannedRefusal(AgentOrchestrator.refusalFallback("")))
+        // From a real backup: asked twice in three minutes after they had said no. Once a day is enough.
+        for (text in listOf("", "حالم بده")) {
+            val again = AgentOrchestrator.refusalFallback(text, askedToday = true)
+            assertFalse(again, again.contains("?") || again.contains("؟"))
+            assertTrue(again, again.contains("crisis") || again.contains("بحران"))
+        }
     }
 
     @Test

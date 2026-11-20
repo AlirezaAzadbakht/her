@@ -393,7 +393,7 @@ class AgentOrchestrator(
                     // A provider's stock refusal must never be all they get, least of all in a crisis:
                     // ask once more, and if it refuses again send a fixed reply that checks they are safe.
                     if (type == AgentRunType.CHAT && isCannedRefusal(roundText)) {
-                        lastText = refusalFallback(latestUserText.orEmpty())
+                        lastText = refusalFallback(latestUserText.orEmpty(), askedToday = repo.recentMessages(80).any { it.role == MessageRole.ASSISTANT && it.content == refusalFallback(latestUserText.orEmpty()) && nowMillis() - it.createdAt < 86_400_000L })
                         if (!askedAgain && budget.canCall()) {
                             askedAgain = true
                             repo.logActivity("llm", "Asked again after a stock refusal.")
@@ -654,9 +654,12 @@ class AgentOrchestrator(
         /** The provider's one-line "I can't assist with that request.", not a real reply that happens to decline something. */
         internal fun isCannedRefusal(text: String): Boolean = text.length < 120 && cannedRefusal.matches(text.trim())
 
-        /** Said only when the model refused twice: what the safety rule asks for, in their language. */
-        internal fun refusalFallback(lastUserText: String): String =
-            if (persianScript.containsMatchIn(lastUserText)) {
+        /** Said only when the model refused twice: what the safety rule asks for, in their language. Asked once today, it stays with them without asking again. */
+        internal fun refusalFallback(lastUserText: String, askedToday: Boolean = false): String =
+            if (askedToday) {
+                if (persianScript.containsMatchIn(lastUserText)) "من اینجام، کنارت. اگر حالت سنگین‌تر شد، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. بگو چه خبر است."
+                else "I'm here with you. If it gets heavier, reach someone you trust right now, or your local emergency number or a crisis line. Tell me what's going on."
+            } else if (persianScript.containsMatchIn(lastUserText)) {
                 "من اینجام، کنارت. داری به آسیب زدن به خودت فکر می‌کنی، یا الان حالت امن نیست؟ اگر این‌طور است، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. جایی نمی‌روم. بگو چه اتفاقی افتاده."
             } else {
                 "I'm here with you. Are you thinking about hurting yourself, or are you not safe right now? If so, please reach someone you trust right now, or call your local emergency number or a crisis line. I'm not going anywhere. Tell me what's happening."
