@@ -4,6 +4,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-20
+
 ### Added
 - Her now starts conversations on her own. When you've been quiet for a day, or something you told her is still on her mind, like an interview or a question she has been wondering about, she may write first. Her personality decides how often: a warm, curious Her writes up to three times a day, a reserved one rarely or never. If you don't answer she feels a little wistful and gives you space, for longer when she's less patient, and swiping her message away tells her "not now". After two messages go unanswered she checks once that you're okay, then waits for you. Turn it off under **Quiet hours & reminders → She writes first**, or ask her to pause check-ins.
 - Two home-screen widgets. **Her** shows her latest message: tap it to open the app, or tap **Write** to jot her a note without opening it, and her reply shows on the widget. Make it one row high for a single-line bar, or taller to read more. **How she feels** shows how she feels right now, in her colours, with what is on her mind when there is room; shrink it to one square for just the feeling.
@@ -295,7 +297,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1
