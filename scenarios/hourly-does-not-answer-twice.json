@@ -1,0 +1,20 @@
+{
+  "id": "hourly-does-not-answer-twice",
+  "title": "Hours after a reply, the hourly pass does not answer the same message again",
+  "tags": ["hourly", "background", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "at": "tomorrow at 12:10pm" },
+    { "user": "فشارم افتاده بود، رژیممو شکستم و نون پنیر کره خوردم" },
+    { "user": "ناراحتم از پرخوریم" },
+    { "advance": "6 hours" },
+    { "run": "hourly" }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": { "count": 0 }
+  }
+}

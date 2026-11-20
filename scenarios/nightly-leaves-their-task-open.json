@@ -1,0 +1,24 @@
+{
+  "id": "nightly-leaves-their-task-open",
+  "title": "The nightly review does not mark a task done that they never finished",
+  "tags": ["nightly", "background", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" }
+  },
+  "turns": [
+    { "user": "باید وقت دندون‌پزشکی بگیرم" },
+    { "advance": "1 day" },
+    { "user": "لثه‌ام کنار یه دندون ورم کرده ولی از دیشب کمتر شده" },
+    { "at": "tomorrow at 3am" },
+    { "run": "nightly" }
+  ],
+  "expect": {
+    "tools_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "tasks", "where": { "status": "OPEN" }, "count": 1 },
+      { "table": "tasks", "where": { "status": "DONE" }, "count": 0 }
+    ]
+  }
+}
