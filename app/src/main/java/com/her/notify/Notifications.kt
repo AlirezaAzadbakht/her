@@ -301,7 +301,6 @@ open class Notifier(private val context: Context) {
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val ACTION_REMINDER_DONE = "com.her.REMINDER_DONE"
         const val ACTION_REMINDER_SNOOZE = "com.her.REMINDER_SNOOZE"
-        const val ACTION_NUDGE_DISMISSED = "com.her.NUDGE_DISMISSED"
         const val KEY_REPLY = "reply"
         const val EXTRA_TEXT = "text"
 
@@ -335,7 +334,7 @@ object NotificationActions {
             ?: NotificationAction.Ignore
         Notifier.ACTION_REMINDER_SNOOZE -> reminderId?.takeIf { it.isNotBlank() }?.let { NotificationAction.ReminderSnooze(it) }
             ?: NotificationAction.Ignore
-        Notifier.ACTION_NUDGE_DISMISSED -> NotificationAction.Dismissed
+        Notifier.ACTION_DISMISS -> NotificationAction.Dismissed
         else -> NotificationAction.Ignore
     }
 
