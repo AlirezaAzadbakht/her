@@ -66,7 +66,7 @@ object SqlGuard {
     // ponytail: word scan, not a SQL parser; a blocked name in a column or string is refused too (the safe side).
     fun referencesOnly(sql: String, allowed: Set<String>, known: Set<String>): Boolean {
         if (!isReadOnly(sql)) return false
-        if (firstKeyword(sql.trim().trimStart('﻿')) !in setOf("SELECT", "WITH")) return false
+        if (firstKeyword(sql.trim().trimStart('\uFEFF')) !in setOf("SELECT", "WITH")) return false
         val blocked = known.map { it.lowercase(Locale.US) }.toSet() - allowed.map { it.lowercase(Locale.US) }.toSet()
         return Regex("[A-Za-z_][A-Za-z0-9_]*").findAll(sql).none {
             val word = it.value.lowercase(Locale.US)
