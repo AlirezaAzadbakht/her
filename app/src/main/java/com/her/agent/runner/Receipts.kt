@@ -60,8 +60,8 @@ object Receipts {
             "save_learning_lesson" -> Triple("learning_records", "saved learning lesson", false)
             "record_learning_answer" -> Triple("learning_records", "saved practice progress", false)
             "set_reminder" -> Triple("reminders", "reminder: ${text("message")}", true)
-            "update_reminder" -> Triple("reminders", "moved a reminder", false)
-            "cancel_reminder" -> Triple("reminders", "cancelled a reminder", false)
+            "update_reminder" -> Triple("reminders", "changed reminder: ${payload.optString("message").take(60)}", false)
+            "cancel_reminder" -> Triple("reminders", "cancelled reminder: ${payload.optString("message").take(60)}", false)
             "start_focus" -> Triple("focus", "focus: ${payload.optString("rounds")} × ${payload.optString("minutes")} min on ${payload.optString("label").take(40)}", false)
             "set_alarm" -> if (payload.optString("ringsIn") == "Her") {
                 Triple("reminders", "alarm: ${payload.optString("clock")}", true)

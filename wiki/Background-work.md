@@ -37,7 +37,7 @@ Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could
 
 When she may start a conversation, the hourly pass also adds one `reach:<opening>:<date>` key per opening, so a quiet hour wakes the model once per opening per day. See [Initiative](Initiative.md).
 
-The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. A user who comes back is back on their next message; nothing else is stored.
+The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. An open agent queue item that starts `Identity.MORNING_NOTE` ("Tell them in the morning:") and is due by midnight also counts: chat files "tell me in your morning note on Friday" there, and the briefing says it and completes it. A user who comes back is back on their next message; nothing else is stored.
 
 Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
 

@@ -49,12 +49,17 @@ internal fun ToolRegistry.registerReminderTools() {
             throw ToolValidationException("Only a clock-time reminder can repeat")
         }
         val fireAt = whenRaw?.let { reminderTime(it) }
+        val message = args.requiredString("message")
+        // Asked twice, or a retry after a timeout: hand back the reminder that already exists.
+        if (personName == null) repo.reminders().firstOrNull {
+            it.status == ReminderStatus.SCHEDULED && it.message == message && it.repeat == repeat && it.fireAt == fireAt && it.place == place
+        }?.let { return@register reminderJson(it).put("ok", true).put("alreadySet", true) }
         val person = personName?.let { personFor(it) }
         val condition = args.optStringOrNull("onlyIfOpen")?.let { openRecordFor(it) }
         val now = nowMillis()
         val reminder = Reminder(
             id = newId(),
-            message = args.requiredString("message"),
+            message = message,
             trigger = when {
                 fireAt != null -> ReminderTrigger.TIME
                 person != null -> ReminderTrigger.PERSON
@@ -134,6 +139,13 @@ internal fun ToolRegistry.registerReminderTools() {
             throw ToolValidationException("That reminder is already ${existing.status.name.lowercase()}; set a new one instead")
         }
         if ((args.has("when") || args.has("repeat")) && com.her.companion.scheduleForReminder(repo, existing) != null) throw ToolValidationException("Change the linked responsibility schedule or its occurrence instead")
+        val newMessage = args.optStringOrNull("message")?.takeIf { it.trim() != existing.message.trim() }
+        if (newMessage != null && existing.repeat != ReminderRepeat.NONE) {
+            throw ToolValidationException(
+                "That is a repeating reminder; it keeps its words. For something new, call set_reminder and leave this one as it is. " +
+                    "If they asked to reword this one, cancel_reminder it and set_reminder the new words with the same repeat.",
+            )
+        }
         val fireAt = args.optStringOrNull("when")?.let { reminderTime(it) }
         val trigger = if (fireAt != null) ReminderTrigger.TIME else existing.trigger
         val repeat = parseEnum<ReminderRepeat>(args.optStringOrNull("repeat")) ?: existing.repeat
@@ -141,7 +153,7 @@ internal fun ToolRegistry.registerReminderTools() {
             throw ToolValidationException("Only a clock-time reminder can repeat")
         }
         val updated = existing.copy(
-            message = args.optStringOrNull("message") ?: existing.message,
+            message = newMessage ?: existing.message,
             trigger = trigger,
             fireAt = fireAt ?: existing.fireAt,
             personId = if (fireAt != null) null else existing.personId,
@@ -164,7 +176,7 @@ internal fun ToolRegistry.registerReminderTools() {
         val existing = requireReminder(args.requiredString("id"))
         repo.saveReminder(existing.copy(status = ReminderStatus.CANCELLED, updatedAt = nowMillis(), version = existing.version + 1))
         reminderAlarms.disarm(existing.id)
-        jsonObjectOf("ok" to true, "id" to existing.id)
+        jsonObjectOf("ok" to true, "id" to existing.id, "message" to existing.message)
     }
 
     register(
@@ -277,7 +289,7 @@ private suspend fun ToolRegistry.reminderTime(raw: String): Long {
     val saysMidnight = raw.trim().toLongOrNull() != null || 'T' in raw ||
         listOf("0:00", "00:", "12am", "12 am", "midnight").any { it in text }
     if (local.hour == 0 && local.minute == 0 && !saysMidnight) {
-        throw ToolValidationException("Give a time of day too, for example 'Thursday at 9am'")
+        throw ToolValidationException("Give a time of day too, for example 'Thursday at 9am'. To bring it up in your morning note that day instead, use add_agent_queue_item.")
     }
     if (at <= nowMillis()) throw ToolValidationException("That time has already passed: $raw")
     return at

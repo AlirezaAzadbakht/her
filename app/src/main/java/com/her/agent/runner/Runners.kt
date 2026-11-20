@@ -262,7 +262,8 @@ class AgentOrchestrator(
             }
             val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
             val nowMs = now.toInstant().toEpochMilli()
-            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
+            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty() ||
+                repo.agentQueue().any { it.status.name == "OPEN" && it.description.startsWith(Identity.MORNING_NOTE) && (it.dueAt ?: Long.MAX_VALUE) < endOfDay }
             val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
             BackgroundRunPolicy.briefingAwaySkip(lastUserAt, nowMs, dayHasContent)?.let { reason ->
                 repo.logActivity("briefing", reason)

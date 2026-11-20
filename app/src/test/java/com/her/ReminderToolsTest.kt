@@ -121,6 +121,31 @@ class ReminderToolsTest {
         assertEquals(1, repo.reminders().size)
     }
 
+    /** From a real backup: a one-off "take the almonds" note overwrote the daily "how are you?" check-in. */
+    @Test
+    fun aRepeatingReminderKeepsItsWords() = runBlocking {
+        val id = JSONObject(tools.execute("set_reminder", """{"message":"How are you today?","when":"2026-09-12T12:00:00Z","repeat":"DAILY"}""").payloadJson).getString("id")
+
+        assertFalse(tools.execute("update_reminder", """{"id":"$id","message":"Take the almonds"}""").ok)
+        assertTrue(tools.execute("update_reminder", """{"id":"$id","message":"How are you today?","when":"2026-09-12T13:00:00Z"}""").ok)
+        assertEquals("How are you today?", repo.getReminder(id)!!.message)
+        assertEquals(ReminderRepeat.DAILY, repo.getReminder(id)!!.repeat)
+
+        val once = JSONObject(tools.execute("set_reminder", """{"message":"Call the bank","when":"2026-09-12T15:00:00Z"}""").payloadJson).getString("id")
+        assertTrue(tools.execute("update_reminder", """{"id":"$once","message":"Call the bank about the card"}""").ok)
+    }
+
+    @Test
+    fun theSameReminderTwiceIsSetOnce() = runBlocking {
+        val args = """{"message":"Call mom","when":"2026-09-12T12:00:00Z","repeat":"DAILY"}"""
+        val first = JSONObject(tools.execute("set_reminder", args).payloadJson)
+        val second = JSONObject(tools.execute("set_reminder", args).payloadJson)
+
+        assertEquals(first.getString("id"), second.getString("id"))
+        assertTrue(second.getBoolean("alreadySet"))
+        assertEquals(1, repo.reminders().size)
+    }
+
     @Test
     fun undoCancelsAndDisarms() = runBlocking {
         val id = JSONObject(tools.execute("set_reminder", """{"message":"Call mom","when":"2026-09-12T12:00:00Z"}""").payloadJson).getString("id")

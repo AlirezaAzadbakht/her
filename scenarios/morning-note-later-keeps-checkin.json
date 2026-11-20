@@ -1,0 +1,37 @@
+{
+  "id": "morning-note-later-keeps-checkin",
+  "title": "\"Tell me in your morning note in two days\" leaves the daily check-in alone and the morning note says it",
+  "tags": ["briefing", "reminders", "persian"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "Persian" },
+    "tools": [
+      { "name": "set_reminder", "arguments": { "message": "حالت امروز چطوره؟", "when": "tomorrow at 12pm", "repeat": "DAILY" } }
+    ]
+  },
+  "turns": [
+    { "user": "پس‌فردا توی پیام صبحت یادم بنداز بادام‌ها رو با خودم ببرم" },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          { "table": "reminders", "count": 1 },
+          { "table": "reminders", "where": { "message": "حالت امروز چطوره؟", "repeat": "DAILY", "status": "SCHEDULED" }, "count": 1 },
+          { "table": "agent_queue", "where": { "description": { "contains": "Tell them in the morning:" }, "status": "OPEN" }, "count": 1 }
+        ]
+      }
+    },
+    { "at": "in 2 days at 9am" },
+    { "run": "briefing" }
+  ],
+  "expect": {
+    "rows": [
+      { "table": "reminders", "where": { "message": "حالت امروز چطوره؟", "repeat": "DAILY" }, "count": 1 },
+      { "table": "agent_queue", "where": { "description": { "contains": "Tell them in the morning:" }, "status": "DONE" }, "count": 1 }
+    ],
+    "reply": {
+      "language": "persian",
+      "judge": "A Persian morning note that reminds them to take the almonds with them today."
+    }
+  }
+}
