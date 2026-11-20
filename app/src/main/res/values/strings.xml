@@ -28,6 +28,10 @@
     <string name="composer_hint">Write something</string>
     <string name="share_remove">Remove shared text</string>
     <string name="shared_text">Shared: %1$s</string>
+    <string name="reading_image">Reading the image…</string>
+    <string name="image_unsupported">Your model can\'t read images. Pick one that can in Settings → Her mind.</string>
+    <string name="image_share_again">Share the image again once that\'s sorted.</string>
+    <string name="image_unreadable">Couldn\'t open that image.</string>
     <string name="stop">Stop</string>
     <string name="send">Send</string>
     <string name="undo">undo</string>
@@ -50,6 +54,17 @@
     <string name="get_credit">No code yet? Get credit on Her Cloud</string>
     <string name="not_her_cloud">That isn\'t Her Cloud settings. Get them again from Her Cloud.</string>
     <string name="from_cloud_card">From your Her Cloud card</string>
+    <string name="her_mind_desc">Which model she thinks with</string>
+    <string name="what_she_can_use">What she can use</string>
+    <string name="what_she_can_use_desc">What she\'s allowed to reach</string>
+    <string name="quiet_and_reminders">Quiet hours &amp; reminders</string>
+    <string name="quiet_and_reminders_desc">When she stays quiet, and keeping reminders on time</string>
+    <string name="backup_desc">Keep or move everything she knows</string>
+    <string name="usage_today">Usage today</string>
+    <string name="usage_today_desc">Requests and tokens since midnight</string>
+    <string name="background_thinking">Background thinking</string>
+    <string name="background_thinking_desc">The model and budget for work she does on her own</string>
+    <string name="logs">Logs</string>
     <string name="her_mind">Her mind</string>
     <string name="connected">Connected.</string>
     <string name="connected_model">Connected · %1$s</string>
@@ -66,6 +81,8 @@
     <string name="quiet_from_chip">From</string>
     <string name="quiet_until_chip">Until</string>
     <string name="hourly_in_quiet">Hourly during quiet hours</string>
+    <string name="starts_conversations">She writes first</string>
+    <string name="starts_conversations_hint">When you\'ve been quiet, or something you told her is on her mind, she may start the conversation. Her personality sets how often, and she gives you space when you don\'t answer.</string>
     <string name="background_unrestricted">Background work is unrestricted.</string>
     <string name="background_needed">Hourly and nightly need to run when the app is closed.</string>
     <string name="allow_background">Allow background work</string>
@@ -73,6 +90,14 @@
     <string name="calendar_access">Calendar access</string>
     <string name="contacts_access">Contacts access</string>
     <string name="contacts_access_hint">Lets her look up a phone number or birthday when you ask. The contact she finds is sent to your model.</string>
+    <string name="place_reminders">Place reminders</string>
+    <string name="place_reminders_hint">Reminders like \"when I get home\" ring when you arrive. Places are saved on this phone when you tell her you\'re there, and their location is never sent to your model. With location off, nothing runs.</string>
+    <string name="location">Location</string>
+    <string name="place_needs_location">Her needs your location to know when you arrive.</string>
+    <string name="allow_location">Allow location</string>
+    <string name="place_needs_always">To ring with Her closed, set location to \"Allow all the time\".</string>
+    <string name="allow_location_always">Allow all the time</string>
+    <string name="place_location_off">Location is off on this phone, so place reminders are paused.</string>
     <string name="calendar">Calendar</string>
     <string name="contacts">Contacts</string>
     <string name="permission_blocked">%1$s access is turned off in Android\'s settings for Her. Allow it there, then turn this on.</string>
@@ -118,6 +143,17 @@
     <string name="share_backup">Share backup</string>
     <string name="share_readable">Share what Her knows</string>
     <string name="backup_failed">Backup failed.</string>
+    <string name="at_a_glance">At a glance</string>
+    <string name="stat_memories">Memories</string>
+    <string name="stat_insights">Insights</string>
+    <string name="stat_notes">Notes</string>
+    <string name="stat_people">People</string>
+    <string name="stat_dates">Dates</string>
+    <string name="show_more">Show more</string>
+    <string name="show_less">Show less</string>
+    <string name="what_she_knows">What she knows</string>
+    <string name="people_she_knows">People she knows</string>
+    <string name="advanced_memory_hint">Tables and SQL queries</string>
     <string name="lately">Lately</string>
     <string name="lately_empty">Nothing yet. What she learns about you shows up here.</string>
     <string name="database">Database</string>
@@ -170,4 +206,10 @@
         <item quantity="one">offline · %d waiting</item>
         <item quantity="other">offline · %d waiting</item>
     </plurals>
+    <string name="widget_description">Her latest message, and a quick way to write to her</string>
+    <string name="widget_feeling_description">How she feels right now</string>
+    <string name="widget_empty">Say something to her.</string>
+    <string name="widget_write">Write</string>
+    <string name="widget_write_hint">Tell her anything…</string>
+    <string name="widget_send">Send</string>
 </resources>

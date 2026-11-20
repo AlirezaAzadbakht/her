@@ -44,11 +44,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -71,11 +73,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.her.R
 import com.her.core.nowMillis
+import com.her.data.db.MemoryCounts
+import com.her.data.db.PersonSummary
 import com.her.data.db.PersonaTrait
 import com.her.data.db.QueryResult
 import com.her.data.db.RecentMemory
 import com.her.data.db.SqlGuard
 import com.her.data.db.TableInfo
+import com.her.data.db.Topic
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
 import com.her.ui.HerViewModel
@@ -107,8 +112,12 @@ private const val StaggeredRows = 20
 private const val TablesPerPage = 6
 private const val RowsPerPage = 50
 
-// Lately, her feeling, who she is, the table page and the query card are one item each, so results always start here.
-private const val ResultIndex = 5
+private const val RecentShown = 10
+private const val RecentMore = 30
+
+// Glance, lately, feeling, who she is, what she knows, people, the Advanced header, the table page and the query card
+// are one item each, so results always start here.
+private const val ResultIndex = 9
 
 /** What the person typed and ran, kept by the view model so it survives switching tabs. */
 class MemoryScreenState {
@@ -132,6 +141,12 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     val blend by vm.feelingBlend.collectAsState()
     val persona by vm.persona.collectAsState()
     var recent by remember { mutableStateOf<List<RecentMemory>?>(null) }
+    var showAllRecent by rememberSaveable { mutableStateOf(false) }
+    var counts by remember { mutableStateOf<MemoryCounts?>(null) }
+    var topics by remember { mutableStateOf<List<Topic>>(emptyList()) }
+    var openTopic by remember { mutableStateOf<Topic?>(null) }
+    var people by remember { mutableStateOf<List<PersonSummary>>(emptyList()) }
+    var advancedOpen by rememberSaveable { mutableStateOf(false) }
     var query by kept::query
     var tables by remember { mutableStateOf<List<TableInfo>>(emptyList()) }
     var tablesLoaded by remember { mutableStateOf(false) }
@@ -145,9 +160,19 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
     var errorShake by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        recent = withContext(Dispatchers.IO) { browser.recentMemories() }
-        tables = withContext(Dispatchers.IO) { browser.tables() }
-        tablesLoaded = true
+        withContext(Dispatchers.IO) {
+            counts = browser.memoryCounts()
+            recent = browser.recentMemories(RecentMore)
+            topics = browser.knownTopics()
+            people = browser.people()
+        }
+    }
+    // Counting every table is the slow part, so it waits until someone opens Advanced.
+    LaunchedEffect(advancedOpen) {
+        if (advancedOpen && !tablesLoaded) {
+            tables = withContext(Dispatchers.IO) { browser.tables() }
+            tablesLoaded = true
+        }
     }
     // Runs after the result is composed, so its item exists to scroll to.
     LaunchedEffect(reveal) {
@@ -184,6 +209,9 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item(key = "glance") {
+            counts?.let { Glance(it, Modifier.padding(bottom = 16.dp)) }
+        }
         item(key = "recent") {
             Column {
                 Label(stringResource(R.string.lately), Modifier.padding(bottom = 8.dp))
@@ -197,7 +225,19 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
                     )
                     else -> Column(Modifier.glassCard(RoundedCornerShape(20.dp)).padding(vertical = 4.dp)) {
                         val now = nowMillis()
-                        items.forEach { memory -> RecentRow(memory, now) { expanded = memory.content } }
+                        items.take(if (showAllRecent) RecentMore else RecentShown)
+                            .forEach { memory -> RecentRow(memory, now) { expanded = memory.content } }
+                        if (items.size > RecentShown) {
+                            Text(
+                                stringResource(if (showAllRecent) R.string.show_less else R.string.show_more),
+                                color = scheme.primary,
+                                fontSize = 13.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showAllRecent = !showAllRecent }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -208,16 +248,61 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         item(key = "persona") {
             PersonaWeb(persona, Modifier.padding(top = 8.dp, bottom = 12.dp))
         }
+        item(key = "topics") {
+            if (topics.isNotEmpty()) {
+                Column(Modifier.padding(top = 8.dp, bottom = 12.dp)) {
+                    Label(stringResource(R.string.what_she_knows), Modifier.padding(bottom = 4.dp))
+                    topics.forEach { topic ->
+                        val open = openTopic == topic
+                        CountRow(topic.name.replace('_', ' ').replaceFirstChar { it.uppercase() }, topic.items.size, expandedState = open) {
+                            openTopic = if (open) null else topic
+                        }
+                        if (open) {
+                            Column(Modifier.glassCard(RoundedCornerShape(16.dp)).padding(vertical = 4.dp)) {
+                                topic.items.forEach { item ->
+                                    Text(
+                                        item,
+                                        color = scheme.onBackground,
+                                        fontSize = 14.sp,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { expanded = item }
+                                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item(key = "people") {
+            if (people.isNotEmpty()) {
+                Column(Modifier.padding(bottom = 12.dp)) {
+                    Label(stringResource(R.string.people_she_knows), Modifier.padding(bottom = 8.dp))
+                    Column(Modifier.glassCard(RoundedCornerShape(20.dp)).padding(vertical = 4.dp)) {
+                        val now = nowMillis()
+                        people.forEach { person -> PersonRow(person, now) { expanded = person.details } }
+                    }
+                }
+            }
+        }
+        item(key = "advanced") {
+            AdvancedHeader(advancedOpen) { advancedOpen = !advancedOpen }
+        }
+        if (!advancedOpen) return@LazyColumn
         item(key = "tables") {
-            Column {
-                Label(stringResource(R.string.database), Modifier.padding(top = 12.dp, bottom = 4.dp))
+            Column(Modifier.animateItem()) {
+                Label(stringResource(R.string.database), Modifier.padding(top = 4.dp, bottom = 4.dp))
                 if (!tablesLoaded) {
                     if (showSkeleton) SkeletonRows(TablesPerPage, Modifier.padding(vertical = 8.dp))
                 } else {
                     val pages = tables.chunked(TablesPerPage)
                     val page = tablePage.coerceIn(0, (pages.size - 1).coerceAtLeast(0))
                     pages.getOrNull(page)?.forEach { table ->
-                        TableRow(table) {
+                        CountRow(table.name, table.rowCount, monospace = true) {
                             val sql = "SELECT * FROM ${SqlGuard.quoteIdent(table.name)} ORDER BY rowid DESC"
                             query = sql
                             run(sql)
@@ -238,6 +323,7 @@ fun SqlNavigatorScreen(vm: HerViewModel) {
         item(key = "query") {
             Column(
                 Modifier
+                    .animateItem()
                     .glassCard(RoundedCornerShape(20.dp))
                     .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
             ) {
@@ -444,7 +530,7 @@ private fun FeelingNow(feeling: HerFeeling?, blend: List<Pair<Feeling, Double>>,
 }
 
 @StringRes
-private fun Feeling.word(): Int = when (this) {
+internal fun Feeling.word(): Int = when (this) {
     Feeling.CALM -> R.string.feeling_calm
     Feeling.CURIOUS -> R.string.feeling_curious
     Feeling.PLAYFUL -> R.string.feeling_playful
@@ -574,7 +660,14 @@ private fun PageArrow(glyph: String, description: String, enabled: Boolean, onCl
 }
 
 @Composable
-private fun TableRow(table: TableInfo, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun CountRow(
+    text: String,
+    count: Int,
+    modifier: Modifier = Modifier,
+    monospace: Boolean = false,
+    expandedState: Boolean? = null,
+    onClick: () -> Unit,
+) {
     val colors = Her.colors
     val scheme = MaterialTheme.colorScheme
     Row(
@@ -586,16 +679,16 @@ private fun TableRow(table: TableInfo, modifier: Modifier = Modifier, onClick: (
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            table.name,
+            text,
             color = scheme.onBackground,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
+            fontFamily = if (monospace) FontFamily.Monospace else null,
+            fontSize = if (monospace) 13.sp else 14.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
         Text(
-            "${table.rowCount}",
+            "$count",
             color = scheme.primary,
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
@@ -605,6 +698,94 @@ private fun TableRow(table: TableInfo, modifier: Modifier = Modifier, onClick: (
                 .border(1.dp, colors.glassStroke, CircleShape)
                 .padding(horizontal = 10.dp, vertical = 3.dp),
         )
+        if (expandedState != null) Chevron(expandedState, Modifier.padding(start = 8.dp))
+    }
+}
+
+/** A › that turns to point down when its section is open; mirrored text flips it in RTL. */
+@Composable
+private fun Chevron(open: Boolean, modifier: Modifier = Modifier) {
+    Text(
+        "›",
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        fontSize = 18.sp,
+        modifier = modifier.rotate(if (open) 90f else 0f),
+    )
+}
+
+@Composable
+private fun Glance(counts: MemoryCounts, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth()) {
+        Label(stringResource(R.string.at_a_glance), Modifier.padding(bottom = 8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                counts.remembered to R.string.stat_memories,
+                counts.learnt to R.string.stat_insights,
+                counts.noted to R.string.stat_notes,
+                counts.people to R.string.stat_people,
+                counts.dates to R.string.stat_dates,
+            ).forEach { (n, label) ->
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .glassCard(RoundedCornerShape(16.dp))
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("$n", color = MaterialTheme.colorScheme.onBackground, style = ConversationStyle.copy(fontSize = 22.sp, lineHeight = 26.sp))
+                    Text(
+                        stringResource(label),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PersonRow(person: PersonSummary, now: Long, onClick: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(person.name, color = scheme.onBackground, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            person.lastMentioned?.let {
+                Text(
+                    DateUtils.getRelativeTimeSpanString(it, now, DateUtils.MINUTE_IN_MILLIS).toString(),
+                    color = scheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                )
+            }
+        }
+        person.relationship?.let {
+            Text(it, color = scheme.primary, fontSize = 11.sp, letterSpacing = 0.8.sp, modifier = Modifier.padding(top = 2.dp))
+        }
+    }
+}
+
+@Composable
+private fun AdvancedHeader(open: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .padding(top = 12.dp)
+            .glassCard(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Label(stringResource(R.string.advanced))
+            Text(stringResource(R.string.advanced_memory_hint), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+        }
+        Chevron(open)
     }
 }
 

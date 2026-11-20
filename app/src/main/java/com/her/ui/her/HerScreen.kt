@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -78,6 +79,7 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
@@ -136,9 +138,13 @@ private const val PinSlackPx = 80
 private val SmallOrb = 28.dp
 private val BigOrb = 150.dp
 
+// A phone on its side is ~360dp tall: the full orb would crowd out the composer.
+private val ShortScreenOrb = 96.dp
+
 private sealed interface HerStatus {
     data class Offline(val count: Int) : HerStatus
     data class Shared(val text: String) : HerStatus
+    data object ReadingImage : HerStatus
 }
 
 @Composable
@@ -147,11 +153,12 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
     val turn by vm.turnState.collectAsState()
     val notice by vm.notice.collectAsState()
     val share by vm.pendingShare.collectAsState()
+    val readingImage by vm.readingImage.collectAsState()
     val pendingCount by vm.pendingCount.collectAsState()
     val online by vm.online.collectAsState()
     val appSettings by vm.settings.collectAsState()
     val feelingBlend by vm.feelingBlend.collectAsState()
-    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    var draft by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue("")) }
     val scroll = rememberScrollState()
     val resources = LocalContext.current.resources
     val responseStyle = remember {
@@ -307,6 +314,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
             val sharedText = share
             val status: HerStatus? = when {
                 !online && pendingCount > 0 -> HerStatus.Offline(pendingCount)
+                readingImage -> HerStatus.ReadingImage
                 !sharedText.isNullOrBlank() -> HerStatus.Shared(sharedText.take(120))
                 else -> null
             }
@@ -564,7 +572,7 @@ private fun ReplyStage(
         ) {
             HerPresence(
                 state = orbState,
-                orbSize = BigOrb,
+                orbSize = if (LocalConfiguration.current.screenHeightDp < 480) ShortScreenOrb else BigOrb,
                 energy = (if (thinking) 0.85f else 0.25f) + bump,
                 paused = !thinking,
                 palette = palette,
@@ -646,6 +654,10 @@ private fun StatusChip(status: HerStatus, onDismissShare: () -> Unit) {
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Text("✕", color = scheme.onSurfaceVariant, fontSize = 13.sp)
+            }
+            HerStatus.ReadingImage -> {
+                ThinkingOrb(OrbState.Weaving, size = OrbSize.Px20, displaySize = 16.dp)
+                Text(stringResource(R.string.reading_image), color = scheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
     }

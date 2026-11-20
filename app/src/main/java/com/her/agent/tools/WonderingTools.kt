@@ -58,6 +58,9 @@ internal fun ToolRegistry.registerWonderingTools() {
                 val observation = a.requiredString("observation")
                 val question = a.requiredString("question")
                 if (observation.length > 600 || question.length > 300) throw ToolValidationException("Keep the observation and question short")
+                if (old == null) repo.wonderings().firstOrNull {
+                    it.status in setOf("OPEN", "ASKED") && com.her.core.lexicalOverlap(question, runCatching { org.json.JSONObject(it.content).optString("question") }.getOrDefault("")) >= 0.5
+                }?.let { throw ToolValidationException("You are already wondering this (${it.id}); keep that one instead of saving it again") }
                 data.put("observation", observation).put("question", question).put("sourceSnapshot", source.take(800))
             } else {
                 if (old == null) throw ToolValidationException("Wondering not found")
@@ -82,7 +85,11 @@ internal fun ToolRegistry.registerWonderingTools() {
         val now = nowMillis()
         if (repo.wonderings().any { it.data().optLong("askedAt", 0) > now - 3 * DAY }) throw ToolValidationException("Give them space; a question was asked recently")
         onUserMessage(row.data().getString("question"))
-        repo.saveWondering(row.copy(status = "ASKED", content = row.data().put("askedAt", now).toString(), updatedAt = now, version = row.version + 1))
+        repo.markAsked(row, now)
         jsonObjectOf("ok" to true, "id" to row.id, "delivered" to true)
     }
 }
+
+/** Once asked, in chat or in a conversation she started, a question is never asked again on its own. */
+internal suspend fun com.her.data.repository.HerRepository.markAsked(row: WonderingRecord, now: Long) =
+    saveWondering(row.copy(status = "ASKED", content = row.data().put("askedAt", now).toString(), updatedAt = now, version = row.version + 1))

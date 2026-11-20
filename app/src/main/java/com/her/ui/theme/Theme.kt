@@ -127,6 +127,10 @@ private val DawnHer = HerColors(
     ),
 )
 
+/** A feeling's orb colours outside Compose, for the home-screen widget. */
+fun feelingPalette(feeling: Feeling, dark: Boolean): List<Color> =
+    (if (dark) NightHer else DawnHer).feelingPalettes.getValue(feeling)
+
 val LocalHerColors = staticCompositionLocalOf { NightHer }
 
 object Her {

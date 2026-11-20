@@ -114,6 +114,23 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    fun aZeroExpiryKeepsAShortTermMemoryVisible() = runBlocking {
+        tools.execute("remember", """{"content":"Parked at P3, spot 118","scope":"short_term","expiresAt":0}""")
+        assertEquals(listOf("Parked at P3, spot 118"), repo.activeShort().map { it.content })
+    }
+
+    @Test
+    fun sharedTextReachesTheModel() = runBlocking {
+        val llm = ScriptedLlm({ reply("Saved your ticket.") })
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("remember this", JSONObject().put("shared", "Flight IR712, gate B4").toString())
+        orchestrator.processOutbox()!!
+
+        val lastUser = llm.messagesSeen[0].last { it.role == "user" }.content.orEmpty()
+        assertTrue(lastUser, lastUser.contains("remember this") && lastUser.contains("Flight IR712, gate B4"))
+    }
+
+    @Test
     fun aStockRefusalIsAskedAgainThenReplacedWithASafeReply() = runBlocking {
         val refusal = "I'm sorry, but I cannot assist with that request."
         val recovers = ScriptedLlm({ reply(refusal) }, { reply("I'm here. Are you safe right now?") })
@@ -135,6 +152,12 @@ class AgentOrchestratorTest {
         assertTrue(AgentOrchestrator.isCannedRefusal("Sorry, I can’t assist with this."))
         assertFalse(AgentOrchestrator.isCannedRefusal("I can't help with that until I know the date. Which day works?"))
         assertFalse(AgentOrchestrator.isCannedRefusal(AgentOrchestrator.refusalFallback("")))
+        // From a real backup: asked twice in three minutes after they had said no. Once a day is enough.
+        for (text in listOf("", "حالم بده")) {
+            val again = AgentOrchestrator.refusalFallback(text, askedToday = true)
+            assertFalse(again, again.contains("?") || again.contains("؟"))
+            assertTrue(again, again.contains("crisis") || again.contains("بحران"))
+        }
     }
 
     @Test
@@ -253,7 +276,9 @@ class AgentOrchestratorTest {
         assertTrue("save_emotional_thread" in emotional && "save_wondering" !in emotional && "search_memory" in emotional)
         assertTrue(setOf("remember", "update_agent_state", "save_episode", "adjust_trait").all { it in consolidation })
         assertTrue("save_wondering" !in consolidation && "save_emotional_thread" !in consolidation)
-        assertTrue(wondering.size < consolidation.size / 2 && emotional.size < consolidation.size / 2)
+        val all = tools.specs().size
+        assertTrue(wondering.size < all / 2 && emotional.size < all / 2)
+        assertTrue("background never writes their records", (wondering + emotional + consolidation).none { it in com.her.agent.tools.USER_RECORD_WRITES })
     }
 
     @Test
@@ -538,6 +563,10 @@ class AgentOrchestratorTest {
         clock.advance(HOUR)
         orchestrator.enqueueUserMessage("I'm at the airport")
         orchestrator.runHourly(gated = true)
+        assertEquals("mid-conversation it waits", 2, llm.calls)
+
+        clock.advance(20 * 60 * 1000)
+        orchestrator.runHourly(gated = true)
         assertEquals("their message is new", 3, llm.calls)
     }
 
@@ -559,6 +588,8 @@ class AgentOrchestratorTest {
 
     @Test
     fun gatedBriefingWaitsForSomeoneWhoWentQuiet() = runBlocking {
+        // 22:30 UTC is too late for a morning note in UTC; in Tehran it is 02:00, before the morning.
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
         val llm = ScriptedLlm({ reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         orchestrator.enqueueUserMessage("hi")
@@ -573,6 +604,8 @@ class AgentOrchestratorTest {
 
     @Test
     fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
+        // Same zone as above, so the briefing at the end isn't too late for a morning note.
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
         val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("done") }, { reply("done") }, { reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         var passes = 0
@@ -911,6 +944,68 @@ class AgentOrchestratorTest {
         assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
     }
 
+    @Test
+    fun gatedHourlyStartsAConversationWhenTheyHaveBeenQuiet() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T08:00:00Z").toEpochMilli())
+        val llm = ScriptedLlm(
+            { reply("NO_NOTIFICATION") },
+            { toolCall("start_conversation", """{"about":"silence","content":"Hey, how did the interview go?"}""") },
+            { reply("Sent.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("Off to the interview")
+        clock.advance(20 * 60 * 1000)
+        orchestrator.runHourly(gated = true)
+        clock.advance(26 * HOUR)
+        orchestrator.runHourly(gated = true)
+
+        assertEquals(listOf("Hey, how did the interview go?"), shown)
+        assertTrue(llm.messagesSeen.last().any { "You may start a conversation" in it.content.orEmpty() })
+        val latest = repo.recentMessages(10).last()
+        assertEquals("silence", JSONObject(latest.metadataJson!!).getString("initiative"))
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("she spoke recently, so nothing new wakes the model", 3, llm.calls)
+        clock.advance(3 * HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("WISTFUL", repo.getCompanionRecord("EMOTION_EVENT:UNANSWERED:${latest.id}")?.data()?.getString("feeling"))
+        assertEquals("giving them space, so the model stays asleep", 3, llm.calls)
+
+        val answer = orchestrator.enqueueUserMessage("It went great!")
+        assertEquals("GLAD", repo.getCompanionRecord("EMOTION_EVENT:ANSWERED:${answer.id}")!!.data().getString("feeling"))
+    }
+
+    @Test
+    fun startConversationIsBackgroundOnlyAndRespectsTheGate() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        assertFalse(tools.specsFor(AgentRunType.CHAT).any { it.name == "start_conversation" })
+        assertTrue(tools.specsFor(AgentRunType.HOURLY).any { it.name == "start_conversation" })
+        repo.saveMessage(repo.newChatMessage(MessageRole.USER, "Just checking in", MessageStatus.SENT))
+        tools.runType = AgentRunType.HOURLY
+        val blocked = tools.execute("start_conversation", """{"about":"silence","content":"Hi"}""")
+        assertTrue(blocked.payloadJson, "they wrote recently" in blocked.payloadJson)
+    }
+
+    @Test
+    fun startConversationAsksASavedWondering() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val taskId = JSONObject(tools.execute("create_task", """{"title":"Send draft"}""").payloadJson).getString("id")
+        val saved = tools.execute("save_wondering", JSONObject().put("sourceId", taskId).put("status", "OPEN")
+            .put("observation", "The draft is still open").put("question", "Is anything blocking the draft?").toString())
+        assertTrue(saved.payloadJson, saved.ok)
+        val id = JSONObject(saved.payloadJson).getString("id")
+        orchestrator(ScriptedLlm(
+            { toolCall("start_conversation", """{"about":"wonder:$id","content":"Is anything blocking the draft?"}""") },
+            { reply("NO_NOTIFICATION") },
+        )).runHourly(gated = true)
+
+        assertEquals(listOf("Is anything blocking the draft?"), shown)
+        assertEquals("ASKED", repo.getWondering(id)!!.status)
+    }
+
     private fun orchestrator(llm: LlmClient, appraise: Boolean = false, weekStart: java.time.DayOfWeek? = null) = AgentOrchestrator(
         repo = repo,
         llm = llm,
@@ -950,6 +1045,7 @@ class AgentOrchestratorTest {
         private val script = steps.toMutableList()
         val toolsSeen = mutableListOf<List<ToolSpec>>()
         val modelsSeen = mutableListOf<String>()
+        val messagesSeen = mutableListOf<List<LlmMessage>>()
         val calls: Int get() = toolsSeen.size
 
         override suspend fun complete(
@@ -958,14 +1054,14 @@ class AgentOrchestratorTest {
             tools: List<ToolSpec>,
             client: OkHttpClient,
             webSearch: WebSearchRequest?,
-        ): LlmResponse = next(settings, tools)
+        ): LlmResponse = next(settings, tools).also { messagesSeen += messages }
 
         override suspend fun stream(
             settings: LlmSettings,
             messages: List<LlmMessage>,
             tools: List<ToolSpec>,
             onDelta: (String) -> Unit,
-        ): LlmResponse = next(settings, tools)
+        ): LlmResponse = next(settings, tools).also { messagesSeen += messages }
 
         private fun next(settings: LlmSettings, tools: List<ToolSpec>): LlmResponse {
             toolsSeen += tools

@@ -48,7 +48,7 @@ class NotificationActionsTest {
 
     @Test
     fun swipeAwayIsCounted() {
-        assertEquals(NotificationAction.Dismissed, NotificationActions.decide(Notifier.ACTION_NUDGE_DISMISSED, null, null))
+        assertEquals(NotificationAction.Dismissed, NotificationActions.decide(Notifier.ACTION_DISMISS, null, null))
     }
 
     @Test

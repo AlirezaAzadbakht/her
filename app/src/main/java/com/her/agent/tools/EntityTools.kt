@@ -112,7 +112,7 @@ internal fun ToolRegistry.registerEntityTools() {
             version = (existing?.version ?: 0) + 1,
         )
         repo.saveProject(project)
-        jsonObjectOf("ok" to true, "id" to project.id)
+        jsonObjectOf("ok" to true, "id" to project.id, "name" to project.name)
     }
 
     register("get_goals", "List goals.", objSchema()) { jsonObjectOf("ok" to true, "goals" to JSONArray(repo.goals().map { JSONObject(it.toJson()) })) }
@@ -147,7 +147,7 @@ internal fun ToolRegistry.registerEntityTools() {
     register(
         "update_task",
         "Update a task by id or exact title, including moving its due time.",
-        objSchema("id" to str("Task id or title"), "status" to enumField<TaskStatus>(), "title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), required = listOf("id")),
+        objSchema("id" to str("Task id or title"), "status" to enumField<TaskStatus>(), "title" to str(), "description" to str(), "dueAt" to str(WHEN_HINT), "relatedProjectId" to str("Move it under this project"), required = listOf("id")),
     ) { args ->
         val existing = requireTask(args.requiredString("id"))
         val status = parseEnum<TaskStatus>(
@@ -159,13 +159,14 @@ internal fun ToolRegistry.registerEntityTools() {
                 title = args.optStringOrNull("title") ?: existing.title,
                 description = args.optStringOrNull("description") ?: existing.description,
                 dueAt = parseDeadline(args.optStringOrNull("dueAt")) ?: existing.dueAt,
+                relatedProjectId = args.optStringOrNull("relatedProjectId")?.let { ref -> (repo.getProject(ref) ?: repo.projects().firstOrNull { it.name.equals(ref, true) })?.id ?: throw ToolValidationException("Project not found: $ref") } ?: existing.relatedProjectId,
                 status = status,
                 updatedAt = nowMillis(),
                 version = existing.version + 1,
                 deletedAt = if (status == TaskStatus.DROPPED) nowMillis() else existing.deletedAt,
             ),
         )
-        jsonObjectOf("ok" to true, "id" to existing.id, "status" to status.name)
+        jsonObjectOf("ok" to true, "id" to existing.id, "title" to (args.optStringOrNull("title") ?: existing.title), "status" to status.name)
     }
 
     register("get_commitments", "List commitments.", objSchema()) { jsonObjectOf("ok" to true, "commitments" to JSONArray(repo.commitments().map { JSONObject(it.toJson()) })) }
@@ -333,6 +334,8 @@ internal fun ToolRegistry.registerEntityTools() {
     register("get_recurring_responsibilities", "List recurring responsibilities.", objSchema()) { jsonObjectOf("ok" to true, "items" to JSONArray(repo.responsibilities().map { JSONObject(it.toJson()) })) }
     register("create_recurring_responsibility", "Create a recurring responsibility.", objSchema("title" to str(), "cadence" to str(), "nextDueAt" to str(WHEN_HINT), "notes" to str(), required = listOf("title", "cadence"))) { args ->
         val now = nowMillis()
+        repo.responsibilities().firstOrNull { com.her.core.lexicalOverlap(args.requiredString("title"), it.title) >= 0.5 }
+            ?.let { return@register jsonObjectOf("ok" to true, "id" to it.id, "alreadyExists" to true, "title" to it.title, "note" to "This one is already kept; update it instead of adding another.") }
         val id = newId()
         repo.saveResponsibility(RecurringResponsibility(id, args.requiredString("title"), args.requiredString("cadence"), parseDeadline(args.optStringOrNull("nextDueAt")), null, args.optStringOrNull("notes"), now, now, repo.deviceId, 1, null))
         jsonObjectOf("ok" to true, "id" to id)

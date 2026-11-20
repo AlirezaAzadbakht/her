@@ -36,19 +36,28 @@ object RuntimePermissions {
         calendar().all { result[it] == true }
 }
 
+/**
+ * Asks once at launch for whatever has not been asked yet: calendar, notifications and contacts on a new install.
+ * An install from before contacts was asked here gets only the contacts prompt.
+ */
 @Composable
 fun RequestFirstRunPermissions(
     asked: Boolean,
-    onFinished: (calendarGranted: Boolean) -> Unit,
+    contactsAsked: Boolean,
+    onFinished: (calendarGranted: Boolean, contactsGranted: Boolean) -> Unit,
 ) {
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
-        onFinished(RuntimePermissions.calendarGranted(result))
+        onFinished(RuntimePermissions.calendarGranted(result), result[Manifest.permission.READ_CONTACTS] == true)
     }
-    LaunchedEffect(asked) {
-        if (asked) return@LaunchedEffect
-        launcher.launch(RuntimePermissions.firstRun())
+    LaunchedEffect(asked, contactsAsked) {
+        if (asked && contactsAsked) return@LaunchedEffect
+        val wanted = buildList {
+            if (!asked) addAll(RuntimePermissions.firstRun())
+            if (!contactsAsked) add(Manifest.permission.READ_CONTACTS)
+        }
+        launcher.launch(wanted.toTypedArray())
     }
 }
 
@@ -71,6 +80,22 @@ fun rememberContactsPermissionRequester(onBlocked: () -> Unit = {}, onGranted: (
             launcher.launch(Manifest.permission.READ_CONTACTS)
         }
     }
+}
+
+/**
+ * Asks for precise location, or with [background] for "Allow all the time" (Android 11+ opens its settings page for
+ * that). Runs [onDone] after the answer either way, so the caller can re-check what was granted.
+ */
+@Composable
+fun rememberLocationPermissionRequester(background: Boolean = false, onBlocked: () -> Unit = {}, onDone: () -> Unit): () -> Unit {
+    val activity = LocalActivity.current
+    val wanted = if (background) arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+    else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        if (result[wanted.first()] != true && isBlocked(activity, wanted.first())) onBlocked()
+        onDone()
+    }
+    return { launcher.launch(wanted) }
 }
 
 @Composable

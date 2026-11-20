@@ -97,13 +97,14 @@ Each completed scenario also saves a report under `build/reports/scenarios/compl
 
 Unknown keys and unknown matchers are parse errors that name the file. The `id` must match the filename without `.json`.
 
-- `turns` are `{"user":"..."}` (enqueue + `processOutbox`), `{"user":"...","queued":true}` (enqueue only, as if offline; the next unqueued user turn sends the batch), `{"run":"hourly"|"nightly"|"briefing"}`, `{"run":"hourly","concurrent_with_user":"..."}` (hourly/nightly/briefing overlapping a chat turn), `{"advance":"3 days"}` (minutes / hours / days / weeks), or `{"at":"next monday at 8am"}` (forward only).
+- `turns` are `{"user":"..."}` (enqueue + `processOutbox`), `{"user":"...","queued":true}` (enqueue only, as if offline; the next unqueued user turn sends the batch), `{"user":"...","shared":"..."}` (the message carries shared text, as the share sheet attaches it; a shared image arrives as the text read from it), `{"run":"hourly"|"nightly"|"briefing"}`, `{"run":"hourly","concurrent_with_user":"..."}` (hourly/nightly/briefing overlapping a chat turn), `{"advance":"3 days"}` (minutes / hours / days / weeks), or `{"at":"next monday at 8am"}` (forward only).
 - `{"check": { ... }}` is an intermediate checkpoint using the same deterministic expectations as `expect`. It inspects current rows and cumulative calls/messages/notifications, fails immediately with the turn number, and makes no model call. It does not support `reply.judge`; put semantic judging in the final `expect`. Checkpoints are never shown to the model.
 - `"faults": [{ "call": 2, "type": "http_500" }]` throws on that 1-based LLM call (`http_500`, `http_429`, `malformed_json`, `truncated_stream`).
 - Each attempt runs on its own fake clock that starts at the real time (or the cassette's start time in replay). Every repository, tool, context bundle, and check reads that clock, and "today" is taken in the profile timezone.
 - `attempts` (default 1): the scenario passes if any attempt passes. The report shows the pass rate.
 - `"pending": true`: run and report, but do not fail the suite.
 - Seed tool calls set up state and are not counted toward `tools_called`. An exact top-level argument value such as `"$seed.0.id"` takes a field from an earlier seed-tool result (zero-based index); numeric values retain their type. Missing or forward references fail setup. This allows linked records to be seeded through real tools without hard-coded IDs.
+- `"settings": { "initiative": true }` lets her start conversations on her own. It is off by default, like the weekly review, so a scenario only meets it when it is about it.
 - `"seed": { "persona": { "directness": 0.9, "warmth": 0.5 } }` sets exact trait values (0 to 1) as both value and seed; traits left out keep the seed from her name.
 - A scenario attempt passes when every deterministic check passes, and the optional LLM judge passes if `expect.reply.judge` is set.
 

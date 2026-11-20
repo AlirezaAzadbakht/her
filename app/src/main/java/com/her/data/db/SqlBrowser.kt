@@ -23,6 +23,29 @@ data class RecentMemory(
     val updatedAt: Long,
 )
 
+/** How much she holds, counting only what is still active and not forgotten. */
+data class MemoryCounts(
+    val remembered: Int = 0,
+    val noted: Int = 0,
+    val learnt: Int = 0,
+    val people: Int = 0,
+    val dates: Int = 0,
+)
+
+/** What she knows under one long-term category ([kind] `remembered`) or understanding facet ([kind] `learnt`). */
+data class Topic(
+    val kind: String,
+    val name: String,
+    val items: List<String>,
+)
+
+data class PersonSummary(
+    val name: String,
+    val relationship: String?,
+    val lastMentioned: Long?,
+    val details: String,
+)
+
 object SqlGuard {
     private val ALLOWED = setOf("SELECT", "WITH", "PRAGMA", "EXPLAIN")
 
@@ -34,6 +57,21 @@ object SqlGuard {
         val stripped = stripLiterals(trimmed)
         val afterSemi = stripped.substringAfter(';', missingDelimiterValue = "").trim()
         return afterSemi.isEmpty()
+    }
+
+    /**
+     * One read-only SELECT/WITH that names no table outside [allowed]. The raw text is scanned, quotes
+     * included, because SQLite accepts `"x"` and even `'x'` as a table name.
+     */
+    // ponytail: word scan, not a SQL parser; a blocked name in a column or string is refused too (the safe side).
+    fun referencesOnly(sql: String, allowed: Set<String>, known: Set<String>): Boolean {
+        if (!isReadOnly(sql)) return false
+        if (firstKeyword(sql.trim().trimStart('\uFEFF')) !in setOf("SELECT", "WITH")) return false
+        val blocked = known.map { it.lowercase(Locale.US) }.toSet() - allowed.map { it.lowercase(Locale.US) }.toSet()
+        return Regex("[A-Za-z_][A-Za-z0-9_]*").findAll(sql).none {
+            val word = it.value.lowercase(Locale.US)
+            word in blocked || word.startsWith("sqlite_") || word == "pragma"
+        }
     }
 
     fun quoteIdent(name: String): String {
@@ -101,6 +139,20 @@ class SqlBrowser(private val db: HerDatabase) {
         }
     }
 
+    /** For the agent: one SELECT over [RECORD_TABLES] only, so forgotten memories, chat and internals stay out. */
+    fun queryRecords(sql: String, rowCap: Int): QueryResult {
+        val known = query("SELECT name FROM sqlite_master", rowCap = HARD_CAP).rows.mapNotNull { it.firstOrNull() }.toSet()
+        if (known.isEmpty() || !SqlGuard.referencesOnly(sql, RECORD_TABLES, known)) {
+            return QueryResult(emptyList(), emptyList(), error = "Only one SELECT over these tables is allowed: ${RECORD_TABLES.sorted().joinToString()}")
+        }
+        return query(sql, rowCap)
+    }
+
+    /** Each record table with its column names, for the agent to write [queryRecords] against. */
+    fun recordColumns(): Map<String, List<String>> = RECORD_TABLES.sorted().associateWith { table ->
+        query("PRAGMA table_info(${SqlGuard.quoteIdent(table)})", rowCap = HARD_CAP).rows.mapNotNull { it.getOrNull(1) }
+    }.filterValues { it.isNotEmpty() }
+
     /** Her own tables; SQLite's full-text shadow tables (`*_fts_segdir` and friends) stay reachable by query only. */
     fun tables(): List<TableInfo> {
         val listed = query(
@@ -129,7 +181,55 @@ class SqlBrowser(private val db: HerDatabase) {
         rowCap = limit,
     ).rows.map { RecentMemory(it[0].orEmpty(), it[1].orEmpty(), it[2]?.toLongOrNull() ?: 0, it[3]?.toLongOrNull() ?: 0) }
 
+    fun memoryCounts(): MemoryCounts {
+        val row = query(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'),
+                (SELECT COUNT(*) FROM short_term_memories WHERE deletedAt IS NULL),
+                (SELECT COUNT(*) FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'),
+                (SELECT COUNT(*) FROM people WHERE deletedAt IS NULL),
+                (SELECT COUNT(*) FROM important_dates WHERE deletedAt IS NULL)
+            """,
+            rowCap = 1,
+        ).rows.firstOrNull() ?: return MemoryCounts()
+        val n = row.map { it?.toIntOrNull() ?: 0 }
+        return MemoryCounts(n[0], n[1], n[2], n[3], n[4])
+    }
+
+    /** Biggest topics first; within one, the most important items first. */
+    fun knownTopics(): List<Topic> = query(
+        """
+        SELECT kind, name, content FROM (
+            SELECT 'remembered' AS kind, category AS name, content, importance, updatedAt FROM long_term_memories WHERE deletedAt IS NULL AND status = 'ACTIVE'
+            UNION ALL SELECT 'learnt', facet, content, importance, updatedAt FROM user_understandings WHERE deletedAt IS NULL AND status = 'ACTIVE'
+        ) ORDER BY importance DESC, updatedAt DESC
+        """,
+        rowCap = HARD_CAP,
+    ).rows
+        .groupBy({ it[0].orEmpty() to it[1].orEmpty() }, { it[2].orEmpty() })
+        .map { (key, items) -> Topic(key.first, key.second, items) }
+        .sortedByDescending { it.items.size }
+
+    fun people(): List<PersonSummary> = query(
+        "SELECT name, relationship, lastMentioned, birthday, importantNotes, preferences FROM people WHERE deletedAt IS NULL ORDER BY lastMentioned IS NULL, lastMentioned DESC, name",
+        rowCap = HARD_CAP,
+    ).rows.map {
+        PersonSummary(
+            name = it[0].orEmpty(),
+            relationship = it[1]?.takeIf(String::isNotBlank),
+            lastMentioned = it[2]?.toLongOrNull(),
+            details = listOfNotNull(it[0], it[1], it[3], it[4], it[5]).filter(String::isNotBlank).joinToString("\n\n"),
+        )
+    }
+
     companion object {
         const val HARD_CAP = 500
+
+        /** The person's own records; never memories, chat, feelings or internals, which forgetting has to clear. */
+        val RECORD_TABLES = setOf(
+            "tasks", "goals", "commitments", "groceries", "reminders", "recurring_responsibilities", "routines",
+            "important_dates", "calendar_events", "people", "projects", "open_loops", "learning_records", "expenses",
+        )
     }
 }

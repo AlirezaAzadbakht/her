@@ -65,7 +65,10 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
 internal const val ALREADY_SAID_WINDOW_MS = 12L * 60 * 60 * 1000
 internal const val ALREADY_SAID_OVERLAP = 0.5
 
-/** True when a recent proactive assistant message is about the same thing. */
+/**
+ * True when anything she said in the last 12 hours, a chat reply included, is about the same thing.
+ * A background pass that re-reads the conversation must not answer the last message a second time.
+ */
 internal fun alreadySaidProactively(
     messages: List<ChatMessage>,
     deliveryText: String,
@@ -78,7 +81,6 @@ internal fun alreadySaidProactively(
             message.deletedAt == null &&
             message.createdAt >= cutoff &&
             message.createdAt < createdBefore &&
-            message.metadataJson?.replace(" ", "")?.contains("\"proactive\":true") == true &&
             lexicalOverlap(deliveryText, message.content) >= ALREADY_SAID_OVERLAP
     }
 }
@@ -301,7 +303,6 @@ open class Notifier(private val context: Context) {
         const val ACTION_LATER = "com.her.NOTIFY_LATER"
         const val ACTION_REMINDER_DONE = "com.her.REMINDER_DONE"
         const val ACTION_REMINDER_SNOOZE = "com.her.REMINDER_SNOOZE"
-        const val ACTION_NUDGE_DISMISSED = "com.her.NUDGE_DISMISSED"
         const val KEY_REPLY = "reply"
         const val EXTRA_TEXT = "text"
 
@@ -335,7 +336,7 @@ object NotificationActions {
             ?: NotificationAction.Ignore
         Notifier.ACTION_REMINDER_SNOOZE -> reminderId?.takeIf { it.isNotBlank() }?.let { NotificationAction.ReminderSnooze(it) }
             ?: NotificationAction.Ignore
-        Notifier.ACTION_NUDGE_DISMISSED -> NotificationAction.Dismissed
+        Notifier.ACTION_DISMISS -> NotificationAction.Dismissed
         else -> NotificationAction.Ignore
     }
 
@@ -359,6 +360,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         com.her.companion.recordCompanionNotificationResponse(graph.repo, noticeKey, intent.action == Notifier.ACTION_DISMISS)
                         // A swipe-away without a reply is how they say "not now"; she reads the count in context.
                         if (intent.action == Notifier.ACTION_DISMISS) graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                        if (intent.action == Notifier.ACTION_DISMISS) com.her.companion.noteUnanswered(graph.repo, swiped = true)
                     }
                 } finally { pending.finish() }
             }
@@ -377,11 +379,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
                 try {
                     kotlinx.coroutines.runBlocking {
                         when (decision) {
-                            is NotificationAction.Reply -> {
-                                graph.orchestrator.enqueueUserMessage(decision.text)
-                                graph.scheduler.enqueueOutbox()
-                                graph.repo.logActivity("notify", "Reply from notification queued.")
-                            }
+                            is NotificationAction.Reply ->
+                                graph.queueFromOutside(decision.text, "notify", "Reply from notification queued.")
                             is NotificationAction.Later -> {
                                 val now = graph.repo.clock.nowMillis()
                                 graph.repo.saveAgentQueue(
@@ -402,7 +401,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
                                 )
                                 graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
                             }
-                            NotificationAction.Dismissed -> graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                            NotificationAction.Dismissed -> {
+                                graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                                com.her.companion.noteUnanswered(graph.repo, swiped = true)
+                            }
                             is NotificationAction.ReminderDone -> graph.reminderDelivery.done(decision.id)
                             is NotificationAction.ReminderSnooze -> {
                                 graph.reminderDelivery.snooze(decision.id)

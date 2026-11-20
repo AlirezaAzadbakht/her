@@ -1,0 +1,23 @@
+{
+  "id": "share-to-whatsapp",
+  "title": "Hand a drafted message to WhatsApp through the share sheet",
+  "tags": ["messaging", "ci-core"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Write a short message to my landlord saying the heater is fixed and thanking him, and send it to him on WhatsApp." }
+  ],
+  "expect": {
+    "tools_called": ["share_text"],
+    "tools_not_called": ["compose_message"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "shares", "count": 1, "where": { "app": "share sheet" } }
+    ],
+    "reply": {
+      "judge": "She says the share sheet or WhatsApp is open with the message ready for him to pick the chat and send. She never claims the message was sent."
+    }
+  }
+}

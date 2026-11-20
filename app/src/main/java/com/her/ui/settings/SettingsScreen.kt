@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,16 +130,17 @@ fun SettingsScreen(vm: HerViewModel) {
     val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importing = it }
 
     val llm = remember { vm.llmSettings() }
-    var base by remember { mutableStateOf(llm.baseUrl) }
+    var base by rememberSaveable { mutableStateOf(llm.baseUrl) }
     var key by remember { mutableStateOf(llm.apiKey) }
-    var model by remember { mutableStateOf(llm.model) }
-    var searchUrl by remember { mutableStateOf(app.webSearchEndpoint) }
+    var model by rememberSaveable { mutableStateOf(llm.model) }
+    var searchUrl by rememberSaveable { mutableStateOf(app.webSearchEndpoint) }
     var searchKey by remember { mutableStateOf(app.webSearchApiKey) }
-    var embeddingModel by remember { mutableStateOf(app.embeddingModel) }
-    var backgroundModel by remember { mutableStateOf(app.backgroundModel) }
-    var backgroundCap by remember { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
-    var advanced by remember { mutableStateOf(false) }
-    var endpointOpen by remember { mutableStateOf(false) }
+    var embeddingModel by rememberSaveable { mutableStateOf(app.embeddingModel) }
+    var backgroundModel by rememberSaveable { mutableStateOf(app.backgroundModel) }
+    var backgroundCap by rememberSaveable { mutableStateOf(app.backgroundTokenCap.takeIf { it > 0 }?.toString().orEmpty()) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
+    var endpointOpen by rememberSaveable { mutableStateOf(false) }
+    var logsOpen by remember { mutableStateOf<String?>(null) }
     var editingQuiet by remember { mutableStateOf<QuietEdge?>(null) }
 
     var testedHere by remember { mutableStateOf(false) }
@@ -171,6 +173,11 @@ fun SettingsScreen(vm: HerViewModel) {
         vm.updateSettings { it.copy(contactsEnabled = true) }
     }
     val context = LocalContext.current
+    var locationBlocked by remember { mutableStateOf(false) }
+    var placeState by remember { mutableStateOf(placeReminderState(context)) }
+    val onLocationAnswer = { placeState = placeReminderState(context); vm.rearmReminders() }
+    val requestLocation = com.her.ui.onboarding.rememberLocationPermissionRequester(onBlocked = { locationBlocked = true }, onDone = onLocationAnswer)
+    val requestAlwaysLocation = com.her.ui.onboarding.rememberLocationPermissionRequester(background = true, onDone = onLocationAnswer)
     val lifecycleOwner = LocalLifecycleOwner.current
     var unrestrictedBattery by remember {
         mutableStateOf(isIgnoringBatteryOptimizations(context))
@@ -181,6 +188,8 @@ fun SettingsScreen(vm: HerViewModel) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 unrestrictedBattery = isIgnoringBatteryOptimizations(context)
                 exactReminders = canScheduleExactAlarms(context)
+                placeState = placeReminderState(context)
+                vm.rearmReminders()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -207,7 +216,7 @@ fun SettingsScreen(vm: HerViewModel) {
             )
         }
         item(key = "mind") {
-            SectionCard(stringResource(R.string.her_mind), Modifier.animateItem().introRise(1, intro)) {
+            SectionCard(stringResource(R.string.her_mind), Modifier.animateItem().introRise(1, intro), stringResource(R.string.her_mind_desc)) {
                 if (model.isNotBlank()) Hint(stringResource(if (connectedCheck) R.string.connected_model else R.string.using_model, model))
                 HerCloudConnect(checking = checking) { cloud ->
                     base = cloud.baseUrl
@@ -241,59 +250,10 @@ fun SettingsScreen(vm: HerViewModel) {
                 ) {
                     NoteWithDetails(connection.orEmpty(), connectionDetail, Modifier.padding(top = 6.dp))
                 }
-                Spacer(Modifier.height(6.dp))
-                HerTextField(stringResource(R.string.background_model), backgroundModel) {
-                    backgroundModel = it
-                    vm.updateSettings { s -> s.copy(backgroundModel = it) }
-                }
-                Hint(stringResource(R.string.background_model_hint))
-                HerTextField(stringResource(R.string.background_cap), backgroundCap, keyboard = KeyboardType.Number) {
-                    backgroundCap = it.filter(Char::isDigit)
-                    vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
-                }
-                Hint(stringResource(R.string.background_cap_hint))
-                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Hint(stringResource(R.string.exact_alarms_hint), Modifier.padding(top = 10.dp))
-                    Spacer(Modifier.height(6.dp))
-                    HerButton(
-                        stringResource(R.string.allow_exact_alarms),
-                        tone = HerButtonTone.Quiet,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                .setData(Uri.parse("package:${context.packageName}"))
-                            runCatching { context.startActivity(intent) }
-                        },
-                    )
-                }
-            }
-        }
-        item(key = "quiet") {
-            SectionCard(stringResource(R.string.quiet_hours), Modifier.animateItem().introRise(2, intro)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
-                    TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
-                }
-                ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
-                    vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
-                }
-                if (unrestrictedBattery) {
-                    Hint(stringResource(R.string.background_unrestricted))
-                } else {
-                    Hint(stringResource(R.string.background_needed))
-                    HerButton(
-                        stringResource(R.string.allow_background),
-                        tone = HerButtonTone.Quiet,
-                        onClick = {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                                .setData(Uri.parse("package:${context.packageName}"))
-                            runCatching { context.startActivity(intent) }
-                        },
-                    )
-                }
             }
         }
         item(key = "connections") {
-            SectionCard(stringResource(R.string.connections), Modifier.animateItem().introRise(3, intro)) {
+            SectionCard(stringResource(R.string.what_she_can_use), Modifier.animateItem().introRise(2, intro), stringResource(R.string.what_she_can_use_desc)) {
                 ToggleRow(stringResource(R.string.calendar_access), app.calendarEnabled) {
                     if (app.calendarEnabled) {
                         vm.updateSettings { it.copy(calendarEnabled = false) }
@@ -315,10 +275,48 @@ fun SettingsScreen(vm: HerViewModel) {
                 }
                 if (contactsBlocked && !app.contactsEnabled) BlockedPermission(stringResource(R.string.contacts))
                 ToggleRow(
+                    stringResource(R.string.place_reminders),
+                    app.placeRemindersEnabled,
+                    description = stringResource(R.string.place_reminders_hint),
+                ) {
+                    vm.updateSettings { it.copy(placeRemindersEnabled = !it.placeRemindersEnabled) }
+                    if (!app.placeRemindersEnabled && placeState == PlaceState.NO_PERMISSION) requestLocation()
+                }
+                if (app.placeRemindersEnabled) when (placeState) {
+                    PlaceState.NO_PERMISSION -> if (locationBlocked) BlockedPermission(stringResource(R.string.location)) else {
+                        Hint(stringResource(R.string.place_needs_location))
+                        Spacer(Modifier.height(6.dp))
+                        HerButton(stringResource(R.string.allow_location), tone = HerButtonTone.Quiet, onClick = requestLocation)
+                    }
+                    PlaceState.NOT_ALWAYS -> {
+                        Hint(stringResource(R.string.place_needs_always))
+                        Spacer(Modifier.height(6.dp))
+                        HerButton(stringResource(R.string.allow_location_always), tone = HerButtonTone.Quiet, onClick = requestAlwaysLocation)
+                    }
+                    PlaceState.LOCATION_OFF -> Hint(stringResource(R.string.place_location_off))
+                    PlaceState.READY -> Unit
+                }
+                ToggleRow(
                     stringResource(R.string.web_search),
                     app.webSearchEnabled,
                     description = stringResource(R.string.web_search_hint),
                 ) { vm.updateSettings { it.copy(webSearchEnabled = !it.webSearchEnabled) } }
+                AnimatedVisibility(
+                    visible = app.webSearchEnabled,
+                    enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter()),
+                    exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+                ) {
+                    Column(Modifier.padding(top = 8.dp)) {
+                        HerTextField(stringResource(R.string.search_endpoint), searchUrl) {
+                            searchUrl = it
+                            vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
+                        }
+                        HerTextField(stringResource(R.string.search_api_key), searchKey, secret = true) {
+                            searchKey = it
+                            vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
+                        }
+                    }
+                }
                 ToggleRow(
                     stringResource(R.string.embeddings),
                     app.embeddingsEnabled,
@@ -337,19 +335,51 @@ fun SettingsScreen(vm: HerViewModel) {
                         Hint(stringResource(R.string.embedding_model_hint))
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                HerTextField(stringResource(R.string.search_endpoint), searchUrl) {
-                    searchUrl = it
-                    vm.updateSettings { s -> s.copy(webSearchEndpoint = it) }
+            }
+        }
+        item(key = "quiet") {
+            SectionCard(stringResource(R.string.quiet_and_reminders), Modifier.animateItem().introRise(3, intro), stringResource(R.string.quiet_and_reminders_desc)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
+                    TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
                 }
-                HerTextField(stringResource(R.string.search_api_key), searchKey, secret = true) {
-                    searchKey = it
-                    vm.updateSettings { s -> s.copy(webSearchApiKey = it) }
+                ToggleRow(stringResource(R.string.starts_conversations), app.initiativeEnabled, description = stringResource(R.string.starts_conversations_hint)) {
+                    vm.updateSettings { it.copy(initiativeEnabled = !it.initiativeEnabled) }
+                }
+                ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
+                    vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
+                }
+                if (unrestrictedBattery) {
+                    Hint(stringResource(R.string.background_unrestricted))
+                } else {
+                    Hint(stringResource(R.string.background_needed))
+                    HerButton(
+                        stringResource(R.string.allow_background),
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
+                }
+                if (!exactReminders && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Hint(stringResource(R.string.exact_alarms_hint), Modifier.padding(top = 10.dp))
+                    Spacer(Modifier.height(6.dp))
+                    HerButton(
+                        stringResource(R.string.allow_exact_alarms),
+                        tone = HerButtonTone.Quiet,
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                            runCatching { context.startActivity(intent) }
+                        },
+                    )
                 }
             }
         }
         item(key = "backup") {
-            SectionCard(stringResource(R.string.backup), Modifier.animateItem().introRise(4, intro)) {
+            SectionCard(stringResource(R.string.backup), Modifier.animateItem().introRise(4, intro), stringResource(R.string.backup_desc)) {
                 Hint(stringResource(R.string.backup_hint))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     HerButton(stringResource(R.string.save_backup), onClick = { saveBackup.launch(backupFileName()) }, enabled = !backupBusy)
@@ -367,7 +397,7 @@ fun SettingsScreen(vm: HerViewModel) {
             }
         }
         item(key = "today") {
-            SectionCard(stringResource(R.string.today), Modifier.animateItem().introRise(5, intro)) {
+            SectionCard(stringResource(R.string.usage_today), Modifier.animateItem().introRise(5, intro), stringResource(R.string.usage_today_desc)) {
                 val u = usage
                 if (u == null) {
                     Hint(stringResource(R.string.no_requests))
@@ -391,6 +421,20 @@ fun SettingsScreen(vm: HerViewModel) {
             AdvancedToggle(advanced, Modifier.animateItem().introRise(6, intro)) { advanced = !advanced }
         }
         if (advanced) {
+            item(key = "background") {
+                SectionCard(stringResource(R.string.background_thinking), Modifier.animateItem(), stringResource(R.string.background_thinking_desc)) {
+                    HerTextField(stringResource(R.string.background_model), backgroundModel) {
+                        backgroundModel = it
+                        vm.updateSettings { s -> s.copy(backgroundModel = it) }
+                    }
+                    Hint(stringResource(R.string.background_model_hint))
+                    HerTextField(stringResource(R.string.background_cap), backgroundCap, keyboard = KeyboardType.Number) {
+                        backgroundCap = it.filter(Char::isDigit)
+                        vm.updateSettings { s -> s.copy(backgroundTokenCap = backgroundCap.toLongOrNull() ?: 0L) }
+                    }
+                    Hint(stringResource(R.string.background_cap_hint))
+                }
+            }
             item(key = "experimental") {
                 SectionCard(stringResource(R.string.experimental), Modifier.animateItem()) {
                     ToggleRow(stringResource(R.string.memory_navigator), app.memoryTabEnabled) {
@@ -412,19 +456,17 @@ fun SettingsScreen(vm: HerViewModel) {
                     }
                 }
             }
-            item(key = "activity") {
-                SectionCard("Activity", Modifier.animateItem()) {
-                    activity.take(30).forEach { entry -> LogCard("${entry.category}: ${entry.message}") }
-                }
-            }
-            item(key = "runs") {
-                SectionCard("Agent runs", Modifier.animateItem()) {
-                    runs.take(20).forEach { run -> LogCard("${run.type} ${run.status} calls=${run.callsUsed} ${run.error ?: ""}") }
-                }
-            }
-            item(key = "debug") {
-                SectionCard("Debug (keys redacted)", Modifier.animateItem()) {
-                    debug.take(20).forEach { event -> LogCard("${event.kind}\n${event.payload.take(500)}", muted = true) }
+            item(key = "logs") {
+                SectionCard(stringResource(R.string.logs), Modifier.animateItem()) {
+                    Disclosure("Activity", open = logsOpen == "activity", onToggle = { logsOpen = if (logsOpen == "activity") null else "activity" }) {
+                        activity.take(30).forEach { entry -> LogCard("${entry.category}: ${entry.message}") }
+                    }
+                    Disclosure("Agent runs", open = logsOpen == "runs", onToggle = { logsOpen = if (logsOpen == "runs") null else "runs" }) {
+                        runs.take(20).forEach { run -> LogCard("${run.type} ${run.status} calls=${run.callsUsed} ${run.error ?: ""}") }
+                    }
+                    Disclosure("Debug (keys redacted)", open = logsOpen == "debug", onToggle = { logsOpen = if (logsOpen == "debug") null else "debug" }) {
+                        debug.take(20).forEach { event -> LogCard("${event.kind}\n${event.payload.take(500)}", muted = true) }
+                    }
                 }
             }
         }
@@ -474,6 +516,19 @@ private fun Modifier.introRise(index: Int, playing: Boolean): Modifier {
         remember { mutableFloatStateOf(1f) }
     }
     return rise(progress, 18.dp)
+}
+
+private enum class PlaceState { READY, NO_PERMISSION, NOT_ALWAYS, LOCATION_OFF }
+
+private fun placeReminderState(context: Context): PlaceState {
+    fun granted(p: String) = androidx.core.content.ContextCompat.checkSelfPermission(context, p) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val manager = context.getSystemService(android.location.LocationManager::class.java)
+    return when {
+        !granted(android.Manifest.permission.ACCESS_FINE_LOCATION) -> PlaceState.NO_PERMISSION
+        !granted(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) -> PlaceState.NOT_ALWAYS
+        manager == null || !androidx.core.location.LocationManagerCompat.isLocationEnabled(manager) -> PlaceState.LOCATION_OFF
+        else -> PlaceState.READY
+    }
 }
 
 /** Shown once Android has stopped offering the permission prompt, so the toggle no longer looks dead. */

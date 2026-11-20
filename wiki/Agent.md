@@ -8,7 +8,7 @@ The model never talks to SQL. It sees a system prompt, a structured context bund
 
 1. `ContextBuilder` assembles messages.
 2. `LlmClient` POSTs to `{baseUrl}/chat/completions` with OpenAI-style `tools` and `tool_choice: auto`. Chat turns stream (`stream=true`); hourly / nightly / briefing stay blocking. User lines are stored as `PENDING` and `processOutbox()` joins the whole batch into one turn. `web_search` and `fetch_url` are omitted from the tool list unless Settings → Web search is on; `web_search` then makes a separate, tool-free completion with `web_search_options`.
-3. Each tool call is validated and executed by `ToolRegistry`. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
+3. Each tool call is validated and executed by `ToolRegistry`. A field the tool does not declare is an error naming the fields it takes, so nothing is dropped behind an ok. The model never sees message ids, so a `sourceMessageId` that is not a real message is read as the message being answered in chat, and dropped in a background run. Identical calls in the same turn are not run twice; a call that failed twice is refused; a round is capped at 8 calls. Older tool payloads are stubbed once the in-turn prompt grows past ~80k characters.
 4. Tool results go back into the thread.
 5. Repeat until the model stops calling tools or the **call budget** is exhausted. A limit of 1 withholds tools so the turn still ends with a reply.
 6. Only the final message, the one with no tool calls, reaches the person. Text beside a tool call is the model's working notes and is dropped. A chat or briefing turn that ends blank gets one more call with tools withheld; an hourly pass that ends blank stays silent. A message containing `NO_NOTIFICATION` counts as silence.
@@ -34,7 +34,7 @@ The nightly review is three model turns (`Identity.NIGHTLY_PHASES`): the wonderi
 
 ## Retrieval
 
-`HybridRanker` runs FTS4 first. `ftsQuery` in `Core.kt` turns a sentence into `word* OR word* …` (up to 8 words, stopwords dropped, English and Persian), so any shared word can match. Tokens are Unicode-aware and normalized: Arabic ي/ك fold to Persian ی/ک, diacritics and tatweel are dropped, ZWNJ splits words, and Persian/Arabic digits become ASCII. The same `tokenize` feeds the lexical-overlap score. Expired short-term memories are excluded from FTS hits.
+`HybridRanker` runs FTS4 first. `ftsQuery` in `Core.kt` turns a sentence into `word* OR word* …` (up to 8 words, stopwords dropped, English and Persian), so any shared word can match. Tokens are Unicode-aware and normalized: Arabic ي/ك fold to Persian ی/ک, diacritics and tatweel are dropped, ZWNJ splits words, and Persian/Arabic digits become ASCII. The same `tokenize` feeds the lexical-overlap score. Expired short-term memories are excluded from FTS hits, and the nightly soft-deletes them once it finishes (`expireShortTermMemories`; expiry is not forgetting, so nothing derived from them is touched). `update_memory` can set `expiresAt`, including "now".
 
 When Settings → **Embeddings** is on, `OpenAiEmbeddingProvider` calls `{baseUrl}/embeddings` with the configured embedding model (default `text-embedding-3-small`), using the same key as chat. The ranker then scores a wider pool: FTS hits plus up to 200 active memories of each type. For those it blends cosine similarity into the semantic part of the score (35% lexical, 65% cosine). Vectors are cached in the device-local `memory_embeddings` table, keyed by memory id, model, and a content hash. Up to 64 missing ones are embedded per search, in the same request as the query. Any embeddings failure is logged and the search falls back to lexical ranking.
 
@@ -60,6 +60,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 `ToolRegistry` (`app/src/main/java/com/her/agent/tools/ToolRegistry.kt`) validates and runs calls and owns undo. Each group registers itself from its own file in that package: `MemoryTools.kt`, `EntityTools.kt`, `AgentTools.kt`, `CalendarTools.kt`, `MessagingTools.kt`. Schema helpers (`objSchema`, `enumField`, `oneOf`) live in `ToolSchema.kt`. Groups:
 
 - Time and memory: `get_current_time`, `search_memory`, `remember`, `update_memory`, `forget_memory`, `search_chat_history`, `relate_memories`
+- `query_records`: one read-only `SELECT`/`WITH` over the record tables in `SqlBrowser.RECORD_TABLES` (tasks, goals, groceries, expenses…) for counting and grouping; called without `sql` it lists their columns. Memories, chat, feelings and internals are refused, so forgetting still holds.
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
 - Routines, important dates, recurring responsibilities
@@ -70,7 +71,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - `web_search`, `fetch_url` (reads one public `http`/`https` page as text; refuses private and local addresses; both are offered only when Settings → Web search is on), `send_user_message`
 - Reminders and alarms (`ReminderTools.kt`): `set_reminder`, `get_reminders`, `update_reminder`, `cancel_reminder`, `complete_reminder`, `set_alarm`
 - Focus (`FocusTools.kt`): `start_focus`, `stop_focus`
-- Contacts (`ContactTools.kt`): `search_contacts`, read-only, offered only when Settings → Connections → **Contacts access** is on and `READ_CONTACTS` is granted. It returns at most 8 matches with phones and birthday; keeping a birthday is still `update_person`.
+- Contacts (`ContactTools.kt`): `search_contacts`, read-only, offered only when Settings → Connections → **Contacts access** is on and `READ_CONTACTS` is granted. It returns at most 8 matches with phones and birthday; keeping a birthday is still `update_person`. `compose_message(to, text)` opens the messaging app (`ACTION_SENDTO smsto:`) with the text filled in; they press send. `to` is a number (works with contacts off) or a name: an exact name match wins, and when several contacts or numbers fit it returns `ok:false` with `candidates` so she asks. It needs Her on screen, like `set_alarm` through the clock app. `share_text(text, subject?)` opens the share sheet (`ACTION_SEND` text/plain in a chooser) for WhatsApp, Telegram, email or any app; they pick the app and person and press send. It also needs Her on screen and works without contacts access.
 - Money (`MoneyTools.kt`): `log_expense`, `get_expenses`. Rows live in the `expenses` table; totals are per currency and never mixed. `log_expense` is undoable from its receipt.
 
 ## Reminders and alarms
@@ -81,8 +82,10 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 |---------|----------|--------------|
 | `TIME` | `when` (must include a time of day, must be in the future) | `AndroidReminderAlarms` arms an exact `AlarmManager` alarm (a 10-minute window when exact alarms are not allowed). `ReminderReceiver` calls `ReminderDelivery.fireDue()`, which saves the message as her latest assistant message and then posts a high-importance notification that ignores quiet hours. No LLM call. |
 | `PERSON` | `personName` (found or created in `people`) | Waits in the context bundle's **Reminders** section. When that person is in a calendar event in the next 24 hours, the line says so, so an hourly pass can nudge. When they mention being with the person, she brings it up and calls `complete_reminder`. |
-| `PLACE` | `place` | Waits in context until they say they arrived. There is no geofencing. |
+| `PLACE` | `place` | Fires on arrival once the place is saved with `save_place`. `rearmAll` looks the name up in `places` (case-insensitive) and `AndroidReminderAlarms.armPlace` registers `LocationManager.addProximityAlert` (150 m, no Play Services). Entering sends `ReminderReceiver.ACTION_PLACE`, and `ReminderDelivery.firePlace` delivers it once, like a clock reminder. Until the place is saved, or while place reminders can't run, it waits in context and she can still bring it up and call `complete_reminder`. |
 
+- `save_place(name)`: chat only. Saves the phone's current position under a name ("this is home") and arms every scheduled place reminder for it. It returns `ok:false` with `reason` `disabled`, `location_permission`, `location_off` or `no_fix` instead of pretending. Only place names reach the model (a **Saved places** context section), never coordinates.
+- Place alerts are armed only while `placesWatched()`: the **Place reminders** setting is on (the default), and fine and background location are granted. Otherwise `rearmAll` removes them. While location is switched off, Android keeps them inactive and stops polling on its own.
 - `onlyIfOpen`: a task or commitment. A due reminder is marked `SKIPPED` without ringing when that record is no longer open.
 - `repeat`: `DAILY` / `WEEKLY` / `MONTHLY`, for clock reminders only. A repeating reminder moves to its next time after it rings.
 - Only the device that set a reminder arms its alarm; a restored backup carries the device id, so the new phone takes them over. Alarms are re-armed on app start (including after importing a backup), boot, app update, time or timezone change, and exact-alarm permission change. `HourlyWorker` also calls `fireDue()` as a safety net.
@@ -107,7 +110,7 @@ An autonomous pass that notifies with plain text (not `send_user_message`) saves
 
 Destructive actions that need confirmation: `forget_memory(everything=true)` (deletes short- and long-term memories and archives the About them rows), `delete_calendar_event` on an external event. A `confirmId` is only valid after a later user message — the model cannot confirm in the same turn. `confirmed: true` is ignored.
 
-Hourly, nightly, catch-up, and briefing do not receive `forget_memory`, `delete_calendar_event`, or `update_user_profile`. Those tools also refuse if called anyway.
+Hourly, nightly, catch-up, and briefing do not receive `forget_memory`, `delete_calendar_event`, `update_user_profile`, `ask_wondering`, `compose_message`, or `share_text`. Those tools also refuse if called anyway.
 
 HTTP: the client has a 180s call timeout, cancels when the coroutine is cancelled, retries malformed or empty 200s and truncated streams, and treats a stream without `[DONE]` / `finish_reason` as a failure.
 

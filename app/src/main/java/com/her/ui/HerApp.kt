@@ -1,5 +1,7 @@
 package com.her.ui
 
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.style.TextDirection
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -36,7 +38,12 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -130,7 +137,14 @@ fun HerApp(vm: HerViewModel) {
 
     val feelingBlend by vm.feelingBlend.collectAsState()
     AmbientBackground(Modifier.fillMaxSize(), tint = feelingPalette(feelingBlend, Her.colors.feelingPalettes)) {
-        SharedTransitionLayout(Modifier.fillMaxSize().statusBarsPadding()) {
+        // Clear the cutout and side bars in landscape, and keep lines a readable width on wide screens.
+        SharedTransitionLayout(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+                .wrapContentWidth()
+                .widthIn(max = 640.dp),
+        ) {
             AnimatedContent(
                 targetState = stage,
                 transitionSpec = { stageTransition() },
@@ -203,11 +217,16 @@ private fun LoadingStage() {
 @Composable
 private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
     val settings by vm.settings.collectAsState()
-    RequestFirstRunPermissions(asked = settings.runtimePermissionsAsked) { calendarGranted ->
+    RequestFirstRunPermissions(
+        asked = settings.runtimePermissionsAsked,
+        contactsAsked = settings.contactsPermissionAsked,
+    ) { calendarGranted, contactsGranted ->
         vm.updateSettings { current ->
             current.copy(
                 runtimePermissionsAsked = true,
+                contactsPermissionAsked = true,
                 calendarEnabled = current.calendarEnabled || calendarGranted,
+                contactsEnabled = current.contactsEnabled || contactsGranted,
             )
         }
     }
@@ -234,7 +253,10 @@ private fun MainStage(vm: HerViewModel, dest: Dest, onDest: (Dest) -> Unit) {
             ) { current ->
                 when (current) {
                     Dest.Her -> HerScreen(vm, onOpenSettings = { onDest(Dest.Settings) })
-                    Dest.Memory -> SqlNavigatorScreen(vm)
+                    // Notes, topics and people can be in either language: lay each out by its own script, like the chat.
+                    Dest.Memory -> CompositionLocalProvider(LocalTextStyle provides LocalTextStyle.current.copy(textDirection = TextDirection.Content)) {
+                        SqlNavigatorScreen(vm)
+                    }
                     Dest.Settings -> SettingsScreen(vm)
                 }
             }

@@ -25,7 +25,7 @@ A schedule fingerprint (`hourly:1h|nightly:03:00|briefing:{quietEnd}|v3`) is sto
 | Nightly | Already completed today; LLM not configured; no user message since the last nightly run | Battery ≤15% and not charging | Otherwise. Nightly does **not** require charging. |
 | Briefing | Already generated today; LLM not configured; battery ≤15% and not charging; no user message for 7 days, or for 3 days when nothing is on today | — | Otherwise |
 
-A nightly or briefing pass that fails because the model is busy, down, or unreachable returns `Result.retry()` once (`BackgroundRunPolicy.retryAfterFailure`), so WorkManager runs it again after its backoff. Any other failure, a second failure, and every hourly failure return `Result.success()` and wait for the next scheduled slot. Nightly also retries on critically low battery.
+A nightly or briefing pass that fails because the model is busy, down, or unreachable returns `Result.retry()` once (`BackgroundRunPolicy.retryAfterFailure`), so WorkManager runs it again after its backoff. Any other failure, a second failure, and every hourly failure return `Result.success()` and wait for the next scheduled slot. Nightly also retries on critically low battery. `OutboxWorker` retries a failed send unless the failure is one only they can fix (`BackgroundRunPolicy.NEEDS_THEM`: out of credit, refused key, bad settings); then the message stays pending until a settings change (`enqueueAll()`) or their next message sends it. In a turn, `callWithRetry` does not retry an `UnknownHostException`.
 
 Hourly stamps `lastHourlyRunAt` only after a successful pass.
 
@@ -35,13 +35,15 @@ The content checks live in `AgentOrchestrator` behind `gated = true`, which the 
 
 Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could speak about, without the model: open tasks and commitments due today or overdue, events starting within 2 hours, important dates today or tomorrow, a "next time with" reminder whose person is on the calendar in the next day, agent-queue items that came due, and their latest message. Each key carries its time (`due:<id>:<dueAt>:overdue`, `msg:<id>`, …). The model runs only when a key is not in `lastHourlyTriggers`, the set the last successful pass saw. So an ignored overdue task gets one nudge, not one an hour, and a moved deadline counts as new. A deadline at local midnight has no clock time (`BackgroundRunPolicy.isDateOnly`), so it is due today all day and turns overdue the next day. The agent queue's `dueAt` is her way to wake herself later.
 
-The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. A user who comes back is back on their next message; nothing else is stored.
+When she may start a conversation, the hourly pass also adds one `reach:<opening>:<date>` key per opening, so a quiet hour wakes the model once per opening per day. See [Initiative](Initiative.md).
+
+The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. An open agent queue item that starts `Identity.MORNING_NOTE` ("Tell them in the morning:") and is due by midnight also counts: chat files "tell me in your morning note on Friday" there, and the briefing says it and completes it. A user who comes back is back on their next message; nothing else is stored.
 
 Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
 
 Settings → Her mind → **Daily background token limit** stops gated passes for the rest of the day once `api_usage.backgroundTokens` (input plus output of hourly, nightly and briefing calls) reaches it. It is checked before a pass, so one pass can go over by its own size. The Today card shows background tokens and the share of input tokens the provider served from cache.
 
-Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count.
+Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count. A swipe on a message she started also makes her wistful, so she waits before writing again ([Initiative](Initiative.md)).
 
 ## Quiet hours
 
@@ -54,7 +56,13 @@ Hourly LLM passes skip quiet hours unless Settings → **Hourly during quiet hou
 - Non-urgent notifications are suppressed during quiet hours
 - Duplicate key cooldown: 45 minutes
 - Gap between non-urgent notifications: 20 minutes
-- Hourly and catch-up also drop a near-duplicate of a proactive assistant message from the last 12 hours (`lexicalOverlap` ≥ 0.5). Chat and the morning briefing are not held to that guard.
+- Hourly and catch-up also drop a near-duplicate of anything she said in the last 12 hours, a chat reply included (`lexicalOverlap` ≥ 0.5). `send_user_message` checks this before it writes the row, so an echo never reaches the chat. Chat and the morning briefing are not held to that guard.
+
+## What background passes may change
+
+Hourly, catch-up, briefing and nightly passes never write the person's own records: tasks, commitments, reminders and alarms, lists, people, projects, goals, routines, important dates, recurring responsibilities, calendar events, expenses, focus sessions and daily plans (`USER_RECORD_WRITES` in `ToolRegistry.kt`). Those tools are not offered to them and are refused if called. They keep their own working records: memory, understanding, episodes, wonderings, feelings, open loops, the agent queue, and proactive messages. A question about one of the person's records becomes a wondering, asked in conversation.
+
+A gated hourly or catch-up pass skips while the person wrote in the last 15 minutes (`BackgroundRunPolicy.inConversation`), so a rundown never lands between two replies. A gated briefing that would start more than 3 hours after quiet hours end is skipped (`briefingTooLate`). A background message in Persian that opens with paragraphs holding no Persian has those dropped as working notes (`AgentOrchestrator.dropLeadingReasoning`).
 
 On the first day of the week (`WeekFields` for the device locale: Saturday in Iran, Monday in most of Europe, Sunday in the US) the briefing prompt gains `Identity.WEEKLY_REVIEW_PROMPT`, so the same note also looks back at last week through `get_situation_briefing`. There is no separate worker or notification. Scenarios leave it off unless `settings.weeklyReviewDay` names a day.
 
@@ -92,6 +100,8 @@ Clock reminders do not wait for WorkManager. `app/src/main/java/com/her/reminder
 
 - `AndroidReminderAlarms` arms one `AlarmManager` alarm per reminder: `setExactAndAllowWhileIdle`, or `setWindow` with 10 minutes of slack when Android 12+ has not granted exact alarms. Settings shows **Allow exact reminders** until it is granted.
 - `ReminderReceiver` runs `ReminderDelivery.fireDue()` and re-arms. Reminder notifications use their own high-importance **Reminders** channel. Each reminder gets its own notification id, and they ring during quiet hours because the user picked the time. **Done** closes the task or commitment an "only if still open" reminder waited on; **Snooze 10 min** rings the same words again as a one-off. Neither calls the model.
+- Place reminders use `LocationManager.addProximityAlert` per reminder (PendingIntent data `her-place://<id>`). Android watches the area itself, and `ReminderReceiver` fires the reminder only on the entering event.
+- While location is switched off, Android's geofence manager stops requesting positions and marks the alerts inactive, then picks them back up when location is on, so there's nothing for Her to do and no battery use. `PROVIDERS_CHANGED` can't be used for this anyway: Android doesn't deliver it to manifest receivers. Settings re-arms when the **Place reminders** toggle or a location permission changes, and every app start and Settings resume re-arms too.
 - `BootReceiver` re-arms on `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED`, and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. `HerApplication` re-arms at process start, which includes the restart after importing a backup.
 - `HourlyWorker` fires anything overdue before its own policy check, so a reminder the system delayed still rings on the next hourly wakeup.
 

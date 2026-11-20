@@ -119,6 +119,7 @@ fun AppSettings.toBackupJson(): JSONObject = JSONObject()
     .put("quietStart", quietHours.startMinutes)
     .put("quietEnd", quietHours.endMinutes)
     .put("hourlyDuringQuietHours", hourlyDuringQuietHours)
+    .put("initiativeEnabled", initiativeEnabled)
     .put("developerMode", developerMode)
     .put("webSearchEnabled", webSearchEnabled)
     .put("webSearchEndpoint", webSearchEndpoint)
@@ -134,6 +135,7 @@ fun AppSettings.withBackup(json: JSONObject): AppSettings = copy(
     deviceId = json.optString("deviceId").ifBlank { deviceId },
     quietHours = QuietHours(json.optInt("quietStart", quietHours.startMinutes), json.optInt("quietEnd", quietHours.endMinutes)),
     hourlyDuringQuietHours = json.optBoolean("hourlyDuringQuietHours", hourlyDuringQuietHours),
+    initiativeEnabled = json.optBoolean("initiativeEnabled", initiativeEnabled),
     developerMode = json.optBoolean("developerMode", developerMode),
     webSearchEnabled = json.optBoolean("webSearchEnabled", webSearchEnabled),
     webSearchEndpoint = json.optString("webSearchEndpoint", webSearchEndpoint),

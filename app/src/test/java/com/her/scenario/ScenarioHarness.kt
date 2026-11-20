@@ -54,7 +54,9 @@ class RecordingToolRegistry(
     alarmClock: AlarmClockPort,
     focus: FocusTimer,
     contacts: com.her.data.contacts.ContactsSource = com.her.data.contacts.ContactsSource.NONE,
-) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts) {
+    sql: com.her.data.db.SqlBrowser? = null,
+    composer: com.her.data.contacts.MessageComposer = com.her.data.contacts.MessageComposer.NONE,
+) : ToolRegistry(repo, ranker, settings, calendar, webSearch, onUserMessage, reminderAlarms, alarmClock, focus, contacts, composer, sql) {
     private val recorded = mutableListOf<RecordedToolCall>()
     val calls: List<RecordedToolCall> get() = recorded.toList()
 
@@ -134,11 +136,16 @@ class ScenarioHarness(
     private val ranker = HybridRanker(repo)
     val reminderAlarms = FakeReminderAlarms()
     val alarmClock = FakeAlarmClock()
+    private val shared = mutableListOf<Map<String, Any?>>()
+    private val composer = object : com.her.data.contacts.MessageComposer {
+        override fun compose(phone: String, text: String): Result<Unit> { shared += mapOf("app" to "sms", "to" to phone, "text" to text); return Result.success(Unit) }
+        override fun share(text: String, subject: String?): Result<Unit> { shared += mapOf("app" to "share sheet", "subject" to subject, "text" to text); return Result.success(Unit) }
+    }
     private val notifier = RecordingNotifier(context)
     private val focus = FocusTimer(settings, repo, notifier, SilentFocusAlarm)
     private val tools = RecordingToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
         repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-    }, reminderAlarms, alarmClock, focus, { name -> spec.seed.contacts.filter { it.name.contains(name, ignoreCase = true) } })
+    }, reminderAlarms, alarmClock, focus, { name -> spec.seed.contacts.filter { it.name.contains(name, ignoreCase = true) } }, com.her.data.db.SqlBrowser(db), composer)
     private val reminders = ReminderDelivery(repo, notifier)
     private val contextBuilder = ContextBuilder(repo, ranker, settings, calendar)
     private val orchestrator = AgentOrchestrator(
@@ -171,7 +178,7 @@ class ScenarioHarness(
                         null
                     }
                     is ScenarioTurn.User -> {
-                        orchestrator.enqueueUserMessage(turn.text)
+                        orchestrator.enqueueUserMessage(turn.text, turn.shared?.let { org.json.JSONObject().put("shared", it).toString() })
                         if (turn.queued) null else orchestrator.processOutbox()
                     }
                     // Gated like the scheduled workers, so a pass with nothing new skips the model as it would on the phone.
@@ -246,9 +253,11 @@ class ScenarioHarness(
         mapOf(
             "system_calendar" to calendar.rows(),
             "alarms" to alarmClock.rows(),
+            "shares" to shared.toList(),
         )
 
     private suspend fun seed() {
+        settings.update { it.copy(initiativeEnabled = spec.settings.initiative) }
         spec.settings.chatToolCallLimit?.let { limit ->
             settings.update { it.copy(chatToolCallLimit = limit) }
         }

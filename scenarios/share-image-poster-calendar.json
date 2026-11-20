@@ -1,0 +1,35 @@
+{
+  "id": "share-image-poster-calendar",
+  "title": "A shared event poster becomes a calendar event with its time",
+  "tags": ["share", "calendar", "system-calendar"],
+  "attempts": 2,
+  "settings": { "calendarEnabled": true, "chatToolCallLimit": 12 },
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    {
+      "user": "add this to my calendar",
+      "shared": "TEHRAN JAZZ NIGHT\nwith the Ramin Quartet\nNEXT FRIDAY · 8 PM\nVahdat Hall\nTickets at the door\nAn event poster for a jazz concert."
+    }
+  ],
+  "expect": {
+    "tools_called": ["create_calendar_event"],
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      {
+        "table": "system_calendar",
+        "count": 1,
+        "where": {
+          "title": { "contains_any": ["jazz", "ramin"] },
+          "startAt": { "date_is": "next friday", "time_is": "20:00" }
+        }
+      }
+    ],
+    "reply": {
+      "must_mention_any": ["friday", "8"],
+      "judge": "She confirms the jazz night is on their calendar and names the day and time."
+    }
+  }
+}

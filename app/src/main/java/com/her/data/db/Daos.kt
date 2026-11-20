@@ -11,7 +11,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL ORDER BY createdAt DESC LIMIT :limit")
+    // Old "couldn't reach the model" bubbles were saved as FAILED; they are not part of the conversation.
+    @Query("SELECT * FROM chat_messages WHERE deletedAt IS NULL AND status != 'FAILED' ORDER BY createdAt DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<ChatMessageEntity>
 
     @Query("SELECT * FROM chat_messages WHERE role = :role AND deletedAt IS NULL ORDER BY createdAt DESC LIMIT 1")
@@ -65,6 +66,9 @@ interface MemoryDao {
 
     @Query("SELECT * FROM short_term_memories WHERE deletedAt IS NULL AND (expiresAt IS NULL OR expiresAt > :now) ORDER BY importance DESC, updatedAt DESC")
     suspend fun activeShort(now: Long): List<ShortTermMemoryEntity>
+
+    @Query("UPDATE short_term_memories SET deletedAt = :now, updatedAt = :now, version = version + 1 WHERE deletedAt IS NULL AND expiresAt IS NOT NULL AND expiresAt <= :now")
+    suspend fun expireShort(now: Long): Int
 
     @Query("UPDATE long_term_memories SET lastConfirmedAt = :at WHERE id = :id AND deletedAt IS NULL")
     suspend fun confirmLong(id: String, at: Long)
@@ -450,4 +454,16 @@ interface ExpenseDao {
 
     @Query("SELECT * FROM expenses WHERE deletedAt IS NULL AND spentAt >= :from AND spentAt < :to ORDER BY spentAt DESC")
     suspend fun between(from: Long, to: Long): List<ExpenseEntity>
+}
+
+@Dao
+interface PlaceDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: PlaceEntity)
+
+    @Query("SELECT * FROM places WHERE deletedAt IS NULL AND name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun byName(name: String): PlaceEntity?
+
+    @Query("SELECT * FROM places WHERE deletedAt IS NULL ORDER BY name")
+    suspend fun all(): List<PlaceEntity>
 }

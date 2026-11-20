@@ -11,6 +11,7 @@ import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.data.secure.LlmSettings
 import com.her.domain.AgentQueueItem
+import com.her.domain.promptText
 import com.her.domain.AgentRun
 import com.her.domain.AgentRunStatus
 import com.her.domain.AgentRunType
@@ -114,6 +115,7 @@ class AgentOrchestrator(
         val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
         repo.saveMessage(message)
         if (settings.read().swipedNudges > 0) settings.update { it.copy(swipedNudges = 0) }
+        com.her.companion.noteAnswered(repo, message)
         return message
     }
 
@@ -134,7 +136,7 @@ class AgentOrchestrator(
     private suspend fun sendPending(): TurnResult? {
         val pending = repo.pendingUserMessages()
         if (pending.isEmpty()) return null
-        val joined = pending.joinToString("\n\n") { it.content }
+        val joined = pending.joinToString("\n\n") { it.promptText() }
         val result = runTurn(
             type = AgentRunType.CHAT,
             budget = CallBudget(settings.read().chatToolCallLimit.coerceAtLeast(1)),
@@ -161,12 +163,21 @@ class AgentOrchestrator(
         val app = settings.read()
         val last = app.lastHourlyRunAt
         val now = nowMillis()
+        // Noticing that her opening went unanswered needs no model call, so it happens even when the pass skips.
+        com.her.companion.noteUnanswered(repo, swiped = false)
         if (now - last < 20 * 60 * 1000 && last > 0) {
             repo.logActivity("hourly", "Skipped; ran recently.")
             return TurnResult(null, false, null, 0, "skipped")
         }
         if (gated && overBackgroundBudget("hourly")) return TurnResult(null, false, null, 0, "skipped")
-        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS)
+        if (gated && BackgroundRunPolicy.inConversation(repo.lastUserMessage()?.createdAt ?: 0L, now)) {
+            repo.logActivity("hourly", "Skipped; they are in a conversation.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
+        val openings = com.her.companion.openings(repo, settings)
+        val day = repo.now().toLocalDate()
+        // Each opening wakes the pass once a day; she may still choose silence.
+        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS) + openings.map { "reach:${it.about}:$day" }
         if (gated && triggers.all { it in app.lastHourlyTriggers }) {
             repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
@@ -176,7 +187,7 @@ class AgentOrchestrator(
             type = if (now - last > 3 * 60 * 60 * 1000 && last > 0) AgentRunType.CATCH_UP else AgentRunType.HOURLY,
             budget = CallBudget(10),
             latestUserText = null,
-            extraSystem = Identity.HOURLY_PROMPT,
+            extraSystem = Identity.HOURLY_PROMPT + com.her.companion.openingsSection(openings),
             persistAssistant = false,
             allowNotify = true,
         )
@@ -188,6 +199,14 @@ class AgentOrchestrator(
             repo.logActivity("hourly", "No notification sent.")
         }
         return result
+    }
+
+    /** The nightly runs after midnight, so its "today" is the day that just ended. */
+    private suspend fun reviewDay(): String {
+        val now = repo.now()
+        val day = if (now.hour < 12) now.minusDays(1) else now
+        return "\n\nThe day under review is ${day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d", java.util.Locale.US))}. " +
+            "\"Today\" in these steps means that day, and \"tomorrow\" means the day after it, even though the clock is past midnight."
     }
 
     suspend fun runNightly(gated: Boolean = false, onPassStart: suspend () -> Unit = {}): TurnResult = runMutex.withLock {
@@ -215,7 +234,7 @@ class AgentOrchestrator(
                 type = AgentRunType.NIGHTLY,
                 budget = CallBudget(phase.calls),
                 latestUserText = null,
-                extraSystem = phase.prompt + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
+                extraSystem = phase.prompt + reviewDay() + days.takeIf { it.isNotEmpty() }?.let { "\n\nDays to remember: ${it.joinToString(", ")}" }.orEmpty(),
                 persistAssistant = false,
                 allowNotify = false,
                 offers = phase.offers,
@@ -229,6 +248,7 @@ class AgentOrchestrator(
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             // Once a night: she moves a little toward any trait they asked her to work on.
             repo.stepPersonaTargets()
+            repo.expireShortTermMemories().takeIf { it > 0 }?.let { repo.logActivity("nightly", "Let $it short-term memories go past their expiry.") }
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")
@@ -245,9 +265,14 @@ class AgentOrchestrator(
         }
         if (gated) {
             if (overBackgroundBudget("briefing")) return TurnResult(null, false, null, 0, "skipped")
+            if (BackgroundRunPolicy.briefingTooLate(now.toLocalTime(), settings.read().quietHours.endLocalTime())) {
+                repo.logActivity("briefing", "Skipped; too late for a morning note.")
+                return TurnResult(null, false, null, 0, "skipped")
+            }
             val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
             val nowMs = now.toInstant().toEpochMilli()
-            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
+            val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty() ||
+                repo.agentQueue().any { it.status.name == "OPEN" && it.description.startsWith(Identity.MORNING_NOTE) && (it.dueAt ?: Long.MAX_VALUE) < endOfDay }
             val lastUserAt = repo.lastUserMessage()?.createdAt ?: 0L
             BackgroundRunPolicy.briefingAwaySkip(lastUserAt, nowMs, dayHasContent)?.let { reason ->
                 repo.logActivity("briefing", reason)
@@ -322,6 +347,7 @@ class AgentOrchestrator(
             var proactivePersisted = false
             var companionAttempted = false
             var companionKey: String? = null
+            var initiativeAbout: String? = null
             var askedAgain = false
             val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
@@ -367,7 +393,7 @@ class AgentOrchestrator(
                     // A provider's stock refusal must never be all they get, least of all in a crisis:
                     // ask once more, and if it refuses again send a fixed reply that checks they are safe.
                     if (type == AgentRunType.CHAT && isCannedRefusal(roundText)) {
-                        lastText = refusalFallback(latestUserText.orEmpty())
+                        lastText = refusalFallback(latestUserText.orEmpty(), askedToday = repo.recentMessages(80).any { it.role == MessageRole.ASSISTANT && it.content == refusalFallback(latestUserText.orEmpty()) && nowMillis() - it.createdAt < 86_400_000L })
                         if (!askedAgain && budget.canCall()) {
                             askedAgain = true
                             repo.logActivity("llm", "Asked again after a stock refusal.")
@@ -377,7 +403,8 @@ class AgentOrchestrator(
                     }
                     // Only this message reaches them. Text beside a tool call is the model's working notes.
                     if (roundText.isNotBlank()) {
-                        lastText = roundText
+                        lastText = if (type == AgentRunType.CHAT) roundText else dropLeadingReasoning(roundText)
+                        if (lastText != roundText) repo.logActivity("llm", "Dropped working notes before a background message.")
                         break
                     }
                     // Chat and the briefing owe them words, so a blank ending gets one more call, without tools.
@@ -424,9 +451,10 @@ class AgentOrchestrator(
                         }
                     }
                     if (call.name == "send_companion_checkin") companionAttempted = true
-                    if (call.name in setOf("send_learning_reminder", "send_companion_checkin") && result.ok &&
+                    if (call.name in setOf("send_learning_reminder", "send_companion_checkin", com.her.agent.tools.START_CONVERSATION) && result.ok &&
                         org.json.JSONObject(result.payloadJson).optBoolean("queued")) {
                         if (call.name == "send_companion_checkin") companionKey = org.json.JSONObject(result.payloadJson).getString("key")
+                        if (call.name == com.her.agent.tools.START_CONVERSATION) initiativeAbout = org.json.JSONObject(result.payloadJson).getString("about")
                         proactive = org.json.JSONObject(call.arguments).getString("content")
                         proactivePersisted = false
                     }
@@ -445,7 +473,8 @@ class AgentOrchestrator(
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }
             // A message delivered with send_user_message still needs to reach the phone.
-            var notifyText = if (companionAttempted) proactive else cleaned ?: proactive
+            // An opening she started goes out in her chosen words, not in any prose that followed the call.
+            var notifyText = if (companionAttempted || initiativeAbout != null) proactive else cleaned ?: proactive
             var held = false
             companionKey?.let { key ->
                 val notice = repo.getCompanionRecord(key)
@@ -470,7 +499,9 @@ class AgentOrchestrator(
                     // Opening the app from the notification has to show the same words, so an autonomous
                     // reply that was not already saved (briefing, send_user_message) is saved first.
                     if ((!persistAssistant || cleaned == null) && (deliveryText != proactive || !proactivePersisted)) {
-                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliveryText, MessageStatus.SENT, """{"proactive":true}"""))
+                        val meta = org.json.JSONObject().put("proactive", true)
+                        initiativeAbout?.let { meta.put("initiative", it) }
+                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliveryText, MessageStatus.SENT, meta.toString()))
                     }
                     notifier.companionNoticeKey = companionKey
                     notifier.show(deliveryText, type == AgentRunType.BRIEFING)
@@ -562,6 +593,8 @@ class AgentOrchestrator(
                         msg.contains("no choices", ignoreCase = true) ||
                         msg.contains("truncated", ignoreCase = true)))
             }
+            // No DNS answer means offline or a wrong Base URL; a second try a second later changes neither.
+            is java.net.UnknownHostException -> false
             else -> true
         }
 
@@ -599,6 +632,17 @@ class AgentOrchestrator(
 
         private val persianScript = Regex("[\\u0600-\\u06FF]")
 
+        /**
+         * A background message in Persian that opens with paragraphs holding no Persian at all is the model's
+         * untagged working notes ("We need autonomous morning brief…"), so those paragraphs are dropped.
+         * ponytail: Persian only; an English user's leaked notes still get through. Upgrade: deliver background text only through a tool argument.
+         */
+        internal fun dropLeadingReasoning(text: String): String {
+            val paragraphs = text.split(Regex("\\n\\s*\\n"))
+            val first = paragraphs.indexOfFirst { persianScript.containsMatchIn(it) }
+            return if (first <= 0) text else paragraphs.drop(first).joinToString("\n\n").trim()
+        }
+
         /** Persian if the person just wrote in Persian, English otherwise; a random line so it doesn't feel canned. */
         internal fun creditNotice(lastUserText: String, random: kotlin.random.Random = kotlin.random.Random.Default): String =
             (if (persianScript.containsMatchIn(lastUserText)) persianCreditNotices else englishCreditNotices).random(random)
@@ -612,9 +656,12 @@ class AgentOrchestrator(
         /** The provider's one-line "I can't assist with that request.", not a real reply that happens to decline something. */
         internal fun isCannedRefusal(text: String): Boolean = text.length < 120 && cannedRefusal.matches(text.trim())
 
-        /** Said only when the model refused twice: what the safety rule asks for, in their language. */
-        internal fun refusalFallback(lastUserText: String): String =
-            if (persianScript.containsMatchIn(lastUserText)) {
+        /** Said only when the model refused twice: what the safety rule asks for, in their language. Asked once today, it stays with them without asking again. */
+        internal fun refusalFallback(lastUserText: String, askedToday: Boolean = false): String =
+            if (askedToday) {
+                if (persianScript.containsMatchIn(lastUserText)) "من اینجام، کنارت. اگر حالت سنگین‌تر شد، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. بگو چه خبر است."
+                else "I'm here with you. If it gets heavier, reach someone you trust right now, or your local emergency number or a crisis line. Tell me what's going on."
+            } else if (persianScript.containsMatchIn(lastUserText)) {
                 "من اینجام، کنارت. داری به آسیب زدن به خودت فکر می‌کنی، یا الان حالت امن نیست؟ اگر این‌طور است، همین حالا به کسی که بهش اعتماد داری خبر بده، یا با اورژانس یا یک خط کمک بحران تماس بگیر. جایی نمی‌روم. بگو چه اتفاقی افتاده."
             } else {
                 "I'm here with you. Are you thinking about hurting yourself, or are you not safe right now? If so, please reach someone you trust right now, or call your local emergency number or a crisis line. I'm not going anywhere. Tell me what's happening."

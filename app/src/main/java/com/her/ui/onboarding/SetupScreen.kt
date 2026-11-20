@@ -2,7 +2,7 @@ package com.her.ui.onboarding
 
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.ImageDecoder
+import com.her.data.remote.decodeScaled
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -197,9 +197,9 @@ fun SetupScreen(
     checking: Boolean = false,
     onSave: (LlmSettings) -> Unit,
 ) {
-    var base by remember { mutableStateOf(initial.baseUrl) }
-    var key by remember { mutableStateOf(initial.apiKey) }
-    var model by remember { mutableStateOf(initial.model) }
+    var base by rememberSaveable { mutableStateOf(initial.baseUrl) }
+    var key by remember { mutableStateOf(initial.apiKey) } // Not saveable: a key must not go into the plain-text saved-state bundle.
+    var model by rememberSaveable { mutableStateOf(initial.model) }
     val scheme = MaterialTheme.colorScheme
     val haptics = rememberHerHaptics()
     var attempted by remember { mutableStateOf(false) }
@@ -449,11 +449,7 @@ internal fun qrTexts(pixels: IntArray, width: Int, height: Int): List<String> = 
 private const val MaxQrImageSide = 2048
 
 private fun qrTextsInImage(context: Context, uri: Uri): List<String> = runCatching {
-    val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
-        decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-        val scale = MaxQrImageSide.toFloat() / maxOf(info.size.width, info.size.height)
-        if (scale < 1f) decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
-    }
+    val bitmap = decodeScaled(context, uri, MaxQrImageSide)
     val pixels = IntArray(bitmap.width * bitmap.height)
     bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
     qrTexts(pixels, bitmap.width, bitmap.height)

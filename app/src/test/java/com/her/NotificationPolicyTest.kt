@@ -32,8 +32,9 @@ class NotificationPolicyTest {
         assertFalse(alreadySaidProactively(listOf(previous), "Milk is on the grocery list.", now))
         val stale = proactive("The passport renewal is overdue.", now - 13 * 60 * 60 * 1000)
         assertFalse(alreadySaidProactively(listOf(stale), "The passport renewal is overdue.", now))
+        // A chat reply counts too: an hourly pass must not answer the last message a second time.
         val chat = previous.copy(metadataJson = null)
-        assertFalse(alreadySaidProactively(listOf(chat), "The passport renewal is overdue.", now))
+        assertTrue(alreadySaidProactively(listOf(chat), "The passport renewal is overdue.", now))
     }
 
     private fun proactive(content: String, createdAt: Long) = ChatMessage(

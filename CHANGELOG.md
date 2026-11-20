@@ -4,6 +4,53 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-20
+
+### Added
+- Her now starts conversations on her own. When you've been quiet for a day, or something you told her is still on her mind, like an interview or a question she has been wondering about, she may write first. Her personality decides how often: a warm, curious Her writes up to three times a day, a reserved one rarely or never. If you don't answer she feels a little wistful and gives you space, for longer when she's less patient, and swiping her message away tells her "not now". After two messages go unanswered she checks once that you're okay, then waits for you. Turn it off under **Quiet hours & reminders → She writes first**, or ask her to pause check-ins.
+- Two home-screen widgets. **Her** shows her latest message: tap it to open the app, or tap **Write** to jot her a note without opening it, and her reply shows on the widget. Make it one row high for a single-line bar, or taller to read more. **How she feels** shows how she feels right now, in her colours, with what is on her mind when there is room; shrink it to one square for just the feeling.
+- Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
+- Ask Her to send something on WhatsApp, Telegram or by email ("send that to Sara on WhatsApp") and your share sheet opens with the message filled in. You pick the app and the person and press send; she never sends anything.
+- Ask Her questions across what she keeps for you, like how many tasks you finished this week, what you spent most on last month, or which goals have nothing planned, and she counts it up from her records.
+- Share a screenshot or photo to Her from any app: a ticket, a receipt, an event poster. She reads the text in it and you can tell her what to do with it, like "remember this". The image goes to your model once to be read and isn't kept; only the text stays. This needs a model that can read images.
+- Reminders can ring when you get somewhere. Tell Her "this is home" or "I'm at the gym" while you're there and she saves the place on your phone. "Remind me to water the plants when I get home" then rings when you arrive. It uses your phone's own location, needs location set to **Allow all the time**, and stops entirely while location is off. You can turn it off under **Place reminders** in Settings. The place's location is never sent to your model.
+
+### Changed
+- Her now asks for contacts access when the app opens, along with calendar and notifications, instead of only from Settings. If you already use Her, you'll see just the contacts prompt once after updating. You can still turn it off in Settings.
+- The Memory tab now shows what Her knows about you at a glance: how many memories, insights, notes, people and dates she holds, what she knows grouped by topic, and the people she knows. **Lately** lists the last ten things she picked up, with **Show more** for up to thirty. The database tables and SQL box are folded away under **Advanced**.
+- Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
+
+### Fixed
+- Her no longer changes your tasks, reminders, lists, people or projects on her own. Before, her overnight review could mark a task done that you never finished, and a morning note could add or rewrite a reminder. Those now change only when you ask, in chat.
+- Her no longer answers the same message twice. Hours after a conversation she could send her reply again, or apologise again for something already settled.
+- A morning note no longer arrives in the middle of a conversation, or at noon when your phone was asleep all morning. If you're talking to her, the background check waits until you've been quiet for a while.
+- Her morning note no longer starts with her own working notes in English before the real message.
+- A repeating reminder, like a daily "how are you?" check-in, now keeps its words. Before, asking for something new could overwrite it, so the check-in quietly stopped. If you lost one this way, ask Her for it again.
+- "Tell me in your morning note on Friday" now works: Her says it in that morning's note instead of changing one of your reminders.
+- Asking for the same reminder twice no longer sets it twice.
+- When Her changes or cancels a reminder, the note under her reply now says which one.
+- Her now knows the Persian date. She could say the wrong day or weekday because she converted from the Western calendar in her head; now she is given today's Jalali date and the week ahead.
+- Her overnight review no longer mixes up today and yesterday, and something she noted "for tomorrow" no longer lands a day late.
+- Birthdays, holidays and other all-day events no longer show as 3:30 AM, and events copied in from your phone calendar no longer appear two or three times.
+- When Her says she moved a task to another project, it has really moved. Before, she could report success while quietly ignoring what she was asked to change.
+- Short-term notes that are past their date, like a trip that is over, now go away instead of piling up. Her can also mark one as over.
+- Her no longer keeps several copies of the same repeating responsibility, or wonders the same question again under a different record.
+- Old "couldn't reach the model" bubbles are no longer read back to Her as if she had said them.
+- The note under Her's reply now names the task or project she updated.
+- Once you've told Her you're safe, she no longer asks again just because you're still feeling low. She still checks in if something new and more serious comes up, and she always keeps crisis help on offer.
+- Asking Her to be kinder or warmer now changes how she talks over the following days, and "be more respectful" no longer makes her formal and distant.
+- Her no longer uses her own bookkeeping words with you, like "no open commitments" or "no recorded decisions or blockers".
+- The morning note mentions something that hasn't changed at most once a week, instead of the same reminder every day.
+- A bug or idea you mention for one of your projects becomes a task under that project, and people you only mention by role, like "my girlfriend", are remembered.
+- After you fix your API key or top up your credit, a message waiting to send goes out right away. Before, it could sit for hours behind retries that were never going to work.
+- With no internet, Her tells you she can't reach the model straight away instead of trying three times first.
+- Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
+- Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
+- With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
+- When you ask Her to write a text for someone, she now just gives you the text instead of trying to open your messaging app. If contacts access is off and you ask for someone's number, she tells you where to turn it on.
+- Something Her was asked to keep in mind for a while no longer vanishes right after she saves it. A missing expiry could make a short-term memory count as already expired.
+- Text you share to Her from another app now reaches her with your next message. Before, it was saved alongside the message but she never got to read it.
+
 ## [0.3.0] - 2026-11-14
 
 ### Added
@@ -250,7 +297,8 @@ The first product cut. The release APK job did not finish because CI tests faile
 - A Memory page for lasting facts.
 - Signed APKs publish from version tags.
 
-[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/AlirezaAzadbakht/her/compare/v0.2.0...v0.2.1

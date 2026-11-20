@@ -33,6 +33,13 @@ object BackgroundRunPolicy {
             com.her.agent.runner.TurnFailure.Unreachable,
         )
 
+    /** Failures only they can fix, in Settings or with their provider; retrying just sits in backoff. */
+    val NEEDS_THEM = setOf(
+        com.her.agent.runner.TurnFailure.OutOfCredit,
+        com.her.agent.runner.TurnFailure.BadKey,
+        com.her.agent.runner.TurnFailure.BadSettings,
+    )
+
     const val LOW_BATTERY_PERCENT = 15
     const val HOURLY_MIN_GAP_MS = 20 * 60 * 1000L
     const val CATCH_UP_GAP_MS = 3 * 60 * 60 * 1000L
@@ -129,6 +136,17 @@ object BackgroundRunPolicy {
             else -> null
         }
     }
+
+    const val IN_CONVERSATION_MS = 15 * 60 * 1000L
+    const val BRIEFING_LATE_HOURS = 3L
+
+    /** They are mid-conversation, so a background pass waits instead of dropping a rundown between two replies. */
+    fun inConversation(lastUserMessageAt: Long, nowMs: Long): Boolean =
+        lastUserMessageAt > 0 && nowMs - lastUserMessageAt in 0 until IN_CONVERSATION_MS
+
+    /** A morning note that could only go out hours after the morning started (phone asleep, no network) is skipped. */
+    fun briefingTooLate(now: LocalTime, briefingAt: LocalTime): Boolean =
+        now.isAfter(briefingAt.plusHours(BRIEFING_LATE_HOURS)) && briefingAt.plusHours(BRIEFING_LATE_HOURS).isAfter(briefingAt)
 
     fun scheduleFingerprint(briefingEnd: LocalTime): String {
         val end = briefingEnd.format(DateTimeFormatter.ofPattern("HH:mm"))

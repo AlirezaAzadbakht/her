@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "c10c3ce9e1022f90",
-          "summary": "tools=95 [user(https:\/\/bakery.example.o)]",
+          "fingerprint": "c7fa204f4e923e04",
+          "summary": "tools=99 [user(https:\/\/bakery.example.o)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "ebe29956dcdd7fef",
-          "summary": "tools=95 [user(https:\/\/bakery.example.o) assistant->fetch_url tool:fetch_url]",
+          "fingerprint": "2bf496510e8dc11d",
+          "summary": "tools=99 [user(https:\/\/bakery.example.o) assistant->fetch_url tool:fetch_url]",
           "response": {
             "role": "assistant",
             "content": "It's a sourdough guide: feed the starter twice a day and bake on day seven.",

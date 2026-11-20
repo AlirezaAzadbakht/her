@@ -85,8 +85,14 @@ object JalaliDate {
         return "%04d/%02d/%02d".format(jy, jm, jd)
     }
 
-    private val MONTHS: Map<String, Int> = buildMap {
-        val names = listOf(
+    /** "جمعه 29 آبان 1405": weekday, day, month name and year, so nobody converts from Gregorian in their head. */
+    fun persianLong(date: LocalDate, withYear: Boolean = true): String {
+        val (jy, jm, jd) = fromGregorian(date)
+        val weekday = listOf("دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه", "شنبه", "یکشنبه")[date.dayOfWeek.value - 1]
+        return "$weekday $jd ${MONTH_NAMES[jm - 1].first()}" + if (withYear) " $jy" else ""
+    }
+
+    private val MONTH_NAMES = listOf(
             listOf("فروردین", "farvardin"),
             listOf("اردیبهشت", "ordibehesht", "ordibehest"),
             listOf("خرداد", "khordad"),
@@ -100,7 +106,9 @@ object JalaliDate {
             listOf("بهمن", "bahman"),
             listOf("اسفند", "esfand", "isfand"),
         )
-        names.forEachIndexed { index, aliases -> aliases.forEach { put(it, index + 1) } }
+
+    private val MONTHS: Map<String, Int> = buildMap {
+        MONTH_NAMES.forEachIndexed { index, aliases -> aliases.forEach { put(it, index + 1) } }
     }
 
     private val numericDate = Regex("""^(\d{3,4})[/\-.](\d{1,2})[/\-.](\d{1,2})$""")

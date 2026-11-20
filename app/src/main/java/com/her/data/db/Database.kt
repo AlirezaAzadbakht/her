@@ -28,7 +28,7 @@ import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.domain.TaskStatus
 
-const val DB_VERSION = 13
+const val DB_VERSION = 14
 
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
@@ -108,6 +108,7 @@ class HerConverters {
         WonderingRecord::class,
         PersonaTrait::class,
         ExpenseEntity::class,
+        PlaceEntity::class,
     ],
     version = DB_VERSION,
     exportSchema = false,
@@ -141,12 +142,13 @@ abstract class HerDatabase : RoomDatabase() {
     abstract fun feelingDao(): FeelingDao
     abstract fun personaDao(): PersonaDao
     abstract fun expenseDao(): ExpenseDao
+    abstract fun placeDao(): PlaceDao
 
     companion object {
         /** The app's database, or a backup being checked under another file name. */
         fun build(context: Context, name: String = "her.db"): HerDatabase =
             Room.databaseBuilder(context, HerDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
                 .build()
 
         /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
@@ -156,6 +158,16 @@ abstract class HerDatabase : RoomDatabase() {
                 generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
             }
             if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        /** Saved places for place reminders. */
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""CREATE TABLE IF NOT EXISTS `places` (`id` TEXT NOT NULL, `name` TEXT NOT NULL,
+                    `lat` REAL NOT NULL, `lng` REAL NOT NULL, `radiusM` REAL NOT NULL, `createdAt` INTEGER NOT NULL,
+                    `updatedAt` INTEGER NOT NULL, `deviceId` TEXT NOT NULL, `version` INTEGER NOT NULL,
+                    `deletedAt` INTEGER, PRIMARY KEY(`id`))""")
+            }
         }
 
         /** The money log. */

@@ -159,6 +159,8 @@ class ScenarioLogicTest {
         val turns = ScenarioLoader.parse(file).turns
         assertTrue((turns[0] as ScenarioTurn.User).queued)
         assertFalse((turns[1] as ScenarioTurn.User).queued)
+        file.writeText("""{"id":"q","title":"Q","turns":[{"user":"remember this","shared":"Gate B4"}],"expect":{}}""")
+        assertEquals("Gate B4", (ScenarioLoader.parse(file).turns.single() as ScenarioTurn.User).shared)
         file.writeText("""{"id":"q","title":"Q","turns":[{"run":"hourly","queued":true}],"expect":{}}""")
         assertThrows(ScenarioParseException::class.java) { ScenarioLoader.parse(file) }
     }

@@ -31,7 +31,7 @@ class PromptSizeTest {
     private val db = Room.inMemoryDatabaseBuilder(context, HerDatabase::class.java).allowMainThreadQueries().build()
     private val settings = AppSettingsStore(context, "prompt_size_${System.nanoTime()}")
     private val repo = HerRepository(db, settings, FakeClock(Instant.parse("2026-10-07T10:00:00Z").toEpochMilli()))
-    private val tools = ToolRegistry(repo, HybridRanker(repo), settings, CalendarDataSource(context), WebSearchClient())
+    private val tools = ToolRegistry(repo, HybridRanker(repo), settings, CalendarDataSource(context), WebSearchClient(), sql = com.her.data.db.SqlBrowser(db))
     private val contextBuilder = ContextBuilder(repo, HybridRanker(repo), settings, CalendarDataSource(context))
 
     @After
@@ -46,7 +46,7 @@ class PromptSizeTest {
         val built = contextBuilder.build("hello")
         val system = built.messages.first().content.orEmpty()
         println("promptSize tools=${specs.size} toolChars=$toolChars systemChars=${system.length} bundleChars=${built.systemBundle.length}")
-        assertEquals(93, specs.size)
+        assertEquals(97, specs.size)
         assertTrue("tool schemas grew to $toolChars", toolChars <= TOOL_CHARS)
         assertTrue("system prompt grew to ${system.length}", system.length <= SYSTEM_CHARS)
         assertTrue("context bundle grew to ${built.systemBundle.length}", built.systemBundle.length <= BUNDLE_CHARS)
@@ -59,6 +59,17 @@ class PromptSizeTest {
         val clockAt = built.systemBundle.indexOf("Current local time")
         assertTrue(clockAt > 0)
         assertFalse(built.systemBundle.substring(0, clockAt).contains("Your feeling"))
+    }
+
+    /** From a real backup: a Persian morning note said Wednesday 18 Nov on Sunday the 15th. */
+    @Test
+    fun aPersianSpeakerGetsTheJalaliDate() = runBlocking {
+        assertFalse(contextBuilder.build("hello").systemBundle.contains("Jalali"))
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran", preferredLanguage = "Persian"))
+        val bundle = contextBuilder.build("سلام").systemBundle
+        // 2026-10-07 10:00 UTC is Wednesday 15 Mehr 1405 in Tehran.
+        assertTrue(bundle, bundle.contains("Jalali: چهارشنبه 15 مهر 1405"))
+        assertTrue(bundle, bundle.contains("Thu Oct 8 (پنجشنبه 16 مهر)"))
     }
 
     @Test
@@ -81,7 +92,7 @@ class PromptSizeTest {
     private companion object {
         // Just above the trimmed sizes (tools 38159, system 27410, empty bundle 776).
         const val TOOL_CHARS = 42_000
-        const val SYSTEM_CHARS = 31_200
+        const val SYSTEM_CHARS = 32_000
         const val BUNDLE_CHARS = 1_100
     }
 }

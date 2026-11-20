@@ -8,7 +8,7 @@ In Main, a floating glass nav picks the destination (not Navigation Compose rout
 - Tabs slide in from the side they sit on.
 - The nav tucks away while the keyboard is up.
 
-The Memory tab shows what she has recently learnt, how she feels, and a read-only SQL navigator. It is experimental, defaults on (`memoryTabEnabled`), and can be hidden under Settings → Advanced → Experimental.
+The Memory tab shows what she knows (counts, topics, people), what she has recently learnt, how she feels, and, under Advanced, a read-only SQL navigator. It is experimental, defaults on (`memoryTabEnabled`), and can be hidden under Settings → Advanced → Experimental.
 
 ## Look and motion
 
@@ -61,14 +61,14 @@ An orb only shows while real work is in flight. Fast reads get a 150ms grace per
    - Agent queue item: learn timezone and what matters — slowly, not as an interview.
    - If chat messages already came back from a backup, this seed is skipped.
 7. Her and Settings become available. Memory appears when the experimental flag is on.
-8. The first time that main UI appears, Android asks for calendar read/write, and for notifications on API 33+.
-   - The ask is stored as `runtimePermissionsAsked` so it does not repeat.
-   - If they grant calendar, `calendarEnabled` turns on.
-   - Denial leaves the internal calendar only; Settings → Calendar access can ask again.
+8. The first time that main UI appears, Android asks for calendar read/write, contacts (`READ_CONTACTS`), and notifications on API 33+, in one `RequestFirstRunPermissions` sequence.
+   - The ask is stored as `runtimePermissionsAsked` and `contactsPermissionAsked` so it does not repeat. An install from before contacts joined the ask has only the first flag set, so it gets just the contacts prompt once.
+   - If they grant calendar, `calendarEnabled` turns on; if they grant contacts, `contactsEnabled` turns on.
+   - Denial leaves the internal calendar only and contacts off; Settings → Calendar access / Contacts access can ask again.
 
 Credentials stay in `SecureSettingsStore` (`her_secure_settings`, EncryptedSharedPreferences). They never go into Room or a backup file.
 
-Optional later, in Settings: Calendar access (requests permission if needed), web search.
+Optional later, in Settings: Calendar access and Contacts access (each requests permission if needed), web search.
 
 ## Her (single utterance)
 
@@ -103,17 +103,20 @@ Assistant replies are markdown (`**bold**`, lists, headings). Parsing and Compos
 - `app/src/main/java/com/her/ui/markdown/MarkdownModel.kt`
 - `app/src/main/java/com/her/ui/markdown/ConversationMarkdown.kt`
 
-Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`.
+Share (`ACTION_SEND` text/plain) lands in the same conversation via `HerViewModel.consumeShare()`. A shared image (`image/*`) goes through `consumeSharedImage()`: `ImageReader` sends it once to the chat model to write out its text, and that text becomes the share. The image itself is never stored. The shared text rides in the next user message's `metadataJson.shared`, and `ChatMessage.promptText()` adds it to what the model reads.
 
 ## Memory
 
 `SqlNavigatorScreen` reads top to bottom:
 
-- **Lately:** the five newest rows across `long_term_memories`, `short_term_memories`, and `user_understandings` (`SqlBrowser.recentMemories()`, skipping forgotten and non-active ones). Each reads Remembered, Noted, Learnt, or Updated, with a relative time. Tap one for the full text in a bottom sheet.
+- **At a glance:** five tiles counting active, unforgotten long-term memories, understandings, short-term notes, people and important dates (`SqlBrowser.memoryCounts()`).
+- **Lately:** the ten newest rows across `long_term_memories`, `short_term_memories`, `user_understandings`, and `important_dates` (`SqlBrowser.recentMemories()`, skipping forgotten and non-active ones); **Show more** extends it to thirty. Each reads Remembered, Noted, Learnt, or Updated, with a relative time. Tap one for the full text in a bottom sheet.
 - **How she feels:** her projected feeling (`HerViewModel.feeling`) as a big word beside a still orb. The second feeling in the blend shows as "and a little …". The cause line is the projection's `note` from `feelingCause()`, which picks the recent emotional event that weighs most toward that feeling (its interpretation, else its quoted evidence) or, for concern, the nearest deadline.
 - **Who she is:** her six traits (`HerViewModel.persona`) as a web drawn on a `Canvas`. The dashed outline is the seed from her name, the fill is who she is now, and a caption names any trait she is working on because they asked. See [Personality](Personality.md).
-- **Database:** a read-only browser over `her.db`.
-  - The table list (from `sqlite_master`, with row-count badges) shows six tables per page. Skeleton rows appear if loading is slow.
+- **What she knows:** long-term memories by `category` and understandings by `facet` (`SqlBrowser.knownTopics()`), biggest topic first with a count badge. Tap a topic to open its items, most important first; tap an item for the full text.
+- **People she knows:** `people` by last mentioned (`SqlBrowser.people()`), with relationship. Tap one for their notes, preferences and birthday.
+- **Advanced:** collapsed each time the tab opens. Opening it reveals a read-only browser over `her.db`:
+  - The table list (counted only once Advanced first opens), from `sqlite_master` with row-count badges, shows six tables per page. Skeleton rows appear if loading is slow.
   - Tap a table → `SELECT * FROM "<table>" ORDER BY rowid DESC`, and the list scrolls down to its rows.
   - Free-form query card (must start with `SELECT`, `WITH`, `PRAGMA`, or `EXPLAIN`; stacked statements are rejected). The Run button shows a `searching` orb while a query runs.
   - Results come 50 rows per page with ‹ › controls. `SqlBrowser.query(offset = …)` skips rows on the cursor, so any read-only statement pages without rewriting its SQL.
@@ -124,19 +127,21 @@ Writes (`DELETE`, `UPDATE`, `INSERT`, `DROP`, …) are rejected by `SqlGuard`.
 
 ## Settings
 
-Settings is grouped into glass cards that rise in on first open:
+Settings is grouped into glass cards that rise in on first open. Each `SectionCard` has a one-line `description` under its title.
 
-- **Her mind:** the model in use, then the same `HerCloudConnect` buttons as setup. LLM endpoint, key, and model sit under the folded **Endpoint details** row, which opens by itself when a check fails. **Save & test** shows the connecting orb, then a drawn check.
-- **Quiet hours:** two time chips that open a 24-hour time picker and save on confirm.
+- **Her mind:** connection only: the model in use, then the same `HerCloudConnect` buttons as setup. LLM endpoint, key, and model sit under the folded **Endpoint details** row, which opens by itself when a check fails. **Save & test** shows the connecting orb, then a drawn check.
+- **What she can use:** calendar, contacts, web search, and embeddings. The custom search endpoint and key appear under web search only while it is on; the embedding model appears under embeddings only while that is on.
+- **Quiet hours & reminders:** two time chips that open a 24-hour time picker and save on confirm.
   - **Hourly during quiet hours** (default off).
   - **Allow background work** while the OS is still battery-optimizing the app.
-- **Connections:** calendar, web search (same Base URL / key / model; optional custom search endpoint), and embeddings.
-- **Backup:** **Save backup** (system file picker, `her-backup-YYYY-MM-DD.zip`), **Share** (share sheet), and **Import**, which asks "Import this backup?" before it replaces everything and restarts the app. The result or error shows under the buttons.
-- **Today:** API usage numbers that count up.
+  - **Allow exact alarms** on Android 12+ while exact alarms are not granted.
+- **Backup:** **Save backup** (system file picker, `her-backup-YYYY-MM-DD.zip`), **Share** (share sheet), **Import**, which asks "Import this backup?" before it replaces everything and restarts the app, and **Export as text**. The result or error shows under the buttons.
+- **Usage today:** API usage numbers that count up.
 - **Advanced:** expands with a turning chevron.
+  - **Background thinking:** background model and daily background token cap.
   - **Experimental:** **Memory navigator (SQL)** (default on) and **Show what she saved** (default on).
   - **Developer:** developer mode, and manual run hourly / nightly.
-  - Activity, agent runs, and debug logs.
+  - **Logs:** activity, agent runs, and debug, each folded under its own row.
 
 The footer links to GitHub and credits thinking-orbs.
 
@@ -146,4 +151,7 @@ API credentials are set on each phone; a backup never carries them.
 
 - **Quick-settings tile** (`entry/HerTileService`): opens `MainActivity` and collapses the shade.
 - **Assistant app**: `MainActivity` answers `ACTION_ASSIST`, so Her can be chosen under the phone's default assistant setting. It opens the app; there is no voice interaction service.
-- **Share sheet**: `ACTION_SEND` with `text/plain`.
+- **Share sheet**: `ACTION_SEND` with `text/plain` or `image/*`.
+- **Home-screen widgets** (`widget/HerWidget.kt`), plain RemoteViews drawn by `Widgets.refreshAll`. `HerApplication` watches the latest assistant message and the projected feeling (compared by what they show, not by time) and redraws on change, and again on a light/dark switch; no polling. On Android 12+ each widget hands the launcher several layouts by size; older launchers get the middle one.
+  - **Her** (`HerWidget`): her latest message, markdown flattened by `markdownToPlain`. One row high is a single-line bar (`widget_her_row`); taller is a card (`widget_her`) showing more lines. Tapping the text opens `MainActivity`; **Write** opens `QuickNoteActivity`, a dialog with one field that queues the note through `AppGraph.queueFromOutside` (the same path as a notification reply) and closes. Before setup it opens the app instead.
+  - **How she feels** (`HerFeelingWidget`): the same feeling the Memory tab shows (`WidgetFeeling.of`), as an orb bitmap in that feeling's palette (`feelingPalette`), its word, a second feeling, and her note. One square shows only the orb and word (`widget_feeling_small`). Tapping opens the app.

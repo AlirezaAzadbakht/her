@@ -33,6 +33,7 @@ open class CalendarDataSource(private val context: Context) {
             CalendarContract.Instances.EVENT_LOCATION,
             CalendarContract.Instances.DESCRIPTION,
             CalendarContract.Instances.CALENDAR_ID,
+            CalendarContract.Instances.ALL_DAY,
         )
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also { builder ->
             ContentUris.appendId(builder, from)
@@ -53,16 +54,20 @@ open class CalendarDataSource(private val context: Context) {
             val locIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_LOCATION)
             val descIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.DESCRIPTION)
             val calIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.CALENDAR_ID)
+            val allDayIdx = cursor.getColumnIndexOrThrow(CalendarContract.Instances.ALL_DAY)
             val now = nowMillis()
             while (cursor.moveToNext()) {
                 val calendarId = cursor.getString(calIdx)
                 val eventId = cursor.getLong(idIdx)
                 val begin = cursor.getLong(startIdx)
+                // All-day instances are stored at UTC midnight; move them to local midnight of the same date.
+                val allDay = cursor.getInt(allDayIdx) == 1
+                fun local(utc: Long) = if (allDay) CalendarWindows.utcDateToLocalMidnight(utc) else utc
                 items += CalendarEvent(
                     id = newId(),
                     title = cursor.getString(titleIdx) ?: "(untitled)",
-                    startAt = begin,
-                    endAt = cursor.getLong(endIdx).takeIf { it > 0 },
+                    startAt = local(begin),
+                    endAt = cursor.getLong(endIdx).takeIf { it > 0 }?.let(::local),
                     location = cursor.getString(locIdx),
                     notes = cursor.getString(descIdx),
                     externalId = CalendarWindows.instanceExternalId(eventId.toString(), begin),

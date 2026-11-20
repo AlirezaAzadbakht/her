@@ -125,7 +125,8 @@ internal fun ToolRegistry.registerMemoryTools() {
                     importance = clamp01(args.optDoubleOr("importance", 0.4)),
                     createdAt = now,
                     updatedAt = now,
-                    expiresAt = args.optLongOrNull("expiresAt"),
+                    // A 0 or past expiry would hide the memory the moment it is saved; models send 0 for "none".
+                    expiresAt = args.optLongOrNull("expiresAt")?.takeIf { it > now },
                     sourceMessageId = args.optStringOrNull("sourceMessageId"),
                     source = source,
                     metadataJson = null,
@@ -148,11 +149,13 @@ internal fun ToolRegistry.registerMemoryTools() {
             "confidence" to num(),
             "importance" to num(),
             "status" to enumField<MemoryStatus>(),
+            "expiresAt" to str("Short-term only: when it stops mattering ($WHEN_HINT), or \"now\" once it is over"),
             required = listOf("id"),
         ),
     ) { args ->
         val id = args.requiredString("id")
         val now = nowMillis()
+        val expiresAt = args.optStringOrNull("expiresAt")?.let { if (it.trim().equals("now", true)) now else parseWhen(it) ?: throw ToolValidationException("Could not understand expiresAt: $it") }
         val short = repo.getShort(id)?.takeIf { it.deletedAt == null }
         val long = repo.getLong(id)?.takeIf { it.deletedAt == null }
         when {
@@ -189,6 +192,7 @@ internal fun ToolRegistry.registerMemoryTools() {
                         content = args.optStringOrNull("content") ?: short.content,
                         confidence = clamp01(args.optDoubleOr("confidence", short.confidence)),
                         importance = clamp01(args.optDoubleOr("importance", short.importance)),
+                        expiresAt = expiresAt ?: short.expiresAt,
                         updatedAt = now,
                         version = short.version + 1,
                     ),
@@ -270,6 +274,29 @@ internal fun ToolRegistry.registerMemoryTools() {
         jsonObjectOf("ok" to true, "messages" to JSONArray().apply {
             found.forEach { put(JSONObject().put("id", it.id).put("role", it.role.name).put("content", it.content).put("createdAt", it.createdAt)) }
         })
+    }
+
+    val records = sql ?: return
+    register(
+        "query_records",
+        "Count, group or compare across their records (tasks, goals, groceries, expenses, reminders…) with one SQLite SELECT. Omit sql to get tables and columns. Times are epoch millis; add deletedAt IS NULL.",
+        objSchema("sql" to str(), "limit" to num("rows, default 50, max 100")),
+    ) { args ->
+        val query = args.optStringOrNull("sql")
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (query == null) {
+                jsonObjectOf("ok" to true, "tables" to JSONObject().apply { records.recordColumns().forEach { (t, cols) -> put(t, JSONArray(cols)) } })
+            } else {
+                val result = records.queryRecords(query, args.optInt("limit", 50).coerceIn(1, 100))
+                if (result.error != null) jsonObjectOf("ok" to false, "error" to result.error)
+                else jsonObjectOf(
+                    "ok" to true,
+                    "columns" to JSONArray(result.columns),
+                    "rows" to JSONArray().apply { result.rows.forEach { put(JSONArray(it.map { v -> v ?: JSONObject.NULL })) } },
+                    "truncated" to result.truncated,
+                )
+            }
+        }
     }
 
 }

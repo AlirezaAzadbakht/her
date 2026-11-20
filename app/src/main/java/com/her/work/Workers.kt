@@ -149,7 +149,8 @@ class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val graph = graph() ?: return Result.retry()
         return try {
             val result = graph.orchestrator.processOutbox()
-            if (result?.failed == true) Result.retry() else Result.success()
+            // The message stays pending; a settings change or their next message sends it again.
+            if (result?.failed == true && result.failure !in BackgroundRunPolicy.NEEDS_THEM) Result.retry() else Result.success()
         } catch (_: Exception) {
             Result.retry()
         }
@@ -340,7 +341,7 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action !in REARM_ACTIONS) return
         val app = context.applicationContext as? HerApplication ?: return
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) app.graph.scheduler.enqueueAll()
-        // Alarms do not survive a reboot or an update, and a clock or timezone change moves when they should ring.
+        // Alarms and place alerts do not survive a reboot or an update, and a clock or timezone change moves when they should ring.
         val pending = goAsync()
         app.graph.io.execute {
             try {

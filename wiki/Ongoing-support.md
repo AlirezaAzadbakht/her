@@ -28,6 +28,8 @@ Receipts distinguish newly created records from edits; creation undo uses the sa
 
 `send_companion_checkin` reserves a stable NOTICE in a transaction. Meeting keys include the event start and phase; other keys include topic, local date and phase. Only the record's originating device offers the nudge. The orchestrator rechecks eligibility immediately before delivery, persists the delivered text as the latest assistant message, and uses the notice key for the existing notification policy. A suppressed tool call cannot fall back to final prose in that autonomous run. Swiping away the notification persists a dismissal; Later persists a snooze instead of creating an unrestricted agent-queue item.
 
+Her own openings ([Initiative](Initiative.md)) are separate from check-ins. They yield to a due check-in, stop while check-ins are paused, and never raise a topic that is scheduled, dismissed or snoozed.
+
 These offers run on existing background passes, not exact alarms. Reservation favors avoiding duplicates: if a run crashes after reserving, or Android denies notification permission, an offer can be missed. There is no distributed exactly-once guarantee during concurrent offline device edits. The model must route these semantic categories through the dedicated tool; arbitrary prose from older background paths is not semantically classified by application code. Existing reminder alarms and calendar write permissions remain unchanged.
 
 New tool payloads are omitted from activity/debug logs; prompt/response logs contain sizes rather than full private context, and retrieval logs contain IDs.

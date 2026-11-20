@@ -20,6 +20,10 @@
     <string name="composer_hint">چیزی بنویس</string>
     <string name="share_remove">حذف متن هم‌رسانی‌شده</string>
     <string name="shared_text">هم‌رسانی‌شده: %1$s</string>
+    <string name="reading_image">دارم تصویر را می‌خوانم…</string>
+    <string name="image_unsupported">مدل شما نمی‌تواند تصویر بخواند. در تنظیمات ← ذهن او مدلی انتخاب کنید که بتواند.</string>
+    <string name="image_share_again">بعد از درست شدنش، تصویر را دوباره هم‌رسانی کنید.</string>
+    <string name="image_unreadable">نتوانستم این تصویر را باز کنم.</string>
     <string name="stop">توقف</string>
     <string name="send">ارسال</string>
     <string name="undo">برگرداندن</string>
@@ -42,6 +46,17 @@
     <string name="get_credit">هنوز کد نداری؟ از هِر کلاد اعتبار بگیر</string>
     <string name="not_her_cloud">این تنظیمات هِر کلاد نیست. دوباره از هِر کلاد بگیرش.</string>
     <string name="from_cloud_card">از کارت هِر کلاد تو</string>
+    <string name="her_mind_desc">با کدام مدل فکر می‌کند</string>
+    <string name="what_she_can_use">به چه دسترسی دارد</string>
+    <string name="what_she_can_use_desc">چیزهایی که اجازه دارد سراغشان برود</string>
+    <string name="quiet_and_reminders">سکوت و یادآورها</string>
+    <string name="quiet_and_reminders_desc">کی ساکت می‌ماند و یادآورها سر وقت برسند</string>
+    <string name="backup_desc">هر چه می‌داند را نگه دار یا جابه‌جا کن</string>
+    <string name="usage_today">مصرف امروز</string>
+    <string name="usage_today_desc">درخواست‌ها و توکن‌ها از نیمه‌شب</string>
+    <string name="background_thinking">فکر کردن در پس‌زمینه</string>
+    <string name="background_thinking_desc">مدل و سقف کاری که خودش انجام می‌دهد</string>
+    <string name="logs">گزارش‌ها</string>
     <string name="her_mind">ذهن او</string>
     <string name="connected">وصل شد.</string>
     <string name="connected_model">وصل شد · %1$s</string>
@@ -58,6 +73,8 @@
     <string name="quiet_from_chip">از</string>
     <string name="quiet_until_chip">تا</string>
     <string name="hourly_in_quiet">کار ساعتی در ساعت‌های سکوت</string>
+    <string name="starts_conversations">خودش اول پیام بدهد</string>
+    <string name="starts_conversations_hint">وقتی مدتی خبری از تو نیست یا چیزی که گفته‌ای در ذهنش مانده، ممکن است خودش سر صحبت را باز کند. شخصیتش تعیین می‌کند چند وقت یک‌بار، و اگر جواب ندهی به تو فرصت می‌دهد.</string>
     <string name="background_unrestricted">کار پس‌زمینه محدودیتی ندارد.</string>
     <string name="background_needed">کارهای ساعتی و شبانه باید وقتی برنامه بسته است هم اجرا شوند.</string>
     <string name="allow_background">اجازهٔ کار در پس‌زمینه</string>
@@ -65,6 +82,14 @@
     <string name="calendar_access">دسترسی به تقویم</string>
     <string name="contacts_access">دسترسی به مخاطبان</string>
     <string name="contacts_access_hint">وقتی بخواهی، می‌تواند شماره تلفن یا تاریخ تولد کسی را پیدا کند. مخاطبی که پیدا می‌کند برای مدل تو فرستاده می‌شود.</string>
+    <string name="place_reminders">یادآوری‌های مکانی</string>
+    <string name="place_reminders_hint">یادآوری‌هایی مثل «وقتی رسیدم خانه» وقتی به آنجا برسی به صدا درمی‌آیند. مکان‌ها وقتی به او بگویی آنجایی روی همین گوشی ذخیره می‌شوند و موقعیتشان هرگز برای مدل تو فرستاده نمی‌شود. وقتی موقعیت مکانی خاموش است، هیچ کاری انجام نمی‌شود.</string>
+    <string name="location">موقعیت مکانی</string>
+    <string name="place_needs_location">برای اینکه بداند کی می‌رسی، به موقعیت مکانی‌ات نیاز دارد.</string>
+    <string name="allow_location">اجازهٔ موقعیت مکانی</string>
+    <string name="place_needs_always">برای اینکه وقتی برنامه بسته است هم به صدا دربیاید، موقعیت مکانی را روی «همیشه مجاز» بگذار.</string>
+    <string name="allow_location_always">همیشه مجاز</string>
+    <string name="place_location_off">موقعیت مکانی گوشی خاموش است، پس یادآوری‌های مکانی متوقف شده‌اند.</string>
     <string name="calendar">تقویم</string>
     <string name="contacts">مخاطبان</string>
     <string name="permission_blocked">دسترسی به %1$s در تنظیمات اندروید برای هِر خاموش است. آنجا اجازه بده، بعد این را روشن کن.</string>
@@ -110,6 +135,17 @@
     <string name="share_backup">هم‌رسانی پشتیبان</string>
     <string name="share_readable">هم‌رسانی آنچه هِر می‌داند</string>
     <string name="backup_failed">پشتیبان‌گیری انجام نشد.</string>
+    <string name="at_a_glance">در یک نگاه</string>
+    <string name="stat_memories">خاطره‌ها</string>
+    <string name="stat_insights">شناخت‌ها</string>
+    <string name="stat_notes">یادداشت‌ها</string>
+    <string name="stat_people">آدم‌ها</string>
+    <string name="stat_dates">تاریخ‌ها</string>
+    <string name="show_more">بیشتر</string>
+    <string name="show_less">کمتر</string>
+    <string name="what_she_knows">آنچه می‌داند</string>
+    <string name="people_she_knows">آدم‌هایی که می‌شناسد</string>
+    <string name="advanced_memory_hint">جدول‌ها و پرس‌وجوی SQL</string>
     <string name="lately">این اواخر</string>
     <string name="lately_empty">هنوز چیزی نیست. هر چه دربارهٔ تو یاد بگیرد اینجا می‌آید.</string>
     <string name="database">پایگاه داده</string>
@@ -169,4 +205,10 @@
         <item quantity="one">آفلاین · %d پیام در انتظار</item>
         <item quantity="other">آفلاین · %d پیام در انتظار</item>
     </plurals>
+    <string name="widget_description">آخرین پیامش، و راهی سریع برای نوشتن به او</string>
+    <string name="widget_feeling_description">حالِ این لحظه‌اش</string>
+    <string name="widget_empty">چیزی به او بگو.</string>
+    <string name="widget_write">بنویس</string>
+    <string name="widget_write_hint">هر چه می‌خواهی بگو…</string>
+    <string name="widget_send">بفرست</string>
 </resources>

@@ -8,6 +8,7 @@ import com.her.core.optLongOrNull
 import com.her.core.optStringOrNull
 import com.her.core.requiredString
 import com.her.data.calendar.CalendarWindows
+import com.her.data.calendar.allDay
 import com.her.data.repository.toJson
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
@@ -167,6 +168,7 @@ private suspend fun ToolRegistry.requireCalendarEvent(idOrTitle: String): Calend
 
 private fun calendarJson(event: CalendarEvent, zone: ZoneId): JSONObject {
     val obj = JSONObject(event.toJson())
+    if (CalendarWindows.isAllDay(event.startAt, event.endAt, zone)) return obj.put("when", allDay(event.startAt, event.endAt!!, zone)).put("allDay", true)
     obj.put("when", formatNaturalDate(Instant.ofEpochMilli(event.startAt).atZone(zone)))
     event.endAt?.let {
         obj.put(

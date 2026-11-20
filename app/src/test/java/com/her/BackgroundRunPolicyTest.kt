@@ -243,6 +243,21 @@ class BackgroundRunPolicyTest {
     }
 
     @Test
+    fun backgroundPassWaitsWhileTheyAreTalking() {
+        assertTrue(BackgroundRunPolicy.inConversation(lastUserMessageAt = now - 5_000, nowMs = now))
+        assertFalse(BackgroundRunPolicy.inConversation(lastUserMessageAt = now - 20 * 60 * 1000, nowMs = now))
+        assertFalse("never talked", BackgroundRunPolicy.inConversation(lastUserMessageAt = 0, nowMs = now))
+    }
+
+    @Test
+    fun aLateMorningNoteIsSkipped() {
+        val eight = java.time.LocalTime.of(8, 0)
+        assertFalse(BackgroundRunPolicy.briefingTooLate(java.time.LocalTime.of(9, 45), eight))
+        assertTrue(BackgroundRunPolicy.briefingTooLate(java.time.LocalTime.of(12, 0), eight))
+        assertFalse("window wraps past midnight", BackgroundRunPolicy.briefingTooLate(java.time.LocalTime.of(23, 30), java.time.LocalTime.of(22, 0)))
+    }
+
+    @Test
     fun criticallyLowIgnoresChargingAboveThreshold() {
         assertTrue(DevicePower(15, charging = false).criticallyLow)
         assertFalse(DevicePower(16, charging = false).criticallyLow)
@@ -256,5 +271,14 @@ class BackgroundRunPolicyTest {
         org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.ServerDown, attempt = 1))
         org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.OutOfCredit, attempt = 0))
         org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(null, attempt = 0))
+    }
+
+    /** From a real backup: a refused key was retried in backoff for hours, and offline calls were tried three times. */
+    @Test
+    fun whatOnlyTheyCanFixIsNotRetried() {
+        assertTrue(com.her.agent.runner.TurnFailure.BadKey in BackgroundRunPolicy.NEEDS_THEM)
+        assertFalse(com.her.agent.runner.TurnFailure.Unreachable in BackgroundRunPolicy.NEEDS_THEM)
+        assertFalse(com.her.agent.runner.AgentOrchestrator.isRetryable(java.net.UnknownHostException("api.example.com")))
+        assertTrue(com.her.agent.runner.AgentOrchestrator.isRetryable(java.net.SocketTimeoutException("timeout")))
     }
 }
