@@ -272,4 +272,13 @@ class BackgroundRunPolicyTest {
         org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(com.her.agent.runner.TurnFailure.OutOfCredit, attempt = 0))
         org.junit.Assert.assertFalse(BackgroundRunPolicy.retryAfterFailure(null, attempt = 0))
     }
+
+    /** From a real backup: a refused key was retried in backoff for hours, and offline calls were tried three times. */
+    @Test
+    fun whatOnlyTheyCanFixIsNotRetried() {
+        assertTrue(com.her.agent.runner.TurnFailure.BadKey in BackgroundRunPolicy.NEEDS_THEM)
+        assertFalse(com.her.agent.runner.TurnFailure.Unreachable in BackgroundRunPolicy.NEEDS_THEM)
+        assertFalse(com.her.agent.runner.AgentOrchestrator.isRetryable(java.net.UnknownHostException("api.example.com")))
+        assertTrue(com.her.agent.runner.AgentOrchestrator.isRetryable(java.net.SocketTimeoutException("timeout")))
+    }
 }

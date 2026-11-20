@@ -149,7 +149,8 @@ class OutboxWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         val graph = graph() ?: return Result.retry()
         return try {
             val result = graph.orchestrator.processOutbox()
-            if (result?.failed == true) Result.retry() else Result.success()
+            // The message stays pending; a settings change or their next message sends it again.
+            if (result?.failed == true && result.failure !in BackgroundRunPolicy.NEEDS_THEM) Result.retry() else Result.success()
         } catch (_: Exception) {
             Result.retry()
         }

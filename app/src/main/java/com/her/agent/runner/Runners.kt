@@ -593,6 +593,8 @@ class AgentOrchestrator(
                         msg.contains("no choices", ignoreCase = true) ||
                         msg.contains("truncated", ignoreCase = true)))
             }
+            // No DNS answer means offline or a wrong Base URL; a second try a second later changes neither.
+            is java.net.UnknownHostException -> false
             else -> true
         }
 
