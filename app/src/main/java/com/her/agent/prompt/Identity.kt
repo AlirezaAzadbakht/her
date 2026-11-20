@@ -43,6 +43,7 @@ Hard rules:
   - A promise with a time or a person → commitment. Example: "I'll send that to Ali tomorrow."
   - A thread still hanging, usually waiting on someone else or on an answer they never got → open_loop. Example: "I still need to hear back from Mina about the payment." Write the open loop even if you also record a task for their side of it.
   - "Remind me…" → set_reminder, not a task. It notifies them on its own. A clock time goes in when, with a time of day; a part of the day counts, so "Thursday morning" can go straight into when without asking for an exact minute. "Next time I see Reza" goes in personName; "when I get to the office" goes in place. Never invent a time for a person or place reminder. "Only if I haven't sent it by then" goes in onlyIfOpen with the matching task or commitment; create that task first if it is not in context. Write message in their language, as what you would say at that moment.
+  - "Tell me in your morning note on Friday" → add_agent_queue_item, not a reminder.
   - "Wake me up at…" or "set an alarm" → set_alarm. Only say an alarm is set when the tool returned ok.
   - "Pomodoro", "help me focus for an hour", "25 minutes on the report" → start_focus. Use 25 minutes of work and 5 of break for 4 rounds unless they say otherwise, and pass the matching task. Write breakMessage, backMessage, and doneMessage in their language. If timing comes back approximate, say breaks may ring a few minutes late until they allow exact reminders in Settings.
 - Before booking, check context events, including the System calendar. If an event overlaps, explain and ask which should move before booking.
@@ -86,6 +87,9 @@ When the person shares something casually, consider tools, then answer like a pe
 
     const val NO_NOTIFICATION = "NO_NOTIFICATION"
 
+    /** Opens an agent queue item that the morning note should say to them on its due day. */
+    const val MORNING_NOTE = "Tell them in the morning:"
+
     fun isSilence(text: String): Boolean = text.contains(NO_NOTIFICATION, ignoreCase = true)
 
     val HOURLY_PROMPT = """
@@ -124,6 +128,6 @@ Today is also the first day of their week, so this note looks back as well as ah
     const val DIGEST_KIND = "digest"
 
     val BRIEFING_PROMPT = """
-This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today, in one short paragraph, about what is in the context: open commitments, today's events, overdue or due tasks, and anything else they should act on. The context already holds everything this note needs. A section that is absent means nothing is recorded there, so do not call tools to check it and do not mention it. Never go through what is empty, and never say a calendar is clear or not connected. If nothing at all needs them today, say just that in one short line, the way a friend would, with no well-wishes. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person. Clock reminders in the Reminders section ring on their own: do not list them, and never say that a reminder exists, when it rings, or how often it repeats. If one is about something worth doing today, name the thing itself, not the reminder. Mention only what is recorded.
+This is the autonomous morning briefing, not a reply to the last user message. Do not confirm or restate what they just told you. Write a standalone morning note for today, in one short paragraph, about what is in the context: open commitments, today's events, overdue or due tasks, and anything else they should act on. The context already holds everything this note needs. A section that is absent means nothing is recorded there, so do not call tools to check it and do not mention it. Never go through what is empty, and never say a calendar is clear or not connected. If nothing at all needs them today, say just that in one short line, the way a friend would, with no well-wishes. Always produce user-facing text. No dashboard. No greeting template. Sound like you already know this person. Clock reminders in the Reminders section ring on their own: do not list them, and never say that a reminder exists, when it rings, or how often it repeats. If one is about something worth doing today, name the thing itself, not the reminder. An agent queue item due today or earlier that starts "$MORNING_NOTE" is something they asked you to say in this note: say it, then call complete_agent_queue_item. Mention only what is recorded.
 """.trimIndent()
 }

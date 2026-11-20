@@ -78,7 +78,7 @@ internal fun ToolRegistry.registerAgentTools() {
         jsonObjectOf("ok" to true, "id" to item.id, "feeling" to feeling.name)
     }
     register("get_agent_queue", "Read the assistant's private todo queue.", objSchema()) { jsonObjectOf("ok" to true, "queue" to JSONArray(repo.agentQueue().map { JSONObject(it.toJson()) })) }
-    register("add_agent_queue_item", "Add a private assistant todo.", objSchema("description" to str(), "priority" to num(), "dueAt" to str(), required = listOf("description"))) { args ->
+    register("add_agent_queue_item", "Add a private assistant todo. When they ask you to tell them something in your morning note on a day, add it here with dueAt that day and a description starting \"${Identity.MORNING_NOTE}\".", objSchema("description" to str(), "priority" to num(), "dueAt" to str(), required = listOf("description"))) { args ->
         val now = nowMillis()
         val id = newId()
         repo.saveAgentQueue(AgentQueueItem(id, args.requiredString("description"), QueueStatus.OPEN, args.optDoubleOr("priority", 0.5), parseDeadline(args.optStringOrNull("dueAt")), args.optStringOrNull("relatedEntityType"), args.optStringOrNull("relatedEntityId"), now, now, repo.deviceId, 1, null))

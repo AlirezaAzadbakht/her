@@ -23,6 +23,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her no longer answers the same message twice. Hours after a conversation she could send her reply again, or apologise again for something already settled.
 - A morning note no longer arrives in the middle of a conversation, or at noon when your phone was asleep all morning. If you're talking to her, the background check waits until you've been quiet for a while.
 - Her morning note no longer starts with her own working notes in English before the real message.
+- A repeating reminder, like a daily "how are you?" check-in, now keeps its words. Before, asking for something new could overwrite it, so the check-in quietly stopped. If you lost one this way, ask Her for it again.
+- "Tell me in your morning note on Friday" now works: Her says it in that morning's note instead of changing one of your reminders.
+- Asking for the same reminder twice no longer sets it twice.
+- When Her changes or cancels a reminder, the note under her reply now says which one.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
