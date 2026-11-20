@@ -73,6 +73,8 @@
     <string name="quiet_from_chip">از</string>
     <string name="quiet_until_chip">تا</string>
     <string name="hourly_in_quiet">کار ساعتی در ساعت‌های سکوت</string>
+    <string name="starts_conversations">خودش اول پیام بدهد</string>
+    <string name="starts_conversations_hint">وقتی مدتی خبری از تو نیست یا چیزی که گفته‌ای در ذهنش مانده، ممکن است خودش سر صحبت را باز کند. شخصیتش تعیین می‌کند چند وقت یک‌بار، و اگر جواب ندهی به تو فرصت می‌دهد.</string>
     <string name="background_unrestricted">کار پس‌زمینه محدودیتی ندارد.</string>
     <string name="background_needed">کارهای ساعتی و شبانه باید وقتی برنامه بسته است هم اجرا شوند.</string>
     <string name="allow_background">اجازهٔ کار در پس‌زمینه</string>

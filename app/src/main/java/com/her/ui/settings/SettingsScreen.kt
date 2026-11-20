@@ -343,6 +343,9 @@ fun SettingsScreen(vm: HerViewModel) {
                     TimeChip(stringResource(R.string.quiet_from_chip), app.quietHours.startMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.Start }
                     TimeChip(stringResource(R.string.quiet_until_chip), app.quietHours.endMinutes, Modifier.weight(1f)) { editingQuiet = QuietEdge.End }
                 }
+                ToggleRow(stringResource(R.string.starts_conversations), app.initiativeEnabled, description = stringResource(R.string.starts_conversations_hint)) {
+                    vm.updateSettings { it.copy(initiativeEnabled = !it.initiativeEnabled) }
+                }
                 ToggleRow(stringResource(R.string.hourly_in_quiet), app.hourlyDuringQuietHours) {
                     vm.updateSettings { it.copy(hourlyDuringQuietHours = !it.hourlyDuringQuietHours) }
                 }

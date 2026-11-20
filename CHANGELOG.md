@@ -5,6 +5,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ## [Unreleased]
 
 ### Added
+- Her now starts conversations on her own. When you've been quiet for a day, or something you told her is still on her mind, like an interview or a question she has been wondering about, she may write first. Her personality decides how often: a warm, curious Her writes up to three times a day, a reserved one rarely or never. If you don't answer she feels a little wistful and gives you space, for longer when she's less patient, and swiping her message away tells her "not now". After two messages go unanswered she checks once that you're okay, then waits for you. Turn it off under **Quiet hours & reminders → She writes first**, or ask her to pause check-ins.
 - Two home-screen widgets. **Her** shows her latest message: tap it to open the app, or tap **Write** to jot her a note without opening it, and her reply shows on the widget. Make it one row high for a single-line bar, or taller to read more. **How she feels** shows how she feels right now, in her colours, with what is on her mind when there is room; shrink it to one square for just the feeling.
 - Ask Her to text someone ("text Mom happy birthday") and she opens your messaging app with the message written to the right number. You press send yourself; she never sends anything. If two contacts or numbers fit, she asks which one.
 - Ask Her to send something on WhatsApp, Telegram or by email ("send that to Sara on WhatsApp") and your share sheet opens with the message filled in. You pick the app and the person and press send; she never sends anything.
@@ -18,6 +19,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
 
 ### Fixed
+- Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
 - When you ask Her to write a text for someone, she now just gives you the text instead of trying to open your messaging app. If contacts access is off and you ask for someone's number, she tells you where to turn it on.

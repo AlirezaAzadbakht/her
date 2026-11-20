@@ -81,6 +81,8 @@
     <string name="quiet_from_chip">From</string>
     <string name="quiet_until_chip">Until</string>
     <string name="hourly_in_quiet">Hourly during quiet hours</string>
+    <string name="starts_conversations">She writes first</string>
+    <string name="starts_conversations_hint">When you\'ve been quiet, or something you told her is on her mind, she may start the conversation. Her personality sets how often, and she gives you space when you don\'t answer.</string>
     <string name="background_unrestricted">Background work is unrestricted.</string>
     <string name="background_needed">Hourly and nightly need to run when the app is closed.</string>
     <string name="allow_background">Allow background work</string>

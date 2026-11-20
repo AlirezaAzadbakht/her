@@ -35,13 +35,15 @@ The content checks live in `AgentOrchestrator` behind `gated = true`, which the 
 
 Before an hourly model call, `ContextBuilder.triggers()` lists what a pass could speak about, without the model: open tasks and commitments due today or overdue, events starting within 2 hours, important dates today or tomorrow, a "next time with" reminder whose person is on the calendar in the next day, agent-queue items that came due, and their latest message. Each key carries its time (`due:<id>:<dueAt>:overdue`, `msg:<id>`, …). The model runs only when a key is not in `lastHourlyTriggers`, the set the last successful pass saw. So an ignored overdue task gets one nudge, not one an hour, and a moved deadline counts as new. A deadline at local midnight has no clock time (`BackgroundRunPolicy.isDateOnly`), so it is due today all day and turns overdue the next day. The agent queue's `dueAt` is her way to wake herself later.
 
+When she may start a conversation, the hourly pass also adds one `reach:<opening>:<date>` key per opening, so a quiet hour wakes the model once per opening per day. See [Initiative](Initiative.md).
+
 The briefing reuses `triggers()` up to midnight, without queue items and messages, to decide whether today has anything on it. A user who comes back is back on their next message; nothing else is stored.
 
 Settings → Her mind → **Background model** runs hourly, nightly and briefing on a different model (for example a smaller one). Blank uses the chat model.
 
 Settings → Her mind → **Daily background token limit** stops gated passes for the rest of the day once `api_usage.backgroundTokens` (input plus output of hourly, nightly and briefing calls) reaches it. It is checked before a pass, so one pass can go over by its own size. The Today card shows background tokens and the share of input tokens the provider served from cache.
 
-Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count.
+Notifications swiped away without a reply are counted in `swipedNudges`. From two, the bundle says "Their last N notifications were swiped away without a reply.", and the hourly prompt tells her to speak only for something due within the hour. Any message from them resets the count. A swipe on a message she started also makes her wistful, so she waits before writing again ([Initiative](Initiative.md)).
 
 ## Quiet hours
 

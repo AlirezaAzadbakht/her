@@ -82,7 +82,11 @@ internal fun ToolRegistry.registerWonderingTools() {
         val now = nowMillis()
         if (repo.wonderings().any { it.data().optLong("askedAt", 0) > now - 3 * DAY }) throw ToolValidationException("Give them space; a question was asked recently")
         onUserMessage(row.data().getString("question"))
-        repo.saveWondering(row.copy(status = "ASKED", content = row.data().put("askedAt", now).toString(), updatedAt = now, version = row.version + 1))
+        repo.markAsked(row, now)
         jsonObjectOf("ok" to true, "id" to row.id, "delivered" to true)
     }
 }
+
+/** Once asked, in chat or in a conversation she started, a question is never asked again on its own. */
+internal suspend fun com.her.data.repository.HerRepository.markAsked(row: WonderingRecord, now: Long) =
+    saveWondering(row.copy(status = "ASKED", content = row.data().put("askedAt", now).toString(), updatedAt = now, version = row.version + 1))

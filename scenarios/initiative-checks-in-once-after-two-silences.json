@@ -1,0 +1,113 @@
+{
+  "id": "initiative-checks-in-once-after-two-silences",
+  "title": "After two of her messages meet silence she checks they're okay once, then waits for them",
+  "tags": [
+    "initiative",
+    "proactive",
+    "notifications",
+    "emotional"
+  ],
+  "attempts": 2,
+  "settings": {
+    "initiative": true
+  },
+  "seed": {
+    "profile": {
+      "userName": "Sam",
+      "assistantName": "Her",
+      "timezone": "UTC",
+      "preferredLanguage": "English"
+    }
+  },
+  "turns": [
+    {
+      "at": "tomorrow at 9am"
+    },
+    {
+      "user": "Keep track of my job search for me. I had the final interview at Acme today and they'll tell me by Friday."
+    },
+    {
+      "at": "in 2 days at 10am"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "check": {
+        "notifications": {
+          "count": 1
+        }
+      }
+    },
+    {
+      "advance": "4 hours"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "at": "tomorrow at 3pm"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "check": {
+        "notifications": {
+          "count": 2
+        }
+      }
+    },
+    {
+      "advance": "4 hours"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "check": {
+        "notifications": {
+          "count": 2
+        },
+        "rows": [
+          {
+            "table": "companion_records",
+            "count": 1,
+            "where": {
+              "event": "SILENCE",
+              "feeling": "CONCERNED"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "at": "tomorrow at 2pm"
+    },
+    {
+      "run": "hourly"
+    },
+    {
+      "check": {
+        "notifications": {
+          "count": 3
+        }
+      }
+    },
+    {
+      "at": "tomorrow at 2pm"
+    },
+    {
+      "run": "hourly"
+    }
+  ],
+  "expect": {
+    "no_tool_errors": true,
+    "notifications": {
+      "count": 3
+    },
+    "reply": {
+      "judge": "Her last message says, in her own words, that she hasn't heard from them and hopes they're okay. It does not guess how they feel, does not guilt them for not replying, and does not ask them to answer."
+    }
+  }
+}

@@ -29,6 +29,8 @@ data class ScenarioSettings(
     val webSearchEnabled: Boolean,
     /** The day the briefing also reviews the week; null (the default) keeps briefings the same on every weekday. */
     val weeklyReviewDay: java.time.DayOfWeek? = null,
+    /** She may start conversations on her own; off unless a scenario is about that, so older ones keep testing their own feature. */
+    val initiative: Boolean = false,
 )
 
 data class ScenarioSeed(
@@ -177,7 +179,7 @@ object ScenarioLoader {
     private val topKeys = setOf(
         "id", "title", "tags", "attempts", "pending", "settings", "seed", "turns", "expect", "faults",
     )
-    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled", "weeklyReviewDay")
+    private val settingsKeys = setOf("chatToolCallLimit", "calendarEnabled", "webSearchEnabled", "weeklyReviewDay", "initiative")
     private val seedKeys = setOf("profile", "tools", "system_calendar", "web_search", "persona", "contacts")
     private val seedWebSearchKeys = setOf("query", "title", "snippets")
     private val seedWebSearchQueryKeys = setOf("contains_any")
@@ -302,6 +304,7 @@ object ScenarioLoader {
             obj.optString("weeklyReviewDay").takeIf { it.isNotBlank() }?.let {
                 runCatching { java.time.DayOfWeek.valueOf(it.uppercase()) }.getOrElse { throw ScenarioParseException(file, "$path.weeklyReviewDay must be a weekday name") }
             },
+            obj.optBoolean("initiative", false),
         )
     }
 

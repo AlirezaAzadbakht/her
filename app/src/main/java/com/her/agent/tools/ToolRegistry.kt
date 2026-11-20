@@ -76,6 +76,7 @@ open class ToolRegistry(
         val visible = (if (app.webSearchEnabled) all else all.filter { it.name !in WEB_TOOLS })
             .filter { app.contactsEnabled || it.name != CONTACTS_TOOL }
             .filter { type == AgentRunType.NIGHTLY || it.name !in REFLECTION_ONLY_TOOLS }
+            .filter { type in setOf(AgentRunType.HOURLY, AgentRunType.CATCH_UP) || it.name != START_CONVERSATION }
         return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS }
     }
 

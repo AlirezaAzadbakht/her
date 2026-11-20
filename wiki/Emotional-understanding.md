@@ -86,6 +86,10 @@ Known gaps:
 
 Single attempts do not establish a reliability rate.
 
+## Unanswered openings
+
+When a conversation she started goes unanswered, the app writes `EMOTION_EVENT:UNANSWERED` (WISTFUL, scaled by patience, stronger for a swipe). A second silence in a row writes `EMOTION_EVENT:SILENCE` (CONCERNED). A reply within a day writes `EMOTION_EVENT:ANSWERED` (GLAD). They carry `origin: APP`, decay like any event, and are left alone by the nightly review. While she is wistful about an unanswered opening she does not start another. See [Initiative](Initiative.md).
+
 ## Experiences and outcomes
 
 `record_emotional_experience` records HELP_OFFERED, ACTION_SUCCEEDED, BENEFIT_REPORTED, MISUNDERSTANDING, UNDERSTANDING_IMPROVED, UNRESOLVED_QUESTION or USER_SHARED. Each includes an interpretation, confidence, feeling and intensity. User-derived events require an existing user message and an exact quote. ACTION_SUCCEEDED verifies one completed action: a DONE task, a FIRED reminder, or a learning record that shows progress (a CORRECT/PARTIAL attempt, or a lesson IN_PROGRESS/COMPLETED). This does not establish that Her caused the outcome. A completed user task never raises Her's competence, even when recorded as ACTION_SUCCEEDED. Existing task events keep `EMOTION_EVENT:ACTION_SUCCEEDED:<taskId>`; reminder and learning events use `EMOTION_EVENT:ACTION_SUCCEEDED:<kind>:<id>`. USER_SHARED never changes purpose scores.
