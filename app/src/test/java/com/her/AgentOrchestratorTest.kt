@@ -588,6 +588,8 @@ class AgentOrchestratorTest {
 
     @Test
     fun gatedBriefingWaitsForSomeoneWhoWentQuiet() = runBlocking {
+        // 22:30 UTC is too late for a morning note in UTC; in Tehran it is 02:00, before the morning.
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
         val llm = ScriptedLlm({ reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         orchestrator.enqueueUserMessage("hi")
@@ -602,6 +604,8 @@ class AgentOrchestratorTest {
 
     @Test
     fun onPassStartFiresOnlyWhenAPassReachesTheModel() = runBlocking {
+        // Same zone as above, so the briefing at the end isn't too late for a morning note.
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran"))
         val llm = ScriptedLlm({ reply("NO_NOTIFICATION") }, { reply("done") }, { reply("done") }, { reply("done") }, { reply("Morning. The day is open.") })
         val orchestrator = orchestrator(llm)
         var passes = 0
