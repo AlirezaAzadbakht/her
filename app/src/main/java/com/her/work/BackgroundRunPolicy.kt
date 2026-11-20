@@ -33,6 +33,13 @@ object BackgroundRunPolicy {
             com.her.agent.runner.TurnFailure.Unreachable,
         )
 
+    /** Failures only they can fix, in Settings or with their provider; retrying just sits in backoff. */
+    val NEEDS_THEM = setOf(
+        com.her.agent.runner.TurnFailure.OutOfCredit,
+        com.her.agent.runner.TurnFailure.BadKey,
+        com.her.agent.runner.TurnFailure.BadSettings,
+    )
+
     const val LOW_BATTERY_PERCENT = 15
     const val HOURLY_MIN_GAP_MS = 20 * 60 * 1000L
     const val CATCH_UP_GAP_MS = 3 * 60 * 60 * 1000L

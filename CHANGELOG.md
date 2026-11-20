@@ -40,6 +40,8 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her no longer uses her own bookkeeping words with you, like "no open commitments" or "no recorded decisions or blockers".
 - The morning note mentions something that hasn't changed at most once a week, instead of the same reminder every day.
 - A bug or idea you mention for one of your projects becomes a task under that project, and people you only mention by role, like "my girlfriend", are remembered.
+- After you fix your API key or top up your credit, a message waiting to send goes out right away. Before, it could sit for hours behind retries that were never going to work.
+- With no internet, Her tells you she can't reach the model straight away instead of trying three times first.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.
