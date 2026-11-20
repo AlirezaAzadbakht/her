@@ -72,6 +72,7 @@
     {
       "user": "I bought the adjustable desk today. Mark it purchased."
     },
+    { "advance": "1 hour" },
     {
       "run": "hourly"
     }

@@ -41,6 +41,10 @@ internal fun ToolRegistry.registerMessagingTools() {
         if (runType in setOf(AgentRunType.HOURLY, AgentRunType.CATCH_UP) && settings.read().quietHours.contains(repo.now().toLocalTime())) {
             return@register jsonObjectOf("ok" to true, "decision" to Identity.NO_NOTIFICATION, "reason" to "quiet hours; mention it after they end")
         }
+        // Checked before the row is written: once it is in chat, the run's own check can only stop the notification.
+        if (runType != AgentRunType.CHAT && com.her.notify.alreadySaidProactively(repo.recentMessages(80), text, nowMillis())) {
+            return@register jsonObjectOf("ok" to true, "decision" to Identity.NO_NOTIFICATION, "reason" to "already said in the last 12 hours")
+        }
         onUserMessage(text)
         jsonObjectOf("ok" to true)
     }

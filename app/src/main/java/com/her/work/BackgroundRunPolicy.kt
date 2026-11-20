@@ -130,6 +130,17 @@ object BackgroundRunPolicy {
         }
     }
 
+    const val IN_CONVERSATION_MS = 15 * 60 * 1000L
+    const val BRIEFING_LATE_HOURS = 3L
+
+    /** They are mid-conversation, so a background pass waits instead of dropping a rundown between two replies. */
+    fun inConversation(lastUserMessageAt: Long, nowMs: Long): Boolean =
+        lastUserMessageAt > 0 && nowMs - lastUserMessageAt in 0 until IN_CONVERSATION_MS
+
+    /** A morning note that could only go out hours after the morning started (phone asleep, no network) is skipped. */
+    fun briefingTooLate(now: LocalTime, briefingAt: LocalTime): Boolean =
+        now.isAfter(briefingAt.plusHours(BRIEFING_LATE_HOURS)) && briefingAt.plusHours(BRIEFING_LATE_HOURS).isAfter(briefingAt)
+
     fun scheduleFingerprint(briefingEnd: LocalTime): String {
         val end = briefingEnd.format(DateTimeFormatter.ofPattern("HH:mm"))
         val nightly = NIGHTLY_AT.format(DateTimeFormatter.ofPattern("HH:mm"))
