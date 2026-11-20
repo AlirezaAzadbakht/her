@@ -928,6 +928,63 @@ class AgentOrchestratorTest {
         assertTrue(repo.getCompanionRecord("EMOTION_EVENT:USER_SHARED:${message.id}") != null)
     }
 
+    @Test
+    fun gatedHourlyStartsAConversationWhenTheyHaveBeenQuiet() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T08:00:00Z").toEpochMilli())
+        val llm = ScriptedLlm(
+            { reply("NO_NOTIFICATION") },
+            { toolCall("start_conversation", """{"about":"silence","content":"Hey, how did the interview go?"}""") },
+            { reply("Sent.") },
+        )
+        val orchestrator = orchestrator(llm)
+        orchestrator.enqueueUserMessage("Off to the interview")
+        orchestrator.runHourly(gated = true)
+        clock.advance(26 * HOUR)
+        orchestrator.runHourly(gated = true)
+
+        assertEquals(listOf("Hey, how did the interview go?"), shown)
+        assertTrue(llm.messagesSeen.last().any { "You may start a conversation" in it.content.orEmpty() })
+        val latest = repo.recentMessages(10).last()
+        assertEquals("silence", JSONObject(latest.metadataJson!!).getString("initiative"))
+        clock.advance(HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("she spoke recently, so nothing new wakes the model", 3, llm.calls)
+
+        val answer = orchestrator.enqueueUserMessage("It went great!")
+        assertEquals("GLAD", repo.getCompanionRecord("EMOTION_EVENT:ANSWERED:${answer.id}")!!.data().getString("feeling"))
+    }
+
+    @Test
+    fun startConversationIsBackgroundOnlyAndRespectsTheGate() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        assertFalse(tools.specsFor(AgentRunType.CHAT).any { it.name == "start_conversation" })
+        assertTrue(tools.specsFor(AgentRunType.HOURLY).any { it.name == "start_conversation" })
+        repo.saveMessage(repo.newChatMessage(MessageRole.USER, "Just checking in", MessageStatus.SENT))
+        tools.runType = AgentRunType.HOURLY
+        val blocked = tools.execute("start_conversation", """{"about":"silence","content":"Hi"}""")
+        assertTrue(blocked.payloadJson, "they wrote recently" in blocked.payloadJson)
+    }
+
+    @Test
+    fun startConversationAsksASavedWondering() = runBlocking {
+        repo.saveProfile(repo.getProfile().copy(timezone = "UTC", assistantName = "Her"))
+        clock.set(Instant.parse("2026-09-12T10:00:00Z").toEpochMilli())
+        val taskId = JSONObject(tools.execute("create_task", """{"title":"Send draft"}""").payloadJson).getString("id")
+        val saved = tools.execute("save_wondering", JSONObject().put("sourceId", taskId).put("status", "OPEN")
+            .put("observation", "The draft is still open").put("question", "Is anything blocking the draft?").toString())
+        assertTrue(saved.payloadJson, saved.ok)
+        val id = JSONObject(saved.payloadJson).getString("id")
+        orchestrator(ScriptedLlm(
+            { toolCall("start_conversation", """{"about":"wonder:$id","content":"Is anything blocking the draft?"}""") },
+            { reply("NO_NOTIFICATION") },
+        )).runHourly(gated = true)
+
+        assertEquals(listOf("Is anything blocking the draft?"), shown)
+        assertEquals("ASKED", repo.getWondering(id)!!.status)
+    }
+
     private fun orchestrator(llm: LlmClient, appraise: Boolean = false, weekStart: java.time.DayOfWeek? = null) = AgentOrchestrator(
         repo = repo,
         llm = llm,

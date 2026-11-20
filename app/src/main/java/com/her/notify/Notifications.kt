@@ -358,6 +358,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         com.her.companion.recordCompanionNotificationResponse(graph.repo, noticeKey, intent.action == Notifier.ACTION_DISMISS)
                         // A swipe-away without a reply is how they say "not now"; she reads the count in context.
                         if (intent.action == Notifier.ACTION_DISMISS) graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                        if (intent.action == Notifier.ACTION_DISMISS) com.her.companion.noteUnanswered(graph.repo, swiped = true)
                     }
                 } finally { pending.finish() }
             }
@@ -398,7 +399,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
                                 )
                                 graph.repo.logActivity("notify", "Snoozed notification until tomorrow.")
                             }
-                            NotificationAction.Dismissed -> graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                            NotificationAction.Dismissed -> {
+                                graph.settings.update { it.copy(swipedNudges = it.swipedNudges + 1) }
+                                com.her.companion.noteUnanswered(graph.repo, swiped = true)
+                            }
                             is NotificationAction.ReminderDone -> graph.reminderDelivery.done(decision.id)
                             is NotificationAction.ReminderSnooze -> {
                                 graph.reminderDelivery.snooze(decision.id)

@@ -115,6 +115,7 @@ class AgentOrchestrator(
         val message = repo.newChatMessage(MessageRole.USER, text, MessageStatus.PENDING, metadataJson)
         repo.saveMessage(message)
         if (settings.read().swipedNudges > 0) settings.update { it.copy(swipedNudges = 0) }
+        com.her.companion.noteAnswered(repo, message)
         return message
     }
 
@@ -162,12 +163,17 @@ class AgentOrchestrator(
         val app = settings.read()
         val last = app.lastHourlyRunAt
         val now = nowMillis()
+        // Noticing that her opening went unanswered needs no model call, so it happens even when the pass skips.
+        com.her.companion.noteUnanswered(repo, swiped = false)
         if (now - last < 20 * 60 * 1000 && last > 0) {
             repo.logActivity("hourly", "Skipped; ran recently.")
             return TurnResult(null, false, null, 0, "skipped")
         }
         if (gated && overBackgroundBudget("hourly")) return TurnResult(null, false, null, 0, "skipped")
-        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS)
+        val openings = com.her.companion.openings(repo, settings)
+        val day = repo.now().toLocalDate()
+        // Each opening wakes the pass once a day; she may still choose silence.
+        val triggers = contextBuilder.triggers(BackgroundRunPolicy.HOURLY_EVENT_HORIZON_MS) + openings.map { "reach:${it.about}:$day" }
         if (gated && triggers.all { it in app.lastHourlyTriggers }) {
             repo.logActivity("hourly", "Skipped; nothing new.")
             return TurnResult(null, false, null, 0, "skipped")
@@ -177,7 +183,7 @@ class AgentOrchestrator(
             type = if (now - last > 3 * 60 * 60 * 1000 && last > 0) AgentRunType.CATCH_UP else AgentRunType.HOURLY,
             budget = CallBudget(10),
             latestUserText = null,
-            extraSystem = Identity.HOURLY_PROMPT,
+            extraSystem = Identity.HOURLY_PROMPT + com.her.companion.openingsSection(openings),
             persistAssistant = false,
             allowNotify = true,
         )
@@ -323,6 +329,7 @@ class AgentOrchestrator(
             var proactivePersisted = false
             var companionAttempted = false
             var companionKey: String? = null
+            var initiativeAbout: String? = null
             var askedAgain = false
             val failedSame = mutableMapOf<String, Int>()
             while (budget.canCall()) {
@@ -425,9 +432,10 @@ class AgentOrchestrator(
                         }
                     }
                     if (call.name == "send_companion_checkin") companionAttempted = true
-                    if (call.name in setOf("send_learning_reminder", "send_companion_checkin") && result.ok &&
+                    if (call.name in setOf("send_learning_reminder", "send_companion_checkin", com.her.agent.tools.START_CONVERSATION) && result.ok &&
                         org.json.JSONObject(result.payloadJson).optBoolean("queued")) {
                         if (call.name == "send_companion_checkin") companionKey = org.json.JSONObject(result.payloadJson).getString("key")
+                        if (call.name == com.her.agent.tools.START_CONVERSATION) initiativeAbout = org.json.JSONObject(result.payloadJson).getString("about")
                         proactive = org.json.JSONObject(call.arguments).getString("content")
                         proactivePersisted = false
                     }
@@ -446,7 +454,8 @@ class AgentOrchestrator(
                 repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
             }
             // A message delivered with send_user_message still needs to reach the phone.
-            var notifyText = if (companionAttempted) proactive else cleaned ?: proactive
+            // An opening she started goes out in her chosen words, not in any prose that followed the call.
+            var notifyText = if (companionAttempted || initiativeAbout != null) proactive else cleaned ?: proactive
             var held = false
             companionKey?.let { key ->
                 val notice = repo.getCompanionRecord(key)
@@ -471,7 +480,9 @@ class AgentOrchestrator(
                     // Opening the app from the notification has to show the same words, so an autonomous
                     // reply that was not already saved (briefing, send_user_message) is saved first.
                     if ((!persistAssistant || cleaned == null) && (deliveryText != proactive || !proactivePersisted)) {
-                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliveryText, MessageStatus.SENT, """{"proactive":true}"""))
+                        val meta = org.json.JSONObject().put("proactive", true)
+                        initiativeAbout?.let { meta.put("initiative", it) }
+                        repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, deliveryText, MessageStatus.SENT, meta.toString()))
                     }
                     notifier.companionNoticeKey = companionKey
                     notifier.show(deliveryText, type == AgentRunType.BRIEFING)
