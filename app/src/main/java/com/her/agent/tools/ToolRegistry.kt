@@ -77,11 +77,11 @@ open class ToolRegistry(
             .filter { app.contactsEnabled || it.name != CONTACTS_TOOL }
             .filter { type == AgentRunType.NIGHTLY || it.name !in REFLECTION_ONLY_TOOLS }
             .filter { type in setOf(AgentRunType.HOURLY, AgentRunType.CATCH_UP) || it.name != START_CONVERSATION }
-        return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS }
+        return if (type == AgentRunType.CHAT) visible else visible.filter { it.name !in AUTONOMOUS_BLOCKED_TOOLS && it.name !in USER_RECORD_WRITES }
     }
 
     open suspend fun execute(name: String, arguments: String): ToolResult {
-        if (runType != AgentRunType.CHAT && name in AUTONOMOUS_BLOCKED_TOOLS) {
+        if (runType != AgentRunType.CHAT && (name in AUTONOMOUS_BLOCKED_TOOLS || name in USER_RECORD_WRITES)) {
             return ToolResult(name, false, jsonObjectOf("ok" to false, "error" to "Not available during autonomous runs").toString())
         }
         val spec = handlers[name] ?: return ToolResult(name, false, jsonObjectOf("error" to "Unknown tool: $name").toString())
@@ -334,6 +334,21 @@ open class ToolRegistry(
 internal val WEB_TOOLS = setOf("web_search", "fetch_url")
 
 internal val AUTONOMOUS_BLOCKED_TOOLS = setOf("forget_memory", "delete_calendar_event", "update_user_profile", "ask_wondering", COMPOSE_TOOL, SHARE_TOOL, "save_place")
+
+/**
+ * The person's own records. Only they change these, in chat: a background run that "tidies" a task or a
+ * reminder ends up completing, moving or rewriting something nobody asked it to touch.
+ */
+internal val USER_RECORD_WRITES = setOf(
+    "update_person", "update_project", "create_goal", "update_goal",
+    "create_task", "update_task", "create_commitment", "update_commitment",
+    "create_routine", "update_routine", "create_important_date", "update_important_date",
+    "create_recurring_responsibility", "update_recurring_responsibility",
+    "add_grocery", "update_grocery", "remove_grocery", "clear_purchased_groceries",
+    "set_reminder", "update_reminder", "cancel_reminder", "complete_reminder", "set_alarm",
+    "create_calendar_event", "update_calendar_event", "log_expense", "start_focus", "stop_focus",
+    "accept_daily_plan", "manage_occurrence",
+)
 
 /** Filing feelings and writing episodes is the nightly review's work; chat and the other passes only feel (after the reply) and recall. */
 internal val REFLECTION_ONLY_TOOLS = emotionalToolNames - "get_emotional_state" + "set_feeling" + "save_episode"

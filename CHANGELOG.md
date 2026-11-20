@@ -19,6 +19,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Settings is easier to find your way around. **Her mind** is now just the model she uses. **What she can use** holds calendar, contacts, web search and embeddings, and the search address and key only show once web search is on. **Quiet hours & reminders** also has the battery and exact-alarm prompts that keep reminders on time. The background model and its token budget moved under **Advanced → Background thinking**, and the logs there are folded until you open them. Each section has a short line saying what it is for.
 
 ### Fixed
+- Her no longer changes your tasks, reminders, lists, people or projects on her own. Before, her overnight review could mark a task done that you never finished, and a morning note could add or rewrite a reminder. Those now change only when you ask, in chat.
+- Her no longer answers the same message twice. Hours after a conversation she could send her reply again, or apologise again for something already settled.
+- A morning note no longer arrives in the middle of a conversation, or at noon when your phone was asleep all morning. If you're talking to her, the background check waits until you've been quiet for a while.
+- Her morning note no longer starts with her own working notes in English before the real message.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.

@@ -56,7 +56,13 @@ Hourly LLM passes skip quiet hours unless Settings → **Hourly during quiet hou
 - Non-urgent notifications are suppressed during quiet hours
 - Duplicate key cooldown: 45 minutes
 - Gap between non-urgent notifications: 20 minutes
-- Hourly and catch-up also drop a near-duplicate of a proactive assistant message from the last 12 hours (`lexicalOverlap` ≥ 0.5). Chat and the morning briefing are not held to that guard.
+- Hourly and catch-up also drop a near-duplicate of anything she said in the last 12 hours, a chat reply included (`lexicalOverlap` ≥ 0.5). `send_user_message` checks this before it writes the row, so an echo never reaches the chat. Chat and the morning briefing are not held to that guard.
+
+## What background passes may change
+
+Hourly, catch-up, briefing and nightly passes never write the person's own records: tasks, commitments, reminders and alarms, lists, people, projects, goals, routines, important dates, recurring responsibilities, calendar events, expenses, focus sessions and daily plans (`USER_RECORD_WRITES` in `ToolRegistry.kt`). Those tools are not offered to them and are refused if called. They keep their own working records: memory, understanding, episodes, wonderings, feelings, open loops, the agent queue, and proactive messages. A question about one of the person's records becomes a wondering, asked in conversation.
+
+A gated hourly or catch-up pass skips while the person wrote in the last 15 minutes (`BackgroundRunPolicy.inConversation`), so a rundown never lands between two replies. A gated briefing that would start more than 3 hours after quiet hours end is skipped (`briefingTooLate`). A background message in Persian that opens with paragraphs holding no Persian has those dropped as working notes (`AgentOrchestrator.dropLeadingReasoning`).
 
 On the first day of the week (`WeekFields` for the device locale: Saturday in Iran, Monday in most of Europe, Sunday in the US) the briefing prompt gains `Identity.WEEKLY_REVIEW_PROMPT`, so the same note also looks back at last week through `get_situation_briefing`. There is no separate worker or notification. Scenarios leave it off unless `settings.weeklyReviewDay` names a day.
 

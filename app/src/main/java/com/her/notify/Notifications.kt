@@ -65,7 +65,10 @@ class NotificationPolicy(private val settings: AppSettingsStore) {
 internal const val ALREADY_SAID_WINDOW_MS = 12L * 60 * 60 * 1000
 internal const val ALREADY_SAID_OVERLAP = 0.5
 
-/** True when a recent proactive assistant message is about the same thing. */
+/**
+ * True when anything she said in the last 12 hours, a chat reply included, is about the same thing.
+ * A background pass that re-reads the conversation must not answer the last message a second time.
+ */
 internal fun alreadySaidProactively(
     messages: List<ChatMessage>,
     deliveryText: String,
@@ -78,7 +81,6 @@ internal fun alreadySaidProactively(
             message.deletedAt == null &&
             message.createdAt >= cutoff &&
             message.createdAt < createdBefore &&
-            message.metadataJson?.replace(" ", "")?.contains("\"proactive\":true") == true &&
             lexicalOverlap(deliveryText, message.content) >= ALREADY_SAID_OVERLAP
     }
 }

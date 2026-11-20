@@ -55,6 +55,7 @@
     {
       "user": "That pottery trial memory is wrong. I never enrolled in pottery; I only asked a studio for their brochure. Please correct that."
     },
+    { "advance": "1 hour" },
     {
       "run": "hourly"
     }

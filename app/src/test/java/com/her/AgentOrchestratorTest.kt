@@ -270,7 +270,9 @@ class AgentOrchestratorTest {
         assertTrue("save_emotional_thread" in emotional && "save_wondering" !in emotional && "search_memory" in emotional)
         assertTrue(setOf("remember", "update_agent_state", "save_episode", "adjust_trait").all { it in consolidation })
         assertTrue("save_wondering" !in consolidation && "save_emotional_thread" !in consolidation)
-        assertTrue(wondering.size < consolidation.size / 2 && emotional.size < consolidation.size / 2)
+        val all = tools.specs().size
+        assertTrue(wondering.size < all / 2 && emotional.size < all / 2)
+        assertTrue("background never writes their records", (wondering + emotional + consolidation).none { it in com.her.agent.tools.USER_RECORD_WRITES })
     }
 
     @Test
@@ -554,6 +556,10 @@ class AgentOrchestratorTest {
 
         clock.advance(HOUR)
         orchestrator.enqueueUserMessage("I'm at the airport")
+        orchestrator.runHourly(gated = true)
+        assertEquals("mid-conversation it waits", 2, llm.calls)
+
+        clock.advance(20 * 60 * 1000)
         orchestrator.runHourly(gated = true)
         assertEquals("their message is new", 3, llm.calls)
     }
@@ -939,6 +945,7 @@ class AgentOrchestratorTest {
         )
         val orchestrator = orchestrator(llm)
         orchestrator.enqueueUserMessage("Off to the interview")
+        clock.advance(20 * 60 * 1000)
         orchestrator.runHourly(gated = true)
         clock.advance(26 * HOUR)
         orchestrator.runHourly(gated = true)

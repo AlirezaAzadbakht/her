@@ -170,6 +170,10 @@ class AgentOrchestrator(
             return TurnResult(null, false, null, 0, "skipped")
         }
         if (gated && overBackgroundBudget("hourly")) return TurnResult(null, false, null, 0, "skipped")
+        if (gated && BackgroundRunPolicy.inConversation(repo.lastUserMessage()?.createdAt ?: 0L, now)) {
+            repo.logActivity("hourly", "Skipped; they are in a conversation.")
+            return TurnResult(null, false, null, 0, "skipped")
+        }
         val openings = com.her.companion.openings(repo, settings)
         val day = repo.now().toLocalDate()
         // Each opening wakes the pass once a day; she may still choose silence.
@@ -252,6 +256,10 @@ class AgentOrchestrator(
         }
         if (gated) {
             if (overBackgroundBudget("briefing")) return TurnResult(null, false, null, 0, "skipped")
+            if (BackgroundRunPolicy.briefingTooLate(now.toLocalTime(), settings.read().quietHours.endLocalTime())) {
+                repo.logActivity("briefing", "Skipped; too late for a morning note.")
+                return TurnResult(null, false, null, 0, "skipped")
+            }
             val endOfDay = now.toLocalDate().plusDays(1).atStartOfDay(now.zone).toInstant().toEpochMilli()
             val nowMs = now.toInstant().toEpochMilli()
             val dayHasContent = contextBuilder.triggers(endOfDay - nowMs, agentItems = false).isNotEmpty()
@@ -385,7 +393,8 @@ class AgentOrchestrator(
                     }
                     // Only this message reaches them. Text beside a tool call is the model's working notes.
                     if (roundText.isNotBlank()) {
-                        lastText = roundText
+                        lastText = if (type == AgentRunType.CHAT) roundText else dropLeadingReasoning(roundText)
+                        if (lastText != roundText) repo.logActivity("llm", "Dropped working notes before a background message.")
                         break
                     }
                     // Chat and the briefing owe them words, so a blank ending gets one more call, without tools.
@@ -610,6 +619,17 @@ class AgentOrchestrator(
         )
 
         private val persianScript = Regex("[\\u0600-\\u06FF]")
+
+        /**
+         * A background message in Persian that opens with paragraphs holding no Persian at all is the model's
+         * untagged working notes ("We need autonomous morning brief…"), so those paragraphs are dropped.
+         * ponytail: Persian only; an English user's leaked notes still get through. Upgrade: deliver background text only through a tool argument.
+         */
+        internal fun dropLeadingReasoning(text: String): String {
+            val paragraphs = text.split(Regex("\\n\\s*\\n"))
+            val first = paragraphs.indexOfFirst { persianScript.containsMatchIn(it) }
+            return if (first <= 0) text else paragraphs.drop(first).joinToString("\n\n").trim()
+        }
 
         /** Persian if the person just wrote in Persian, English otherwise; a random line so it doesn't feel canned. */
         internal fun creditNotice(lastUserText: String, random: kotlin.random.Random = kotlin.random.Random.Default): String =
