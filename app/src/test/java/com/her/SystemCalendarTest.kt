@@ -179,6 +179,33 @@ class SystemCalendarTest {
         assertEquals("Overnight on-call", events.single().title)
     }
 
+    /** From a real backup: every event was mirrored three times, and all-day ones read as 03:30. */
+    @Test
+    fun aSecondCopyOfAnEventGoesOnTheNextSync() = runBlocking {
+        calendar.seed("Standup", parseWhen("tomorrow at 10am"))
+        val from = parseWhen("today")
+        val to = from + 7L * 24 * 60 * 60 * 1000
+        val system = SystemCalendar(repo, calendar, settings)
+        repo.saveCalendarEvent(system.mirror(from, to).single().copy(id = "second-copy"))
+        assertEquals(2, repo.calendarInRange(from, to).size)
+
+        system.mirror(from, to)
+        assertEquals(1, repo.calendarInRange(from, to).size)
+    }
+
+    @Test
+    fun anAllDayEventHasNoClockTime() = runBlocking {
+        val day = parseWhen("tomorrow")
+        calendar.seed("Sara's birthday", day, day + 24 * 60 * 60 * 1000)
+        val bundle = contextBuilder.build().systemBundle
+        assertTrue(bundle, bundle.contains("all day Sara's birthday"))
+        assertTrue(bundle, !bundle.contains("12:00 AM"))
+        val tehran = ZoneId.of("Asia/Tehran")
+        val utcMidnight = Instant.parse("2026-11-20T00:00:00Z").toEpochMilli()
+        assertEquals(Instant.parse("2026-11-19T20:30:00Z").toEpochMilli(), CalendarWindows.utcDateToLocalMidnight(utcMidnight, tehran))
+        assertTrue(CalendarWindows.isAllDay(CalendarWindows.utcDateToLocalMidnight(utcMidnight, tehran), CalendarWindows.utcDateToLocalMidnight(utcMidnight + 86_400_000, tehran), tehran))
+    }
+
     private fun parseWhen(phrase: String): Long {
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(ZoneId.systemDefault())
         return RelativeTimeParser.parse(phrase, now)!!.toInstant().toEpochMilli()

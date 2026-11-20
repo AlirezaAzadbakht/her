@@ -61,6 +61,17 @@ class PromptSizeTest {
         assertFalse(built.systemBundle.substring(0, clockAt).contains("Your feeling"))
     }
 
+    /** From a real backup: a Persian morning note said Wednesday 18 Nov on Sunday the 15th. */
+    @Test
+    fun aPersianSpeakerGetsTheJalaliDate() = runBlocking {
+        assertFalse(contextBuilder.build("hello").systemBundle.contains("Jalali"))
+        repo.saveProfile(repo.getProfile().copy(timezone = "Asia/Tehran", preferredLanguage = "Persian"))
+        val bundle = contextBuilder.build("سلام").systemBundle
+        // 2026-10-07 10:00 UTC is Wednesday 15 Mehr 1405 in Tehran.
+        assertTrue(bundle, bundle.contains("Jalali: چهارشنبه 15 مهر 1405"))
+        assertTrue(bundle, bundle.contains("Thu Oct 8 (پنجشنبه 16 مهر)"))
+    }
+
     @Test
     fun longChatHistoryStaysWithinBudget() = runBlocking {
         repeat(24) { i ->

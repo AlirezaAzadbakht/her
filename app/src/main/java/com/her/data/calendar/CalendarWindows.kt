@@ -20,6 +20,18 @@ object CalendarWindows {
 
     fun instanceExternalId(eventId: String, begin: Long): String = "$eventId:$begin"
 
+    fun utcDateToLocalMidnight(utcMillis: Long, zone: java.time.ZoneId = java.time.ZoneId.systemDefault()): Long =
+        Instant.ofEpochMilli(utcMillis).atZone(java.time.ZoneOffset.UTC).toLocalDate().atStartOfDay(zone).toInstant().toEpochMilli()
+
+    /**
+     * An event from local midnight to a later local midnight is all-day.
+     * ponytail: inferred from the times, not stored; add an allDay column if a timed midnight-to-midnight event ever matters.
+     */
+    fun isAllDay(startAt: Long, endAt: Long?, zone: java.time.ZoneId): Boolean {
+        if (endAt == null || endAt <= startAt) return false
+        return listOf(startAt, endAt).all { Instant.ofEpochMilli(it).atZone(zone).toLocalTime() == LocalTime.MIDNIGHT }
+    }
+
     fun deviceEventId(externalId: String): String = externalId.substringBefore(':')
 
     fun parseDeviceEventId(externalId: String): Long? = deviceEventId(externalId).toLongOrNull()
@@ -112,4 +124,12 @@ object CalendarWindows {
         val cap = slice.from + maxDays * 24 * 60 * 60 * 1000L
         return if (slice.to > cap) slice.copy(to = cap) else slice
     }
+}
+
+/** "Friday, November 20, 2026, all day", or "… to Sunday, November 22, 2026" for several days. */
+fun allDay(startAt: Long, endAt: Long, zone: java.time.ZoneId): String {
+    val format = java.time.format.DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", java.util.Locale.US)
+    val first = Instant.ofEpochMilli(startAt).atZone(zone).toLocalDate()
+    val last = Instant.ofEpochMilli(endAt).atZone(zone).toLocalDate().minusDays(1)
+    return if (last <= first) "${first.format(format)}, all day" else "${first.format(format)} to ${last.format(format)}, all day"
 }

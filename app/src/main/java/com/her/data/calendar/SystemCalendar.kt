@@ -5,6 +5,11 @@ import com.her.data.repository.HerRepository
 import com.her.data.secure.AppSettingsStore
 import com.her.domain.CalendarEvent
 import com.her.domain.CalendarSource
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/** One sync at a time across every SystemCalendar instance; two at once each inserted the same event. */
+private val mirrorLock = Mutex()
 
 class SystemCalendar(
     private val repo: HerRepository,
@@ -13,7 +18,7 @@ class SystemCalendar(
 ) {
     fun live(): Boolean = settings.read().calendarEnabled && device.hasPermission()
 
-    suspend fun mirror(from: Long, to: Long): List<CalendarEvent> {
+    suspend fun mirror(from: Long, to: Long): List<CalendarEvent> = mirrorLock.withLock {
         if (!live()) return emptyList()
         val remote = device.eventsBetween(from, to).getOrDefault(emptyList())
         val now = repo.clock.nowMillis()
@@ -52,8 +57,10 @@ class SystemCalendar(
             row
         }
         val seen = kept.mapNotNull { it.externalId }.toSet()
+        val keptIds = kept.map { it.id }.toSet()
+        // Gone from the phone, or a second copy of one that is still there.
         repo.calendarInRange(from, to)
-            .filter { it.source == CalendarSource.SYSTEM && it.externalId != null && it.externalId !in seen }
+            .filter { it.source == CalendarSource.SYSTEM && it.externalId != null && (it.externalId !in seen || it.id !in keptIds) }
             .forEach { repo.deleteCalendarEvent(it.id) }
         return kept
     }
