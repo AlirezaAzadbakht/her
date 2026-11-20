@@ -38,17 +38,17 @@ A trait that changes over the nights changes this too. See [Personality](Persona
 
 | Key | From |
 |---|---|
-| `concern:<experienceId>` | Up to two held worries, from `heldConcerns` (the "Still on your mind" experiences) |
-| `thread:<id>` | Up to two ACTIVE life threads updated in the last 14 days. Threads that are sensitive, stale, dismissed, snoozed or on a check-in schedule are left out |
+| `concern:<experienceId>` | Up to two held worries, from `heldConcerns` (the "Still on your mind" experiences), once the experience has rested 12 hours |
+| `thread:<id>` | Up to two ACTIVE life threads last updated between 12 hours and 14 days ago. Threads that are sensitive, stale, dismissed, snoozed or on a check-in schedule are left out |
 | `wonder:<id>` | One OPEN wondering, when none was asked in the last 3 days |
 | `silence` | Their last message is 24 hours old or more |
 | `checkin` | Two of her openings in a row met silence (not a swipe). When this applies it is the only opening |
 
-An opening she used in the last 3 days is not offered again, except `checkin`.
+An opening she used in the last 3 days is not offered again, except `checkin`. The 12-hour rest keeps her from raising a topic they just talked about, which live runs showed she would otherwise do a few hours after asking about it in chat.
 
 ## How the hourly pass uses them
 
-`runHourly` adds one `reach:<key>:<date>` trigger per opening. A quiet hour then still wakes the model, but at most once per opening per day, and the background token cap still applies. The openings are appended to `HOURLY_PROMPT` as "You may start a conversation". She may pick one or stay silent.
+`runHourly` adds one `reach:<key>:<date>` trigger per opening. A quiet hour then still wakes the model, but at most once per opening per day, and the background token cap still applies. The openings are appended to `HOURLY_PROMPT` as "You may start a conversation". The prompt tells her the app has already checked the timing and her character, so she reaches out unless it would feel wrong right now. Live runs showed that with a plain "you may" she stayed silent about half the time, even when the gate had approved the opening.
 
 `start_conversation(about, content)` is offered only to hourly and catch-up runs:
 - It rechecks the gate and refuses an opening that is not offered now.

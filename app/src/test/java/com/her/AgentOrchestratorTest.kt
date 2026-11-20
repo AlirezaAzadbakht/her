@@ -950,6 +950,10 @@ class AgentOrchestratorTest {
         clock.advance(HOUR)
         orchestrator.runHourly(gated = true)
         assertEquals("she spoke recently, so nothing new wakes the model", 3, llm.calls)
+        clock.advance(3 * HOUR)
+        orchestrator.runHourly(gated = true)
+        assertEquals("WISTFUL", repo.getCompanionRecord("EMOTION_EVENT:UNANSWERED:${latest.id}")?.data()?.getString("feeling"))
+        assertEquals("giving them space, so the model stays asleep", 3, llm.calls)
 
         val answer = orchestrator.enqueueUserMessage("It went great!")
         assertEquals("GLAD", repo.getCompanionRecord("EMOTION_EVENT:ANSWERED:${answer.id}")!!.data().getString("feeling"))

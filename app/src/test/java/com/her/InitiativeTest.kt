@@ -49,8 +49,9 @@ class InitiativeTest {
     private suspend fun user(text: String) = repo.newChatMessage(MessageRole.USER, text, MessageStatus.SENT).also { repo.saveMessage(it) }
     private suspend fun reachOut(about: String) = repo.newChatMessage(MessageRole.ASSISTANT, "Hey, how did it go?", MessageStatus.SENT,
         """{"proactive":true,"initiative":"$about"}""").also { repo.saveMessage(it) }
+    /** Last talked about 13 hours ago, so it has rested long enough to raise. */
     private suspend fun thread() {
-        val now = clock.nowMillis()
+        val now = clock.nowMillis() - 13 * hour
         val data = JSONObject().put("title", "Job search").put("summary", "Waiting on interview feedback").put("status", "ACTIVE")
         repo.saveCompanionRecord(CompanionRecord("job", "job", "THREAD", data.toString(), now, now, repo.deviceId, 1))
     }
@@ -133,8 +134,10 @@ class InitiativeTest {
         reachOut("silence")
         clock.advance(10 * hour)
         assertEquals("she already started 1 today", initiativeBlock(repo, settings))
-        settings.update { it.copy(swipedNudges = 2) }
         clock.advance(14 * hour)
+        settings.update { it.copy(lastNotificationAt = clock.nowMillis() - hour) }
+        assertEquals("the morning briefing counts", "she spoke recently", initiativeBlock(repo, settings))
+        settings.update { it.copy(lastNotificationAt = 0, swipedNudges = 2) }
         assertEquals("they swiped her last messages away", initiativeBlock(repo, settings))
         settings.update { it.copy(initiativeEnabled = false) }
         assertEquals("turned off in Settings", initiativeBlock(repo, settings))
@@ -159,6 +162,16 @@ class InitiativeTest {
         assertEquals(listOf("silence"), openings(repo, settings).map { it.about })
         prefs("PAUSED")
         assertEquals("check-ins are paused", initiativeBlock(repo, settings))
+    }
+
+    @Test fun aTopicTheyJustTalkedAboutRestsFirst() = runBlocking {
+        setUp()
+        val now = clock.nowMillis()
+        val data = JSONObject().put("title", "Job search").put("summary", "Waiting").put("status", "ACTIVE")
+        repo.saveCompanionRecord(CompanionRecord("job", "job", "THREAD", data.toString(), now, now, repo.deviceId, 1))
+        assertEquals(listOf("silence"), openings(repo, settings).map { it.about })
+        clock.advance(12 * hour)
+        assertEquals(listOf("thread:job", "silence"), openings(repo, settings).map { it.about })
     }
 
     @Test fun aDismissedTopicIsNotOffered() = runBlocking {

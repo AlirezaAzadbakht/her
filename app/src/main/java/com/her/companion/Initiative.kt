@@ -23,6 +23,8 @@ private const val HOUR = 3_600_000L
 const val INITIATIVE_GAP_MS = 3 * HOUR
 private const val RECENT_CHAT_MS = 2 * HOUR
 private const val SILENCE_MS = 24 * HOUR
+/** A topic they just talked about is not one to raise again yet. */
+private const val REST_MS = 12 * HOUR
 private const val REPEAT_MS = 72 * HOUR
 private const val THREAD_FRESH_MS = 14 * 24 * HOUR
 private const val WISTFUL_HOLD = 0.1
@@ -64,7 +66,8 @@ suspend fun initiativeBlock(repo: HerRepository, settings: AppSettingsStore): St
     if (messages.count { it.initiative() != null && Instant.ofEpochMilli(it.createdAt).atZone(now.zone).toLocalDate() == today } >= allowance)
         return "she already started $allowance today"
     if (messages.any { it.role == MessageRole.USER && ms - it.createdAt < RECENT_CHAT_MS }) return "they wrote recently"
-    if (messages.any { it.proactive() && ms - it.createdAt < INITIATIVE_GAP_MS }) return "she spoke recently"
+    // The briefing is saved without the proactive flag, but every notification she posts stamps lastNotificationAt.
+    if (ms - app.lastNotificationAt < INITIATIVE_GAP_MS || messages.any { it.proactive() && ms - it.createdAt < INITIATIVE_GAP_MS }) return "she spoke recently"
     if (app.swipedNudges >= 2) return "they swiped her last messages away"
     // Asking her to pause check-ins pauses this too; a check-in that is due is her reaching out already.
     repo.getCompanionRecord("companion:preferences")?.takeIf { it.deletedAt == null }?.data()?.let {
@@ -97,11 +100,11 @@ suspend fun openings(repo: HerRepository, settings: AppSettingsStore): List<Open
     val scheduled = repo.getCompanionRecord("companion:preferences")?.data()?.optJSONArray("topicIds")
         ?.let { ids -> (0 until ids.length()).map { ids.optString(it) }.toSet() }.orEmpty()
     return buildList {
-        heldConcerns(rows, ms).filter { it.second > 0.01 }.sortedByDescending { it.second }.take(2).forEach { (row, _) ->
+        heldConcerns(rows, ms).filter { it.second > 0.01 && ms - it.first.updatedAt >= REST_MS }.sortedByDescending { it.second }.take(2).forEach { (row, _) ->
             add(Opening("concern:${row.id}", "${row.data().optString("intention")}; open question: ${row.data().optString("unresolved")}"))
         }
         repo.companionRecords().filter {
-            it.kind == "THREAD" && it.deletedAt == null && ms - it.updatedAt < THREAD_FRESH_MS &&
+            it.kind == "THREAD" && it.deletedAt == null && ms - it.updatedAt in REST_MS until THREAD_FRESH_MS &&
                 it.id !in scheduled && it.data().let { d -> d.optString("status") == "ACTIVE" && !d.optBoolean("sensitive") &&
                     !d.optBoolean("stale") && !d.optBoolean("dismissed") && d.optLong("snoozedUntil") <= ms }
         }.sortedByDescending { it.updatedAt }.take(2).forEach {
