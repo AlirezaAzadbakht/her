@@ -248,6 +248,7 @@ class AgentOrchestrator(
             settings.update { it.copy(lastNightlyDate = today, lastNightlyRunAt = started) }
             // Once a night: she moves a little toward any trait they asked her to work on.
             repo.stepPersonaTargets()
+            repo.expireShortTermMemories().takeIf { it > 0 }?.let { repo.logActivity("nightly", "Let $it short-term memories go past their expiry.") }
             repo.logActivity("nightly", "Consolidation finished with ${result.callsUsed} calls.")
         } else {
             repo.logActivity("nightly", "Failed: ${result.error}")

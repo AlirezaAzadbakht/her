@@ -30,6 +30,11 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her now knows the Persian date. She could say the wrong day or weekday because she converted from the Western calendar in her head; now she is given today's Jalali date and the week ahead.
 - Her overnight review no longer mixes up today and yesterday, and something she noted "for tomorrow" no longer lands a day late.
 - Birthdays, holidays and other all-day events no longer show as 3:30 AM, and events copied in from your phone calendar no longer appear two or three times.
+- When Her says she moved a task to another project, it has really moved. Before, she could report success while quietly ignoring what she was asked to change.
+- Short-term notes that are past their date, like a trip that is over, now go away instead of piling up. Her can also mark one as over.
+- Her no longer keeps several copies of the same repeating responsibility, or wonders the same question again under a different record.
+- Old "couldn't reach the model" bubbles are no longer read back to Her as if she had said them.
+- The note under Her's reply now names the task or project she updated.
 - Swiping away one of Her's messages now tells her "not now". Before, only check-in swipes counted, so she never noticed when you dismissed her other messages.
 - Turning your phone sideways no longer clears what you were typing to Her, or the model settings you were editing. In landscape, Her keeps clear of the camera cutout and side buttons, her words stay a comfortable width instead of stretching across the screen, and her orb shrinks so the message box has room.
 - With the app in Persian, English notes on the Memory tab no longer have their punctuation flipped to the wrong end.

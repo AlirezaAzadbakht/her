@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "d5a4395cc2f53718",
+          "fingerprint": "e3e6c699882d373a",
           "summary": "tools=97 [user(The conference got cance)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "a52774cded5e0136",
+          "fingerprint": "be1f41d0b88860ed",
           "summary": "tools=97 [user(The conference got cance) assistant->update_task tool:update_task]",
           "response": {
             "role": "assistant",

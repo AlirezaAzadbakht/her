@@ -149,11 +149,13 @@ internal fun ToolRegistry.registerMemoryTools() {
             "confidence" to num(),
             "importance" to num(),
             "status" to enumField<MemoryStatus>(),
+            "expiresAt" to str("Short-term only: when it stops mattering ($WHEN_HINT), or \"now\" once it is over"),
             required = listOf("id"),
         ),
     ) { args ->
         val id = args.requiredString("id")
         val now = nowMillis()
+        val expiresAt = args.optStringOrNull("expiresAt")?.let { if (it.trim().equals("now", true)) now else parseWhen(it) ?: throw ToolValidationException("Could not understand expiresAt: $it") }
         val short = repo.getShort(id)?.takeIf { it.deletedAt == null }
         val long = repo.getLong(id)?.takeIf { it.deletedAt == null }
         when {
@@ -190,6 +192,7 @@ internal fun ToolRegistry.registerMemoryTools() {
                         content = args.optStringOrNull("content") ?: short.content,
                         confidence = clamp01(args.optDoubleOr("confidence", short.confidence)),
                         importance = clamp01(args.optDoubleOr("importance", short.importance)),
+                        expiresAt = expiresAt ?: short.expiresAt,
                         updatedAt = now,
                         version = short.version + 1,
                     ),

@@ -6,7 +6,7 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "35cf353166584713",
+          "fingerprint": "350b5275e0cbdf17",
           "summary": "tools=97 [user(Cancel the dentist tomor)]",
           "response": {
             "role": "assistant",
@@ -26,7 +26,7 @@
           }
         },
         {
-          "fingerprint": "4672bc68f3a4d8be",
+          "fingerprint": "2315fb785a133147",
           "summary": "tools=97 [user(Cancel the dentist tomor) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",
@@ -59,7 +59,7 @@
           }
         },
         {
-          "fingerprint": "166ccc44fe452062",
+          "fingerprint": "f9e56b718dc62a4b",
           "summary": "tools=97 [user(Cancel the dentist tomor) assistant user(Yes, delete it.)]",
           "response": {
             "role": "assistant",
@@ -79,7 +79,7 @@
           }
         },
         {
-          "fingerprint": "6659c4c2782bf5a8",
+          "fingerprint": "b828a7dfcab02f61",
           "summary": "tools=97 [user(Cancel the dentist tomor) assistant user(Yes, delete it.) assistant->delete_calendar_event tool:delete_calendar_event]",
           "response": {
             "role": "assistant",

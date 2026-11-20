@@ -219,6 +219,9 @@ class HerRepository(
     }
 
     suspend fun deleteShort(id: String) = forgetKnowledge(id)
+
+    /** Lets past short-term memories go. Expiry is not forgetting: nothing derived from them is touched. */
+    suspend fun expireShortTermMemories(): Int = memoryDao.expireShort(clock.nowMillis())
     suspend fun deleteLong(id: String) = forgetKnowledge(id)
 
     suspend fun knowledgeForgotten(id: String): Boolean =
