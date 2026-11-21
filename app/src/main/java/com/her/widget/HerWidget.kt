@@ -8,15 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.Shader
 import android.os.Build
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
-import androidx.compose.ui.graphics.toArgb
 import com.her.HerApplication
 import com.her.MainActivity
 import com.her.agent.runner.TurnState
@@ -74,17 +69,21 @@ object Widgets {
         val feelingIds = manager.getAppWidgetIds(ComponentName(context, HerFeelingWidget::class.java))
         if (messageIds.isEmpty() && feelingIds.isEmpty()) return
         val feeling = WidgetFeeling.of(graph.repo.observeFeeling().first(), graph.repo.observeEmotionalBlend().first())
-        val orb = orb(context, feeling.main)
+        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        val palette = feelingPalette(feeling.main, dark)
+        val orb = WidgetOrb.still(palette, dark, px = 320)
         if (messageIds.isNotEmpty()) {
             val line = HerWidget.lineFor(graph.repo.observeLatestAssistant().first()?.content)
                 ?: context.getString(R.string.widget_empty)
             val replying = graph.orchestrator.turnState.value != TurnState.Idle
+            // Drawn only while she replies; every size below shares these bitmaps.
+            val frames = if (replying) WidgetOrb.frames(palette, dark, px = 240) else emptyList()
             manager.updateAppWidget(
                 messageIds,
                 responsive(
-                    SizeF(110f, 40f) to messageRow(context, line, orb, replying),
-                    SizeF(180f, 130f) to messageCard(context, line, orb, replying, maxLines = 5),
-                    SizeF(180f, 250f) to messageCard(context, line, orb, replying, maxLines = 12),
+                    SizeF(110f, 40f) to messageRow(context, line, orb, frames),
+                    SizeF(180f, 130f) to messageCard(context, line, frames, maxLines = 5),
+                    SizeF(180f, 250f) to messageCard(context, line, frames, maxLines = 12),
                 ),
             )
         }
@@ -107,28 +106,42 @@ object Widgets {
     private fun responsive(vararg sizes: Pair<SizeF, RemoteViews>): RemoteViews =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) RemoteViews(mapOf(*sizes)) else sizes[sizes.size / 2].second
 
-    /** The row always shows her orb; its ring turns only while she replies. */
-    private fun messageRow(context: Context, line: String, orb: Bitmap, replying: Boolean) =
+    /** The row always shows her orb; it moves while she replies. */
+    private fun messageRow(context: Context, line: String, orb: Bitmap, frames: List<Bitmap>) =
         RemoteViews(context.packageName, R.layout.widget_her_row).apply {
             setImageViewBitmap(R.id.widget_orb, orb)
-            setViewVisibility(R.id.widget_ring, if (replying) View.VISIBLE else View.GONE)
+            playOrb(context, frames)
             setTextViewText(R.id.widget_line, line.lineSequence().first())
             setOnClickPendingIntent(R.id.widget_line, openApp(context))
             setOnClickPendingIntent(R.id.widget_write, openWrite(context))
         }
 
-    /** Like the chat stage: her orb while she has no words yet, then her line in the middle. */
-    private fun messageCard(context: Context, line: String, orb: Bitmap, replying: Boolean, maxLines: Int) =
+    /** Like the chat stage: her moving orb while she has no words yet, then her line in the middle. */
+    private fun messageCard(context: Context, line: String, frames: List<Bitmap>, maxLines: Int) =
         RemoteViews(context.packageName, R.layout.widget_her).apply {
-            setImageViewBitmap(R.id.widget_orb, orb)
+            val replying = frames.isNotEmpty()
             setViewVisibility(R.id.widget_thinking, if (replying) View.VISIBLE else View.GONE)
             setViewVisibility(R.id.widget_line, if (replying) View.GONE else View.VISIBLE)
+            playOrb(context, frames)
             setTextViewText(R.id.widget_line, line)
             setInt(R.id.widget_line, "setMaxLines", maxLines)
             setOnClickPendingIntent(R.id.widget_line, openApp(context))
             setOnClickPendingIntent(R.id.widget_thinking, openApp(context))
             setOnClickPendingIntent(R.id.widget_write, openWrite(context))
         }
+
+    /** Fills the flipper with [frames] and shows it over the still orb; no frames leaves the still one. */
+    private fun RemoteViews.playOrb(context: Context, frames: List<Bitmap>) {
+        val playing = frames.isNotEmpty()
+        setViewVisibility(R.id.widget_orb, if (playing) View.GONE else View.VISIBLE)
+        setViewVisibility(R.id.widget_frames, if (playing) View.VISIBLE else View.GONE)
+        if (!playing) return
+        for (frame in frames) {
+            addView(R.id.widget_frames, RemoteViews(context.packageName, R.layout.widget_orb_frame).apply {
+                setImageViewBitmap(R.id.widget_frame, frame)
+            })
+        }
+    }
 
     /** Fills whichever feeling layout fits; each has the orb, and only some the word, second feeling and note. */
     private fun feelingView(context: Context, layout: Int, feeling: WidgetFeeling, orb: Bitmap, withNote: Boolean = true) =
@@ -152,26 +165,6 @@ object Widgets {
                 setTextViewText(R.id.widget_feeling_note, feeling.note ?: context.getString(R.string.feeling_none))
             }
         }
-
-    /** A soft lit sphere in the feeling's colours inside a faint halo, matching the light or dark palette in use. */
-    private fun orb(context: Context, feeling: Feeling, px: Int = 256): Bitmap {
-        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        val (a, b, c) = feelingPalette(feeling, dark).map { it.toArgb() }
-        val r = px / 2f
-        // The sphere sits inside the turning ring (widget_ring's dots are at 0.83 of the radius).
-        val s = r * 0.62f
-        return Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888).also {
-            val canvas = Canvas(it)
-            canvas.drawCircle(r, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(r, r, r, intArrayOf(alpha(a, 0x55), alpha(a, 0x22), alpha(a, 0)), floatArrayOf(0.5f, 0.75f, 1f), Shader.TileMode.CLAMP)
-            })
-            canvas.drawCircle(r, r, s, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(r - s * 0.3f, r - s * 0.4f, s * 1.4f, intArrayOf(b, a, c), null, Shader.TileMode.CLAMP)
-            })
-        }
-    }
-
-    private fun alpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a shl 24)
 
     private fun openApp(context: Context) = activity(context, 0, Intent(context, MainActivity::class.java))
     private fun openWrite(context: Context) = activity(context, 1, Intent(context, QuickNoteActivity::class.java))

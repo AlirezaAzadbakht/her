@@ -16,7 +16,7 @@
         android:layout_weight="1"
         android:importantForAccessibility="no"
         android:scaleType="fitCenter"
-        android:src="@drawable/widget_ring" />
+        android:src="@drawable/ic_launcher_foreground" />
 
     <TextView
         android:id="@+id/widget_feeling_word"

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- While she replies: the orb in her current feeling's colours, the brand's dotted ring turning round it. -->
+<!-- Her orb: a still frame at rest; while she replies, a loop of frames the flipper plays.
+     95 ms a frame is WidgetOrb's loop (7.35 engine s / 3.24 speed / 24 frames) at the app's pace. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -11,12 +12,12 @@
         android:importantForAccessibility="no"
         android:scaleType="fitCenter" />
 
-    <ProgressBar
-        android:id="@+id/widget_ring"
+    <ViewFlipper
+        android:id="@+id/widget_frames"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:indeterminate="true"
-        android:indeterminateDrawable="@drawable/widget_thinking"
-        android:indeterminateDuration="2800"
-        android:indeterminateOnly="true" />
+        android:autoStart="true"
+        android:flipInterval="95"
+        android:importantForAccessibility="no"
+        android:visibility="gone" />
 </FrameLayout>
