@@ -29,7 +29,7 @@
         <TextView
             android:id="@+id/widget_feeling_word"
             style="@style/HerWidgetFeelingWord"
-            android:layout_height="34dp"
+            android:layout_height="32dp"
             android:autoSizeMaxTextSize="28sp"
             android:gravity="center_vertical|start"
             android:text="@string/feeling_calm" />
@@ -46,10 +46,10 @@
             style="@style/HerWidgetText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="4dp"
             android:alpha="0.85"
             android:ellipsize="end"
-            android:maxLines="4"
+            android:maxLines="2"
             android:text="@string/feeling_none"
             android:textSize="13sp" />
     </LinearLayout>

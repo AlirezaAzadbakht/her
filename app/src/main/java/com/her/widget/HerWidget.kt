@@ -94,9 +94,9 @@ object Widgets {
                 feelingIds,
                 responsive(
                     SizeF(50f, 50f) to feelingView(context, R.layout.widget_feeling_small, feeling, orb),
-                    SizeF(150f, 50f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
+                    SizeF(150f, 50f) to feelingView(context, R.layout.widget_feeling, feeling, orb, withNote = false),
                     SizeF(100f, 100f) to feelingView(context, R.layout.widget_feeling_square, feeling, orb),
-                    SizeF(180f, 110f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
+                    SizeF(180f, 130f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
                     SizeF(130f, 200f) to feelingView(context, R.layout.widget_feeling_tall, feeling, orb),
                 ),
             )
@@ -131,7 +131,7 @@ object Widgets {
         }
 
     /** Fills whichever feeling layout fits; each has the orb, and only some the word, second feeling and note. */
-    private fun feelingView(context: Context, layout: Int, feeling: WidgetFeeling, orb: Bitmap) =
+    private fun feelingView(context: Context, layout: Int, feeling: WidgetFeeling, orb: Bitmap, withNote: Boolean = true) =
         RemoteViews(context.packageName, layout).apply {
             val word = context.getString(feeling.main.word())
             setImageViewBitmap(R.id.widget_orb, orb)
@@ -146,7 +146,9 @@ object Widgets {
                     context.getString(R.string.feeling_second, context.getString(feeling.second.word()).lowercase()),
                 )
             }
+            // A strip too short for her note drops it rather than cutting a line in half.
             if (layout != R.layout.widget_feeling_square) {
+                setViewVisibility(R.id.widget_feeling_note, if (withNote) View.VISIBLE else View.GONE)
                 setTextViewText(R.id.widget_feeling_note, feeling.note ?: context.getString(R.string.feeling_none))
             }
         }
