@@ -174,9 +174,9 @@ fun ThinkingOrb(
 }
 
 // Upstream ink: white 0 is the strongest mark on either theme.
-private fun strengthOf(white: Double): Float = 1f - white.toFloat().coerceIn(0f, 1f)
+internal fun strengthOf(white: Double): Float = 1f - white.toFloat().coerceIn(0f, 1f)
 
-private fun hueAt(dx: Double, dy: Double, drift: Float): Float {
+internal fun hueAt(dx: Double, dy: Double, drift: Float): Float {
     val u = (atan2(dy, dx) / (2 * PI)).toFloat() + 0.5f + drift
     return u - floor(u)
 }

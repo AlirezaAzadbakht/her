@@ -8,6 +8,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 - Her can tell you to bring a coat or an umbrella. Turn on **Weather** under **What she can use** and she checks the real forecast for your morning note, and whenever you ask ("do I need a jacket?"). She mentions it only when it changes what you should do. Your location, rounded to about 1 km, goes to Open-Meteo, a free weather service. It's never sent to your model.
 - Her notices your next alarm and a low battery. If your alarm is early tomorrow or your phone is nearly flat and not charging, she may mention it in passing. This needs no new permission.
 
+### Changed
+- The home-screen widgets have a new look that matches the app. **Her** shows her message in the middle of the card, and her orb, the same one as in the app, moves there while she's replying. **How she feels** fits whatever size you give it, from just her orb (the app's own) in one square to her feeling and what's on her mind when it's wide or tall, and the word no longer breaks across lines.
+
 ## [0.3.1] - 2026-11-20
 
 ### Added

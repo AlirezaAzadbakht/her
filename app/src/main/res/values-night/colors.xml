@@ -3,4 +3,11 @@
     <color name="her_bg">#140E0B</color>
     <color name="her_accent">#F6A77A</color>
     <color name="her_text">#F3E6DA</color>
+    <color name="her_glow">#2EFF9E6E</color>
+    <color name="her_glow_clear">#00FF9E6E</color>
+    <color name="her_stroke">#26FFD2AE</color>
+    <color name="her_mute">#B9A99A</color>
+    <color name="her_pill_start">#38FF8A65</color>
+    <color name="her_pill_end">#24F6B26B</color>
+    <color name="her_pill_edge">#B3FF8A65</color>
 </resources>

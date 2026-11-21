@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Square: the orb, her feeling's word under it, and the second feeling. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/widget_orb"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:importantForAccessibility="no"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_launcher_foreground" />
+
+    <TextView
+        android:id="@+id/widget_feeling_word"
+        style="@style/HerWidgetFeelingWord"
+        android:layout_height="30dp"
+        android:layout_marginTop="6dp"
+        android:autoSizeMaxTextSize="22sp"
+        android:gravity="center"
+        android:text="@string/feeling_calm" />
+
+    <TextView
+        android:id="@+id/widget_feeling_second"
+        style="@style/HerWidgetMute"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="12sp"
+        android:visibility="gone" />
+</LinearLayout>

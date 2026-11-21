@@ -1,26 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Her latest line centred on the card, or her orb while she replies; Write sits below. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
+    android:clipToOutline="true"
+    android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="16dp">
 
-    <TextView
-        android:id="@+id/widget_line"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:maxLines="5"
-        android:text="@string/widget_empty"
-        android:textColor="@color/her_text"
-        android:textSize="15sp" />
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/widget_line"
+            style="@style/HerWidgetText"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:lineSpacingMultiplier="1.15"
+            android:maxLines="5"
+            android:paddingHorizontal="8dp"
+            android:text="@string/widget_empty"
+            android:textSize="16sp" />
+
+        <FrameLayout
+            android:id="@+id/widget_thinking"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="4dp"
+            android:visibility="gone">
+
+            <include layout="@layout/widget_thinking_orb" />
+        </FrameLayout>
+    </FrameLayout>
 
     <TextView
         android:id="@+id/widget_write"
         style="@style/HerWidgetWritePill"
-        android:layout_gravity="end"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="10dp" />
 </LinearLayout>
