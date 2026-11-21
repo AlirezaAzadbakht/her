@@ -297,6 +297,14 @@ fun SettingsScreen(vm: HerViewModel) {
                     PlaceState.READY -> Unit
                 }
                 ToggleRow(
+                    stringResource(R.string.weather),
+                    app.weatherEnabled,
+                    description = stringResource(R.string.weather_hint),
+                ) {
+                    vm.updateSettings { it.copy(weatherEnabled = !it.weatherEnabled) }
+                    if (!app.weatherEnabled && placeState == PlaceState.NO_PERMISSION) requestLocation()
+                }
+                ToggleRow(
                     stringResource(R.string.web_search),
                     app.webSearchEnabled,
                     description = stringResource(R.string.web_search_hint),

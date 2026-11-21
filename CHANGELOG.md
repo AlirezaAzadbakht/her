@@ -4,6 +4,10 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ## [Unreleased]
 
+### Added
+- Her can tell you to bring a coat or an umbrella. Turn on **Weather** under **What she can use** and she checks the real forecast for your morning note, and whenever you ask ("do I need a jacket?"). She mentions it only when it changes what you should do. Your location, rounded to about 1 km, goes to Open-Meteo, a free weather service. It's never sent to your model.
+- Her notices your next alarm and a low battery. If your alarm is early tomorrow or your phone is nearly flat and not charging, she may mention it in passing. This needs no new permission.
+
 ## [0.3.1] - 2026-11-20
 
 ### Added

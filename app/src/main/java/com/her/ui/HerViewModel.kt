@@ -249,12 +249,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (before.quietHours != after.quietHours) {
             viewModelScope.launch(Dispatchers.IO) { graph.scheduler.enqueueAll() }
         }
-        if (before.placeRemindersEnabled != after.placeRemindersEnabled) rearmReminders()
+        if (before.placeRemindersEnabled != after.placeRemindersEnabled || (!before.weatherEnabled && after.weatherEnabled)) rearmReminders()
     }
 
-    /** Adds or removes place alerts after the setting, a location permission, or the location switch changed. */
+    /**
+     * Adds or removes place alerts after the setting, a location permission, or the location switch changed.
+     * Also saves where they are for the forecast, so the morning note knows without background location.
+     */
     fun rearmReminders() {
         viewModelScope.launch(Dispatchers.IO) { runCatching { graph.reminderAlarms.rearmAll(graph.repo) } }
+        viewModelScope.launch(Dispatchers.IO) { runCatching { graph.location.weatherPoint(fresh = true) } }
     }
 
     fun runHourly() = graph.scheduler.runHourlyNow()

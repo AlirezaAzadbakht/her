@@ -92,6 +92,8 @@
     <string name="contacts_access_hint">Lets her look up a phone number or birthday when you ask. The contact she finds is sent to your model.</string>
     <string name="place_reminders">Place reminders</string>
     <string name="place_reminders_hint">Reminders like \"when I get home\" ring when you arrive. Places are saved on this phone when you tell her you\'re there, and their location is never sent to your model. With location off, nothing runs.</string>
+    <string name="weather">Weather</string>
+    <string name="weather_hint">She checks the forecast for your morning note and when you ask, so she can say \"bring a coat, it\'s windy\". Your location, rounded to about 1 km, goes to Open-Meteo, never to your model.</string>
     <string name="location">Location</string>
     <string name="place_needs_location">Her needs your location to know when you arrive.</string>
     <string name="allow_location">Allow location</string>

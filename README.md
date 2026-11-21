@@ -46,7 +46,7 @@ You talk naturally. Her decides what becomes a **memory**, a **goal**, a **groce
 Core principles:
 
 - **Text only.** One conversation, forever.
-- **Honest.** She never claims to be human or invents a body, a room, or the weather.
+- **Honest.** She never claims to be human or invents a body, a room, or the weather; she speaks about the weather only from a real forecast.
 - **Yours.** You bring your own OpenAI-compatible model; credentials never leave the device's Keystore.
 - **Resilient.** Notes written offline queue locally and are handled together when the network returns.
 
@@ -72,6 +72,7 @@ Core principles:
 | 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone, or the share sheet for WhatsApp, Telegram or email, for you to send |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
 | 📍 **Place reminders** | "Remind me when I get home": say "this is home" once while you're there, and the reminder rings on arrival. Uses the phone's own location (no Google Play Services), and nothing runs while location is off |
+| 🌦️ **Weather** | "Bring a coat, it's windy today": with weather on, the morning note and chat use the real forecast from Open-Meteo (free, no key). Only a location rounded to about 1 km is sent, never to your model |
 | ⏰ **Reminders & alarms** | "Remind me at 6", "next time I see Reza", "only if I haven't sent it", or "wake me up at 7". Reminders ring on time without the network; alarms go to your clock app |
 | 🔔 **Follow-ups & briefings** | Hourly and nightly background passes plus a morning briefing, respecting quiet hours on your clock |
 | 🕸️ **Personality** | Six traits seeded from the name you give her (a few [special names](#special-names) have their own), growing slowly from your time together; ask her to be more playful or less blunt and she works on it over a few days; shown as a web chart in the Memory tab. [How it works](wiki/Personality.md) |
