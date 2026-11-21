@@ -76,6 +76,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val usage = graph.repo.observeUsageToday().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
+        // Where they are now, for the morning forecast; a no-op while weather is off.
+        viewModelScope.launch(Dispatchers.IO) { runCatching { graph.location.weatherPoint(fresh = true) } }
         viewModelScope.launch {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect

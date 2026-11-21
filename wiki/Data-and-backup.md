@@ -67,7 +67,7 @@ Google Calendar events that sync to the phone's calendar show up here like any o
 
 ## Weather
 
-Off unless **Weather** is on in Settings. `WeatherClient` GETs Open-Meteo (free, no key) with the latitude and longitude rounded to 2 decimals (about 1 km), and nothing else. Coordinates never reach the model. Only the forecast does. The last rounded point is kept in app prefs (`weatherPoint`, not in backups). It is refreshed on app start, on Settings resume, and when chat calls `get_weather`, so the background briefing needs no background location.
+Off unless **Weather** is on in Settings. `WeatherClient` GETs Open-Meteo (free, no key) with the latitude and longitude rounded to 2 decimals (about 1 km), and nothing else. Coordinates never reach the model. Only the forecast does. The last rounded point is kept in app prefs (`weatherPoint`, not in backups). It is refreshed when the app opens, on Settings resume, and when chat calls `get_weather`, so the background briefing needs no background location.
 
 ## Web search
 
