@@ -11,6 +11,7 @@ import com.her.ui.orbs.OrbSize
 import com.her.ui.orbs.OrbSpec
 import com.her.ui.orbs.OrbState
 import com.her.ui.orbs.OrbTint
+import com.her.ui.orbs.ResolvedPreset
 import com.her.ui.orbs.hueAt
 import com.her.ui.orbs.orbFrame
 import com.her.ui.orbs.resolvePreset
@@ -18,19 +19,26 @@ import com.her.ui.orbs.strengthOf
 import com.her.ui.theme.herColors
 
 /**
- * The app's own orb (ThinkingOrb's marks inside HerPresence's halo) drawn into bitmaps,
- * since a widget can't run the live drawing. Still for the feeling, a loop of frames while she replies.
+ * The app's own orbs drawn into bitmaps, since a widget can't run the live drawing: the Memory tab's
+ * feeling orb as a still, and the chat's thinking orb (inside HerPresence's halo) as a loop while she replies.
  */
 object WidgetOrb {
     private val preset = resolvePreset(OrbState.Breathing, OrbSize.Px64)
-    private const val DESIGN = 64.0
+    private val feelingPreset = resolvePreset(OrbState.Breathing, OrbSize.Px20)
 
     // ponytail: the ring never repeats exactly; 7.35 engine seconds is its closest return
     // (searched over 1.5..8), so the loop seam is about one frame's jump. Re-search if the ring's maths changes.
     private const val LOOP = 7.35
     const val FRAMES = 24
 
-    /** At rest: the app's reduced-motion instant, a quiet halo. */
+    /** The Memory tab's "How she feels" orb: the small Breathing ring, paused, in Her's own glow, no halo. */
+    fun feeling(dark: Boolean, px: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        drawMarks(Canvas(bitmap), feelingPreset, OrbSize.Px20.value.toDouble(), OrbSpec.REDUCED_MOTION_T * feelingPreset.speed, herColors(dark).glow, dark, px.toFloat(), 0f)
+        return bitmap
+    }
+
+    /** The chat row's orb at rest: the thinking orb's paused instant, a quiet halo. */
     fun still(palette: List<Color>, dark: Boolean, px: Int): Bitmap =
         draw(palette, dark, px, OrbSpec.REDUCED_MOTION_T * preset.speed, energy = 0.25f)
 
@@ -39,8 +47,6 @@ object WidgetOrb {
         List(FRAMES) { draw(palette, dark, px, it * LOOP / FRAMES, energy = 0.85f) }
 
     private fun draw(palette: List<Color>, dark: Boolean, px: Int, t: Double, energy: Float): Bitmap {
-        val colors = herColors(dark)
-        val tint = OrbTint(colors.orbInkFar, colors.orbInkNear, palette)
         val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -63,12 +69,19 @@ object WidgetOrb {
         canvas.drawCircle(c, c, radius, paint)
         paint.shader = null
 
-        // ThinkingOrb's marks; the orb is 1/1.9 of the halo box, as in HerPresence.
-        val frame = orbFrame(preset, DESIGN, t)
-        val zoom = (px / 1.9 / DESIGN).toFloat()
-        val off = (px - DESIGN.toFloat() * zoom) / 2f
-        val center = DESIGN / 2
-        paint.strokeCap = Paint.Cap.BUTT
+        // The orb is 1/1.9 of the halo box, as in HerPresence.
+        drawMarks(canvas, preset, OrbSize.Px64.value.toDouble(), t, palette, dark, px / 1.9f, (px - px / 1.9f) / 2f)
+        return bitmap
+    }
+
+    /** ThinkingOrb's marks for [t], [design] points scaled to [side] px at [off]. */
+    private fun drawMarks(canvas: Canvas, preset: ResolvedPreset, design: Double, t: Double, palette: List<Color>, dark: Boolean, side: Float, off: Float) {
+        val colors = herColors(dark)
+        val tint = OrbTint(colors.orbInkFar, colors.orbInkNear, palette)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val frame = orbFrame(preset, design, t)
+        val zoom = (side / design).toFloat()
+        val center = design / 2
         for (l in frame.lines) {
             val hue = hueAt((l.x1 + l.x2) / 2 - center, (l.y1 + l.y2) / 2 - center, 0f)
             paint.color = tint.color(strengthOf(l.white), hue, l.a.toFloat().coerceIn(0f, 1f)).toArgb()
@@ -79,6 +92,5 @@ object WidgetOrb {
             paint.color = tint.color(strengthOf(d.white), hueAt(d.x - center, d.y - center, 0f), d.a.toFloat().coerceIn(0f, 1f)).toArgb()
             canvas.drawCircle(off + d.x.toFloat() * zoom, off + d.y.toFloat() * zoom, d.r.toFloat() * zoom, paint)
         }
-        return bitmap
     }
 }

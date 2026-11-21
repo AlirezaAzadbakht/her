@@ -88,15 +88,17 @@ object Widgets {
             )
         }
         if (feelingIds.isNotEmpty()) {
+            // The same orb as the Memory tab's "How she feels".
+            val feelingOrb = WidgetOrb.feeling(dark, px = 320)
             // The middle entry (square) is what launchers before Android 12 get.
             manager.updateAppWidget(
                 feelingIds,
                 responsive(
-                    SizeF(50f, 50f) to feelingView(context, R.layout.widget_feeling_small, feeling, orb),
-                    SizeF(150f, 50f) to feelingView(context, R.layout.widget_feeling, feeling, orb, withNote = false),
-                    SizeF(100f, 100f) to feelingView(context, R.layout.widget_feeling_square, feeling, orb),
-                    SizeF(180f, 130f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
-                    SizeF(130f, 200f) to feelingView(context, R.layout.widget_feeling_tall, feeling, orb),
+                    SizeF(50f, 50f) to feelingView(context, R.layout.widget_feeling_small, feeling, feelingOrb),
+                    SizeF(150f, 50f) to feelingView(context, R.layout.widget_feeling, feeling, feelingOrb, withNote = false),
+                    SizeF(100f, 100f) to feelingView(context, R.layout.widget_feeling_square, feeling, feelingOrb),
+                    SizeF(180f, 130f) to feelingView(context, R.layout.widget_feeling, feeling, feelingOrb),
+                    SizeF(130f, 200f) to feelingView(context, R.layout.widget_feeling_tall, feeling, feelingOrb),
                 ),
             )
         }
