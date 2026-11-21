@@ -2,6 +2,7 @@ package com.her
 
 import android.app.Application
 import androidx.work.Configuration
+import com.her.agent.runner.TurnState
 import com.her.di.AppGraph
 import com.her.reminders.rearmAll
 import com.her.work.HerWorkerFactory
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
 
@@ -31,9 +33,15 @@ class HerApplication : Application(), Configuration.Provider {
         }
         // Every reply, proactive line, background message and change of feeling passes through here,
         // so one watcher keeps the widgets current. The feeling projection re-stamps itself each minute,
-        // so it is compared by what it shows, not by time.
-        combine(graph.repo.observeLatestAssistant(), graph.repo.observeFeeling(), graph.repo.observeEmotionalBlend()) { message, feeling, blend ->
-            Triple(message?.let { it.id to it.updatedAt }, feeling?.let { it.feeling to it.note }, blend.map { it.first })
+        // so it is compared by what it shows, not by time. While she replies the chat widget shows her orb;
+        // only the idle/busy flip redraws, not every streamed token.
+        combine(
+            graph.repo.observeLatestAssistant(),
+            graph.repo.observeFeeling(),
+            graph.repo.observeEmotionalBlend(),
+            graph.orchestrator.turnState.map { it != TurnState.Idle },
+        ) { message, feeling, blend, busy ->
+            listOf(message?.let { it.id to it.updatedAt }, feeling?.let { it.feeling to it.note }, blend.map { it.first }, busy)
         }
             .distinctUntilChanged()
             .onEach { Widgets.refreshAll(this) }

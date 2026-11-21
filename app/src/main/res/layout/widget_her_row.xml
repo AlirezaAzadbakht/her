@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- One row high: her orb (turning while she replies), her line, Write. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
@@ -6,21 +7,30 @@
     android:background="@drawable/widget_bg"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingHorizontal="16dp"
+    android:paddingHorizontal="12dp"
     android:paddingVertical="6dp">
+
+    <FrameLayout
+        android:id="@+id/widget_thinking"
+        android:layout_width="32dp"
+        android:layout_height="32dp">
+
+        <include layout="@layout/widget_thinking_orb" />
+    </FrameLayout>
 
     <TextView
         android:id="@+id/widget_line"
+        style="@style/HerWidgetText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
         android:layout_weight="1"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="@color/her_text"
+        android:text="@string/widget_empty"
         android:textSize="15sp" />
 
     <TextView
         android:id="@+id/widget_write"
-        style="@style/HerWidgetWritePill"
-        android:layout_marginStart="12dp" />
+        style="@style/HerWidgetWritePill" />
 </LinearLayout>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- While she replies: the orb in her current feeling's colours, the brand's dotted ring turning round it. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_orb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitCenter" />
+
+    <ProgressBar
+        android:id="@+id/widget_ring"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:indeterminate="true"
+        android:indeterminateDrawable="@drawable/widget_thinking"
+        android:indeterminateDuration="2800"
+        android:indeterminateOnly="true" />
+</FrameLayout>

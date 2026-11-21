@@ -3,4 +3,12 @@
     <color name="her_bg">#FBF3EA</color>
     <color name="her_accent">#C0643A</color>
     <color name="her_text">#2B1D16</color>
+    <!-- Widgets: the app's ambient glow, glass edge, muted ink and glass pill (Theme.kt, Dawn). -->
+    <color name="her_glow">#2EF0A07A</color>
+    <color name="her_glow_clear">#00F0A07A</color>
+    <color name="her_stroke">#248A4B28</color>
+    <color name="her_mute">#7A6A5D</color>
+    <color name="her_pill_start">#33E2724A</color>
+    <color name="her_pill_end">#1FD48A3A</color>
+    <color name="her_pill_edge">#B3E2724A</color>
 </resources>

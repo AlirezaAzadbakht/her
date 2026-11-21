@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Like HerButton's primary face: a faint coral-to-amber glass fill with a warm edge. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/her_accent" />
-    <corners android:radius="20dp" />
+    <gradient
+        android:angle="0"
+        android:endColor="@color/her_pill_end"
+        android:startColor="@color/her_pill_start" />
+    <stroke
+        android:width="1dp"
+        android:color="@color/her_pill_edge" />
+    <corners android:radius="999dp" />
 </shape>

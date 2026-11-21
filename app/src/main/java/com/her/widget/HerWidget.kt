@@ -19,6 +19,7 @@ import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
 import com.her.HerApplication
 import com.her.MainActivity
+import com.her.agent.runner.TurnState
 import com.her.R
 import com.her.domain.Feeling
 import com.her.domain.HerFeeling
@@ -28,7 +29,7 @@ import com.her.ui.theme.feelingPalette
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-/** Her latest line, with a Write button that opens [QuickNoteActivity]. A one-line bar when short. */
+/** Her latest line centred, or her orb while she replies, with a Write button that opens [QuickNoteActivity]. A one-line bar when short. */
 class HerWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = Widgets.refreshAsync(this, context)
 
@@ -37,7 +38,7 @@ class HerWidget : AppWidgetProvider() {
     }
 }
 
-/** How she feels: an orb in the feeling's colours and its word; her note too when there's room. */
+/** How she feels: an orb in the feeling's colours, then its word, the second feeling and her note as room allows. */
 class HerFeelingWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = Widgets.refreshAsync(this, context)
 }
@@ -72,26 +73,31 @@ object Widgets {
         val messageIds = manager.getAppWidgetIds(ComponentName(context, HerWidget::class.java))
         val feelingIds = manager.getAppWidgetIds(ComponentName(context, HerFeelingWidget::class.java))
         if (messageIds.isEmpty() && feelingIds.isEmpty()) return
+        val feeling = WidgetFeeling.of(graph.repo.observeFeeling().first(), graph.repo.observeEmotionalBlend().first())
+        val orb = orb(context, feeling.main)
         if (messageIds.isNotEmpty()) {
             val line = HerWidget.lineFor(graph.repo.observeLatestAssistant().first()?.content)
                 ?: context.getString(R.string.widget_empty)
+            val replying = graph.orchestrator.turnState.value != TurnState.Idle
             manager.updateAppWidget(
                 messageIds,
                 responsive(
-                    SizeF(110f, 40f) to messageRow(context, line),
-                    SizeF(180f, 130f) to messageCard(context, line, maxLines = 5),
-                    SizeF(180f, 250f) to messageCard(context, line, maxLines = 12),
+                    SizeF(110f, 40f) to messageRow(context, line, orb, replying),
+                    SizeF(180f, 130f) to messageCard(context, line, orb, replying, maxLines = 5),
+                    SizeF(180f, 250f) to messageCard(context, line, orb, replying, maxLines = 12),
                 ),
             )
         }
         if (feelingIds.isNotEmpty()) {
-            val feeling = WidgetFeeling.of(graph.repo.observeFeeling().first(), graph.repo.observeEmotionalBlend().first())
-            val orb = orb(context, feeling.main)
+            // The middle entry (square) is what launchers before Android 12 get.
             manager.updateAppWidget(
                 feelingIds,
                 responsive(
-                    SizeF(50f, 50f) to feelingSmall(context, feeling, orb),
-                    SizeF(140f, 110f) to feelingCard(context, feeling, orb),
+                    SizeF(50f, 50f) to feelingView(context, R.layout.widget_feeling_small, feeling, orb),
+                    SizeF(150f, 50f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
+                    SizeF(100f, 100f) to feelingView(context, R.layout.widget_feeling_square, feeling, orb),
+                    SizeF(180f, 110f) to feelingView(context, R.layout.widget_feeling, feeling, orb),
+                    SizeF(130f, 200f) to feelingView(context, R.layout.widget_feeling_tall, feeling, orb),
                 ),
             )
         }
@@ -101,31 +107,38 @@ object Widgets {
     private fun responsive(vararg sizes: Pair<SizeF, RemoteViews>): RemoteViews =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) RemoteViews(mapOf(*sizes)) else sizes[sizes.size / 2].second
 
-    private fun messageRow(context: Context, line: String) = RemoteViews(context.packageName, R.layout.widget_her_row).apply {
-        setTextViewText(R.id.widget_line, line.lineSequence().first())
-        setOnClickPendingIntent(R.id.widget_line, openApp(context))
-        setOnClickPendingIntent(R.id.widget_write, openWrite(context))
-    }
-
-    private fun messageCard(context: Context, line: String, maxLines: Int) =
-        RemoteViews(context.packageName, R.layout.widget_her).apply {
-            setTextViewText(R.id.widget_line, line)
-            setInt(R.id.widget_line, "setMaxLines", maxLines)
+    /** The row always shows her orb; its ring turns only while she replies. */
+    private fun messageRow(context: Context, line: String, orb: Bitmap, replying: Boolean) =
+        RemoteViews(context.packageName, R.layout.widget_her_row).apply {
+            setImageViewBitmap(R.id.widget_orb, orb)
+            setViewVisibility(R.id.widget_ring, if (replying) View.VISIBLE else View.GONE)
+            setTextViewText(R.id.widget_line, line.lineSequence().first())
             setOnClickPendingIntent(R.id.widget_line, openApp(context))
             setOnClickPendingIntent(R.id.widget_write, openWrite(context))
         }
 
-    private fun feelingSmall(context: Context, feeling: WidgetFeeling, orb: Bitmap) =
-        RemoteViews(context.packageName, R.layout.widget_feeling_small).apply {
+    /** Like the chat stage: her orb while she has no words yet, then her line in the middle. */
+    private fun messageCard(context: Context, line: String, orb: Bitmap, replying: Boolean, maxLines: Int) =
+        RemoteViews(context.packageName, R.layout.widget_her).apply {
             setImageViewBitmap(R.id.widget_orb, orb)
-            setTextViewText(R.id.widget_feeling_word, context.getString(feeling.main.word()))
-            setOnClickPendingIntent(R.id.widget_root, openApp(context))
+            setViewVisibility(R.id.widget_thinking, if (replying) View.VISIBLE else View.GONE)
+            setViewVisibility(R.id.widget_line, if (replying) View.GONE else View.VISIBLE)
+            setTextViewText(R.id.widget_line, line)
+            setInt(R.id.widget_line, "setMaxLines", maxLines)
+            setOnClickPendingIntent(R.id.widget_line, openApp(context))
+            setOnClickPendingIntent(R.id.widget_thinking, openApp(context))
+            setOnClickPendingIntent(R.id.widget_write, openWrite(context))
         }
 
-    private fun feelingCard(context: Context, feeling: WidgetFeeling, orb: Bitmap) =
-        RemoteViews(context.packageName, R.layout.widget_feeling).apply {
+    /** Fills whichever feeling layout fits; each has the orb, and only some the word, second feeling and note. */
+    private fun feelingView(context: Context, layout: Int, feeling: WidgetFeeling, orb: Bitmap) =
+        RemoteViews(context.packageName, layout).apply {
+            val word = context.getString(feeling.main.word())
             setImageViewBitmap(R.id.widget_orb, orb)
-            setTextViewText(R.id.widget_feeling_word, context.getString(feeling.main.word()))
+            setContentDescription(R.id.widget_root, word)
+            setOnClickPendingIntent(R.id.widget_root, openApp(context))
+            if (layout == R.layout.widget_feeling_small) return@apply
+            setTextViewText(R.id.widget_feeling_word, word)
             if (feeling.second != null) {
                 setViewVisibility(R.id.widget_feeling_second, View.VISIBLE)
                 setTextViewText(
@@ -133,21 +146,30 @@ object Widgets {
                     context.getString(R.string.feeling_second, context.getString(feeling.second.word()).lowercase()),
                 )
             }
-            setTextViewText(R.id.widget_feeling_note, feeling.note ?: context.getString(R.string.feeling_none))
-            setOnClickPendingIntent(R.id.widget_root, openApp(context))
+            if (layout != R.layout.widget_feeling_square) {
+                setTextViewText(R.id.widget_feeling_note, feeling.note ?: context.getString(R.string.feeling_none))
+            }
         }
 
-    /** A soft lit sphere in the feeling's colours, matching the light or dark palette in use. */
-    private fun orb(context: Context, feeling: Feeling, px: Int = 160): Bitmap {
+    /** A soft lit sphere in the feeling's colours inside a faint halo, matching the light or dark palette in use. */
+    private fun orb(context: Context, feeling: Feeling, px: Int = 256): Bitmap {
         val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         val (a, b, c) = feelingPalette(feeling, dark).map { it.toArgb() }
         val r = px / 2f
+        // The sphere sits inside the turning ring (widget_ring's dots are at 0.83 of the radius).
+        val s = r * 0.62f
         return Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888).also {
-            Canvas(it).drawCircle(r, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(r * 0.7f, r * 0.6f, r * 1.4f, intArrayOf(b, a, c), null, Shader.TileMode.CLAMP)
+            val canvas = Canvas(it)
+            canvas.drawCircle(r, r, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(r, r, r, intArrayOf(alpha(a, 0x55), alpha(a, 0x22), alpha(a, 0)), floatArrayOf(0.5f, 0.75f, 1f), Shader.TileMode.CLAMP)
+            })
+            canvas.drawCircle(r, r, s, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(r - s * 0.3f, r - s * 0.4f, s * 1.4f, intArrayOf(b, a, c), null, Shader.TileMode.CLAMP)
             })
         }
     }
+
+    private fun alpha(color: Int, a: Int) = (color and 0x00FFFFFF) or (a shl 24)
 
     private fun openApp(context: Context) = activity(context, 0, Intent(context, MainActivity::class.java))
     private fun openWrite(context: Context) = activity(context, 1, Intent(context, QuickNoteActivity::class.java))
