@@ -59,23 +59,25 @@ class AppGraph(context: Context) {
     val scheduler = Scheduler(appContext, settings)
     val location = com.her.reminders.AndroidLocation(appContext, settings)
     val reminderAlarms = AndroidReminderAlarms(appContext, location)
+    val weather = com.her.data.remote.WeatherClient()
     val reminderDelivery = ReminderDelivery(repo, notifier)
     val focus = FocusTimer(settings, repo, notifier, AndroidFocusAlarm(appContext))
 
     private val contextBuilder: ContextBuilder by lazy {
-        ContextBuilder(repo, ranker, settings, calendar)
+        ContextBuilder(repo, ranker, settings, calendar, phone = com.her.data.device.androidPhoneLines(appContext))
     }
 
     val tools: ToolRegistry by lazy {
         ToolRegistry(repo, ranker, settings, calendar, webSearch, { text ->
             repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, text, MessageStatus.SENT, """{"proactive":true}"""))
-        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext), com.her.data.contacts.AndroidMessageComposer(appContext), sqlBrowser, location)
+        }, reminderAlarms, SystemAlarmClock(appContext), focus, com.her.data.contacts.AndroidContacts(appContext), com.her.data.contacts.AndroidMessageComposer(appContext), sqlBrowser, location, weather)
     }
 
     val orchestrator: AgentOrchestrator by lazy {
         AgentOrchestrator(repo, llm, { secure.read() }, settings, contextBuilder, tools, notifier, policy,
             appraiser = FastAppraiser(repo, llm) { secure.read() },
-            weekStart = { java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek })
+            weekStart = { java.time.temporal.WeekFields.of(java.util.Locale.getDefault()).firstDayOfWeek },
+            weatherNote = { location.weatherPoint(fresh = false)?.let { (lat, lng) -> weather.forecast(lat, lng) }?.toString() })
     }
 
     /** A message written outside the app (notification reply, widget): queue it and let the outbox worker send it. */

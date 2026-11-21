@@ -101,6 +101,8 @@ class AgentOrchestrator(
     private val appraiser: com.her.feelings.FastAppraiser? = null,
     /** The day their week starts, when the morning briefing also looks back at the week; null turns that off. */
     private val weekStart: () -> java.time.DayOfWeek? = { null },
+    /** Today's forecast as JSON for the morning note, or null when weather is off or unavailable. */
+    private val weatherNote: suspend () -> String? = { null },
 ) {
     // ponytail: one lock for every run; a waiting chat makes a background run stop at its next round,
     // so chat waits at most one background call. Cancel that in-flight call too if one round is still too long.
@@ -280,11 +282,12 @@ class AgentOrchestrator(
             }
         }
         onPassStart()
+        val weather = runCatching { weatherNote() }.getOrNull()?.let { "\n\n" + Identity.BRIEFING_WEATHER_PROMPT + "\n" + it }.orEmpty()
         val result = runTurn(
             type = AgentRunType.BRIEFING,
             budget = CallBudget(8),
             latestUserText = null,
-            extraSystem = Identity.BRIEFING_PROMPT + if (now.dayOfWeek == weekStart()) "\n\n" + Identity.WEEKLY_REVIEW_PROMPT else "",
+            extraSystem = Identity.BRIEFING_PROMPT + (if (now.dayOfWeek == weekStart()) "\n\n" + Identity.WEEKLY_REVIEW_PROMPT else "") + weather,
             persistAssistant = true,
             allowNotify = true,
         )

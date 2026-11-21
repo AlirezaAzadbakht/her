@@ -95,6 +95,19 @@ internal fun ToolRegistry.registerReminderTools() {
     }
 
     register(
+        "get_weather",
+        "Today's and tomorrow's forecast where they are. Use it when the weather changes what they should do: what to wear, an umbrella, plans outside. Say only what it returns, in plain words, never the numbers as a list.",
+        objSchema(),
+    ) { _ ->
+        location.weatherProblem()?.let { return@register jsonObjectOf("ok" to false, "reason" to it, "error" to weatherHelp(it)) }
+        val (lat, lng) = location.weatherPoint(fresh = runType == com.her.domain.AgentRunType.CHAT)
+            ?: return@register jsonObjectOf("ok" to false, "reason" to "no_fix", "error" to "Could not get a location for the forecast. Ask them to try again in a moment.")
+        val forecast = weather.forecast(lat, lng)
+            ?: return@register jsonObjectOf("ok" to false, "reason" to "offline", "error" to "The forecast service did not answer. Say you couldn't check the weather just now.")
+        forecast.put("ok", true).put("source", "Open-Meteo")
+    }
+
+    register(
         "save_place",
         "Save where they are right now under a name, when they say they are at a place (\"this is home\", \"I'm at the gym\"). Place reminders for that name then fire when they arrive. Only say it is saved when this returns ok.",
         objSchema("name" to str("Short name for the place, in their words, e.g. home, work, the gym"), required = listOf("name")),
@@ -338,4 +351,9 @@ private fun calendarWeekday(raw: String): Int? = when (raw.trim().lowercase(Loca
     "fri" -> Calendar.FRIDAY
     "sat" -> Calendar.SATURDAY
     else -> null
+}
+
+private fun weatherHelp(reason: String): String = when (reason) {
+    "disabled" -> "Weather is off. They can turn it on in Settings, under What she can use."
+    else -> "Weather needs location access. They can allow it in Settings, under What she can use."
 }

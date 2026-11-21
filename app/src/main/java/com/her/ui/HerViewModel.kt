@@ -76,6 +76,8 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     val usage = graph.repo.observeUsageToday().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
+        // Where they are now, for the morning forecast; a no-op while weather is off.
+        viewModelScope.launch(Dispatchers.IO) { runCatching { graph.location.weatherPoint(fresh = true) } }
         viewModelScope.launch {
             graph.connectivity.online.collect { on ->
                 if (!on) return@collect
@@ -249,12 +251,16 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         if (before.quietHours != after.quietHours) {
             viewModelScope.launch(Dispatchers.IO) { graph.scheduler.enqueueAll() }
         }
-        if (before.placeRemindersEnabled != after.placeRemindersEnabled) rearmReminders()
+        if (before.placeRemindersEnabled != after.placeRemindersEnabled || (!before.weatherEnabled && after.weatherEnabled)) rearmReminders()
     }
 
-    /** Adds or removes place alerts after the setting, a location permission, or the location switch changed. */
+    /**
+     * Adds or removes place alerts after the setting, a location permission, or the location switch changed.
+     * Also saves where they are for the forecast, so the morning note knows without background location.
+     */
     fun rearmReminders() {
         viewModelScope.launch(Dispatchers.IO) { runCatching { graph.reminderAlarms.rearmAll(graph.repo) } }
+        viewModelScope.launch(Dispatchers.IO) { runCatching { graph.location.weatherPoint(fresh = true) } }
     }
 
     fun runHourly() = graph.scheduler.runHourlyNow()

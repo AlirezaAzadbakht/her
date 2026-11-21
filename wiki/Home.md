@@ -35,7 +35,7 @@ The model proposes tool calls. The app validates schemas, enforces budgets, perm
 
 - Text only. One continuous conversation.
 - API keys live in Android Keystore-backed prefs. They are never written to Room or to a backup file.
-- She must not claim to be human or invent a body, a room, or weather.
+- She must not claim to be human or invent a body, a room, or weather. Weather comes only from the forecast (`get_weather` or the briefing's forecast).
 - Natural language in; structured records underneath. The person should never need tool vocabulary.
 
 ## Current shipping shape

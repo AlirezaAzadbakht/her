@@ -65,6 +65,10 @@ Google Calendar events that sync to the phone's calendar show up here like any o
 
 `get_calendar_events` can read any slice: `from` / `to` as natural phrases, ISO, epoch millis, or Jalali, or `days` from the start of `from` (or today). A date without a clock is that whole day. Named slices include `this morning`, `this afternoon`, and `this evening` / `tonight`. The window is capped at 400 days.
 
+## Weather
+
+Off unless **Weather** is on in Settings. `WeatherClient` GETs Open-Meteo (free, no key) with the latitude and longitude rounded to 2 decimals (about 1 km), and nothing else. Coordinates never reach the model. Only the forecast does. The last rounded point is kept in app prefs (`weatherPoint`, not in backups). It is refreshed when the app opens, on Settings resume, and when chat calls `get_weather`, so the background briefing needs no background location.
+
 ## Web search
 
 Off unless enabled in Settings. When on, `web_search` calls the configured OpenAI-compatible LLM with `web_search_options` (no function tools). Location from the user profile (`country`, `timezone`) is sent when present. A custom GET endpoint + bearer key can override that path. There is no DuckDuckGo fallback.

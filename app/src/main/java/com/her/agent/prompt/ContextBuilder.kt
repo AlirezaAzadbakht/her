@@ -49,6 +49,8 @@ class ContextBuilder(
     private val calendar: CalendarDataSource,
     private val extraSystem: String? = null,
     private val systemCalendar: SystemCalendar = SystemCalendar(repo, calendar, settings),
+    /** Next alarm and low battery, only when worth saying (see com.her.data.device.phoneLines). */
+    private val phone: (ZonedDateTime) -> List<String> = { emptyList() },
 ) {
     suspend fun build(latestUserText: String? = null, recentLimit: Int = 24): BuiltContext {
         val learning = com.her.learning.learningContext(repo)
@@ -196,6 +198,7 @@ class ContextBuilder(
             appendSection("Reminders", reminders, hidden["Reminders"] ?: 0)
             // Names only: coordinates never go to the model.
             appendSection("Saved places (save_place)", places.map { it.name })
+            appendSection("Phone (mention lightly, at most once a day)", runCatching { phone(now) }.getOrDefault(emptyList()))
             appendSection("Pending confirmations", repo.pendingConfirmations().map {
                 "${it.id} | ${it.summary}. Pass this id as confirmId."
             })
