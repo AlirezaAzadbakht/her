@@ -24,4 +24,12 @@ class StreamRevealTest {
         assertEquals(16, StreamReveal.catchUpUnits(200))
         assertEquals(1, StreamReveal.catchUpUnits(3))
     }
+
+    @Test
+    fun releasesHeldStreamOnceSavedReplyExtendsIt() {
+        assertEquals("", StreamReveal.heldReply("", false, "Hope it went well.", "Hope"))
+        assertEquals("Hope", StreamReveal.heldReply("", false, "Earlier reply", "Hope"))
+        assertEquals("Hope it", StreamReveal.heldReply("Hope it", false, "Earlier reply", "Hope"))
+        assertEquals("", StreamReveal.heldReply("", true, null, "Hope"))
+    }
 }

@@ -170,12 +170,7 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
     var pinToBottom by remember { mutableStateOf(true) }
 
     val streamingText = (turn as? TurnState.Streaming)?.text.orEmpty()
-    val nextHeld = when {
-        streamingText.isNotBlank() -> streamingText
-        turn is TurnState.Thinking -> ""
-        latest?.content == heldStream -> ""
-        else -> heldStream
-    }
+    val nextHeld = StreamReveal.heldReply(streamingText, turn is TurnState.Thinking, latest?.content, heldStream)
     SideEffect {
         if (heldStream != nextHeld) heldStream = nextHeld
     }
