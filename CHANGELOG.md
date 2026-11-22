@@ -11,6 +11,9 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ### Changed
 - The home-screen widgets have a new look that matches the app. **Her** shows her message in the middle of the card, and her orb, the same one as in the app, moves there while she's replying. **How she feels** fits whatever size you give it, from just her orb (the app's own) in one square to her feeling and what's on her mind when it's wide or tall, and the word no longer breaks across lines.
 
+### Fixed
+- Her's reply no longer freezes partway through while she's writing it. The full reply now shows without switching tabs.
+
 ## [0.3.1] - 2026-11-20
 
 ### Added

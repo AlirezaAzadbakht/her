@@ -37,4 +37,12 @@ object StreamReveal {
     }
 
     fun catchUpDelayMs(behind: Int): Long = if (behind > 48) 10L else 20L
+
+    /** Streamed text to keep on screen until the saved reply lands. The last tokens can be skipped between frames, so the held text may be only a prefix of the saved reply. */
+    fun heldReply(streaming: String, thinking: Boolean, saved: String?, held: String): String = when {
+        streaming.isNotBlank() -> streaming
+        thinking -> ""
+        saved != null && saved.startsWith(held) -> ""
+        else -> held
+    }
 }
