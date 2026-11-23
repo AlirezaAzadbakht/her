@@ -61,7 +61,7 @@ object Receipts {
             "update_grocery", "remove_grocery", "clear_purchased_groceries" -> Triple("groceries", "updated $list", false)
             "add_list_items" -> Triple(
                 "groceries",
-                if (args.has("replace")) "broke a step down on $list" else "added ${args.optJSONArray("items")?.length() ?: 0} items to $list",
+                if (args.optString("replace").isNotBlank()) "broke a step down on $list" else "added ${args.optJSONArray("items")?.length() ?: 0} items to $list",
                 false,
             )
             "update_calendar_event" -> Triple("calendar_events", "moved an event", false)
