@@ -261,7 +261,7 @@ internal fun ToolRegistry.registerEntityTools() {
             jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null), "list" to list, "undo" to JSONArray(listOf(undoEntry(existing, item))))
         }
     }
-    register("update_grocery", "Update an item on the grocery list or a named list: tick it off (PURCHASED), untick it (ACTIVE), rename it, or note something about it. Set list only to move it to another list.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), "name" to str("New wording for the item"), "notes" to str("A short note; empty clears it"), listField, required = listOf("id"))) { args ->
+    register("update_grocery", "Update an item on the grocery list or a named list (PURCHASED ticks it). Set list only to move it to another list.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), "name" to str("Rename"), "notes" to str(), listField, required = listOf("id"))) { args ->
         repo.learningTransaction {
             val existing = requireListItem(args.requiredString("id"), null)
             val list = args.optStringOrNull("list")?.let { listName(it) } ?: existing.list
@@ -288,11 +288,11 @@ internal fun ToolRegistry.registerEntityTools() {
     }
     register(
         "add_list_items",
-        "Make a checklist on a named list, add several items to one, or break one item into smaller steps in its place (replace = that item's id). Steps stay in the order given; names already on the list are skipped.",
+        "Make a checklist, add steps to one, or with replace break that item into steps in its place. Names already on it are skipped.",
         objSchema(
-            "list" to str("Short lowercase name such as room or trip; never groceries"),
-            "items" to arr("One step each, in order"),
-            "replace" to str("Id of the item these steps replace"),
+            "list" to str("Short name such as room; not groceries"),
+            "items" to arr("Steps, in order"),
+            "replace" to str("Item id"),
             required = listOf("list", "items"),
         ),
     ) { args ->
@@ -330,7 +330,7 @@ internal fun ToolRegistry.registerEntityTools() {
             jsonObjectOf("ok" to true, "list" to list, "ids" to JSONArray(created.map { it.id }), "skipped" to JSONArray(skipped), "undo" to JSONArray(undo))
         }
     }
-    register("show_list", "Show a named list as a checklist under this reply, when they ask to see it or you talk it through.", objSchema("list" to str(), required = listOf("list"))) { args ->
+    register("show_list", "Show a named list under this reply as a checklist.", objSchema("list" to str(), required = listOf("list"))) { args ->
         val list = listName(args.requiredString("list"))
         val items = repo.groceries().filter { it.list == list }.sortedWith(compareBy({ it.position }, { it.createdAt }))
         if (items.isEmpty()) throw ToolValidationException("No list named $list")
