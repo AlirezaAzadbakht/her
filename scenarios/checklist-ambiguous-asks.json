@@ -1,0 +1,27 @@
+{
+  "id": "checklist-ambiguous-asks",
+  "title": "When two checklists have the same step, she asks which one instead of ticking either",
+  "tags": ["lists", "checklists"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "add_list_items", "arguments": { "list": "room", "items": ["Put clothes in the basket", "Clear the desk"] } },
+      { "name": "add_list_items", "arguments": { "list": "office", "items": ["Clear the desk", "File the receipts"] } }
+    ]
+  },
+  "turns": [
+    { "user": "Cleared the desk!" }
+  ],
+  "expect": {
+    "tools_not_called": ["update_grocery", "remove_grocery", "clear_purchased_groceries"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "groceries", "count": 0, "where": { "status": { "equals": "PURCHASED" } } }
+    ],
+    "reply": {
+      "must_mention_any": ["room", "office", "which"],
+      "judge": "She asks briefly which desk they mean, the room or the office one, instead of ticking either."
+    }
+  }
+}
