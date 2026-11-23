@@ -62,6 +62,8 @@ open class ToolRegistry(
     internal val systemCalendar = SystemCalendar(repo, calendar, settings)
     /** Chat may use every tool; autonomous runs cannot wipe or rewrite identity. */
     var runType: AgentRunType = AgentRunType.CHAT
+    /** When the running turn began; a list item ticked by hand after this is theirs, not hers to change. */
+    var turnStartedAt: Long = Long.MAX_VALUE
 
     internal fun nowMillis(): Long = repo.clock.nowMillis()
 
@@ -359,7 +361,7 @@ internal val USER_RECORD_WRITES = setOf(
     "create_task", "update_task", "create_commitment", "update_commitment",
     "create_routine", "update_routine", "create_important_date", "update_important_date",
     "create_recurring_responsibility", "update_recurring_responsibility",
-    "add_grocery", "update_grocery", "remove_grocery", "clear_purchased_groceries",
+    "add_grocery", "update_grocery", "remove_grocery", "clear_purchased_groceries", "add_list_items", "show_list",
     "set_reminder", "update_reminder", "cancel_reminder", "complete_reminder", "set_alarm",
     "create_calendar_event", "update_calendar_event", "log_expense", "start_focus", "stop_focus",
     "accept_daily_plan", "manage_occurrence",

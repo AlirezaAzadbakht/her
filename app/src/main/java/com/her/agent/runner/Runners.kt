@@ -324,6 +324,7 @@ class AgentOrchestrator(
         val configured = llmSettings().let { if (type != AgentRunType.CHAT && background.isNotEmpty()) it.copy(model = background) else it }
         if (streamToUi) _turnState.value = TurnState.Thinking
         tools.runType = type
+        tools.turnStartedAt = started
         val receipts = mutableListOf<Receipt>()
         try {
             val buildStarted = nowMillis()
@@ -526,6 +527,7 @@ class AgentOrchestrator(
             TurnResult(null, true, error, budget.used, runId, notice, failureOf(e))
         } finally {
             tools.runType = AgentRunType.CHAT
+            tools.turnStartedAt = Long.MAX_VALUE
             if (streamToUi) _turnState.value = TurnState.Idle
         }
     }

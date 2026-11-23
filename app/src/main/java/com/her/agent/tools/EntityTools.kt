@@ -14,6 +14,7 @@ import com.her.core.requiredString
 import com.her.data.repository.toJson
 import com.her.domain.Commitment
 import com.her.domain.CommitmentStatus
+import com.her.domain.DEFAULT_LIST
 import com.her.domain.Goal
 import com.her.domain.GoalStatus
 import com.her.domain.GroceryItem
@@ -246,30 +247,94 @@ internal fun ToolRegistry.registerEntityTools() {
         val now = nowMillis()
         val name = args.requiredString("name")
         val list = listName(args.optStringOrNull("list"))
-        val existing = repo.groceries().firstOrNull { it.name.equals(name, true) && it.status == GroceryStatus.ACTIVE && it.list == list }
-        val item = (existing ?: GroceryItem(newId(), name, null, null, GroceryStatus.ACTIVE, null, 0.0, null, null, now, now, repo.deviceId, 1, null, list)).copy(
-            quantity = args.optStringOrNull("quantity") ?: existing?.quantity,
-            category = args.optStringOrNull("category") ?: existing?.category,
-            reason = args.optStringOrNull("reason") ?: existing?.reason,
-            status = GroceryStatus.ACTIVE,
-            updatedAt = now,
-            version = (existing?.version ?: 0) + 1,
-        )
-        repo.saveGrocery(item)
-        jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null), "list" to list)
+        repo.learningTransaction {
+            val existing = repo.groceries().firstOrNull { it.name.equals(name, true) && it.status == GroceryStatus.ACTIVE && it.list == list }
+            val item = (existing ?: GroceryItem(newId(), name, null, null, GroceryStatus.ACTIVE, null, 0.0, null, null, now, now, repo.deviceId, 1, null, list, nextPosition(list))).copy(
+                quantity = args.optStringOrNull("quantity") ?: existing?.quantity,
+                category = args.optStringOrNull("category") ?: existing?.category,
+                reason = args.optStringOrNull("reason") ?: existing?.reason,
+                status = GroceryStatus.ACTIVE,
+                updatedAt = now,
+                version = (existing?.version ?: 0) + 1,
+            )
+            repo.saveGrocery(item)
+            jsonObjectOf("ok" to true, "id" to item.id, "created" to (existing == null), "list" to list, "undo" to JSONArray(listOf(undoEntry(existing, item))))
+        }
     }
-    register("update_grocery", "Update an item on the grocery list or a named list. Set list only to move it to another list.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), listField, required = listOf("id"))) { args ->
-        val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
-        val list = args.optStringOrNull("list")?.let { listName(it) } ?: existing.list
-        repo.saveGrocery(existing.copy(status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status, quantity = args.optStringOrNull("quantity") ?: existing.quantity, list = list, updatedAt = nowMillis(), version = existing.version + 1))
-        jsonObjectOf("ok" to true, "list" to list)
+    register("update_grocery", "Update an item on the grocery list or a named list: tick it off (PURCHASED), untick it (ACTIVE), rename it, or note something about it. Set list only to move it to another list.", objSchema("id" to str(), "status" to enumField<GroceryStatus>(), "quantity" to str(), "name" to str("New wording for the item"), "notes" to str("A short note; empty clears it"), listField, required = listOf("id"))) { args ->
+        repo.learningTransaction {
+            val existing = requireListItem(args.requiredString("id"), null)
+            val list = args.optStringOrNull("list")?.let { listName(it) } ?: existing.list
+            val updated = existing.copy(
+                status = parseEnum<GroceryStatus>(args.optStringOrNull("status"), COMMON_DROPPED + mapOf("BOUGHT" to "PURCHASED", "PURCHASED" to "PURCHASED", "ACTIVE" to "ACTIVE")) ?: existing.status,
+                quantity = args.optStringOrNull("quantity") ?: existing.quantity,
+                name = args.optStringOrNull("name")?.trim()?.take(MAX_ITEM_LENGTH) ?: existing.name,
+                notes = if (args.has("notes")) args.optStringOrNull("notes")?.trim() else existing.notes,
+                list = list,
+                updatedAt = nowMillis(),
+                version = existing.version + 1,
+            )
+            repo.saveGrocery(updated)
+            jsonObjectOf("ok" to true, "id" to updated.id, "list" to list, "undo" to JSONArray(listOf(undoEntry(existing, updated))))
+        }
     }
     register("remove_grocery", "Remove an item from the grocery list or a named list.", objSchema("id" to str(), listField, required = listOf("id"))) { args ->
-        val existing = repo.getGrocery(args.requiredString("id")) ?: throw ToolValidationException("Grocery not found")
-        val list = args.optStringOrNull("list")?.let { listName(it) }
-        if (list != null && list != existing.list) throw ToolValidationException("That item is on the ${existing.list} list, not $list")
-        repo.saveGrocery(existing.copy(status = GroceryStatus.DROPPED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = existing.version + 1))
-        jsonObjectOf("ok" to true, "list" to existing.list)
+        repo.learningTransaction {
+            val existing = requireListItem(args.requiredString("id"), args.optStringOrNull("list")?.let { listName(it) })
+            val removed = existing.copy(status = GroceryStatus.DROPPED, deletedAt = nowMillis(), updatedAt = nowMillis(), version = existing.version + 1)
+            repo.saveGrocery(removed)
+            jsonObjectOf("ok" to true, "id" to removed.id, "list" to existing.list, "undo" to JSONArray(listOf(undoEntry(existing, removed))))
+        }
+    }
+    register(
+        "add_list_items",
+        "Make a checklist on a named list, add several items to one, or break one item into smaller steps in its place (replace = that item's id). Steps stay in the order given; names already on the list are skipped.",
+        objSchema(
+            "list" to str("Short lowercase name such as room or trip; never groceries"),
+            "items" to arr("One step each, in order"),
+            "replace" to str("Id of the item these steps replace"),
+            required = listOf("list", "items"),
+        ),
+    ) { args ->
+        val list = listName(args.requiredString("list"))
+        if (list == DEFAULT_LIST) throw ToolValidationException("Use add_grocery for groceries")
+        val names = args.optStringList("items").map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
+        if (names.isEmpty()) throw ToolValidationException("items needs at least one step")
+        if (names.size > MAX_ITEMS_PER_CALL) throw ToolValidationException("At most $MAX_ITEMS_PER_CALL items at a time")
+        if (names.any { it.length > MAX_ITEM_LENGTH }) throw ToolValidationException("Keep each item under $MAX_ITEM_LENGTH characters")
+        repo.learningTransaction {
+            val replaceId = args.optStringOrNull("replace")
+            if (replaceId != null) {
+                val gone = repo.getGrocery(replaceId) ?: throw ToolValidationException("List item not found: use an id from context")
+                if (gone.list != list) throw ToolValidationException("That item is on the ${gone.list} list, not $list")
+                // A retried breakdown: the item was already replaced, so nothing is applied twice.
+                if (gone.deletedAt != null) return@learningTransaction jsonObjectOf("ok" to true, "list" to list, "alreadyReplaced" to true, "undo" to JSONArray())
+            }
+            val target = replaceId?.let { requireListItem(it, list) }
+            val live = repo.groceries().filter { it.list == list }.sortedWith(compareBy({ it.position }, { it.createdAt }))
+            val skipped = names.filter { name -> live.any { it.id != target?.id && it.name.equals(name, true) } }
+            val now = nowMillis()
+            val created = (names - skipped.toSet()).map { name ->
+                GroceryItem(newId(), name, null, null, GroceryStatus.ACTIVE, null, 0.0, null, null, now, now, repo.deviceId, 1, null, list)
+            }
+            val at = target?.let { t -> live.indexOfFirst { it.id == t.id } } ?: live.size
+            val ordered = live.take(at) + created + live.drop(if (target != null) at + 1 else at)
+            // Positions are ordering, not content: renumbering leaves versions alone so undo checks stay valid.
+            ordered.forEachIndexed { index, item -> if (item.position != index || item in created) repo.saveGrocery(item.copy(position = index)) }
+            val undo = created.map { undoEntry(null, it) }.toMutableList()
+            target?.let {
+                val dropped = it.copy(status = GroceryStatus.DROPPED, deletedAt = now, updatedAt = now, version = it.version + 1)
+                repo.saveGrocery(dropped)
+                undo += undoEntry(it, dropped)
+            }
+            jsonObjectOf("ok" to true, "list" to list, "ids" to JSONArray(created.map { it.id }), "skipped" to JSONArray(skipped), "undo" to JSONArray(undo))
+        }
+    }
+    register("show_list", "Show a named list as a checklist under this reply, when they ask to see it or you talk it through.", objSchema("list" to str(), required = listOf("list"))) { args ->
+        val list = listName(args.requiredString("list"))
+        val items = repo.groceries().filter { it.list == list }.sortedWith(compareBy({ it.position }, { it.createdAt }))
+        if (items.isEmpty()) throw ToolValidationException("No list named $list")
+        jsonObjectOf("ok" to true, "list" to list, "items" to JSONArray(items.map { JSONObject(it.toJson()) }))
     }
     register("clear_purchased_groceries", "Mark active groceries purchased, optionally keeping some, as in bought everything except eggs. With list set, tick off that named list instead, as in everything is packed.", objSchema("except" to arr("Names to keep"), listField)) { args ->
         val list = listName(args.optStringOrNull("list"))
@@ -353,3 +418,27 @@ internal fun ToolRegistry.registerEntityTools() {
         jsonObjectOf("ok" to true, "id" to id)
     }
 }
+
+private const val MAX_ITEM_LENGTH = 200
+private const val MAX_ITEMS_PER_CALL = 30
+
+/** A live item, on [list] when one is named, that they have not ticked by hand since this turn began. */
+internal suspend fun ToolRegistry.requireListItem(id: String, list: String?): GroceryItem {
+    val item = repo.getGrocery(id)?.takeIf { it.deletedAt == null } ?: throw ToolValidationException("List item not found: use an id from context")
+    if (list != null && list != item.list) throw ToolValidationException("That item is on the ${item.list} list, not $list")
+    val edited = item.userEditedAt
+    if (edited != null && edited >= turnStartedAt) {
+        val state = if (item.status == GroceryStatus.PURCHASED) "ticked" else "unticked"
+        throw ToolValidationException("They just $state “${item.name}” by hand while you were replying; leave it as they set it")
+    }
+    return item
+}
+
+private suspend fun ToolRegistry.nextPosition(list: String): Int =
+    (repo.groceries().filter { it.list == list }.maxOfOrNull { it.position } ?: -1) + 1
+
+/** What undo needs to put one item back: its state before (null when she created it) and the version her change left. */
+internal fun undoEntry(before: GroceryItem?, after: GroceryItem): JSONObject = JSONObject()
+    .put("id", after.id)
+    .put("before", before?.let { JSONObject().put("name", it.name).put("status", it.status.name).put("notes", it.notes).put("deletedAt", it.deletedAt) } ?: JSONObject.NULL)
+    .put("versionAfter", after.version)
