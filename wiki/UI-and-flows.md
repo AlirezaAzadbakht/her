@@ -87,6 +87,12 @@ Optional later, in Settings: Calendar access and Contacts access (each requests 
   - Undo reverses records she just created, strikes the line through, and marks the receipt `undone`.
   - The line hides while she is thinking or streaming.
   - Settings → Advanced → Experimental → **Show what she saved** turns it off.
+- When her reply made, changed or showed a named list, the list sits under it as a checklist (`ui/her/Checklist.kt`), inside the reply's scroll, once the reply is whole.
+  - Each row is a real checkbox (`toggleable`, role Checkbox, 48dp tall, a ring when focused) whose text is plain, never markdown.
+  - Ticked items dim and strike through. The tick draws in and snaps under reduced motion.
+  - A tap saves through `HerRepository.setListItemDone` and sends nothing. The rows follow Room, so it updates in place.
+  - A failed save leaves the box as it was and shows the notice card; **Try again** saves it again.
+  - Her changes to a list undo from the receipt line.
 - The composer is a glass pill that warms when focused.
   - The send button springs in once there is text.
   - On send, the text floats up and fades, and a confirm haptic plays.

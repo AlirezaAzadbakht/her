@@ -68,6 +68,7 @@ Core principles:
 | 💬 **She writes first** | Starts a conversation when you've been quiet or something you told her is on her mind; her personality sets how often, and an unanswered message makes her wistful, so she gives you space. [How it works](wiki/Initiative.md) |
 | 🎯 **Goals & commitments** | Tracks tasks, goals, and promises — and checks in on them |
 | 💸 **Money log** | Notes what you say you spent and adds it up by day, week, or category when you ask |
+| ✅ **Checklists** | "Help me get my room together" gets a few small steps you tick under her reply. She ticks things off when you say they're done, adds and renames steps, breaks a step that feels too big into smaller ones, and her changes can be undone |
 | 🛒 **Groceries & lists** | Maintains a shopping list from casual mentions, and any other list you name: packing, books to read, gift ideas |
 | 📇 **Contacts** | Looks up a phone number or birthday from the phone's contacts, and opens a text to someone, or the share sheet for WhatsApp, Telegram or email, for you to send |
 | 📅 **Calendar** | Creates and reads events in the phone calendar |
