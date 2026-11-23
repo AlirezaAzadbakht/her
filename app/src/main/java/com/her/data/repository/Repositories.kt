@@ -390,6 +390,16 @@ class HerRepository(
         db.groceryDao().upsert(item.toEntity())
     }
 
+    fun observeList(list: String): Flow<List<GroceryItem>> =
+        db.groceryDao().observeList(list).map { rows -> rows.map { it.toDomain() } }
+
+    /** A checkbox tap: no message and no model call; her next turn reads the new state from context. */
+    suspend fun setListItemDone(id: String, done: Boolean): Unit = db.withTransaction {
+        val item = getGrocery(id)?.takeIf { it.deletedAt == null } ?: error("List item $id is gone")
+        val now = nowMillis()
+        saveGrocery(item.copy(status = if (done) GroceryStatus.PURCHASED else GroceryStatus.ACTIVE, userEditedAt = now, updatedAt = now, version = item.version + 1))
+    }
+
     suspend fun markGroceriesPurchased(exceptNames: List<String>, list: String = com.her.domain.DEFAULT_LIST) {
         val except = exceptNames.map { it.trim().lowercase() }.toSet()
         groceries().filter { it.status == GroceryStatus.ACTIVE && it.list == list }.forEach { item ->
@@ -757,13 +767,14 @@ fun Routine.toJson() = JSONObject()
     .put("updatedAt", updatedAt).put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt)
     .toString()
 
-fun GroceryEntity.toDomain() = GroceryItem(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list)
-fun GroceryItem.toEntity() = GroceryEntity(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list)
+fun GroceryEntity.toDomain() = GroceryItem(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list, position, userEditedAt)
+fun GroceryItem.toEntity() = GroceryEntity(id, name, quantity, category, status, reason, recurrenceScore, notes, store, createdAt, updatedAt, deviceId, version, deletedAt, list, position, userEditedAt)
 fun GroceryItem.toJson() = JSONObject()
     .put("id", id).put("name", name).put("quantity", quantity).put("category", category)
     .put("status", status.name).put("reason", reason).put("recurrenceScore", recurrenceScore)
     .put("notes", notes).put("store", store).put("createdAt", createdAt).put("updatedAt", updatedAt)
-    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).put("list", list).toString()
+    .put("deviceId", deviceId).put("version", version).put("deletedAt", deletedAt).put("list", list)
+    .put("position", position).toString()
 
 fun ImportantDateEntity.toDomain() = ImportantDate(id, title, dateIso, recurrence, relatedPersonId, notes, importance, createdAt, updatedAt, deviceId, version, deletedAt)
 fun ImportantDate.toEntity() = ImportantDateEntity(id, title, dateIso, recurrence, relatedPersonId, notes, importance, createdAt, updatedAt, deviceId, version, deletedAt)

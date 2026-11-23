@@ -28,7 +28,7 @@ import com.her.domain.ReminderStatus
 import com.her.domain.ReminderTrigger
 import com.her.domain.TaskStatus
 
-const val DB_VERSION = 14
+const val DB_VERSION = 15
 
 class HerConverters {
     @TypeConverter fun messageRole(v: MessageRole?): String? = v?.name
@@ -148,7 +148,7 @@ abstract class HerDatabase : RoomDatabase() {
         /** The app's database, or a backup being checked under another file name. */
         fun build(context: Context, name: String = "her.db"): HerDatabase =
             Room.databaseBuilder(context, HerDatabase::class.java, name)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
                 .build()
 
         /** Skips a column that is already there, so a migration can safely run over a schema that has it. */
@@ -158,6 +158,14 @@ abstract class HerDatabase : RoomDatabase() {
                 generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == column }
             }
             if (!exists) db.execSQL("ALTER TABLE `$table` ADD COLUMN `$column` $definition")
+        }
+
+        /** Named lists become ordered checklists that can be ticked by hand. */
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                addColumn(db, "groceries", "position", "INTEGER NOT NULL DEFAULT 0")
+                addColumn(db, "groceries", "userEditedAt", "INTEGER")
+            }
         }
 
         /** Saved places for place reminders. */

@@ -259,6 +259,8 @@ data class GroceryItem(
     val version: Long,
     val deletedAt: Long?,
     val list: String = DEFAULT_LIST,
+    val position: Int = 0,
+    val userEditedAt: Long? = null,
 )
 
 data class ImportantDate(
