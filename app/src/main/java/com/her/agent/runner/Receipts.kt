@@ -12,10 +12,20 @@ data class Receipt(
     val entityId: String,
     val undoable: Boolean,
     val undone: Boolean = false,
+    /** For a named list: each changed item's state before the turn, see [com.her.agent.tools.undoEntry]. */
+    val undo: String? = null,
 )
 
 object Receipts {
     private const val KEY = "receipts"
+    private const val LISTS_KEY = "lists"
+    /** One receipt per named list per reply, undone through [com.her.agent.tools.ToolRegistry.undoList]. */
+    const val LISTS = "lists"
+    private val LIST_TOOLS = setOf("add_grocery", "update_grocery", "remove_grocery", "clear_purchased_groceries", "add_list_items")
+    /** Tools whose list, when named, shows as a checklist under the reply. */
+    val SHOWN_LIST_TOOLS = LIST_TOOLS + "show_list"
+
+    private fun listLabel(name: String) = "updated the ${name.take(40)} list"
 
     /** Null for reads and for private bookkeeping (agent state, queue, understanding, emotional records) that is not meant to be announced. */
     fun describe(tool: String, arguments: String, payloadJson: String): Receipt? {
@@ -49,6 +59,11 @@ object Receipts {
             "update_commitment" -> Triple("commitments", "updated a promise", false)
             "update_goal" -> Triple("goals", "updated a goal", false)
             "update_grocery", "remove_grocery", "clear_purchased_groceries" -> Triple("groceries", "updated $list", false)
+            "add_list_items" -> Triple(
+                "groceries",
+                if (args.has("replace")) "broke a step down on $list" else "added ${args.optJSONArray("items")?.length() ?: 0} items to $list",
+                false,
+            )
             "update_calendar_event" -> Triple("calendar_events", "moved an event", false)
             "delete_calendar_event" -> Triple("calendar_events", "removed an event", false)
             "correct_memory", "update_memory", "forget_memory" -> Triple("memories", "updated what she remembers", false)
@@ -70,14 +85,53 @@ object Receipts {
             }
             else -> return null
         }
+        if (tool in LIST_TOOLS && list != DEFAULT_LIST) {
+            val undo = payload.optJSONArray("undo")
+            return Receipt(tool, label, LISTS, payload.optString("list"), undoable = undo != null && undo.length() > 0, undo = undo?.toString())
+        }
         return Receipt(tool, label, entityType, id, undoable = undoable && id.isNotBlank())
     }
 
-    /** Assistant-message metadata for these receipts, or null when there is nothing to show. */
-    fun toMetadata(receipts: List<Receipt>): String? {
-        val unique = receipts.distinctBy { if (it.undoable) "${it.entityType}:${it.entityId}" else it.label }
-        if (unique.isEmpty()) return null
-        return JSONObject().put(KEY, JSONArray(unique.map { it.toJson() })).toString()
+    /** Assistant-message metadata for these receipts and the named lists to show, or null when there is nothing. */
+    fun toMetadata(receipts: List<Receipt>, lists: List<String> = emptyList()): String? {
+        val merged = receipts.groupBy { if (it.entityType == LISTS) "$LISTS:${it.entityId}" else null }
+            .flatMap { (key, group) -> if (key == null) group else listOf(mergeList(group)) }
+        val unique = merged.distinctBy { if (it.undoable || it.entityType == LISTS) "${it.entityType}:${it.entityId}" else it.label }
+        val shown = lists.distinct()
+        if (unique.isEmpty() && shown.isEmpty()) return null
+        return JSONObject().apply {
+            if (unique.isNotEmpty()) put(KEY, JSONArray(unique.map { it.toJson() }))
+            if (shown.isNotEmpty()) put(LISTS_KEY, JSONArray(shown))
+        }.toString()
+    }
+
+    /** Named lists to show as checklists under this reply. */
+    fun listsOf(metadataJson: String?): List<String> {
+        if (metadataJson.isNullOrBlank()) return emptyList()
+        val array = runCatching { JSONObject(metadataJson).optJSONArray(LISTS_KEY) }.getOrNull() ?: return emptyList()
+        return (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }
+    }
+
+    /**
+     * One turn's edits to a list undo together. Per item, the state from before its first edit and
+     * the version after its last, so undo restores the start of the turn and only if nothing changed since.
+     */
+    private fun mergeList(group: List<Receipt>): Receipt {
+        if (group.size == 1) return group.single()
+        val byId = linkedMapOf<String, JSONObject>()
+        group.forEach { receipt ->
+            val entries = receipt.undo?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return@forEach
+            for (i in 0 until entries.length()) {
+                val entry = entries.getJSONObject(i)
+                val id = entry.getString("id")
+                byId[id] = byId[id]?.let { JSONObject(it.toString()).put("versionAfter", entry.getLong("versionAfter")) } ?: entry
+            }
+        }
+        return group.first().copy(
+            label = listLabel(group.first().entityId),
+            undoable = group.all { it.undoable },
+            undo = JSONArray(byId.values).toString(),
+        )
     }
 
     fun fromMetadata(metadataJson: String?): List<Receipt> {
@@ -92,6 +146,7 @@ object Receipts {
                 entityId = obj.optString("entityId"),
                 undoable = obj.optBoolean("undoable"),
                 undone = obj.optBoolean("undone"),
+                undo = obj.optString("undo").ifBlank { null },
             )
         }
     }
@@ -113,6 +168,7 @@ object Receipts {
         .put("entityId", entityId)
         .put("undoable", undoable)
         .put("undone", undone)
+        .apply { undo?.let { put("undo", it) } }
 }
 
 /** Tool writes already applied for a still-pending user batch, so a retry does not duplicate them. */

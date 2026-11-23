@@ -194,8 +194,18 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val targets = receipts.filter { it.undoable && !it.undone }
         if (targets.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val reversed = targets.filter { runCatching { graph.tools.undo(it.entityType, it.entityId) }.getOrDefault(false) }
-            if (reversed.size < targets.size) {
+            var complete = true
+            val reversed = targets.filter { receipt ->
+                if (receipt.entityType == Receipts.LISTS) {
+                    // A partial list undo still counts as done: what was left had changed since, and trying again cannot help.
+                    val all = runCatching { graph.tools.undoList(receipt.undo) }
+                    complete = complete && all.getOrDefault(false)
+                    all.isSuccess
+                } else {
+                    runCatching { graph.tools.undo(receipt.entityType, receipt.entityId) }.getOrDefault(false).also { complete = complete && it }
+                }
+            }
+            if (!complete) {
                 notice.value = TurnResult(
                     assistantText = null,
                     failed = true,

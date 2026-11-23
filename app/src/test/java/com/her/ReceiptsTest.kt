@@ -112,7 +112,9 @@ class ReceiptsTest {
         assertEquals("updated the packing list", Receipts.describe("clear_purchased_groceries", "{}", """{"ok":true,"list":"packing"}""")!!.label)
         assertEquals("updated groceries", Receipts.describe("update_grocery", """{"id":"g1"}""", """{"ok":true,"list":"groceries"}""")!!.label)
         assertTrue(receipt.undoable)
-        assertTrue(tools.undo(receipt.entityType, receipt.entityId))
-        assertEquals(GroceryStatus.DROPPED, repo.getGrocery(receipt.entityId)?.status)
+        assertEquals(Receipts.LISTS, receipt.entityType)
+        assertEquals("packing", receipt.entityId)
+        assertTrue(tools.undoList(receipt.undo))
+        assertEquals(GroceryStatus.DROPPED, repo.getGrocery(JSONObject(result.payloadJson).getString("id"))?.status)
     }
 }

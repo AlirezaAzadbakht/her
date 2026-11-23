@@ -302,6 +302,39 @@ open class ToolRegistry(
         return true
     }
 
+    /**
+     * Puts back what one reply changed on a named list. An item changed since (a tap, a later reply) keeps
+     * its newer state. True when every item came back.
+     */
+    suspend fun undoList(undoJson: String?): Boolean {
+        val entries = runCatching { org.json.JSONArray(undoJson) }.getOrNull() ?: return false
+        val now = nowMillis()
+        val restored = repo.learningTransaction {
+            (entries.length() - 1 downTo 0).map { entries.getJSONObject(it) }.count { entry ->
+                val item = repo.getGrocery(entry.getString("id"))
+                if (item == null || item.version != entry.getLong("versionAfter")) return@count false
+                val before = entry.optJSONObject("before")
+                repo.saveGrocery(
+                    if (before == null) {
+                        item.copy(status = GroceryStatus.DROPPED, deletedAt = now, updatedAt = now, version = item.version + 1)
+                    } else {
+                        item.copy(
+                            name = before.getString("name"),
+                            status = GroceryStatus.valueOf(before.getString("status")),
+                            notes = if (before.has("notes")) before.getString("notes") else null,
+                            deletedAt = if (before.has("deletedAt")) before.getLong("deletedAt") else null,
+                            updatedAt = now,
+                            version = item.version + 1,
+                        )
+                    },
+                )
+                true
+            }
+        }
+        repo.logActivity("undo", "lists: $restored of ${entries.length()}")
+        return restored == entries.length()
+    }
+
     internal suspend fun nowZoned(): ZonedDateTime {
         val profile = repo.getProfile()
         val zone = runCatching { ZoneId.of(profile.timezone ?: ZoneId.systemDefault().id) }.getOrDefault(ZoneId.systemDefault())
