@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "d327eb4d2cf8f39d",
-          "summary": "tools=98 [user(Please forget what I tol)]",
+          "fingerprint": "0c1e8cc54f898268",
+          "summary": "tools=100 [user(Please forget what I tol)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "3edd536171274d74",
-          "summary": "tools=98 [user(Please forget what I tol) assistant->forget_memory tool:forget_memory]",
+          "fingerprint": "bc3d6246d063d29f",
+          "summary": "tools=100 [user(Please forget what I tol) assistant->forget_memory tool:forget_memory]",
           "response": {
             "role": "assistant",
             "content": "That's gone.",

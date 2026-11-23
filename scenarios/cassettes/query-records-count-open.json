@@ -6,8 +6,8 @@
       "startMillis": 1779000000000,
       "calls": [
         {
-          "fingerprint": "142b4a56f6ab8200",
-          "summary": "tools=98 [user(Across my tasks, goals a)]",
+          "fingerprint": "db093419455c4517",
+          "summary": "tools=100 [user(Across my tasks, goals a)]",
           "response": {
             "role": "assistant",
             "content": null,
@@ -26,8 +26,8 @@
           }
         },
         {
-          "fingerprint": "1a076ebe9a7caa2f",
-          "summary": "tools=98 [user(Across my tasks, goals a) assistant->query_records tool:query_records]",
+          "fingerprint": "929ceffa9deed64c",
+          "summary": "tools=100 [user(Across my tasks, goals a) assistant->query_records tool:query_records]",
           "response": {
             "role": "assistant",
             "content": "Tasks: 3, goals: 1, promises: 2. Total: 6.",
