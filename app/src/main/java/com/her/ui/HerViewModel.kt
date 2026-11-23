@@ -169,7 +169,31 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Sends whatever a failed turn left waiting. */
-    fun retry() = runPending {}
+    fun retry() = runPending {
+        failedTick?.let { (id, done) ->
+            failedTick = null
+            setListItemDone(id, done)
+        }
+    }
+
+    /** A tick that did not save, so Try again can save it. */
+    private var failedTick: Pair<String, Boolean>? = null
+
+    fun listItems(list: String) = graph.repo.observeList(list)
+
+    /** A checkbox tap is saved on its own: no message, no reply. On failure the box shows what was saved before. */
+    fun setListItemDone(id: String, done: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                graph.repo.setListItemDone(id, done)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failedTick = id to done
+                notice.value = TurnResult(null, failed = true, error = redactSecrets(e.message ?: "save failed"), callsUsed = 0, runId = "", notice = app.getString(R.string.list_save_failed))
+            }
+        }
+    }
 
     private fun runPending(before: suspend () -> Unit) {
         notice.value = null
@@ -194,8 +218,18 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
         val targets = receipts.filter { it.undoable && !it.undone }
         if (targets.isEmpty()) return
         viewModelScope.launch(Dispatchers.IO) {
-            val reversed = targets.filter { runCatching { graph.tools.undo(it.entityType, it.entityId) }.getOrDefault(false) }
-            if (reversed.size < targets.size) {
+            var complete = true
+            val reversed = targets.filter { receipt ->
+                if (receipt.entityType == Receipts.LISTS) {
+                    // A partial list undo still counts as done: what was left had changed since, and trying again cannot help.
+                    val all = runCatching { graph.tools.undoList(receipt.undo) }
+                    complete = complete && all.getOrDefault(false)
+                    all.isSuccess
+                } else {
+                    runCatching { graph.tools.undo(receipt.entityType, receipt.entityId) }.getOrDefault(false).also { complete = complete && it }
+                }
+            }
+            if (!complete) {
                 notice.value = TurnResult(
                     assistantText = null,
                     failed = true,

@@ -46,6 +46,8 @@ A long-term memory gets stronger when the person brings it up: if at least half 
 
 Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/java/com/her/agent/runner/Receipts.kt`), stored in the assistant message's `metadataJson`. Private bookkeeping (agent state, queue, `update_user_understanding`) is not announced. Records she just created are undoable through `ToolRegistry.undo(entityType, id)`. Updates and upserts of existing rows (`add_grocery` on an item already listed, `update_person`) are shown but not undoable.
 
+Named lists (any list but `groceries`) are the exception. Their tools return an `undo` array (each item's state before, and the version her change left), which is kept on the receipt and dropped from what the model reads. All of a reply's edits to one list merge into one `lists` receipt. `ToolRegistry.undoList` restores an item only if its version still matches, so a later tap or reply wins. Any list a reply touched (or `show_list`) is named in the message metadata's `lists`, and the UI shows it under that reply.
+
 ## Call budgets
 
 | Run | Max LLM calls | Extra rules |
@@ -64,7 +66,7 @@ Each successful user-visible write in a turn becomes a `Receipt` (`app/src/main/
 - People and projects: `get_person`, `search_people`, `update_person`, `get_project`, `search_projects`, `update_project`
 - Goals / tasks / commitments / open loops: get / create / update (plus `close_open_loop`)
 - Routines, important dates, recurring responsibilities
-- Groceries and named lists: `get_groceries`, `add_grocery`, `update_grocery`, `remove_grocery`, `clear_purchased_groceries`. Each takes an optional `list` (trimmed and lowercased; omitted means `groceries`), so a packing list or books to read live in the same table under their own name. `update_grocery` with `list` moves an item
+- Groceries and named lists: `get_groceries`, `add_grocery`, `update_grocery`, `remove_grocery`, `clear_purchased_groceries`. Each takes an optional `list` (trimmed and lowercased; omitted means `groceries`), so a packing list or books to read live in the same table under their own name. `update_grocery` with `list` moves an item; `name` renames it and `notes` notes it ("leave alone"). Named lists are checklists: `add_list_items(list, items[], replace?)` creates one or adds several steps in order (names already on it are skipped, so a retry adds nothing), and with `replace` it puts the steps in that item's place (a repeat returns `alreadyReplaced`). `show_list` shows one under the reply. The context lists every item of a named list in order as `id | [x] text` or `id | [ ] text`, ticks made by hand included. An item ticked by hand after the turn started (`userEditedAt >= ToolRegistry.turnStartedAt`) refuses her update, remove or replace
 - Agent internals: `get_agent_state`, `update_agent_state`, queue add / update / complete
 - `update_user_profile`, `update_user_understanding`
 - Calendar get / create / update / delete (`get_calendar_events` takes `from` / `to` / `days` for any slice and returns internal and system events)

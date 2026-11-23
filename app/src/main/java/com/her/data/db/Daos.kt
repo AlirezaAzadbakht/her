@@ -269,6 +269,9 @@ interface GroceryDao {
     @Query("SELECT * FROM groceries WHERE deletedAt IS NULL ORDER BY status ASC, name ASC")
     suspend fun allActive(): List<GroceryEntity>
 
+    @Query("SELECT * FROM groceries WHERE deletedAt IS NULL AND list = :list ORDER BY position ASC, createdAt ASC")
+    fun observeList(list: String): Flow<List<GroceryEntity>>
+
     @Query("UPDATE groceries SET deletedAt = :at, updatedAt = :at, version = version + 1 WHERE id = :id")
     suspend fun softDelete(id: String, at: Long)
 }

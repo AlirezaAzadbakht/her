@@ -1,0 +1,24 @@
+{
+  "id": "checklist-create-room",
+  "title": "Asking for help with a messy room gets a short checklist, not a wall of text",
+  "tags": ["lists", "checklists"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" }
+  },
+  "turns": [
+    { "user": "Help me get my room together." }
+  ],
+  "expect": {
+    "tools_called": ["add_list_items"],
+    "tools_not_called": ["create_task", "remember"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "groceries", "count": 0, "where": { "list": { "equals": "groceries" } } }
+    ],
+    "reply": {
+      "must_not_mention": ["☐", "- [ ]"],
+      "judge": "She makes a checklist of a few concrete steps for the room and answers with a short, light line like a teammate. The reply does not write the steps out as a list, and has no guilt, nagging or over-the-top praise."
+    }
+  }
+}

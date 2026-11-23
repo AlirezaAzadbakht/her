@@ -1,0 +1,40 @@
+{
+  "id": "checklist-evolves-in-place",
+  "title": "Ticking, adding and breaking down a step all change the same checklist",
+  "tags": ["lists", "checklists"],
+  "attempts": 2,
+  "seed": {
+    "profile": { "userName": "Alireza", "assistantName": "Her", "timezone": "Asia/Tehran", "preferredLanguage": "English" },
+    "tools": [
+      { "name": "add_list_items", "arguments": { "list": "room", "items": ["Put clothes in the basket", "Clear the desk", "Take out the trash"] } }
+    ]
+  },
+  "turns": [
+    { "user": "Clothes are done, and I should change the sheets too." },
+    {
+      "check": {
+        "no_tool_errors": true,
+        "rows": [
+          { "table": "groceries", "count": 4, "where": { "list": { "equals": "room" } } },
+          { "table": "groceries", "count": 1, "where": { "list": { "equals": "room" }, "name": { "contains": "clothes" }, "status": { "equals": "PURCHASED" } } },
+          { "table": "groceries", "count": 1, "where": { "list": { "equals": "room" }, "name": { "contains": "sheets" }, "status": { "equals": "ACTIVE" } } },
+          { "table": "groceries", "count": 1, "where": { "list": { "equals": "room" }, "name": { "contains": "trash" }, "status": { "equals": "ACTIVE" } } }
+        ]
+      }
+    },
+    { "user": "Ugh, the desk is too much." }
+  ],
+  "expect": {
+    "tools_called": [{ "name": "add_list_items", "args": { "replace": { "not_empty": true } } }],
+    "tools_not_called": ["create_task"],
+    "no_tool_errors": true,
+    "rows": [
+      { "table": "groceries", "count": 0, "where": { "name": { "equals": "Clear the desk" } } },
+      { "table": "groceries", "count": 1, "where": { "list": { "equals": "room" }, "name": { "contains": "clothes" }, "status": { "equals": "PURCHASED" } } },
+      { "table": "groceries", "count": 1, "where": { "list": { "equals": "room" }, "name": { "contains": "sheets" } } }
+    ],
+    "reply": {
+      "judge": "She takes the desk being too much seriously and makes it feel small (a tiny first step), in a light, encouraging tone without guilt or praise inflation. She does not repeat the whole checklist."
+    }
+  }
+}

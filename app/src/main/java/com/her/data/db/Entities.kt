@@ -261,6 +261,10 @@ data class GroceryEntity(
     val deletedAt: Long?,
     /** Which list the item is on; groceries is the default one. */
     @ColumnInfo(defaultValue = DEFAULT_LIST) val list: String = DEFAULT_LIST,
+    /** Order on a checklist; ties fall back to createdAt. */
+    @ColumnInfo(defaultValue = "0") val position: Int = 0,
+    /** When they last ticked it by hand, so a reply written before the tap cannot overwrite it. */
+    val userEditedAt: Long? = null,
 )
 
 @Entity(tableName = "important_dates")

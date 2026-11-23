@@ -6,6 +6,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 
 ### Added
 - Her can tell you to bring a coat or an umbrella. Turn on **Weather** under **What she can use** and she checks the real forecast for your morning note, and whenever you ask ("do I need a jacket?"). She mentions it only when it changes what you should do. Your location, rounded to about 1 km, goes to Open-Meteo, a free weather service. It's never sent to your model.
+- Checklists you work through together. Ask "help me get my room together" and Her answers with a few small steps you can tick right under her reply. Ticking one saves it and doesn't send anything, and she sees it next time you write. Tell her "clothes are done, and I should change the sheets" and she ticks one and adds the other on the same list. Say a step is too much and she swaps it for smaller ones in the same spot. If two steps could be the one you mean, she asks which. **Undo** under her reply takes back her last change and leaves anything you ticked since.
 - Her notices your next alarm and a low battery. If your alarm is early tomorrow or your phone is nearly flat and not charging, she may mention it in passing. This needs no new permission.
 
 ### Changed

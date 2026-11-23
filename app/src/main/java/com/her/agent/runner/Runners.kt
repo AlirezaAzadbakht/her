@@ -324,7 +324,9 @@ class AgentOrchestrator(
         val configured = llmSettings().let { if (type != AgentRunType.CHAT && background.isNotEmpty()) it.copy(model = background) else it }
         if (streamToUi) _turnState.value = TurnState.Thinking
         tools.runType = type
+        tools.turnStartedAt = started
         val receipts = mutableListOf<Receipt>()
+        val shownLists = mutableListOf<String>()
         try {
             val buildStarted = nowMillis()
             // An hourly look-in only needs the last few messages; nightly and briefing keep the full window.
@@ -446,6 +448,9 @@ class AgentOrchestrator(
                         }
                     }
                     if (result.ok && replayed == null) Receipts.describe(call.name, call.arguments, result.payloadJson)?.let { receipts += it }
+                    if (result.ok && call.name in Receipts.SHOWN_LIST_TOOLS) {
+                        org.json.JSONObject(result.payloadJson).optString("list").takeIf { it.isNotBlank() && it != com.her.domain.DEFAULT_LIST }?.let { shownLists += it }
+                    }
                     if (call.name == "send_user_message" && result.ok) {
                         val content = runCatching { org.json.JSONObject(call.arguments).optString("content").trim() }.getOrDefault("")
                         if (content.isNotBlank() && !Identity.isSilence(content)) {
@@ -464,7 +469,8 @@ class AgentOrchestrator(
                     if (call.name !in com.her.agent.tools.companionToolNames) repo.logDebug("tool", redactSecrets("${call.name} ${call.arguments} -> ${result.payloadJson}"))
                     messages += LlmMessage(
                         role = "tool",
-                        content = forModel(result.payloadJson),
+                        // Undo state is for the receipt, not for her.
+                        content = forModel(if (call.name in Receipts.SHOWN_LIST_TOOLS) runCatching { org.json.JSONObject(result.payloadJson).apply { remove("undo") }.toString() }.getOrDefault(result.payloadJson) else result.payloadJson),
                         toolCallId = call.id,
                         name = call.name,
                     )
@@ -473,7 +479,7 @@ class AgentOrchestrator(
             }
             val cleaned = if (companionAttempted && type != AgentRunType.CHAT) null else lastText
             if (persistAssistant && cleaned != null) {
-                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts)))
+                repo.saveMessage(repo.newChatMessage(MessageRole.ASSISTANT, cleaned, MessageStatus.SENT, Receipts.toMetadata(receipts, shownLists)))
             }
             // A message delivered with send_user_message still needs to reach the phone.
             // An opening she started goes out in her chosen words, not in any prose that followed the call.
@@ -526,6 +532,7 @@ class AgentOrchestrator(
             TurnResult(null, true, error, budget.used, runId, notice, failureOf(e))
         } finally {
             tools.runType = AgentRunType.CHAT
+            tools.turnStartedAt = Long.MAX_VALUE
             if (streamToUi) _turnState.value = TurnState.Idle
         }
     }

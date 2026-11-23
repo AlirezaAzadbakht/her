@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -289,7 +290,24 @@ fun HerScreen(vm: HerViewModel, onOpenSettings: () -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-            )
+            ) {
+                // Shown once her reply is whole, like the receipts; the rows follow the saved list, so a tick updates in place.
+                val lists = remember(latest?.metadataJson) { Receipts.listsOf(latest?.metadataJson) }
+                AnimatedVisibility(
+                    visible = lists.isNotEmpty() && turn is TurnState.Idle && nextHeld.isBlank(),
+                    enter = expandVertically(HerMotion.enter()) + fadeIn(HerMotion.enter(delayMillis = 80)),
+                    exit = shrinkVertically(HerMotion.exit()) + fadeOut(HerMotion.exit()),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        lists.forEach { name ->
+                            key(name) {
+                                val items by remember(name) { vm.listItems(name) }.collectAsState(initial = emptyList())
+                                Checklist(name, items, responseStyle, onToggle = { item, done -> vm.setListItemDone(item.id, done) })
+                            }
+                        }
+                    }
+                }
+            }
 
             val message = latest
             val receipts = remember(message?.id, message?.metadataJson) { Receipts.fromMetadata(message?.metadataJson) }
@@ -554,6 +572,7 @@ private fun ReplyStage(
     showCaret: Boolean,
     tailStrength: Float,
     modifier: Modifier = Modifier,
+    below: @Composable () -> Unit = {},
 ) {
     Box(modifier) {
         AnimatedVisibility(
@@ -596,17 +615,20 @@ private fun ReplyStage(
                         .padding(vertical = 20.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    // Long-press selects, so her words can be copied.
-                    SelectionContainer {
-                        ConversationMarkdown(
-                            content = text,
-                            color = ink,
-                            style = style,
-                            textAlign = TextAlign.Center,
-                            showCaret = showCaret,
-                            tailStrength = tailStrength,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Long-press selects, so her words can be copied.
+                        SelectionContainer {
+                            ConversationMarkdown(
+                                content = text,
+                                color = ink,
+                                style = style,
+                                textAlign = TextAlign.Center,
+                                showCaret = showCaret,
+                                tailStrength = tailStrength,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        below()
                     }
                 }
             }
