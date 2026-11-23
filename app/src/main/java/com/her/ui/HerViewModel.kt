@@ -169,7 +169,31 @@ class HerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Sends whatever a failed turn left waiting. */
-    fun retry() = runPending {}
+    fun retry() = runPending {
+        failedTick?.let { (id, done) ->
+            failedTick = null
+            setListItemDone(id, done)
+        }
+    }
+
+    /** A tick that did not save, so Try again can save it. */
+    private var failedTick: Pair<String, Boolean>? = null
+
+    fun listItems(list: String) = graph.repo.observeList(list)
+
+    /** A checkbox tap is saved on its own: no message, no reply. On failure the box shows what was saved before. */
+    fun setListItemDone(id: String, done: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                graph.repo.setListItemDone(id, done)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failedTick = id to done
+                notice.value = TurnResult(null, failed = true, error = redactSecrets(e.message ?: "save failed"), callsUsed = 0, runId = "", notice = app.getString(R.string.list_save_failed))
+            }
+        }
+    }
 
     private fun runPending(before: suspend () -> Unit) {
         notice.value = null

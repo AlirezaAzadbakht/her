@@ -39,6 +39,8 @@
     <string name="undo_all">undo all</string>
     <string name="receipt_more">and %1$d more</string>
     <string name="undo_failed">I couldn\'t undo that.</string>
+    <string name="list_save_failed">That tick didn\'t save, so it\'s back how it was.</string>
+    <string name="checklist_label">Checklist: %1$s</string>
     <string name="onboarding_hi">Hi.</string>
     <string name="onboarding_ask_your_name">What should I call you?</string>
     <string name="your_name">Your name</string>

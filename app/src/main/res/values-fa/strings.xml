@@ -31,6 +31,8 @@
     <string name="undo_all">برگرداندن همه</string>
     <string name="receipt_more">و %1$d مورد دیگر</string>
     <string name="undo_failed">نتوانستم آن را برگردانم.</string>
+    <string name="list_save_failed">این تیک ذخیره نشد، برای همین مثل قبل ماند.</string>
+    <string name="checklist_label">فهرست: %1$s</string>
     <string name="onboarding_hi">سلام.</string>
     <string name="onboarding_ask_your_name">چی صدات کنم؟</string>
     <string name="your_name">اسم تو</string>
