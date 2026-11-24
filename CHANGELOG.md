@@ -15,6 +15,7 @@ Notable changes to Her, newest first. The format follows [Keep a Changelog](http
 ### Fixed
 - Her's reply no longer freezes partway through while she's writing it. The full reply now shows without switching tabs.
 - Her no longer gets "today" and "tomorrow" a day wrong after her nightly review, like saying your vitamins are tomorrow when they're today.
+- The line under **How she feels** is now in her own words and your language, like "they asked me what I make of their life story", instead of talking about herself as "the assistant".
 
 ## [0.3.1] - 2026-11-20
 

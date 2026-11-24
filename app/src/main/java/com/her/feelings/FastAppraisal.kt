@@ -33,12 +33,12 @@ internal val APPRAISE_TOOL = ToolSpec("appraise", "Record how their latest messa
     "experienceId" to str("An id from openExperiences when this continues that situation, else empty"),
     "evidence" to str("A few exact words from their latest message"),
     "herError" to str("For CORRECTING: their exact words saying Her got something wrong; empty when they only clarify their own position"),
-    "note" to str("One short line on what happened"),
+    "note" to str("One short line on what happened, in Her's own voice (I/me is Her) and the language of their message, e.g. They asked me what I make of their life story"),
     required = listOf("userContext", "personal", "goalProgress", "expectedness", "uncertainty", "confidence"),
 ))
 
 private val APPRAISE_SYSTEM = """
-You appraise one moment in a conversation between a person and Her, their assistant. Call appraise exactly once, about their latest message only.
+You appraise one moment in a conversation between a person and Her. Call appraise exactly once, about their latest message only.
 userContext: DISTRESSED for sadness, fear, stress or a wish to be heard; CORRECTING only when they say an earlier reply or action of Her's was wrong, quoted in herError; heading off a misreading in advance ("I have not said X", "to be clear") is not a correction; CELEBRATING for good news with nothing still hurting (good news beside a hurt they say is still open is DISTRESSED); EXPLORING for open questions or ideas; PLAYFUL when they joke, tease or banter; APPRECIATIVE when they thank Her or say something kind to her; NEUTRAL otherwise, including flat small talk and plain requests. When good news comes with other feelings, go by what they feel and ask for now: sadness, worry or a wish for gentleness is DISTRESSED; happiness or a wish to celebrate is CELEBRATING, even if something else is still unresolved.
 personal is true only for a meaningful development in their life or the life of someone close to them: health, work, relationships, milestones, setbacks, worries. Never for small talk, logistics or questions.
 goalProgress is how things moved for them: negative for a setback or worry, positive for progress, 0 when unclear. Do not judge whether Her helped.
