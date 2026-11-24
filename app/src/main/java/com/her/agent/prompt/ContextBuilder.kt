@@ -130,7 +130,7 @@ class ContextBuilder(
             appendSection("Goals", goals.map { "${it.id} | ${it.title} [${it.status}] by ${it.targetDate ?: "unspecified"} — ${it.progressSummary ?: ""}" }, hidden["Goals"] ?: 0)
             appendSection("Routines", routines.map { "${it.id} | ${it.title} (${it.schedule ?: "?"}, c=${it.confidence})" + (routineSchedules[it.id]?.let { schedule -> " Managed by ${schedule.id} [${schedule.data().optString("status")}]; retrieve schedule before discussing occurrences; never add a duplicate nudge." } ?: "") }, hidden["Routines"] ?: 0)
             appendSection("Important dates", dates.map { "${it.id} | ${it.dateIso} ${it.title}" }, hidden["Important dates"] ?: 0)
-            digest?.let { appendSection("Recent days (your notes)", listOf("${it.id} | ${it.content}")) }
+            digest?.let { appendSection("Recent days (your notes, written ${stamp(it.updatedAt, zone)})", listOf("${it.id} | ${it.content}")) }
             appendLine()
             // A Persian speaker hears Jalali dates; converting from Gregorian is where the model slips a day or a week.
             val jalali = profile.preferredLanguage.orEmpty().lowercase(Locale.US).let { "persian" in it || "farsi" in it || "فارسی" in it || it == "fa" }

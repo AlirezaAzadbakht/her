@@ -99,7 +99,7 @@ class OrchestratorReceiptsTest {
 
         assertEquals(1, repo.agentState().count { it.kind == Identity.DIGEST_KIND })
         val bundle = contextBuilder.build().systemBundle
-        assertTrue(bundle.contains("Recent days (your notes):"))
+        assertTrue(bundle.contains("Recent days (your notes, written "))
         assertTrue(bundle.contains("Lily starts at Park Street in October."))
         assertFalse(bundle.contains("They chose the Park Street school."))
     }
