@@ -153,12 +153,12 @@ suspend fun noteUnanswered(repo: HerRepository, swiped: Boolean) {
         if (old != null && (old.deletedAt != null || old.data().optBoolean("swiped") || !swiped)) return@learningTransaction
         val patience = repo.persona().firstOrNull { it.trait == "patience" }?.value ?: 0.5
         saveEvent(repo, id, Feeling.WISTFUL, sting(patience, swiped),
-            "They haven't answered the message you started; they may just be busy", target.id, mapOf("swiped" to swiped))
+            "They haven't answered the message I started; they may just be busy", target.id, mapOf("swiped" to swiped))
         if (swiped) return@learningTransaction
         val before = since.filter { it.initiative() != null && it.createdAt < target.createdAt }.lastOrNull() ?: return@learningTransaction
         if (repo.getCompanionRecord("EMOTION_EVENT:UNANSWERED:${before.id}")?.liveEvent()?.data()?.optBoolean("swiped") == false) {
             saveEvent(repo, "EMOTION_EVENT:SILENCE:${target.id}", Feeling.CONCERNED, 0.3,
-                "You haven't heard from them in a while and hope they're okay", target.id)
+                "I haven't heard from them in a while and hope they're okay", target.id)
         }
     }
 }
@@ -169,5 +169,5 @@ suspend fun noteAnswered(repo: HerRepository, message: ChatMessage) {
         .lastOrNull { it.initiative() != null && message.createdAt - it.createdAt < 24 * HOUR } ?: return
     val id = "EMOTION_EVENT:ANSWERED:${message.id}"
     if (repo.getCompanionRecord(id) != null) return
-    saveEvent(repo, id, Feeling.GLAD, 0.4, "They wrote back after you reached out", opened.id)
+    saveEvent(repo, id, Feeling.GLAD, 0.4, "They wrote back after I reached out", opened.id)
 }

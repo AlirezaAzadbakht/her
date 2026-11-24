@@ -51,7 +51,7 @@ internal fun ToolRegistry.registerEmotionalTools() {
         objSchema(*common, "experienceId" to str("Full id from save_emotional_thread, or omit"),
             "goalProgress" to num("-1 to 1"), "contribution" to num("0 to 1; share attributable to Her"), "expectedness" to num("0 to 1"), "uncertainty" to num("0 to 1"), "event" to oneOf("", "HELP_OFFERED", "ACTION_SUCCEEDED", "BENEFIT_REPORTED", "MISUNDERSTANDING", "UNDERSTANDING_IMPROVED", "UNRESOLVED_QUESTION", "USER_SHARED"),
             "actionKind" to oneOf("", "task", "reminder", "learning"), "actionId" to str("Id from completedTasks, firedReminders, or learningProgress"),
-            "taskId" to str("Completed task id"), "interpretation" to str(), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
+            "taskId" to str("Completed task id"), "interpretation" to str("One short line in your own voice (I/me is you) and the language of their message, e.g. They asked me what I make of their life story"), "feeling" to enumField<com.her.domain.Feeling>(), "intensity" to num("0 to 1"),
             required = listOf("event", "interpretation", "feeling", "intensity", "confidence"))) { a ->
         repo.learningTransaction {
             val event = a.requiredString("event")
